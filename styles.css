@@ -193,3 +193,27 @@ h3{font-size:19px}
 
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 :focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+
+/* ---------- timer miniaturizzato ---------- */
+.mini{
+  position:fixed;left:12px;right:12px;bottom:calc(74px + env(safe-area-inset-bottom));z-index:50;
+  display:none;align-items:center;gap:10px;max-width:496px;margin:0 auto;
+  background:var(--surface2);border:1px solid var(--amber);border-radius:14px;padding:10px 12px;
+  box-shadow:0 10px 26px rgba(0,0,0,.45);
+}
+.mini.on{display:flex}
+.mini.work{border-color:var(--teal)}
+.mini #miniExpand{flex:1;display:flex;align-items:baseline;gap:10px;text-align:left;color:var(--text);min-width:0}
+.mini #miniCount{font-family:var(--cond);font-size:26px;color:var(--amber);font-variant-numeric:tabular-nums}
+.mini.work #miniCount{color:var(--teal)}
+.mini #miniWhat{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mini-skip{padding:10px 14px;border:1px solid var(--line);border-radius:10px;color:var(--muted);font-size:15px}
+
+/* timer di tenuta (stretching, plank): colore diverso da quello di recupero */
+.timer.work #ringFill{stroke:var(--teal)}
+.timer.work .count{color:var(--teal)}
+
+/* elenco esercizi: righe toccabili per aprire la scheda */
+.plan li{cursor:pointer}
+.plan li:active{opacity:.55}
+.plan .chev{color:var(--muted);font-size:20px;flex:0 0 auto}

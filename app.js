@@ -30,6 +30,7 @@ const DEFAULT_STATE = {
   programId: 'tono50',
   sessionIndex: 0,         // numero progressivo della prossima sessione da fare
   kneeCare: true,          // dà priorità agli esercizi a basso impatto sul ginocchio
+  sound: true,             // campanella del timer
   disclaimerOk: false,
   logs: [],                // storico per esercizio
   sessionLog: []           // storico per sessione (durata, note)
@@ -334,14 +335,22 @@ function renderHome() {
   $('#topChip').textContent = `Sett. ${s.weekInCycle}/${p.cycleWeeks} · ciclo ${s.mesocycle}`;
   $('#topChip').className = 'chip ' + (s.isStrength ? 'strength' : 'mobility');
 
-  const rows = s.items.map(it => {
+  const rows = s.items.map((it, i) => {
     const ex = exById(it.exId);
-    return `<li><div class="fig">${figureFor(ex, 1, { ground: false })}</div>
+    return `<li data-plan="${i}"><div class="fig">${figureFor(ex, 1, { ground: false })}</div>
       <div class="nm"><b>${esc(ex.name)}</b><span class="small muted">${esc(ex.group)}${it.note ? ' · ' + esc(it.note) : ''}</span></div>
-      <div class="dose">${doseText(it)}</div></li>`;
+      <div class="dose">${doseText(it)}</div><div class="chev">›</div></li>`;
   }).join('');
 
+  // banner di ripresa se una sessione è rimasta aperta
+  const resume = (current && !current.finished)
+    ? `<div class="notice" style="margin-top:14px;display:flex;align-items:center;gap:12px">
+         <span style="flex:1">Sessione in corso: ${esc(current.sess.label)}</span>
+         <button class="btn" id="resumeBtn" style="width:auto;min-height:44px;font-size:17px">Riprendi</button>
+       </div>` : '';
+
   $('#view-home').innerHTML = `
+    ${resume}
     <div class="seg" role="group" aria-label="Attrezzatura">
       <button data-setup="gym" aria-pressed="${S.setup === 'gym'}">Palestra</button>
       <button data-setup="home" aria-pressed="${S.setup === 'home'}">Casa</button>
@@ -356,6 +365,7 @@ function renderHome() {
         </div>
       </div>
       <ul class="plan">${rows}</ul>
+      <p class="small muted" style="margin-top:10px">Tocca un esercizio per aprire la scheda con esecuzione, muscoli coinvolti ed errori da evitare.</p>
     </div>
 
     <button class="btn ${s.isStrength ? '' : 'teal'}" id="startBtn">Inizia la sessione</button>
@@ -367,11 +377,26 @@ function renderHome() {
   `;
 
   document.querySelectorAll('[data-setup]').forEach(b => b.onclick = () => {
+    if (current && !current.finished) return;   // non cambiare attrezzatura a sessione aperta
     S.setup = b.dataset.setup; save(); renderHome();
   });
-  $('#startBtn').onclick = () => startSession(buildSession(S.sessionIndex));
-  $('#coreBtn').onclick = () => startSession(buildSession(S.sessionIndex, 'core'));
-  $('#skipBtn').onclick = () => { S.sessionIndex++; save(); renderHome(); };
+  // ogni riga dell'elenco apre la scheda illustrativa dell'esercizio
+  document.querySelectorAll('[data-plan]').forEach(li => li.onclick = () => {
+    const it = s.items[+li.dataset.plan];
+    openSheet(exById(it.exId), it);
+  });
+  if ($('#resumeBtn')) $('#resumeBtn').onclick = () => { go('session'); renderSession(); };
+  const begin = kind => {
+    if (current && !current.finished) {
+      confirmAction('Sessione già in corso', 'Vuoi abbandonarla e iniziarne una nuova? Gli esercizi già conclusi restano nello storico.',
+        'Inizia una nuova sessione', () => startSession(buildSession(S.sessionIndex, kind)));
+    } else startSession(buildSession(S.sessionIndex, kind));
+  };
+  $('#startBtn').onclick = () => begin(null);
+  $('#coreBtn').onclick = () => begin('core');
+  $('#skipBtn').onclick = () => confirmAction('Saltare la seduta di oggi?',
+    'Passerai alla sessione successiva del programma senza registrare questa.',
+    'Salta', () => { S.sessionIndex++; save(); renderHome(); });
 }
 
 /* ---------- sessione in corso ---------- */
@@ -408,6 +433,10 @@ function renderSession() {
     loadCtl = `<input id="loadIn" type="text" placeholder="note (es. rip. eseguite)" value="${esc(c.loads[c.pos] || '')}">`;
   }
 
+  // esercizi a tempo: stretching statico, plank, wall sit, tenute isometriche
+  const timed = it.goal === 'stretch' || it.hold > 0 || ex.load === 'time';
+  const hold = it.hold ? it.hold : (ex.load === 'time' ? 20 + it.reps : 30);
+
   const lastTxt = sug && sug.last
     ? `Ultima volta: <b>${esc(sug.last.load || '—')}</b> ${arrow(sug.last.feedback)} · ${new Date(sug.last.ts).toLocaleDateString('it-IT')}`
     : 'Prima volta con questo esercizio: parti conservativo e annota il carico.';
@@ -434,7 +463,8 @@ function renderSession() {
       </div>
       <p class="lasttime">${lastTxt}</p>
 
-      <button class="btn" id="doneSet" style="margin-top:16px">Ho finito la serie</button>
+      <button class="btn ${timed ? 'teal' : ''}" id="doneSet" style="margin-top:16px">${timed ? 'Avvia ' + hold + ' secondi' : 'Ho finito la serie'}</button>
+      ${timed ? `<p class="small muted" style="margin-top:8px">Il cronometro parte subito: mantieni la posizione fino alla campanella. Gli ultimi tre secondi sono scanditi da un rintocco ciascuno.${it.goal === 'stretch' ? ' Esegui prima un lato, poi ripeti per l\'altro.' : ''}</p>` : ''}
       <div class="btn-row" style="margin-top:10px">
         <button class="btn ghost" id="infoBtn">Scheda esercizio</button>
         <button class="btn ghost" id="nextBtn">${c.pos === s.items.length - 1 ? 'Chiudi sessione' : 'Prossimo esercizio'}</button>
@@ -453,7 +483,8 @@ function renderSession() {
     captureLoad(); renderSession();
   });
   $('#loadIn').onchange = captureLoad;
-  $('#doneSet').onclick = () => {
+  // conclude una serie e avvia il recupero
+  const closeSet = () => {
     captureLoad();
     if (c.setsDone[c.pos] < it.sets) c.setsDone[c.pos]++;
     const finished = c.setsDone[c.pos] >= it.sets;
@@ -462,11 +493,31 @@ function renderSession() {
       ? (c.pos === s.items.length - 1 ? 'Recupero finale' : `Poi: ${exById(s.items[c.pos + 1].exId).name}`)
       : `Serie ${c.setsDone[c.pos] + 1} di ${it.sets} · ${ex.name}`;
     renderSession();
-    startTimer(rest, what, () => { if (finished) nextExercise(); });
+    startTimer(rest, what, () => { if (finished) nextExercise(); }, 'rest');
+  };
+
+  $('#doneSet').onclick = () => {
+    captureLoad();
+    if (timed) {
+      // cronometro della tenuta: al termine parte da solo il recupero
+      startTimer(hold, `Tenuta · ${ex.name}`, closeSet, 'work');
+    } else closeSet();
   };
   $('#infoBtn').onclick = () => openSheet(ex, it);
-  $('#nextBtn').onclick = () => { captureLoad(); nextExercise(); };
-  $('#abortBtn').onclick = () => { stopTimer(); releaseWakeLock(); current = null; go('home'); };
+  $('#nextBtn').onclick = () => {
+    captureLoad();
+    if (c.pos === s.items.length - 1) {
+      confirmAction('Chiudere la sessione?', 'Stai per concludere l\'ultimo esercizio e chiudere la seduta.',
+        'Chiudi la sessione', () => { stopTimer(); nextExercise(); });
+    } else if (c.setsDone[c.pos] < it.sets) {
+      confirmAction('Passare al prossimo esercizio?',
+        `Hai completato ${c.setsDone[c.pos]} serie su ${it.sets}.`, 'Vai avanti',
+        () => { stopTimer(); nextExercise(); });
+    } else { stopTimer(); nextExercise(); }
+  };
+  $('#abortBtn').onclick = () => confirmAction('Interrompere la sessione?',
+    'Gli esercizi già conclusi restano nello storico, il resto della seduta viene abbandonato.',
+    'Interrompi', () => { stopTimer(); releaseWakeLock(); current = null; go('home'); });
 }
 
 function captureLoad() {
@@ -629,7 +680,11 @@ function renderSettings() {
           <option value="home" ${S.setup === 'home' ? 'selected' : ''}>Casa</option></select></div>
       <div class="switch"><span>Priorità agli esercizi che proteggono il ginocchio</span>
         <input type="checkbox" id="kneeChk" ${S.kneeCare ? 'checked' : ''}></div>
+      <div class="switch"><span>Campanella del timer</span>
+        <input type="checkbox" id="soundChk" ${S.sound !== false ? 'checked' : ''}></div>
       <div class="switch" style="border:0"><span>Schermo sempre acceso</span><span class="small muted" id="wlStatus">—</span></div>
+      <button class="btn ghost" id="testSound" style="margin-top:12px">Prova la campanella</button>
+      <p class="small muted" style="margin-top:8px">Se non senti nulla: disattiva la modalità silenziosa dell'iPhone (interruttore laterale o Centro di Controllo) e alza il volume mentre l'app è aperta. Il suono usa il canale multimediale, quindi il volume va regolato con i tasti laterali durante la riproduzione.</p>
     </div>
 
     <div class="card">
@@ -648,6 +703,13 @@ function renderSettings() {
   $('#progSel').onchange = e => { S.programId = e.target.value; save(); renderSettings(); };
   $('#setupSel').onchange = e => { S.setup = e.target.value; save(); };
   $('#kneeChk').onchange = e => { S.kneeCare = e.target.checked; save(); };
+  $('#soundChk').onchange = e => { S.sound = e.target.checked; save(); if (e.target.checked) { unlockAudio(); setTimeout(() => ding(false), 350); } };
+  $('#testSound').onclick = () => {
+    unlockAudio();
+    setTimeout(() => ding(false), 250);
+    setTimeout(() => ding(false), 1150);
+    setTimeout(() => ding(true), 2050);
+  };
   $('#prevSess').onclick = () => { S.sessionIndex = Math.max(0, S.sessionIndex - 1); save(); renderSettings(); };
   $('#nextSess').onclick = () => { S.sessionIndex++; save(); renderSettings(); };
   $('#exportBtn').onclick = exportData;
@@ -672,64 +734,164 @@ function exportData() {
 /* ---------------------------------------------------------------------------
    7. TIMER, AUDIO, WAKE LOCK
 --------------------------------------------------------------------------- */
+/* --- AUDIO ------------------------------------------------------------------
+   Su iOS il suono generato con Web Audio è spesso inaudibile: il contesto viene
+   sospeso appena l'app perde il fuoco e il volume segue il canale "suoneria".
+   Per questo la campanella è un file WAV generato al volo e riprodotto con un
+   elemento <audio> (canale multimediale, più affidabile), con Web Audio come
+   riserva. Gli elementi vengono "sbloccati" al primo tocco dell'utente.
+----------------------------------------------------------------------------- */
+let bells = { short: [], final: [], ready: false }, bellIdx = 0;
+
+/* Sintetizza una campanella e la restituisce come data URI WAV. */
+function wavDataUri(freqs, dur, decay) {
+  const sr = 22050, n = Math.floor(sr * dur);
+  const bytes = new Uint8Array(44 + n * 2), dv = new DataView(bytes.buffer);
+  const wr = (o, t) => { for (let i = 0; i < t.length; i++) bytes[o + i] = t.charCodeAt(i); };
+  wr(0, 'RIFF'); dv.setUint32(4, 36 + n * 2, true); wr(8, 'WAVEfmt ');
+  dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true);
+  dv.setUint32(24, sr, true); dv.setUint32(28, sr * 2, true);
+  dv.setUint16(32, 2, true); dv.setUint16(34, 16, true);
+  wr(36, 'data'); dv.setUint32(40, n * 2, true);
+  for (let i = 0; i < n; i++) {
+    const t = i / sr;
+    let v = 0;
+    freqs.forEach((f, k) => { v += Math.sin(2 * Math.PI * f * t) / (k + 1.5); });
+    v *= Math.exp(-t * decay) * 0.9;
+    dv.setInt16(44 + i * 2, Math.max(-1, Math.min(1, v)) * 32767, true);
+  }
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return 'data:audio/wav;base64,' + btoa(bin);
+}
+
+function buildAudio() {
+  if (bells.short.length) return;
+  const s1 = wavDataUri([880, 1760, 2640], 0.5, 8);    // rintocco dei secondi
+  const s2 = wavDataUri([1320, 2640, 3300], 1.1, 4);   // colpo finale, più lungo
+  for (let i = 0; i < 3; i++) {                        // pool: rintocchi ravvicinati
+    const a = new Audio(s1), b = new Audio(s2);
+    a.preload = b.preload = 'auto';
+    bells.short.push(a); bells.final.push(b);
+  }
+}
+
+/* Va chiamata dentro un gesto dell'utente (tocco su un pulsante). */
 function unlockAudio() {
+  buildAudio();
+  bells.short.concat(bells.final).forEach(a => {
+    a.volume = 0;
+    const p = a.play();
+    const reset = () => { try { a.pause(); a.currentTime = 0; } catch (e) {} a.volume = 1; bells.ready = true; };
+    if (p && p.then) p.then(reset).catch(() => { a.volume = 1; }); else reset();
+  });
   try {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     if (audioCtx.state === 'suspended') audioCtx.resume();
-    // nota muta per sbloccare l'audio su iOS al primo tocco dell'utente
-    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
-    g.gain.value = 0.0001; o.connect(g); g.connect(audioCtx.destination);
-    o.start(); o.stop(audioCtx.currentTime + 0.03);
   } catch (e) {}
 }
-/* Campanella: due armoniche brevi, riconoscibili anche in ambiente rumoroso. */
-function bell(at, freq, vol) {
+
+/* Riserva: sintesi diretta con Web Audio se l'elemento <audio> non parte. */
+function webBell(isFinal) {
   if (!audioCtx) return;
-  [freq, freq * 2.02].forEach((f, i) => {
+  const at = audioCtx.currentTime, base = isFinal ? 1320 : 880;
+  [base, base * 2.02].forEach((f, i) => {
     const o = audioCtx.createOscillator(), g = audioCtx.createGain();
     o.type = 'sine'; o.frequency.value = f;
     g.gain.setValueAtTime(0.0001, at);
-    g.gain.exponentialRampToValueAtTime((vol || 0.4) / (i + 1), at + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.0001, at + 0.55);
+    g.gain.exponentialRampToValueAtTime(0.9 / (i + 1), at + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, at + (isFinal ? 1 : 0.55));
     o.connect(g); g.connect(audioCtx.destination);
-    o.start(at); o.stop(at + 0.6);
+    o.start(at); o.stop(at + 1.1);
   });
 }
-function scheduleBells(seconds) {
-  if (!audioCtx) return;
-  const t0 = audioCtx.currentTime + Math.max(0, seconds - 3);
-  bell(t0, 880, 0.28); bell(t0 + 1, 880, 0.32); bell(t0 + 2, 880, 0.36);
-  bell(t0 + 3, 1320, 0.5);                      // colpo finale, più acuto
+
+/* Un rintocco, con vibrazione di supporto. */
+function ding(isFinal) {
+  if (S && S.sound === false) return;
+  const pool = isFinal ? bells.final : bells.short;
+  let played = false;
+  if (pool.length) {
+    const a = pool[bellIdx++ % pool.length];
+    try {
+      a.currentTime = 0; a.volume = 1;
+      const p = a.play();
+      played = true;
+      if (p && p.catch) p.catch(() => webBell(isFinal));
+    } catch (e) { played = false; }
+  }
+  if (!played) webBell(isFinal);
+  if (navigator.vibrate) navigator.vibrate(isFinal ? [150, 70, 150] : 70);
 }
 
-let timerEnd = 0, timerTotal = 0, timerCb = null;
-function startTimer(seconds, what, cb) {
+/* --- TIMER ------------------------------------------------------------------
+   Un solo timer per tutta l'app, con due modalità:
+     'rest' → recupero tra serie o tra esercizi
+     'work' → tenuta a tempo (stretching statico, plank, wall sit)
+   Può essere ridotto a icona: continua a girare e resta visibile mentre si
+   naviga nel resto dell'app.
+----------------------------------------------------------------------------- */
+let timerEnd = 0, timerTotal = 0, timerCb = null, timerMode = 'rest', lastLeft = null;
+
+function startTimer(seconds, what, cb, mode) {
   stopTimer();
-  timerTotal = seconds; timerEnd = Date.now() + seconds * 1000; timerCb = cb || null;
+  timerMode = mode || 'rest';
+  timerTotal = seconds; timerEnd = Date.now() + seconds * 1000;
+  timerCb = cb || null; lastLeft = null;
   $('#timerWhat').textContent = what || '';
+  $('#miniWhat').textContent = what || '';
   $('#timer').classList.add('on');
-  unlockAudio(); scheduleBells(seconds);
+  $('#timer').classList.toggle('work', timerMode === 'work');
+  $('#miniTimer').classList.toggle('work', timerMode === 'work');
+  $('#miniTimer').classList.remove('on');
+  unlockAudio();
   tick();
   timerHandle = setInterval(tick, 200);
 }
+
 function tick() {
-  const left = Math.max(0, Math.round((timerEnd - Date.now()) / 1000));
-  $('#timerCount').textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+  const left = Math.max(0, Math.ceil((timerEnd - Date.now()) / 1000));
+  const txt = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+  $('#timerCount').textContent = txt;
+  $('#miniCount').textContent = txt;
   $('#ringFill').setAttribute('stroke-dashoffset', String(283 * (1 - left / timerTotal)));
-  $('#timer').classList.toggle('warn', left <= 3);
+  $('#timer').classList.toggle('warn', left <= 3 && timerMode === 'rest');
+  // campanella su ciascuno degli ultimi tre secondi, poi colpo finale
+  if (lastLeft !== null && left !== lastLeft && left >= 1 && left <= 3) ding(false);
+  lastLeft = left;
   if (left <= 0) {
-    if (navigator.vibrate) navigator.vibrate([120, 80, 120]);
-    const cb = timerCb; stopTimer(); if (cb) cb();
+    ding(true);
+    const cb = timerCb;
+    stopTimer();
+    if (cb) cb();
   }
 }
+
 function stopTimer() {
   if (timerHandle) clearInterval(timerHandle);
-  timerHandle = null; timerCb = null;
+  timerHandle = null; timerCb = null; lastLeft = null;
   $('#timer').classList.remove('on', 'warn');
+  $('#miniTimer').classList.remove('on');
 }
-$('#timerSkip').onclick = () => { const cb = timerCb; stopTimer(); if (cb) cb(); };
-$('#timerPlus').onclick = () => { timerEnd += 15000; timerTotal += 15; scheduleBells(Math.round((timerEnd - Date.now()) / 1000)); };
-$('#timerMinus').onclick = () => { timerEnd = Math.max(Date.now(), timerEnd - 15000); };
+const timerRunning = () => !!timerHandle;
+function minimizeTimer() {
+  if (!timerHandle) return;
+  $('#timer').classList.remove('on');
+  $('#miniTimer').classList.add('on');
+}
+function expandTimer() {
+  if (!timerHandle) return;
+  $('#miniTimer').classList.remove('on');
+  $('#timer').classList.add('on');
+}
+function skipTimer() { const cb = timerCb; stopTimer(); if (cb) cb(); }
+
+$('#timerSkip').onclick = skipTimer;
+$('#miniSkip').onclick = skipTimer;
+$('#timerMin').onclick = minimizeTimer;
+$('#miniExpand').onclick = expandTimer;
+$('#timerPlus').onclick = () => { timerEnd += 15000; timerTotal += 15; lastLeft = null; tick(); };
+$('#timerMinus').onclick = () => { timerEnd = Math.max(Date.now() + 1000, timerEnd - 15000); tick(); };
 
 async function requestWakeLock() {
   try {
@@ -748,6 +910,14 @@ document.addEventListener('visibilitychange', () => {
 /* ---------------------------------------------------------------------------
    MODALE, NAV, AVVIO
 --------------------------------------------------------------------------- */
+function confirmAction(title, text, okLabel, onOk) {
+  openModal(`<h2>${esc(title)}</h2><p class="small muted">${esc(text)}</p>
+    <button class="btn" id="cfOk" style="margin-top:12px">${esc(okLabel)}</button>
+    <button class="btn ghost" id="cfNo" style="margin-top:10px">Annulla</button>`);
+  $('#cfOk').onclick = () => { closeModal(); onOk(); };
+  $('#cfNo').onclick = closeModal;
+}
+
 function openModal(html) { $('#modalBox').innerHTML = html; $('#modal').classList.add('on'); }
 function closeModal() { $('#modal').classList.remove('on'); }
 
