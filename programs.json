@@ -1,0 +1,504 @@
+{
+ "version": 1,
+ "goals": {
+  "hypertrophy": {
+   "label": "Ipertrofia",
+   "sets": 3,
+   "repsLow": 8,
+   "repsHigh": 12,
+   "rest": 75,
+   "rpe": "7-8",
+   "source": "NSCA – ipertrofia: 3-4 serie, 8-12 rip, 60-90 s"
+  },
+  "strength": {
+   "label": "Forza",
+   "sets": 3,
+   "repsLow": 4,
+   "repsHigh": 6,
+   "rest": 120,
+   "rpe": "8",
+   "source": "NSCA – forza: 3-5 serie, 4-6 rip, 2-3 min (qui 3 serie e 2 min per stare nei 30 minuti)"
+  },
+  "endurance": {
+   "label": "Resistenza muscolare",
+   "sets": 3,
+   "repsLow": 15,
+   "repsHigh": 20,
+   "rest": 40,
+   "rpe": "7",
+   "source": "NSCA/ACSM – resistenza: 2-3 serie, 15-20 rip, 30-45 s"
+  },
+  "core": {
+   "label": "Core",
+   "sets": 3,
+   "repsLow": 12,
+   "repsHigh": 15,
+   "rest": 40,
+   "rpe": "7",
+   "source": "ACSM – core: 2-3 serie, recuperi brevi"
+  },
+  "stretch": {
+   "label": "Allungamento",
+   "sets": 3,
+   "repsLow": 1,
+   "repsHigh": 1,
+   "rest": 15,
+   "hold": 30,
+   "rpe": "tensione moderata",
+   "source": "ACE – 2-4 ripetizioni per gruppo, 20-30 s di mantenimento"
+  },
+  "mobility": {
+   "label": "Mobilità dinamica",
+   "sets": 2,
+   "repsLow": 8,
+   "repsHigh": 10,
+   "rest": 15,
+   "hold": 0,
+   "rpe": "riscaldamento",
+   "source": "ACE – mobilità dinamica pre-attività"
+  }
+ },
+ "programs": [
+  {
+   "id": "tono50",
+   "name": "Tono e ginocchio protetto",
+   "cycleWeeks": 4,
+   "periodization": "ondulata settimanale con scarico alla settimana 4",
+   "summary": "Tre sedute di forza con obiettivo che varia a ogni seduta (ipertrofia, forza, resistenza) e due sedute di mobilità. Ogni seduta di forza contiene almeno un esercizio a basso impatto per il ginocchio e un esercizio per la catena posteriore.",
+   "kneeSafeFirst": true,
+   "strengthDays": [
+    {
+     "label": "Forza A · Gambe e spinta",
+     "goal": "hypertrophy",
+     "slots": [
+      {
+       "patterns": [
+        "squat"
+       ],
+       "note": "Multiarticolare gambe"
+      },
+      {
+       "patterns": [
+        "pushH"
+       ]
+      },
+      {
+       "patterns": [
+        "hinge"
+       ],
+       "note": "Catena posteriore"
+      },
+      {
+       "patterns": [
+        "pullH",
+        "pullV"
+       ]
+      },
+      {
+       "patterns": [
+        "quadIso",
+        "hamIso",
+        "calf"
+       ],
+       "note": "Rinforzo articolare mirato"
+      }
+     ]
+    },
+    {
+     "label": "Forza B · Parte alta e unilaterale",
+     "goal": "strength",
+     "slots": [
+      {
+       "patterns": [
+        "pushV",
+        "pushH"
+       ]
+      },
+      {
+       "patterns": [
+        "pullV",
+        "pullH"
+       ]
+      },
+      {
+       "patterns": [
+        "lunge",
+        "squat"
+       ],
+       "note": "Lavoro unilaterale"
+      },
+      {
+       "patterns": [
+        "arms"
+       ]
+      },
+      {
+       "patterns": [
+        "coreAnti"
+       ],
+       "goal": "core"
+      }
+     ]
+    },
+    {
+     "label": "Forza C · Full body metabolico",
+     "goal": "endurance",
+     "slots": [
+      {
+       "patterns": [
+        "hinge"
+       ]
+      },
+      {
+       "patterns": [
+        "squat",
+        "lunge"
+       ]
+      },
+      {
+       "patterns": [
+        "pullH"
+       ]
+      },
+      {
+       "patterns": [
+        "pushH"
+       ]
+      },
+      {
+       "patterns": [
+        "calf",
+        "shoulderIso"
+       ]
+      },
+      {
+       "patterns": [
+        "coreAnti",
+        "coreFlex"
+       ],
+       "goal": "core"
+      }
+     ]
+    }
+   ],
+   "stretchDays": [
+    {
+     "label": "Mobilità · Anca, gambe e ginocchio",
+     "dynamic": 2,
+     "staticGroups": [
+      "Quadricipiti",
+      "Catena posteriore",
+      "Anca",
+      "Glutei",
+      "Polpacci",
+      "Adduttori"
+     ],
+     "count": 6
+    },
+    {
+     "label": "Mobilità · Colonna e parte alta",
+     "dynamic": 2,
+     "staticGroups": [
+      "Colonna",
+      "Petto",
+      "Dorso",
+      "Collo",
+      "Anca"
+     ],
+     "count": 6
+    }
+   ]
+  },
+  {
+   "id": "ipertrofia6",
+   "name": "Ipertrofia progressiva",
+   "cycleWeeks": 6,
+   "periodization": "lineare a 6 settimane con scarico finale",
+   "summary": "Split spinta / gambe / trazione. Il volume cresce nelle prime settimane, l'intensità nelle ultime, l'ultima settimana è di scarico.",
+   "kneeSafeFirst": true,
+   "strengthDays": [
+    {
+     "label": "Spinta · Petto e spalle",
+     "goal": "hypertrophy",
+     "slots": [
+      {
+       "patterns": [
+        "pushH"
+       ]
+      },
+      {
+       "patterns": [
+        "pushV"
+       ]
+      },
+      {
+       "patterns": [
+        "pushH"
+       ]
+      },
+      {
+       "patterns": [
+        "shoulderIso"
+       ]
+      },
+      {
+       "patterns": [
+        "arms"
+       ]
+      },
+      {
+       "patterns": [
+        "coreAnti"
+       ],
+       "goal": "core"
+      }
+     ]
+    },
+    {
+     "label": "Gambe · Quadricipiti e catena posteriore",
+     "goal": "hypertrophy",
+     "slots": [
+      {
+       "patterns": [
+        "squat"
+       ]
+      },
+      {
+       "patterns": [
+        "hinge"
+       ]
+      },
+      {
+       "patterns": [
+        "lunge",
+        "squat"
+       ]
+      },
+      {
+       "patterns": [
+        "hamIso",
+        "quadIso"
+       ]
+      },
+      {
+       "patterns": [
+        "calf"
+       ]
+      }
+     ]
+    },
+    {
+     "label": "Trazione · Dorso e braccia",
+     "goal": "strength",
+     "slots": [
+      {
+       "patterns": [
+        "pullV"
+       ]
+      },
+      {
+       "patterns": [
+        "pullH"
+       ]
+      },
+      {
+       "patterns": [
+        "pullH"
+       ]
+      },
+      {
+       "patterns": [
+        "arms"
+       ]
+      },
+      {
+       "patterns": [
+        "coreAnti",
+        "coreFlex"
+       ],
+       "goal": "core"
+      }
+     ]
+    }
+   ],
+   "stretchDays": [
+    {
+     "label": "Mobilità · Catena posteriore e anca",
+     "dynamic": 2,
+     "staticGroups": [
+      "Catena posteriore",
+      "Anca",
+      "Glutei",
+      "Polpacci",
+      "Adduttori",
+      "Quadricipiti"
+     ],
+     "count": 6
+    },
+    {
+     "label": "Mobilità · Spalle e colonna",
+     "dynamic": 2,
+     "staticGroups": [
+      "Petto",
+      "Dorso",
+      "Colonna",
+      "Collo",
+      "Anca"
+     ],
+     "count": 6
+    }
+   ]
+  },
+  {
+   "id": "ricomp3",
+   "name": "Ricomposizione in 3 settimane",
+   "cycleWeeks": 3,
+   "periodization": "densità crescente, ciclo breve con scarico alla settimana 3",
+   "summary": "Sedute full body ad alta densità con recuperi brevi e più lavoro sul core, pensate per aumentare il dispendio energetico mantenendo il carico muscolare.",
+   "kneeSafeFirst": true,
+   "strengthDays": [
+    {
+     "label": "Full body A",
+     "goal": "endurance",
+     "slots": [
+      {
+       "patterns": [
+        "squat"
+       ]
+      },
+      {
+       "patterns": [
+        "pushH"
+       ]
+      },
+      {
+       "patterns": [
+        "pullH"
+       ]
+      },
+      {
+       "patterns": [
+        "hinge"
+       ]
+      },
+      {
+       "patterns": [
+        "coreAnti"
+       ],
+       "goal": "core"
+      },
+      {
+       "patterns": [
+        "coreFlex",
+        "coreAnti"
+       ],
+       "goal": "core"
+      }
+     ]
+    },
+    {
+     "label": "Full body B",
+     "goal": "hypertrophy",
+     "slots": [
+      {
+       "patterns": [
+        "hinge"
+       ]
+      },
+      {
+       "patterns": [
+        "pushV"
+       ]
+      },
+      {
+       "patterns": [
+        "pullV"
+       ]
+      },
+      {
+       "patterns": [
+        "lunge"
+       ]
+      },
+      {
+       "patterns": [
+        "coreAnti"
+       ],
+       "goal": "core"
+      }
+     ]
+    },
+    {
+     "label": "Full body C",
+     "goal": "endurance",
+     "slots": [
+      {
+       "patterns": [
+        "lunge",
+        "squat"
+       ]
+      },
+      {
+       "patterns": [
+        "pushH"
+       ]
+      },
+      {
+       "patterns": [
+        "pullH"
+       ]
+      },
+      {
+       "patterns": [
+        "calf"
+       ]
+      },
+      {
+       "patterns": [
+        "shoulderIso",
+        "arms"
+       ]
+      },
+      {
+       "patterns": [
+        "coreAnti"
+       ],
+       "goal": "core"
+      }
+     ]
+    }
+   ],
+   "stretchDays": [
+    {
+     "label": "Mobilità · Gambe e anca",
+     "dynamic": 3,
+     "staticGroups": [
+      "Quadricipiti",
+      "Catena posteriore",
+      "Anca",
+      "Glutei",
+      "Polpacci"
+     ],
+     "count": 5
+    },
+    {
+     "label": "Mobilità · Colonna e parte alta",
+     "dynamic": 3,
+     "staticGroups": [
+      "Colonna",
+      "Petto",
+      "Dorso",
+      "Collo",
+      "Adduttori"
+     ],
+     "count": 5
+    }
+   ]
+  }
+ ],
+ "coreSession": {
+  "label": "Blocco core facoltativo",
+  "count": 4,
+  "goal": "core"
+ }
+}

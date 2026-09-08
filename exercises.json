@@ -1,0 +1,3782 @@
+{
+ "version": 1,
+ "updated": "2026-09-08",
+ "exercises": [
+  {
+   "id": "g_legpress",
+   "name": "Leg press",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Quadricipiti",
+   "pattern": "squat",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Quadricipiti",
+    "Grande gluteo"
+   ],
+   "secondary": [
+    "Femorali",
+    "Adduttori"
+   ],
+   "equipment": [
+    "Macchina leg press"
+   ],
+   "art": {
+    "frames": [
+     "seatedPressStart",
+     "seatedPressEnd"
+    ],
+    "implement": "machine"
+   },
+   "steps": [
+    "Siediti con schiena e bacino aderenti allo schienale, piedi a larghezza spalle a metà pedana.",
+    "Sblocca i fermi e scendi controllato finché le ginocchia arrivano a circa 90°, senza che il bacino si stacchi.",
+    "Spingi con tutto il piede fino quasi a estendere le ginocchia, senza bloccarle di scatto."
+   ],
+   "errors": [
+    "Scendere troppo in basso facendo staccare la zona lombare dallo schienale.",
+    "Estendere di colpo le ginocchia a fine spinta."
+   ],
+   "safety": [
+    "Ginocchio: fermati a 90° e mantieni le rotule in linea con le punte dei piedi; se senti dolore anteriore, riduci l'escursione."
+   ],
+   "source": "NSCA – ipertrofia arti inferiori"
+  },
+  {
+   "id": "g_gobletsquat",
+   "name": "Goblet squat con manubrio",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Quadricipiti",
+   "pattern": "squat",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Quadricipiti",
+    "Glutei"
+   ],
+   "secondary": [
+    "Core",
+    "Erettori spinali"
+   ],
+   "equipment": [
+    "Manubrio",
+    "Kettlebell"
+   ],
+   "art": {
+    "frames": [
+     "stand",
+     "squatBottom"
+    ],
+    "implement": "goblet"
+   },
+   "steps": [
+    "Tieni un manubrio verticale contro lo sterno, gomiti sotto il peso.",
+    "Piedi poco più larghi delle spalle, punte leggermente aperte: scendi tenendo il petto alto.",
+    "Risali spingendo il pavimento lontano da te ed espirando."
+   ],
+   "errors": [
+    "Far collassare le ginocchia verso l'interno in risalita.",
+    "Sollevare i talloni dal pavimento."
+   ],
+   "safety": [
+    "Ginocchio: scendi solo fino a dove mantieni il controllo, il carico frontale aiuta a tenere il busto eretto e scarica la rotula."
+   ],
+   "source": "NSCA – ipertrofia, schema multiarticolare"
+  },
+  {
+   "id": "g_legext",
+   "name": "Leg extension a escursione parziale",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Quadricipiti",
+   "pattern": "quadIso",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Quadricipiti",
+    "Vasto mediale"
+   ],
+   "secondary": [],
+   "equipment": [
+    "Macchina leg extension"
+   ],
+   "art": {
+    "frames": [
+     "seatedExtStart",
+     "seatedExtEnd"
+    ],
+    "implement": "machine"
+   },
+   "steps": [
+    "Regola lo schienale così che l'asse della macchina coincida con il ginocchio.",
+    "Lavora nell'ultima parte del movimento, da circa 60° a estensione quasi completa.",
+    "Sali in 1-2 secondi, ferma mezzo secondo in alto, scendi in 3 secondi."
+   ],
+   "errors": [
+    "Partire da flessione profonda con carichi alti, che aumenta la pressione femoro-rotulea.",
+    "Usare slancio e lasciar cadere il peso in discesa."
+   ],
+   "safety": [
+    "Ginocchio: rinforzo utile per la stabilità della rotula solo se resti nel range indolore; carichi moderati, alte ripetizioni."
+   ],
+   "source": "ACSM – rinforzo mirato in presenza di sensibilità femoro-rotulea"
+  },
+  {
+   "id": "g_bulgarian",
+   "name": "Split squat bulgaro con manubri",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Quadricipiti",
+   "pattern": "lunge",
+   "load": "weight",
+   "kneeFriendly": false,
+   "primary": [
+    "Quadricipiti",
+    "Glutei"
+   ],
+   "secondary": [
+    "Femorali",
+    "Stabilizzatori dell'anca"
+   ],
+   "equipment": [
+    "Manubri",
+    "Panca"
+   ],
+   "art": {
+    "frames": [
+     "splitTop",
+     "splitBottom"
+    ],
+    "implement": "dumbbells"
+   },
+   "steps": [
+    "Appoggia il collo del piede posteriore su una panca, piede anteriore avanti di circa un passo lungo.",
+    "Scendi in verticale finché la coscia anteriore è quasi parallela al pavimento.",
+    "Risali spingendo sul tallone anteriore, senza rimbalzare in basso."
+   ],
+   "errors": [
+    "Piede anteriore troppo vicino alla panca: il ginocchio avanza eccessivamente.",
+    "Busto che ruota o cade di lato per instabilità."
+   ],
+   "safety": [
+    "Ginocchio: allunga il passo e inclina leggermente il busto avanti per spostare il lavoro su glutei e femorali."
+   ],
+   "source": "NSCA – lavoro unilaterale per equilibrio e stabilità"
+  },
+  {
+   "id": "g_lunge",
+   "name": "Affondi camminati con manubri",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Quadricipiti",
+   "pattern": "lunge",
+   "load": "weight",
+   "kneeFriendly": false,
+   "primary": [
+    "Quadricipiti",
+    "Glutei"
+   ],
+   "secondary": [
+    "Femorali",
+    "Core"
+   ],
+   "equipment": [
+    "Manubri"
+   ],
+   "art": {
+    "frames": [
+     "stand",
+     "lungeDown"
+    ],
+    "implement": "dumbbells"
+   },
+   "steps": [
+    "Manubri lungo i fianchi, sguardo avanti, addome attivo.",
+    "Fai un passo lungo e scendi finché il ginocchio posteriore sfiora il pavimento.",
+    "Spingi sul tallone della gamba avanti e porta avanti l'altra gamba."
+   ],
+   "errors": [
+    "Passo corto che porta il ginocchio molto oltre la punta del piede.",
+    "Busto che si sbilancia in avanti sotto carico."
+   ],
+   "safety": [
+    "Ginocchio: se compare fastidio, sostituisci con affondo inverso, meno impattante sulla rotula."
+   ],
+   "source": "NSCA – pattern di affondo, ipertrofia"
+  },
+  {
+   "id": "g_rdl",
+   "name": "Stacco rumeno con bilanciere",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Catena posteriore",
+   "pattern": "hinge",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Femorali",
+    "Grande gluteo"
+   ],
+   "secondary": [
+    "Erettori spinali",
+    "Dorsali"
+   ],
+   "equipment": [
+    "Bilanciere"
+   ],
+   "art": {
+    "frames": [
+     "stand",
+     "hingeBottom"
+    ],
+    "implement": "barbell"
+   },
+   "steps": [
+    "Bilanciere vicino alle cosce, ginocchia morbide ma quasi ferme.",
+    "Porta il bacino indietro facendo scorrere il bilanciere lungo le gambe, schiena neutra.",
+    "Fermati quando senti tensione sui femorali e risali contraendo i glutei."
+   ],
+   "errors": [
+    "Arrotondare la zona lombare per scendere più in basso.",
+    "Trasformare il movimento in uno squat piegando molto le ginocchia."
+   ],
+   "safety": [
+    "Schiena: mantieni il bilanciere a contatto con la gamba, l'escursione la decide la tensione sui femorali, non il pavimento."
+   ],
+   "source": "NSCA – schema di hip hinge, forza e ipertrofia"
+  },
+  {
+   "id": "g_legcurl",
+   "name": "Leg curl sdraiato",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Catena posteriore",
+   "pattern": "hamIso",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Femorali"
+   ],
+   "secondary": [
+    "Polpacci"
+   ],
+   "equipment": [
+    "Macchina leg curl"
+   ],
+   "art": {
+    "frames": [
+     "proneCurlStart",
+     "proneCurlEnd"
+    ],
+    "implement": "machine"
+   },
+   "steps": [
+    "Sdraiato prono, rullo appena sopra i talloni, anche a contatto con il cuscino.",
+    "Fletti le ginocchia portando i talloni verso i glutei senza sollevare il bacino.",
+    "Scendi in 3 secondi controllando il ritorno."
+   ],
+   "errors": [
+    "Staccare il bacino dal cuscino per aiutarsi.",
+    "Ritorno rapido e incontrollato del carico."
+   ],
+   "safety": [
+    "Ginocchio: femorali forti stabilizzano l'articolazione e bilanciano il lavoro del quadricipite."
+   ],
+   "source": "NSCA – ipertrofia, isolamento femorali"
+  },
+  {
+   "id": "g_hipthrust",
+   "name": "Hip thrust con bilanciere",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Catena posteriore",
+   "pattern": "hinge",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Grande gluteo"
+   ],
+   "secondary": [
+    "Femorali",
+    "Core"
+   ],
+   "equipment": [
+    "Bilanciere",
+    "Panca",
+    "Pad"
+   ],
+   "art": {
+    "frames": [
+     "bridgeDown",
+     "bridgeUp"
+    ],
+    "implement": "barbell"
+   },
+   "steps": [
+    "Schiena appoggiata alla panca sotto le scapole, bilanciere con pad sul bacino.",
+    "Piedi a terra a circa 90° quando sei in alto: spingi il bacino verso l'alto contraendo i glutei.",
+    "Mantieni mezzo secondo in alto, poi scendi controllato senza toccare terra."
+   ],
+   "errors": [
+    "Iperestendere la zona lombare invece di chiudere l'anca.",
+    "Piedi troppo avanti o troppo indietro, che sposta il lavoro sui femorali o sui quadricipiti."
+   ],
+   "safety": [
+    "Mantieni il mento leggermente raccolto e le costole basse per non caricare la lombare."
+   ],
+   "source": "NSCA – estensione d'anca, ipertrofia glutei"
+  },
+  {
+   "id": "g_backext",
+   "name": "Iperestensioni a 45°",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Catena posteriore",
+   "pattern": "hinge",
+   "load": "bodyweight",
+   "kneeFriendly": true,
+   "primary": [
+    "Erettori spinali",
+    "Glutei"
+   ],
+   "secondary": [
+    "Femorali"
+   ],
+   "equipment": [
+    "Panca a 45°"
+   ],
+   "art": {
+    "frames": [
+     "hyperDown",
+     "hyperUp"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Regola il cuscino appena sotto le creste iliache, caviglie bloccate.",
+    "Scendi flettendo l'anca con schiena neutra fino a sentire i femorali in tensione.",
+    "Risali fino all'allineamento tronco-gambe, senza andare oltre."
+   ],
+   "errors": [
+    "Estendere oltre la linea del corpo iperestendendo la lombare.",
+    "Slanciare il busto in risalita."
+   ],
+   "safety": [
+    "Se hai sensibilità lombare, mantieni ripetizioni lente e fermati all'allineamento."
+   ],
+   "source": "ACSM – rinforzo della muscolatura estensoria del tronco"
+  },
+  {
+   "id": "g_goodmorning",
+   "name": "Good morning con bilanciere leggero",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Catena posteriore",
+   "pattern": "hinge",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Femorali",
+    "Erettori spinali"
+   ],
+   "secondary": [
+    "Glutei"
+   ],
+   "equipment": [
+    "Bilanciere",
+    "Rack"
+   ],
+   "art": {
+    "frames": [
+     "stand",
+     "hingeBottom"
+    ],
+    "implement": "barbellBack"
+   },
+   "steps": [
+    "Bilanciere sul trapezio come nello squat, ginocchia leggermente flesse.",
+    "Porta il bacino indietro inclinando il busto fino a circa 45°, schiena neutra.",
+    "Risali contraendo glutei e femorali."
+   ],
+   "errors": [
+    "Usare carichi eccessivi su un esercizio che richiede controllo.",
+    "Perdere la curva lombare naturale."
+   ],
+   "safety": [
+    "Inizia con il solo bilanciere: la tecnica qui conta più del carico."
+   ],
+   "source": "NSCA – hip hinge, forza"
+  },
+  {
+   "id": "g_benchdb",
+   "name": "Panca piana con manubri",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Petto",
+   "pattern": "pushH",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Gran pettorale"
+   ],
+   "secondary": [
+    "Tricipiti",
+    "Deltoide anteriore"
+   ],
+   "equipment": [
+    "Manubri",
+    "Panca"
+   ],
+   "art": {
+    "frames": [
+     "benchStart",
+     "benchEnd"
+    ],
+    "implement": "dumbbells"
+   },
+   "steps": [
+    "Sdraiato, scapole addotte e depresse, piedi ben piantati.",
+    "Scendi con i gomiti a circa 45° dal busto fino all'altezza del petto.",
+    "Spingi verso l'alto avvicinando leggermente i manubri senza farli sbattere."
+   ],
+   "errors": [
+    "Gomiti aperti a 90°, che stressano la spalla.",
+    "Escursione ridotta per usare più carico."
+   ],
+   "safety": [
+    "Spalla: non scendere oltre il punto in cui i gomiti superano nettamente la linea del busto."
+   ],
+   "source": "NSCA – spinta orizzontale, ipertrofia"
+  },
+  {
+   "id": "g_benchincline",
+   "name": "Panca inclinata con bilanciere",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Petto",
+   "pattern": "pushH",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Gran pettorale (fasci clavicolari)"
+   ],
+   "secondary": [
+    "Deltoide anteriore",
+    "Tricipiti"
+   ],
+   "equipment": [
+    "Bilanciere",
+    "Panca inclinata"
+   ],
+   "art": {
+    "frames": [
+     "inclineStart",
+     "inclineEnd"
+    ],
+    "implement": "barbell"
+   },
+   "steps": [
+    "Panca a 30-40°, presa poco più larga delle spalle.",
+    "Scendi al terzo superiore del petto controllando la traiettoria.",
+    "Spingi fino a estensione delle braccia mantenendo le scapole ferme."
+   ],
+   "errors": [
+    "Inclinazione troppo alta, che sposta il lavoro sulle spalle.",
+    "Far rimbalzare il bilanciere sul petto."
+   ],
+   "safety": [
+    "Usa i fermi o un assistente quando lavori vicino al cedimento."
+   ],
+   "source": "NSCA – forza/ipertrofia parte superiore"
+  },
+  {
+   "id": "g_chestpress",
+   "name": "Chest press alla macchina",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Petto",
+   "pattern": "pushH",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Gran pettorale"
+   ],
+   "secondary": [
+    "Tricipiti",
+    "Deltoide anteriore"
+   ],
+   "equipment": [
+    "Macchina chest press"
+   ],
+   "art": {
+    "frames": [
+     "seatedPressStart",
+     "seatedPressEnd"
+    ],
+    "implement": "machine"
+   },
+   "steps": [
+    "Regola il sedile con le impugnature all'altezza della metà del petto.",
+    "Spingi in avanti senza bloccare i gomiti di scatto.",
+    "Ritorna in 3 secondi fino a sentire l'allungamento del pettorale."
+   ],
+   "errors": [
+    "Sedile troppo basso o troppo alto, che carica le spalle.",
+    "Sollevare le scapole dallo schienale."
+   ],
+   "safety": [
+    "Ottimo per lavorare vicino al cedimento in sicurezza, senza necessità di assistenza."
+   ],
+   "source": "ACSM – macchine guidate per adulti over 50"
+  },
+  {
+   "id": "g_cablefly",
+   "name": "Croci ai cavi",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Petto",
+   "pattern": "pushH",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Gran pettorale"
+   ],
+   "secondary": [
+    "Deltoide anteriore"
+   ],
+   "equipment": [
+    "Cavi"
+   ],
+   "art": {
+    "frames": [
+     "flyOpen",
+     "flyClose"
+    ],
+    "implement": "cable"
+   },
+   "steps": [
+    "Cavi all'altezza delle spalle, un piede avanti per stabilità.",
+    "Braccia leggermente flesse e fisse: chiudi descrivendo un arco davanti al petto.",
+    "Apri lentamente fino a sentire l'allungamento, senza forzare la spalla."
+   ],
+   "errors": [
+    "Flettere ed estendere i gomiti trasformandolo in una spinta.",
+    "Aprire troppo dietro la linea delle spalle."
+   ],
+   "safety": [
+    "Spalla: l'apertura si ferma dove il petto è teso ma la spalla resta comoda."
+   ],
+   "source": "NSCA – isolamento, ipertrofia"
+  },
+  {
+   "id": "g_pushup",
+   "name": "Piegamenti sulle braccia",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "strength",
+   "group": "Petto",
+   "pattern": "pushH",
+   "load": "bodyweight",
+   "kneeFriendly": true,
+   "primary": [
+    "Gran pettorale"
+   ],
+   "secondary": [
+    "Tricipiti",
+    "Core",
+    "Deltoide anteriore"
+   ],
+   "equipment": [
+    "Tappetino"
+   ],
+   "art": {
+    "frames": [
+     "pushupTop",
+     "pushupBottom"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Mani poco più larghe delle spalle, corpo in linea da testa a talloni.",
+    "Scendi con i gomiti a circa 45° finché il petto è poco sopra il pavimento.",
+    "Spingi fino a estensione mantenendo glutei e addome contratti."
+   ],
+   "errors": [
+    "Bacino che cede verso il pavimento.",
+    "Testa che va avanti mentre il petto resta alto."
+   ],
+   "safety": [
+    "Se serve, appoggia le mani su un rialzo per ridurre il carico mantenendo la tecnica."
+   ],
+   "source": "ACSM – esercizio a corpo libero, resistenza muscolare"
+  },
+  {
+   "id": "g_lat",
+   "name": "Lat machine presa larga",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Dorso",
+   "pattern": "pullV",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Gran dorsale"
+   ],
+   "secondary": [
+    "Bicipiti",
+    "Romboidi"
+   ],
+   "equipment": [
+    "Lat machine"
+   ],
+   "art": {
+    "frames": [
+     "latStart",
+     "latEnd"
+    ],
+    "implement": "cable"
+   },
+   "steps": [
+    "Cosce bloccate sotto i cuscinetti, presa poco più larga delle spalle.",
+    "Tira la barra verso la parte alta del petto abbassando prima le scapole.",
+    "Risali controllando fino a braccia quasi tese, senza far scappare le spalle in alto."
+   ],
+   "errors": [
+    "Tirare dietro la nuca.",
+    "Sbilanciare all'indietro tutto il busto per aiutarsi."
+   ],
+   "safety": [
+    "Il movimento parte dalle scapole, non dalle mani: così si protegge la spalla."
+   ],
+   "source": "NSCA – trazione verticale, ipertrofia"
+  },
+  {
+   "id": "g_rowdb",
+   "name": "Rematore con manubrio a un braccio",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Dorso",
+   "pattern": "pullH",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Gran dorsale",
+    "Romboidi"
+   ],
+   "secondary": [
+    "Bicipiti",
+    "Trapezio medio"
+   ],
+   "equipment": [
+    "Manubrio",
+    "Panca"
+   ],
+   "art": {
+    "frames": [
+     "rowStart",
+     "rowEnd"
+    ],
+    "implement": "dumbbell1"
+   },
+   "steps": [
+    "Ginocchio e mano dello stesso lato sulla panca, schiena parallela al pavimento.",
+    "Tira il manubrio verso il fianco portando il gomito indietro.",
+    "Scendi lentamente fino ad allungare il dorsale."
+   ],
+   "errors": [
+    "Ruotare il busto per sollevare più carico.",
+    "Tirare con il gomito largo trasformandolo in un lavoro di spalla."
+   ],
+   "safety": [
+    "Schiena: mantieni il collo in linea, sguardo verso il pavimento."
+   ],
+   "source": "NSCA – trazione orizzontale, ipertrofia"
+  },
+  {
+   "id": "g_rowbar",
+   "name": "Rematore con bilanciere",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Dorso",
+   "pattern": "pullH",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Gran dorsale",
+    "Romboidi"
+   ],
+   "secondary": [
+    "Erettori spinali",
+    "Bicipiti"
+   ],
+   "equipment": [
+    "Bilanciere"
+   ],
+   "art": {
+    "frames": [
+     "bentRowStart",
+     "bentRowEnd"
+    ],
+    "implement": "barbell"
+   },
+   "steps": [
+    "Busto inclinato a circa 45°, schiena neutra, bilanciere sotto le spalle.",
+    "Tira verso l'ombelico stringendo le scapole.",
+    "Ritorna controllato senza perdere l'inclinazione del busto."
+   ],
+   "errors": [
+    "Alzare e abbassare il busto a ogni ripetizione.",
+    "Arrotondare la schiena sotto carico."
+   ],
+   "safety": [
+    "Schiena: se la posizione stanca la lombare, sostituisci con il rematore appoggiato al petto."
+   ],
+   "source": "NSCA – forza multiarticolare dorso"
+  },
+  {
+   "id": "g_pulley",
+   "name": "Pulley basso presa neutra",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Dorso",
+   "pattern": "pullH",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Gran dorsale",
+    "Trapezio medio"
+   ],
+   "secondary": [
+    "Bicipiti"
+   ],
+   "equipment": [
+    "Cavi",
+    "Pulley"
+   ],
+   "art": {
+    "frames": [
+     "seatedRowStart",
+     "seatedRowEnd"
+    ],
+    "implement": "cable"
+   },
+   "steps": [
+    "Seduto con ginocchia morbide, busto eretto, presa neutra.",
+    "Tira verso l'addome portando i gomiti vicino ai fianchi.",
+    "Allunga in avanti senza arrotondare la schiena."
+   ],
+   "errors": [
+    "Oscillare avanti e indietro con tutto il tronco.",
+    "Alzare le spalle verso le orecchie durante la trazione."
+   ],
+   "safety": [
+    "Ottimo per la postura: contrasta l'anteposizione delle spalle."
+   ],
+   "source": "ACSM – rinforzo posturale"
+  },
+  {
+   "id": "g_facepull",
+   "name": "Face pull ai cavi",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Dorso",
+   "pattern": "pullH",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Deltoide posteriore",
+    "Trapezio medio"
+   ],
+   "secondary": [
+    "Cuffia dei rotatori"
+   ],
+   "equipment": [
+    "Cavi",
+    "Corda"
+   ],
+   "art": {
+    "frames": [
+     "facePullStart",
+     "facePullEnd"
+    ],
+    "implement": "cable"
+   },
+   "steps": [
+    "Corda all'altezza del viso, presa neutra, un piede avanti.",
+    "Tira verso la fronte aprendo i gomiti e ruotando esternamente le spalle.",
+    "Ritorna lentamente mantenendo il busto fermo."
+   ],
+   "errors": [
+    "Carico troppo alto che porta a tirare con tutto il corpo.",
+    "Gomiti bassi che trasformano l'esercizio in un rematore."
+   ],
+   "safety": [
+    "Spalla: esercizio di prevenzione, meglio carichi bassi e 12-15 ripetizioni."
+   ],
+   "source": "NSCA – salute della spalla, resistenza muscolare"
+  },
+  {
+   "id": "g_shoulderpress",
+   "name": "Lento avanti con manubri",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Spalle",
+   "pattern": "pushV",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Deltoide anteriore e laterale"
+   ],
+   "secondary": [
+    "Tricipiti",
+    "Trapezio"
+   ],
+   "equipment": [
+    "Manubri",
+    "Panca con schienale"
+   ],
+   "art": {
+    "frames": [
+     "ohpStart",
+     "ohpEnd"
+    ],
+    "implement": "dumbbells"
+   },
+   "steps": [
+    "Seduto con schiena appoggiata, manubri all'altezza delle orecchie.",
+    "Spingi sopra la testa senza bloccare i gomiti di scatto.",
+    "Scendi in 3 secondi fino al punto di partenza."
+   ],
+   "errors": [
+    "Inarcare la lombare per spingere di più.",
+    "Scendere sotto la linea delle orecchie con carichi alti."
+   ],
+   "safety": [
+    "Se la spalla è sensibile, usa presa neutra (palmi affacciati)."
+   ],
+   "source": "NSCA – spinta verticale, ipertrofia"
+  },
+  {
+   "id": "g_lateral",
+   "name": "Alzate laterali",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Spalle",
+   "pattern": "shoulderIso",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Deltoide laterale"
+   ],
+   "secondary": [
+    "Trapezio superiore"
+   ],
+   "equipment": [
+    "Manubri"
+   ],
+   "art": {
+    "frames": [
+     "stand",
+     "lateralUp"
+    ],
+    "implement": "dumbbells"
+   },
+   "steps": [
+    "In piedi, gomiti leggermente flessi, manubri lungo i fianchi.",
+    "Solleva lateralmente fino all'altezza delle spalle, mignolo appena più alto del pollice.",
+    "Scendi in 3 secondi senza slancio."
+   ],
+   "errors": [
+    "Slanciare con le gambe e la schiena.",
+    "Superare l'altezza delle spalle caricando il trapezio."
+   ],
+   "safety": [
+    "Carichi leggeri e alte ripetizioni: qui il peso eccessivo peggiora solo la tecnica."
+   ],
+   "source": "NSCA – isolamento deltoide, ipertrofia"
+  },
+  {
+   "id": "g_reverseflygym",
+   "name": "Alzate posteriori su panca inclinata",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Spalle",
+   "pattern": "pullH",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Deltoide posteriore"
+   ],
+   "secondary": [
+    "Romboidi",
+    "Trapezio medio"
+   ],
+   "equipment": [
+    "Manubri",
+    "Panca inclinata"
+   ],
+   "art": {
+    "frames": [
+     "bentFlyStart",
+     "bentFlyEnd"
+    ],
+    "implement": "dumbbells"
+   },
+   "steps": [
+    "Petto appoggiato alla panca inclinata a 30-45°, braccia in basso.",
+    "Apri lateralmente fino all'altezza delle spalle, gomiti quasi fissi.",
+    "Scendi lentamente senza far rimbalzare i manubri."
+   ],
+   "errors": [
+    "Usare troppo carico e coinvolgere tutto il dorso.",
+    "Alzare le spalle durante l'apertura."
+   ],
+   "safety": [
+    "Utile per compensare il lavoro di spinta e migliorare la postura."
+   ],
+   "source": "ACSM – equilibrio muscolare spinta/trazione"
+  },
+  {
+   "id": "g_militarypress",
+   "name": "Military press con bilanciere",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Spalle",
+   "pattern": "pushV",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Deltoidi"
+   ],
+   "secondary": [
+    "Tricipiti",
+    "Core"
+   ],
+   "equipment": [
+    "Bilanciere",
+    "Rack"
+   ],
+   "art": {
+    "frames": [
+     "ohpStandStart",
+     "ohpStandEnd"
+    ],
+    "implement": "barbell"
+   },
+   "steps": [
+    "Bilanciere sulle clavicole, presa poco più larga delle spalle, addome contratto.",
+    "Spingi sopra la testa arretrando leggermente il capo, poi porta la testa sotto la barra.",
+    "Scendi controllato fino alle clavicole."
+   ],
+   "errors": [
+    "Iperestendere la schiena trasformandolo in una panca inclinata in piedi.",
+    "Spingere in avanti anziché sopra la testa."
+   ],
+   "safety": [
+    "Schiena: glutei e addome contratti per tutta la serie."
+   ],
+   "source": "NSCA – forza spinta verticale"
+  },
+  {
+   "id": "g_curldb",
+   "name": "Curl con manubri",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Braccia",
+   "pattern": "arms",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Bicipite brachiale"
+   ],
+   "secondary": [
+    "Brachiale",
+    "Avambraccio"
+   ],
+   "equipment": [
+    "Manubri"
+   ],
+   "art": {
+    "frames": [
+     "stand",
+     "curlUp"
+    ],
+    "implement": "dumbbells"
+   },
+   "steps": [
+    "In piedi, gomiti vicino ai fianchi, palmi in avanti.",
+    "Fletti il gomito senza spostarlo, fino a contrazione completa.",
+    "Scendi in 3 secondi fino a braccia quasi tese."
+   ],
+   "errors": [
+    "Portare i gomiti avanti e usare la spalla.",
+    "Dondolare il busto per superare il punto difficile."
+   ],
+   "safety": [
+    "Gomito: non estendere di scatto in fondo alla discesa."
+   ],
+   "source": "NSCA – isolamento, ipertrofia"
+  },
+  {
+   "id": "g_curlez",
+   "name": "Curl con bilanciere EZ",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Braccia",
+   "pattern": "arms",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Bicipite brachiale"
+   ],
+   "secondary": [
+    "Brachioradiale"
+   ],
+   "equipment": [
+    "Bilanciere EZ"
+   ],
+   "art": {
+    "frames": [
+     "stand",
+     "curlUp"
+    ],
+    "implement": "barbell"
+   },
+   "steps": [
+    "Presa sulle inclinazioni della barra, gomiti ai fianchi.",
+    "Solleva fino all'altezza del petto mantenendo i polsi neutri.",
+    "Scendi controllato senza far scendere la barra a peso morto."
+   ],
+   "errors": [
+    "Polsi troppo estesi che affaticano l'avambraccio.",
+    "Estendere le anche per aiutarsi."
+   ],
+   "safety": [
+    "La barra EZ riduce lo stress su polso e gomito rispetto alla barra dritta."
+   ],
+   "source": "NSCA – ipertrofia braccia"
+  },
+  {
+   "id": "g_hammer",
+   "name": "Hammer curl",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Braccia",
+   "pattern": "arms",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Brachiale",
+    "Brachioradiale"
+   ],
+   "secondary": [
+    "Bicipite"
+   ],
+   "equipment": [
+    "Manubri"
+   ],
+   "art": {
+    "frames": [
+     "stand",
+     "curlUp"
+    ],
+    "implement": "dumbbells"
+   },
+   "steps": [
+    "Palmi affacciati, manubri lungo i fianchi.",
+    "Fletti il gomito mantenendo la presa neutra per tutta l'escursione.",
+    "Scendi lentamente."
+   ],
+   "errors": [
+    "Ruotare i polsi durante la salita.",
+    "Usare slancio con le spalle."
+   ],
+   "safety": [
+    "Presa neutra: comoda per i gomiti sensibili."
+   ],
+   "source": "NSCA – ipertrofia braccia"
+  },
+  {
+   "id": "g_pushdown",
+   "name": "Push-down ai cavi con corda",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Braccia",
+   "pattern": "arms",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Tricipite"
+   ],
+   "secondary": [
+    "Anconeo"
+   ],
+   "equipment": [
+    "Cavi",
+    "Corda"
+   ],
+   "art": {
+    "frames": [
+     "pushdownStart",
+     "pushdownEnd"
+    ],
+    "implement": "cable"
+   },
+   "steps": [
+    "Gomiti ai fianchi, busto leggermente inclinato avanti.",
+    "Estendi i gomiti aprendo la corda a fine movimento.",
+    "Risali fino a circa 90° mantenendo i gomiti fermi."
+   ],
+   "errors": [
+    "Muovere i gomiti avanti e indietro.",
+    "Usare il peso del corpo per spingere."
+   ],
+   "safety": [
+    "Gomito: evita blocchi bruschi in estensione completa."
+   ],
+   "source": "NSCA – isolamento tricipite"
+  },
+  {
+   "id": "g_frenchpress",
+   "name": "French press con manubrio",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Braccia",
+   "pattern": "arms",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Tricipite (capo lungo)"
+   ],
+   "secondary": [
+    "Spalla"
+   ],
+   "equipment": [
+    "Manubrio",
+    "Panca"
+   ],
+   "art": {
+    "frames": [
+     "frenchStart",
+     "frenchEnd"
+    ],
+    "implement": "dumbbell1"
+   },
+   "steps": [
+    "Seduto o sdraiato, manubrio sopra la testa con entrambe le mani.",
+    "Fletti i gomiti portando il peso dietro la nuca, gomiti fermi e vicini.",
+    "Estendi senza bloccare di scatto."
+   ],
+   "errors": [
+    "Aprire i gomiti verso l'esterno.",
+    "Carico eccessivo che schiaccia la spalla in fondo."
+   ],
+   "safety": [
+    "Spalla e gomito: scendi solo fino a dove il movimento resta indolore."
+   ],
+   "source": "NSCA – ipertrofia tricipite"
+  },
+  {
+   "id": "g_calfstanding",
+   "name": "Calf raise in piedi",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Polpacci",
+   "pattern": "calf",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Gastrocnemio"
+   ],
+   "secondary": [
+    "Soleo"
+   ],
+   "equipment": [
+    "Macchina calf",
+    "Manubri"
+   ],
+   "art": {
+    "frames": [
+     "stand",
+     "calfUp"
+    ],
+    "implement": "dumbbells"
+   },
+   "steps": [
+    "Avampiedi su un rialzo, talloni liberi di scendere.",
+    "Sali sulle punte il più in alto possibile, pausa di un secondo.",
+    "Scendi lentamente fino a sentire l'allungamento."
+   ],
+   "errors": [
+    "Rimbalzare in basso senza controllo.",
+    "Escursione ridotta a metà movimento."
+   ],
+   "safety": [
+    "Polpacci forti migliorano la stabilità di caviglia e ginocchio."
+   ],
+   "source": "NSCA – resistenza muscolare polpaccio"
+  },
+  {
+   "id": "g_calfseated",
+   "name": "Calf raise seduto",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Polpacci",
+   "pattern": "calf",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Soleo"
+   ],
+   "secondary": [
+    "Gastrocnemio"
+   ],
+   "equipment": [
+    "Macchina calf seduto"
+   ],
+   "art": {
+    "frames": [
+     "seated",
+     "seatedCalfUp"
+    ],
+    "implement": "machine"
+   },
+   "steps": [
+    "Cuscino sulle cosce basse, avampiedi sul poggiapiedi.",
+    "Spingi sulle punte estendendo completamente la caviglia.",
+    "Scendi in 3 secondi fino al massimo allungamento."
+   ],
+   "errors": [
+    "Movimento breve e veloce.",
+    "Sollevare i talloni solo di pochi centimetri."
+   ],
+   "safety": [
+    "Con ginocchio flesso il lavoro si concentra sul soleo, utile per la resistenza in cammino."
+   ],
+   "source": "NSCA – ipertrofia polpaccio"
+  },
+  {
+   "id": "h_squattempo",
+   "name": "Squat a corpo libero con tempo lento",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Quadricipiti",
+   "pattern": "squat",
+   "load": "bodyweight",
+   "kneeFriendly": true,
+   "primary": [
+    "Quadricipiti",
+    "Glutei"
+   ],
+   "secondary": [
+    "Core"
+   ],
+   "equipment": [
+    "Tappetino"
+   ],
+   "art": {
+    "frames": [
+     "stand",
+     "squatBottom"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Piedi a larghezza spalle, punte leggermente aperte, braccia avanti per bilanciare.",
+    "Scendi in 3 secondi fino a coscia parallela o al limite indolore.",
+    "Risali in 1 secondo spingendo con tutto il piede."
+   ],
+   "errors": [
+    "Ginocchia che collassano verso l'interno.",
+    "Talloni che si sollevano."
+   ],
+   "safety": [
+    "Ginocchio: il tempo lento aumenta la difficoltà senza aggiungere carico sulla rotula."
+   ],
+   "source": "NSCA – tempo under tension in assenza di sovraccarico"
+  },
+  {
+   "id": "h_squatband",
+   "name": "Squat con loop band sotto i piedi",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Quadricipiti",
+   "pattern": "squat",
+   "load": "band",
+   "kneeFriendly": true,
+   "primary": [
+    "Quadricipiti",
+    "Glutei"
+   ],
+   "secondary": [
+    "Core",
+    "Spalle"
+   ],
+   "equipment": [
+    "Loop band"
+   ],
+   "art": {
+    "frames": [
+     "stand",
+     "squatBottom"
+    ],
+    "implement": "bandVertical"
+   },
+   "steps": [
+    "In piedi sulla band a larghezza spalle, porta la parte alta sulle spalle o alle clavicole.",
+    "Scendi controllato mantenendo il petto alto.",
+    "Risali vincendo la resistenza della band, che è massima in alto."
+   ],
+   "errors": [
+    "Band non centrata sotto i piedi, che scivola durante la serie.",
+    "Busto che si piega troppo in avanti per la trazione della band."
+   ],
+   "safety": [
+    "Cambia band (azzurra → gialla → rossa → viola) per progredire di carico."
+   ],
+   "source": "ACSM – resistenza elastica come alternativa ai pesi liberi"
+  },
+  {
+   "id": "h_reverselunge",
+   "name": "Affondo inverso",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Quadricipiti",
+   "pattern": "lunge",
+   "load": "bodyweight",
+   "kneeFriendly": true,
+   "primary": [
+    "Quadricipiti",
+    "Glutei"
+   ],
+   "secondary": [
+    "Femorali",
+    "Stabilizzatori"
+   ],
+   "equipment": [
+    "Tappetino"
+   ],
+   "art": {
+    "frames": [
+     "stand",
+     "lungeDown"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Fai un passo indietro lungo e scendi verticalmente.",
+    "Il ginocchio posteriore sfiora il tappetino, quello anteriore resta sopra la caviglia.",
+    "Torna in piedi spingendo con il tallone anteriore."
+   ],
+   "errors": [
+    "Passo troppo corto.",
+    "Busto che ruota per squilibrio."
+   ],
+   "safety": [
+    "Ginocchio: la versione inversa riduce la forza di frenata sulla rotula rispetto all'affondo in avanti."
+   ],
+   "source": "NSCA – lavoro unilaterale a basso impatto"
+  },
+  {
+   "id": "h_splithome",
+   "name": "Split squat con manubri leggeri",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Quadricipiti",
+   "pattern": "lunge",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Quadricipiti",
+    "Glutei"
+   ],
+   "secondary": [
+    "Core"
+   ],
+   "equipment": [
+    "Manubri 1-2 kg",
+    "Tappetino"
+   ],
+   "art": {
+    "frames": [
+     "splitTop",
+     "splitBottom"
+    ],
+    "implement": "dumbbells"
+   },
+   "steps": [
+    "Posizione a forbice, un piede avanti e uno indietro sulla punta.",
+    "Scendi in verticale in 3 secondi.",
+    "Risali senza spostare i piedi, per tutte le ripetizioni della gamba."
+   ],
+   "errors": [
+    "Spostare il peso in avanti sulla punta del piede anteriore.",
+    "Ridurre l'escursione per fare più ripetizioni."
+   ],
+   "safety": [
+    "Ginocchio: mantieni la tibia anteriore il più possibile verticale."
+   ],
+   "source": "NSCA – unilaterale, resistenza muscolare"
+  },
+  {
+   "id": "h_wallsit",
+   "name": "Wall sit",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Quadricipiti",
+   "pattern": "quadIso",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Quadricipiti"
+   ],
+   "secondary": [
+    "Glutei"
+   ],
+   "equipment": [
+    "Muro"
+   ],
+   "art": {
+    "frames": [
+     "wallSit",
+     "wallSit"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Schiena appoggiata al muro, scendi fino a ginocchia a circa 90° (o meno se fastidioso).",
+    "Piedi a larghezza spalle, peso sui talloni.",
+    "Mantieni la posizione respirando in modo regolare."
+   ],
+   "errors": [
+    "Appoggiare le mani sulle cosce.",
+    "Scendere sotto i 90° con dolore anteriore al ginocchio."
+   ],
+   "safety": [
+    "Ginocchio: l'isometria è ben tollerata anche in caso di sensibilità femoro-rotulea; scegli l'angolo indolore."
+   ],
+   "source": "ACSM – rinforzo isometrico, protocollo ben tollerato"
+  },
+  {
+   "id": "h_gluteband",
+   "name": "Ponte glutei con loop band",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Catena posteriore",
+   "pattern": "hinge",
+   "load": "band",
+   "kneeFriendly": true,
+   "primary": [
+    "Grande gluteo"
+   ],
+   "secondary": [
+    "Femorali",
+    "Core"
+   ],
+   "equipment": [
+    "Loop band",
+    "Tappetino"
+   ],
+   "art": {
+    "frames": [
+     "bridgeDown",
+     "bridgeUp"
+    ],
+    "implement": "bandKnees"
+   },
+   "steps": [
+    "Sdraiato supino, band sopra le ginocchia, piedi a terra vicino ai glutei.",
+    "Spingi il bacino in alto contraendo i glutei e spingendo le ginocchia verso l'esterno.",
+    "Pausa di un secondo in alto, poi scendi senza appoggiare completamente."
+   ],
+   "errors": [
+    "Inarcare la lombare invece di chiudere l'anca.",
+    "Lasciar cadere le ginocchia verso l'interno."
+   ],
+   "safety": [
+    "Movimento a basso impatto, adatto anche nei giorni in cui il ginocchio è sensibile."
+   ],
+   "source": "NSCA – attivazione ed estensione d'anca"
+  },
+  {
+   "id": "h_singleglute",
+   "name": "Ponte glutei monopodalico",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Catena posteriore",
+   "pattern": "hinge",
+   "load": "bodyweight",
+   "kneeFriendly": true,
+   "primary": [
+    "Grande gluteo",
+    "Femorali"
+   ],
+   "secondary": [
+    "Core"
+   ],
+   "equipment": [
+    "Tappetino"
+   ],
+   "art": {
+    "frames": [
+     "bridgeDown",
+     "bridgeUpSingle"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Supino, una gamba piegata a terra, l'altra distesa o con ginocchio al petto.",
+    "Spingi il bacino in alto con la gamba d'appoggio mantenendo il bacino livellato.",
+    "Scendi controllato e ripeti, poi cambia lato."
+   ],
+   "errors": [
+    "Bacino che si inclina di lato.",
+    "Spingere sulla punta del piede anziché sul tallone."
+   ],
+   "safety": [
+    "Rinforzo unilaterale utile per correggere asimmetrie che sovraccaricano un ginocchio."
+   ],
+   "source": "NSCA – progressione unilaterale"
+  },
+  {
+   "id": "h_rdlband",
+   "name": "Stacco rumeno con loop band",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Catena posteriore",
+   "pattern": "hinge",
+   "load": "band",
+   "kneeFriendly": true,
+   "primary": [
+    "Femorali",
+    "Glutei"
+   ],
+   "secondary": [
+    "Erettori spinali"
+   ],
+   "equipment": [
+    "Loop band"
+   ],
+   "art": {
+    "frames": [
+     "stand",
+     "hingeBottom"
+    ],
+    "implement": "bandVertical"
+   },
+   "steps": [
+    "In piedi sulla band, impugna le estremità con le braccia distese.",
+    "Porta il bacino indietro con ginocchia quasi ferme e schiena neutra.",
+    "Risali contraendo i glutei fino a posizione eretta."
+   ],
+   "errors": [
+    "Piegare le ginocchia trasformandolo in uno squat.",
+    "Arrotondare la schiena in discesa."
+   ],
+   "safety": [
+    "Schiena: scendi solo finché mantieni la curva lombare naturale."
+   ],
+   "source": "NSCA – hip hinge con resistenza elastica"
+  },
+  {
+   "id": "h_goodmorningband",
+   "name": "Good morning con band",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Catena posteriore",
+   "pattern": "hinge",
+   "load": "band",
+   "kneeFriendly": true,
+   "primary": [
+    "Femorali",
+    "Erettori spinali"
+   ],
+   "secondary": [
+    "Glutei"
+   ],
+   "equipment": [
+    "Loop band"
+   ],
+   "art": {
+    "frames": [
+     "stand",
+     "hingeBottom"
+    ],
+    "implement": "bandShoulder"
+   },
+   "steps": [
+    "In piedi sulla band, passala dietro il collo appoggiandola sulle spalle.",
+    "Inclina il busto in avanti portando il bacino indietro.",
+    "Risali contro la resistenza della band fino a posizione eretta."
+   ],
+   "errors": [
+    "Band troppo corta che comprime il collo.",
+    "Flettere la colonna invece dell'anca."
+   ],
+   "safety": [
+    "Usa una band leggera (azzurra o gialla) e concentrati sul controllo."
+   ],
+   "source": "NSCA – hip hinge, resistenza muscolare"
+  },
+  {
+   "id": "h_kickback",
+   "name": "Calci indietro con band",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Catena posteriore",
+   "pattern": "hinge",
+   "load": "band",
+   "kneeFriendly": true,
+   "primary": [
+    "Grande gluteo"
+   ],
+   "secondary": [
+    "Femorali",
+    "Core"
+   ],
+   "equipment": [
+    "Loop band",
+    "Tappetino"
+   ],
+   "art": {
+    "frames": [
+     "quadrupedStart",
+     "quadrupedEnd"
+    ],
+    "implement": "bandAnkle"
+   },
+   "steps": [
+    "In quadrupedia, band attorno ai piedi o sopra le ginocchia.",
+    "Spingi una gamba indietro estendendo l'anca senza inarcare la schiena.",
+    "Torna lentamente e completa le ripetizioni prima di cambiare lato."
+   ],
+   "errors": [
+    "Ruotare il bacino per alzare di più la gamba.",
+    "Iperestendere la zona lombare."
+   ],
+   "safety": [
+    "Mantieni l'addome attivo: il movimento arriva dall'anca, non dalla schiena."
+   ],
+   "source": "ACE – attivazione glutei a basso impatto"
+  },
+  {
+   "id": "h_pushupfeet",
+   "name": "Piegamenti con piedi rialzati",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Petto",
+   "pattern": "pushH",
+   "load": "bodyweight",
+   "kneeFriendly": true,
+   "primary": [
+    "Gran pettorale (fasci alti)"
+   ],
+   "secondary": [
+    "Deltoide anteriore",
+    "Tricipiti",
+    "Core"
+   ],
+   "equipment": [
+    "Tappetino",
+    "Sedia"
+   ],
+   "art": {
+    "frames": [
+     "declineTop",
+     "declineBottom"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Piedi su una sedia o su un rialzo stabile, mani a terra poco più larghe delle spalle.",
+    "Scendi controllato mantenendo il corpo in linea.",
+    "Spingi fino a estensione senza far cedere il bacino."
+   ],
+   "errors": [
+    "Rialzo troppo alto che sposta tutto il carico sulle spalle.",
+    "Perdere l'allineamento del bacino."
+   ],
+   "safety": [
+    "Assicurati che l'appoggio dei piedi sia stabile prima di iniziare."
+   ],
+   "source": "NSCA – progressione del piegamento"
+  },
+  {
+   "id": "h_pushupband",
+   "name": "Piegamenti con band sulla schiena",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Petto",
+   "pattern": "pushH",
+   "load": "band",
+   "kneeFriendly": true,
+   "primary": [
+    "Gran pettorale"
+   ],
+   "secondary": [
+    "Tricipiti",
+    "Core"
+   ],
+   "equipment": [
+    "Loop band",
+    "Tappetino"
+   ],
+   "art": {
+    "frames": [
+     "pushupTop",
+     "pushupBottom"
+    ],
+    "implement": "bandBack"
+   },
+   "steps": [
+    "Passa la band dietro la schiena, all'altezza delle scapole, e blocca le estremità sotto i palmi.",
+    "Esegui il piegamento con tecnica normale: la resistenza aumenta nella parte finale della spinta.",
+    "Scendi lentamente controllando il ritorno."
+   ],
+   "errors": [
+    "Band posizionata troppo in alto vicino al collo.",
+    "Accorciare l'escursione per la resistenza aggiuntiva."
+   ],
+   "safety": [
+    "Controlla che la band sia ben bloccata sotto le mani prima di partire."
+   ],
+   "source": "NSCA – sovraccarico con resistenza elastica"
+  },
+  {
+   "id": "h_floorpressband",
+   "name": "Spinta a terra con band",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Petto",
+   "pattern": "pushH",
+   "load": "band",
+   "kneeFriendly": true,
+   "primary": [
+    "Gran pettorale"
+   ],
+   "secondary": [
+    "Tricipiti",
+    "Deltoide anteriore"
+   ],
+   "equipment": [
+    "Loop band",
+    "Tappetino"
+   ],
+   "art": {
+    "frames": [
+     "floorPressStart",
+     "floorPressEnd"
+    ],
+    "implement": "bandBack"
+   },
+   "steps": [
+    "Sdraiato supino, band dietro la schiena, estremità nelle mani all'altezza del petto.",
+    "Spingi verso l'alto estendendo le braccia.",
+    "Scendi finché i tricipiti toccano il tappetino."
+   ],
+   "errors": [
+    "Gomiti troppo aperti.",
+    "Spingere in modo asimmetrico tra i due lati."
+   ],
+   "safety": [
+    "La versione a terra limita l'escursione e protegge la spalla."
+   ],
+   "source": "NSCA – spinta orizzontale, resistenza elastica"
+  },
+  {
+   "id": "h_pushupnarrow",
+   "name": "Piegamenti a presa stretta",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Petto",
+   "pattern": "pushH",
+   "load": "bodyweight",
+   "kneeFriendly": true,
+   "primary": [
+    "Tricipiti",
+    "Gran pettorale (parte interna)"
+   ],
+   "secondary": [
+    "Core"
+   ],
+   "equipment": [
+    "Tappetino"
+   ],
+   "art": {
+    "frames": [
+     "pushupTop",
+     "pushupBottom"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Mani a larghezza spalle o poco meno, sotto le spalle.",
+    "Scendi tenendo i gomiti vicini al busto.",
+    "Spingi fino a estensione mantenendo il corpo in linea."
+   ],
+   "errors": [
+    "Aprire i gomiti per facilitare la salita.",
+    "Bacino che scende prima del petto."
+   ],
+   "safety": [
+    "Polso: se fastidioso, appoggia i pugni o usa impugnature."
+   ],
+   "source": "NSCA – variante per tricipiti"
+  },
+  {
+   "id": "h_flydb",
+   "name": "Croci a terra con manubri leggeri",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Petto",
+   "pattern": "pushH",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Gran pettorale"
+   ],
+   "secondary": [
+    "Deltoide anteriore"
+   ],
+   "equipment": [
+    "Manubri 1-2 kg",
+    "Tappetino"
+   ],
+   "art": {
+    "frames": [
+     "flyOpen",
+     "flyClose"
+    ],
+    "implement": "dumbbells"
+   },
+   "steps": [
+    "Supino, ginocchia piegate, braccia sopra il petto con gomiti morbidi.",
+    "Apri lateralmente fino a sfiorare il tappetino con i gomiti.",
+    "Chiudi lentamente contraendo il petto, 2 secondi in salita e 3 in discesa."
+   ],
+   "errors": [
+    "Movimento veloce che perde tensione.",
+    "Estendere e flettere i gomiti."
+   ],
+   "safety": [
+    "Con carichi leggeri lavora ad alte ripetizioni (15-20) e tempo lento."
+   ],
+   "source": "ACSM – resistenza muscolare con carichi leggeri"
+  },
+  {
+   "id": "h_rowband",
+   "name": "Rematore seduto con band",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Dorso",
+   "pattern": "pullH",
+   "load": "band",
+   "kneeFriendly": true,
+   "primary": [
+    "Gran dorsale",
+    "Romboidi"
+   ],
+   "secondary": [
+    "Bicipiti"
+   ],
+   "equipment": [
+    "Loop band",
+    "Tappetino"
+   ],
+   "art": {
+    "frames": [
+     "seatedRowStart",
+     "seatedRowEnd"
+    ],
+    "implement": "bandFeet"
+   },
+   "steps": [
+    "Seduto a terra, gambe distese, band attorno ai piedi e capi nelle mani.",
+    "Tira verso l'addome portando i gomiti indietro e vicini ai fianchi.",
+    "Ritorna lentamente senza arrotondare la schiena."
+   ],
+   "errors": [
+    "Sbilanciare il busto indietro per tirare di più.",
+    "Spalle che salgono verso le orecchie."
+   ],
+   "safety": [
+    "Schiena: mantieni il busto eretto, se necessario siediti su un cuscino."
+   ],
+   "source": "NSCA – trazione orizzontale con elastici"
+  },
+  {
+   "id": "h_pulldownband",
+   "name": "Pulldown con band ancorata in alto",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Dorso",
+   "pattern": "pullV",
+   "load": "band",
+   "kneeFriendly": true,
+   "primary": [
+    "Gran dorsale"
+   ],
+   "secondary": [
+    "Bicipiti",
+    "Deltoide posteriore"
+   ],
+   "equipment": [
+    "Loop band",
+    "Punto di ancoraggio alto"
+   ],
+   "art": {
+    "frames": [
+     "latStart",
+     "latEnd"
+    ],
+    "implement": "bandTop"
+   },
+   "steps": [
+    "Ancora la band a un punto alto e sicuro (porta chiusa con apposito fermo o gancio).",
+    "In ginocchio o in piedi, tira i capi verso il petto abbassando prima le scapole.",
+    "Risali controllato fino a braccia distese."
+   ],
+   "errors": [
+    "Ancoraggio instabile.",
+    "Tirare solo con le braccia senza coinvolgere il dorso."
+   ],
+   "safety": [
+    "Verifica sempre la tenuta dell'ancoraggio e l'integrità della band prima della serie."
+   ],
+   "source": "NSCA – trazione verticale, alternativa domestica"
+  },
+  {
+   "id": "h_rowsingle",
+   "name": "Rematore monobraccio con band",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Dorso",
+   "pattern": "pullH",
+   "load": "band",
+   "kneeFriendly": true,
+   "primary": [
+    "Gran dorsale"
+   ],
+   "secondary": [
+    "Bicipite",
+    "Core"
+   ],
+   "equipment": [
+    "Loop band"
+   ],
+   "art": {
+    "frames": [
+     "rowStart",
+     "rowEnd"
+    ],
+    "implement": "bandFront"
+   },
+   "steps": [
+    "Blocca la band sotto il piede opposto o a un ancoraggio basso.",
+    "Con busto leggermente inclinato, tira il capo verso il fianco.",
+    "Ritorna lentamente e completa le ripetizioni prima di cambiare lato."
+   ],
+   "errors": [
+    "Ruotare il busto a ogni ripetizione.",
+    "Tensione iniziale insufficiente della band."
+   ],
+   "safety": [
+    "Lavorare un lato alla volta aiuta a correggere squilibri tra destra e sinistra."
+   ],
+   "source": "NSCA – unilaterale dorso"
+  },
+  {
+   "id": "h_superman",
+   "name": "Superman a terra",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Dorso",
+   "pattern": "hinge",
+   "load": "bodyweight",
+   "kneeFriendly": true,
+   "primary": [
+    "Erettori spinali",
+    "Glutei"
+   ],
+   "secondary": [
+    "Deltoide posteriore"
+   ],
+   "equipment": [
+    "Tappetino"
+   ],
+   "art": {
+    "frames": [
+     "proneStart",
+     "proneEnd"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Prono, braccia distese avanti, collo in linea.",
+    "Solleva contemporaneamente braccia, petto e gambe di pochi centimetri.",
+    "Mantieni 2 secondi e scendi lentamente."
+   ],
+   "errors": [
+    "Sollevarsi troppo iperestendendo la lombare.",
+    "Portare la testa all'indietro."
+   ],
+   "safety": [
+    "Schiena: ampiezza ridotta e controllo, senza slanci."
+   ],
+   "source": "ACSM – rinforzo estensori del tronco"
+  },
+  {
+   "id": "h_pullapart",
+   "name": "Pull apart con band",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Dorso",
+   "pattern": "pullH",
+   "load": "band",
+   "kneeFriendly": true,
+   "primary": [
+    "Deltoide posteriore",
+    "Trapezio medio"
+   ],
+   "secondary": [
+    "Romboidi"
+   ],
+   "equipment": [
+    "Loop band"
+   ],
+   "art": {
+    "frames": [
+     "pullApartStart",
+     "pullApartEnd"
+    ],
+    "implement": "bandFront"
+   },
+   "steps": [
+    "Band tesa davanti al petto con braccia distese all'altezza delle spalle.",
+    "Apri le braccia lateralmente avvicinando le scapole.",
+    "Ritorna lentamente mantenendo tensione."
+   ],
+   "errors": [
+    "Piegare i gomiti durante l'apertura.",
+    "Alzare le spalle."
+   ],
+   "safety": [
+    "Ottimo riscaldamento per le spalle prima delle spinte."
+   ],
+   "source": "ACE – salute della spalla e postura"
+  },
+  {
+   "id": "h_ohpband",
+   "name": "Lento avanti con band",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Spalle",
+   "pattern": "pushV",
+   "load": "band",
+   "kneeFriendly": true,
+   "primary": [
+    "Deltoidi"
+   ],
+   "secondary": [
+    "Tricipiti",
+    "Core"
+   ],
+   "equipment": [
+    "Loop band"
+   ],
+   "art": {
+    "frames": [
+     "ohpStandStart",
+     "ohpStandEnd"
+    ],
+    "implement": "bandVertical"
+   },
+   "steps": [
+    "In piedi sulla band, capi all'altezza delle spalle.",
+    "Spingi sopra la testa estendendo le braccia senza inarcare la schiena.",
+    "Scendi controllato fino alle spalle."
+   ],
+   "errors": [
+    "Iperestendere la lombare quando la band diventa dura.",
+    "Spingere in avanti anziché in alto."
+   ],
+   "safety": [
+    "Schiena: addome e glutei contratti per stabilizzare il bacino."
+   ],
+   "source": "NSCA – spinta verticale con elastici"
+  },
+  {
+   "id": "h_lateralhome",
+   "name": "Alzate laterali con manubri leggeri",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Spalle",
+   "pattern": "shoulderIso",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Deltoide laterale"
+   ],
+   "secondary": [
+    "Trapezio"
+   ],
+   "equipment": [
+    "Manubri 1-2 kg"
+   ],
+   "art": {
+    "frames": [
+     "stand",
+     "lateralUp"
+    ],
+    "implement": "dumbbells"
+   },
+   "steps": [
+    "In piedi, braccia lungo i fianchi, gomiti morbidi.",
+    "Solleva lateralmente fino all'altezza delle spalle in 2 secondi.",
+    "Scendi in 3 secondi senza far cadere le braccia."
+   ],
+   "errors": [
+    "Slanciare per compensare il peso leggero.",
+    "Fermarsi molto sotto la linea delle spalle."
+   ],
+   "safety": [
+    "Con 1-2 kg lavora a 15-20 ripetizioni con tempo lento e pause brevi."
+   ],
+   "source": "ACSM – carichi leggeri ad alte ripetizioni"
+  },
+  {
+   "id": "h_lateralband",
+   "name": "Alzate laterali con band",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Spalle",
+   "pattern": "shoulderIso",
+   "load": "band",
+   "kneeFriendly": true,
+   "primary": [
+    "Deltoide laterale"
+   ],
+   "secondary": [
+    "Sovraspinato"
+   ],
+   "equipment": [
+    "Loop band"
+   ],
+   "art": {
+    "frames": [
+     "stand",
+     "lateralUp"
+    ],
+    "implement": "bandVertical"
+   },
+   "steps": [
+    "Un piede (o entrambi) sulla band, capi nelle mani lungo i fianchi.",
+    "Apri lateralmente fino all'altezza delle spalle.",
+    "Ritorna controllato mantenendo la tensione."
+   ],
+   "errors": [
+    "Tensione iniziale eccessiva che impedisce l'escursione completa.",
+    "Inclinare il busto lateralmente."
+   ],
+   "safety": [
+    "Se senti pizzicore alla spalla, riduci l'ampiezza e ruota leggermente i pollici verso l'alto."
+   ],
+   "source": "NSCA – isolamento deltoide con elastici"
+  },
+  {
+   "id": "h_frontraise",
+   "name": "Alzate frontali con band",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Spalle",
+   "pattern": "shoulderIso",
+   "load": "band",
+   "kneeFriendly": true,
+   "primary": [
+    "Deltoide anteriore"
+   ],
+   "secondary": [
+    "Gran pettorale (fasci alti)"
+   ],
+   "equipment": [
+    "Loop band"
+   ],
+   "art": {
+    "frames": [
+     "stand",
+     "frontUp"
+    ],
+    "implement": "bandVertical"
+   },
+   "steps": [
+    "In piedi sulla band, capi davanti alle cosce.",
+    "Solleva le braccia avanti fino all'altezza delle spalle.",
+    "Scendi controllato senza rilasciare del tutto la tensione."
+   ],
+   "errors": [
+    "Superare l'altezza delle spalle con il busto inarcato.",
+    "Slanciare con il bacino."
+   ],
+   "safety": [
+    "Alterna con lavoro sui deltoidi posteriori per mantenere l'equilibrio della spalla."
+   ],
+   "source": "NSCA – isolamento deltoide anteriore"
+  },
+  {
+   "id": "h_reverseflyband",
+   "name": "Aperture posteriori con band",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Spalle",
+   "pattern": "pullH",
+   "load": "band",
+   "kneeFriendly": true,
+   "primary": [
+    "Deltoide posteriore"
+   ],
+   "secondary": [
+    "Romboidi",
+    "Trapezio medio"
+   ],
+   "equipment": [
+    "Loop band"
+   ],
+   "art": {
+    "frames": [
+     "bentFlyStart",
+     "bentFlyEnd"
+    ],
+    "implement": "bandFront"
+   },
+   "steps": [
+    "Busto inclinato in avanti a 45°, band tesa davanti al petto.",
+    "Apri le braccia lateralmente stringendo le scapole.",
+    "Ritorna lentamente."
+   ],
+   "errors": [
+    "Usare la schiena per aprire.",
+    "Perdere l'inclinazione del busto."
+   ],
+   "safety": [
+    "Movimento lento: la qualità della contrazione conta più della resistenza."
+   ],
+   "source": "ACE – equilibrio muscolare della spalla"
+  },
+  {
+   "id": "h_curlband",
+   "name": "Curl con band",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Braccia",
+   "pattern": "arms",
+   "load": "band",
+   "kneeFriendly": true,
+   "primary": [
+    "Bicipite brachiale"
+   ],
+   "secondary": [
+    "Avambraccio"
+   ],
+   "equipment": [
+    "Loop band"
+   ],
+   "art": {
+    "frames": [
+     "stand",
+     "curlUp"
+    ],
+    "implement": "bandVertical"
+   },
+   "steps": [
+    "In piedi sulla band, capi nelle mani con palmi in avanti.",
+    "Fletti i gomiti mantenendoli fermi ai fianchi.",
+    "Scendi in 3 secondi contrastando la trazione della band."
+   ],
+   "errors": [
+    "Gomiti che si spostano avanti.",
+    "Ritorno rapido che annulla la fase eccentrica."
+   ],
+   "safety": [
+    "Cambia band per progredire quando superi le 20 ripetizioni pulite."
+   ],
+   "source": "NSCA – ipertrofia braccia con elastici"
+  },
+  {
+   "id": "h_hammerband",
+   "name": "Hammer curl con band",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Braccia",
+   "pattern": "arms",
+   "load": "band",
+   "kneeFriendly": true,
+   "primary": [
+    "Brachiale",
+    "Brachioradiale"
+   ],
+   "secondary": [
+    "Bicipite"
+   ],
+   "equipment": [
+    "Loop band"
+   ],
+   "art": {
+    "frames": [
+     "stand",
+     "curlUp"
+    ],
+    "implement": "bandVertical"
+   },
+   "steps": [
+    "In piedi sulla band, presa neutra con i pollici verso l'alto.",
+    "Fletti i gomiti mantenendo la presa neutra.",
+    "Scendi lentamente."
+   ],
+   "errors": [
+    "Ruotare i polsi.",
+    "Aiutarsi con le spalle."
+   ],
+   "safety": [
+    "Presa neutra comoda per polsi e gomiti."
+   ],
+   "source": "NSCA – ipertrofia braccia"
+  },
+  {
+   "id": "h_pushdownband",
+   "name": "Push-down con band",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Braccia",
+   "pattern": "arms",
+   "load": "band",
+   "kneeFriendly": true,
+   "primary": [
+    "Tricipite"
+   ],
+   "secondary": [],
+   "equipment": [
+    "Loop band",
+    "Punto di ancoraggio alto"
+   ],
+   "art": {
+    "frames": [
+     "pushdownStart",
+     "pushdownEnd"
+    ],
+    "implement": "bandTop"
+   },
+   "steps": [
+    "Band ancorata in alto, gomiti ai fianchi.",
+    "Estendi i gomiti spingendo verso il basso.",
+    "Risali fino a 90° mantenendo i gomiti fermi."
+   ],
+   "errors": [
+    "Spostare i gomiti indietro.",
+    "Inclinare il busto per aiutarsi."
+   ],
+   "safety": [
+    "Se non hai un ancoraggio alto sicuro, sostituisci con i dip su sedia."
+   ],
+   "source": "NSCA – isolamento tricipite"
+  },
+  {
+   "id": "h_dipchair",
+   "name": "Dip su sedia",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Braccia",
+   "pattern": "arms",
+   "load": "bodyweight",
+   "kneeFriendly": true,
+   "primary": [
+    "Tricipite"
+   ],
+   "secondary": [
+    "Deltoide anteriore",
+    "Petto"
+   ],
+   "equipment": [
+    "Sedia stabile"
+   ],
+   "art": {
+    "frames": [
+     "dipTop",
+     "dipBottom"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Mani sul bordo di una sedia stabile, dita verso di te, bacino appena davanti al bordo.",
+    "Scendi flettendo i gomiti fino a circa 90°, mantenendo la schiena vicina alla sedia.",
+    "Spingi in alto senza bloccare i gomiti."
+   ],
+   "errors": [
+    "Scendere troppo caricando la spalla in rotazione interna.",
+    "Allontanare il bacino dalla sedia."
+   ],
+   "safety": [
+    "Spalla: fermati a 90° e usa una sedia che non scivoli."
+   ],
+   "source": "ACSM – esercizio a corpo libero per tricipiti"
+  },
+  {
+   "id": "h_frenchband",
+   "name": "French press con band",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Braccia",
+   "pattern": "arms",
+   "load": "band",
+   "kneeFriendly": true,
+   "primary": [
+    "Tricipite (capo lungo)"
+   ],
+   "secondary": [],
+   "equipment": [
+    "Loop band"
+   ],
+   "art": {
+    "frames": [
+     "frenchStart",
+     "frenchEnd"
+    ],
+    "implement": "bandBack"
+   },
+   "steps": [
+    "Band sotto un piede o dietro la schiena, capi sopra la testa.",
+    "Estendi i gomiti verso l'alto tenendoli vicini alle orecchie.",
+    "Scendi controllato dietro la nuca."
+   ],
+   "errors": [
+    "Aprire i gomiti.",
+    "Iperestendere la schiena."
+   ],
+   "safety": [
+    "Spalla: se non riesci a tenere i gomiti fermi, riduci la tensione della band."
+   ],
+   "source": "NSCA – ipertrofia tricipite"
+  },
+  {
+   "id": "h_calfhome",
+   "name": "Calf raise monopodalico",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Polpacci",
+   "pattern": "calf",
+   "load": "bodyweight",
+   "kneeFriendly": true,
+   "primary": [
+    "Gastrocnemio",
+    "Soleo"
+   ],
+   "secondary": [
+    "Stabilizzatori caviglia"
+   ],
+   "equipment": [
+    "Gradino o rialzo"
+   ],
+   "art": {
+    "frames": [
+     "stand",
+     "calfUp"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Avampiede su un gradino, una mano appoggiata al muro per l'equilibrio.",
+    "Sali sulla punta di un piede solo, pausa in alto.",
+    "Scendi in 3 secondi fino ad allungare il polpaccio."
+   ],
+   "errors": [
+    "Rimbalzare in basso.",
+    "Usare il braccio d'appoggio per spingere."
+   ],
+   "safety": [
+    "Caviglie forti stabilizzano il ginocchio nei movimenti quotidiani."
+   ],
+   "source": "NSCA – resistenza muscolare polpaccio"
+  },
+  {
+   "id": "h_calfband",
+   "name": "Calf raise con band",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Polpacci",
+   "pattern": "calf",
+   "load": "band",
+   "kneeFriendly": true,
+   "primary": [
+    "Gastrocnemio"
+   ],
+   "secondary": [
+    "Soleo"
+   ],
+   "equipment": [
+    "Loop band"
+   ],
+   "art": {
+    "frames": [
+     "stand",
+     "calfUp"
+    ],
+    "implement": "bandVertical"
+   },
+   "steps": [
+    "In piedi sulla band con gli avampiedi, capi tenuti all'altezza delle spalle.",
+    "Sali sulle punte contro la resistenza.",
+    "Scendi lentamente fino a talloni a terra."
+   ],
+   "errors": [
+    "Escursione ridotta.",
+    "Perdere l'equilibrio in avanti."
+   ],
+   "safety": [
+    "Se serve, appoggia una mano al muro."
+   ],
+   "source": "NSCA – resistenza elastica"
+  },
+  {
+   "id": "c_plank",
+   "name": "Plank frontale",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "core",
+   "group": "Core",
+   "pattern": "coreAnti",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Retto dell'addome",
+    "Trasverso"
+   ],
+   "secondary": [
+    "Glutei",
+    "Spalle"
+   ],
+   "equipment": [
+    "Tappetino"
+   ],
+   "art": {
+    "frames": [
+     "plank",
+     "plank"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Avambracci a terra sotto le spalle, gomiti a 90°.",
+    "Corpo in linea da testa a talloni, glutei e addome contratti.",
+    "Respira in modo regolare per tutta la durata."
+   ],
+   "errors": [
+    "Bacino alto a triangolo o cedente verso il basso.",
+    "Trattenere il respiro."
+   ],
+   "safety": [
+    "Schiena: se la lombare si inarca, appoggia le ginocchia e riduci la durata."
+   ],
+   "source": "ACSM – lavoro isometrico anti-estensione"
+  },
+  {
+   "id": "c_sideplank",
+   "name": "Plank laterale",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "core",
+   "group": "Core",
+   "pattern": "coreAnti",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Obliqui",
+    "Quadrato dei lombi"
+   ],
+   "secondary": [
+    "Medio gluteo",
+    "Spalla"
+   ],
+   "equipment": [
+    "Tappetino"
+   ],
+   "art": {
+    "frames": [
+     "sidePlank",
+     "sidePlank"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Su un fianco, gomito sotto la spalla, gambe distese o ginocchia piegate.",
+    "Solleva il bacino portando il corpo in linea.",
+    "Mantieni la posizione, poi cambia lato."
+   ],
+   "errors": [
+    "Bacino che scende durante la tenuta.",
+    "Spalla che collassa sopra il gomito."
+   ],
+   "safety": [
+    "Versione facilitata con ginocchia a terra se la tenuta scende sotto i 15 secondi."
+   ],
+   "source": "ACSM – stabilità laterale del tronco"
+  },
+  {
+   "id": "c_deadbug",
+   "name": "Dead bug",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "core",
+   "group": "Core",
+   "pattern": "coreAnti",
+   "load": "bodyweight",
+   "kneeFriendly": true,
+   "primary": [
+    "Trasverso",
+    "Retto dell'addome"
+   ],
+   "secondary": [
+    "Flessori dell'anca"
+   ],
+   "equipment": [
+    "Tappetino"
+   ],
+   "art": {
+    "frames": [
+     "deadbugStart",
+     "deadbugEnd"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Supino, braccia verso il soffitto, anche e ginocchia a 90°.",
+    "Estendi braccio e gamba opposti mantenendo la lombare a contatto con il tappetino.",
+    "Torna al centro e alterna i lati."
+   ],
+   "errors": [
+    "Lombare che si stacca dal pavimento.",
+    "Movimento troppo veloce."
+   ],
+   "safety": [
+    "Schiena: riduci l'ampiezza fino a mantenere il contatto lombare."
+   ],
+   "source": "ACSM – controllo lombo-pelvico"
+  },
+  {
+   "id": "c_hollow",
+   "name": "Hollow hold",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "core",
+   "group": "Core",
+   "pattern": "coreAnti",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Retto dell'addome"
+   ],
+   "secondary": [
+    "Flessori dell'anca"
+   ],
+   "equipment": [
+    "Tappetino"
+   ],
+   "art": {
+    "frames": [
+     "hollow",
+     "hollow"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Supino, solleva scapole e gambe dal tappetino.",
+    "Lombare schiacciata a terra, braccia lungo i fianchi o sopra la testa.",
+    "Mantieni la posizione respirando."
+   ],
+   "errors": [
+    "Lombare inarcata.",
+    "Tenere il collo in tensione."
+   ],
+   "safety": [
+    "Se la lombare si stacca, piega le ginocchia o avvicina le gambe."
+   ],
+   "source": "NSCA – isometria del core"
+  },
+  {
+   "id": "c_abwheel",
+   "name": "Rollout con ruota per addominali",
+   "setup": [
+    "home",
+    "gym"
+   ],
+   "type": "core",
+   "group": "Core",
+   "pattern": "coreAnti",
+   "load": "bodyweight",
+   "kneeFriendly": true,
+   "primary": [
+    "Retto dell'addome",
+    "Trasverso"
+   ],
+   "secondary": [
+    "Dorsali",
+    "Spalle"
+   ],
+   "equipment": [
+    "Ruota addominali",
+    "Tappetino"
+   ],
+   "art": {
+    "frames": [
+     "wheelStart",
+     "wheelEnd"
+    ],
+    "implement": "wheel"
+   },
+   "steps": [
+    "In ginocchio sul tappetino, ruota sotto le spalle, addome contratto.",
+    "Rotola in avanti solo fino a dove riesci a mantenere la lombare neutra.",
+    "Torna indietro tirando con addome e dorsali."
+   ],
+   "errors": [
+    "Andare troppo lontano e inarcare la schiena.",
+    "Tirare con le braccia invece che con l'addome."
+   ],
+   "safety": [
+    "Schiena: esercizio avanzato, parti con escursioni brevi (30-40 cm) e aumenta gradualmente."
+   ],
+   "source": "NSCA – progressione anti-estensione avanzata"
+  },
+  {
+   "id": "c_reversecrunch",
+   "name": "Crunch inverso",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "core",
+   "group": "Core",
+   "pattern": "coreFlex",
+   "load": "bodyweight",
+   "kneeFriendly": true,
+   "primary": [
+    "Retto dell'addome (fasci bassi)"
+   ],
+   "secondary": [
+    "Obliqui"
+   ],
+   "equipment": [
+    "Tappetino"
+   ],
+   "art": {
+    "frames": [
+     "revCrunchStart",
+     "revCrunchEnd"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Supino, ginocchia piegate a 90°, mani lungo i fianchi.",
+    "Porta le ginocchia verso il petto sollevando il bacino di pochi centimetri.",
+    "Scendi lentamente senza appoggiare i piedi."
+   ],
+   "errors": [
+    "Usare slancio per sollevare il bacino.",
+    "Spingere con le mani a terra."
+   ],
+   "safety": [
+    "Movimento breve e controllato: l'obiettivo è la contrazione, non l'ampiezza."
+   ],
+   "source": "ACSM – flessione lombo-pelvica controllata"
+  },
+  {
+   "id": "c_mountain",
+   "name": "Mountain climber lento",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "core",
+   "group": "Core",
+   "pattern": "coreAnti",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Core",
+    "Flessori dell'anca"
+   ],
+   "secondary": [
+    "Spalle",
+    "Quadricipiti"
+   ],
+   "equipment": [
+    "Tappetino"
+   ],
+   "art": {
+    "frames": [
+     "plank",
+     "mountain"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Posizione di plank alto, mani sotto le spalle.",
+    "Porta un ginocchio verso il petto senza muovere il bacino.",
+    "Alterna con ritmo controllato."
+   ],
+   "errors": [
+    "Bacino che sale e scende.",
+    "Ritmo troppo veloce che perde il controllo."
+   ],
+   "safety": [
+    "Versione lenta: qui è un esercizio di stabilità, non cardio."
+   ],
+   "source": "ACSM – core dinamico a basso impatto"
+  },
+  {
+   "id": "c_pallof",
+   "name": "Pallof press con band",
+   "setup": [
+    "home",
+    "gym"
+   ],
+   "type": "core",
+   "group": "Core",
+   "pattern": "coreAnti",
+   "load": "band",
+   "kneeFriendly": true,
+   "primary": [
+    "Obliqui",
+    "Trasverso"
+   ],
+   "secondary": [
+    "Glutei",
+    "Spalle"
+   ],
+   "equipment": [
+    "Loop band",
+    "Ancoraggio laterale"
+   ],
+   "art": {
+    "frames": [
+     "pallofStart",
+     "pallofEnd"
+    ],
+    "implement": "bandSide"
+   },
+   "steps": [
+    "Band ancorata di lato all'altezza del petto, in piedi con i piedi a larghezza spalle.",
+    "Porta le mani al petto e spingi in avanti resistendo alla rotazione.",
+    "Torna al petto controllando, poi cambia lato."
+   ],
+   "errors": [
+    "Lasciarsi ruotare dalla band.",
+    "Trattenere il respiro."
+   ],
+   "safety": [
+    "Il busto resta immobile: tutto il lavoro è nel non ruotare."
+   ],
+   "source": "NSCA – anti-rotazione"
+  },
+  {
+   "id": "s_catcamel",
+   "name": "Cat-camel",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "stretch",
+   "group": "Mobilità colonna",
+   "pattern": "mobility",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Colonna vertebrale"
+   ],
+   "secondary": [
+    "Addome",
+    "Erettori spinali"
+   ],
+   "equipment": [
+    "Tappetino"
+   ],
+   "art": {
+    "frames": [
+     "catUp",
+     "camelDown"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "In quadrupedia, mani sotto le spalle e ginocchia sotto le anche.",
+    "Inspira portando il petto avanti e il bacino in antiversione.",
+    "Espira arrotondando la colonna vertebra per vertebra."
+   ],
+   "errors": [
+    "Muovere solo la zona lombare.",
+    "Movimento troppo rapido."
+   ],
+   "safety": [
+    "Mobilità dinamica ideale come primo esercizio della sessione."
+   ],
+   "source": "ACE – mobilità dinamica della colonna",
+   "mode": "dynamic"
+  },
+  {
+   "id": "s_armcircles",
+   "name": "Circonduzioni delle braccia",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "stretch",
+   "group": "Mobilità spalle",
+   "pattern": "mobility",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Spalle"
+   ],
+   "secondary": [
+    "Torace"
+   ],
+   "equipment": [],
+   "art": {
+    "frames": [
+     "armCircle1",
+     "armCircle2"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "In piedi, braccia distese lungo i fianchi.",
+    "Descrivi cerchi ampi in avanti, aumentando progressivamente l'ampiezza.",
+    "Inverti il senso a metà del tempo previsto."
+   ],
+   "errors": [
+    "Cerchi piccoli e veloci.",
+    "Inarcare la schiena per aumentare l'ampiezza."
+   ],
+   "safety": [
+    "Fermati se compare pizzicore alla spalla e riduci l'ampiezza."
+   ],
+   "source": "ACE – riscaldamento articolare",
+   "mode": "dynamic"
+  },
+  {
+   "id": "s_hipcircles",
+   "name": "Circonduzioni dell'anca in quadrupedia",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "stretch",
+   "group": "Mobilità anca",
+   "pattern": "mobility",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Anca"
+   ],
+   "secondary": [
+    "Glutei",
+    "Core"
+   ],
+   "equipment": [
+    "Tappetino"
+   ],
+   "art": {
+    "frames": [
+     "quadrupedStart",
+     "hipCircle"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "In quadrupedia, solleva un ginocchio mantenendolo flesso.",
+    "Descrivi cerchi ampi con il ginocchio, prima verso l'esterno poi verso l'interno.",
+    "Cambia lato dopo il numero di ripetizioni previste."
+   ],
+   "errors": [
+    "Ruotare tutto il bacino.",
+    "Perdere la posizione neutra della schiena."
+   ],
+   "safety": [
+    "Mobilità dell'anca: meno rigidità all'anca significa meno compensi del ginocchio."
+   ],
+   "source": "ACE – mobilità articolare mirata",
+   "mode": "dynamic"
+  },
+  {
+   "id": "s_legswings",
+   "name": "Slanci delle gambe",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "stretch",
+   "group": "Mobilità anca",
+   "pattern": "mobility",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Femorali",
+    "Flessori dell'anca"
+   ],
+   "secondary": [
+    "Glutei"
+   ],
+   "equipment": [
+    "Appoggio"
+   ],
+   "art": {
+    "frames": [
+     "swingBack",
+     "swingFront"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "In piedi con una mano appoggiata al muro.",
+    "Slancia una gamba avanti e indietro con ampiezza progressiva e senza forzare.",
+    "Poi esegui slanci laterali, quindi cambia gamba."
+   ],
+   "errors": [
+    "Slanci balistici a freddo con ampiezza massima subito.",
+    "Inarcare la lombare."
+   ],
+   "safety": [
+    "Aumenta l'ampiezza solo dopo le prime ripetizioni."
+   ],
+   "source": "ACE – stretching dinamico pre-attività",
+   "mode": "dynamic"
+  },
+  {
+   "id": "s_worldgreatest",
+   "name": "World's greatest stretch",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "stretch",
+   "group": "Mobilità globale",
+   "pattern": "mobility",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Flessori dell'anca",
+    "Adduttori",
+    "Torace"
+   ],
+   "secondary": [
+    "Femorali"
+   ],
+   "equipment": [
+    "Tappetino"
+   ],
+   "art": {
+    "frames": [
+     "lungeDown",
+     "lungeTwist"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Da posizione di affondo profondo, appoggia entrambe le mani all'interno del piede avanti.",
+    "Ruota il busto verso la gamba avanti portando il braccio verso il soffitto.",
+    "Torna al centro e cambia lato."
+   ],
+   "errors": [
+    "Ginocchio posteriore appoggiato con dolore.",
+    "Ruotare solo con il braccio senza coinvolgere il torace."
+   ],
+   "safety": [
+    "Ginocchio: appoggia il ginocchio posteriore sul tappetino o su un asciugamano piegato."
+   ],
+   "source": "ACE – mobilità multiarticolare",
+   "mode": "dynamic"
+  },
+  {
+   "id": "s_thoracic",
+   "name": "Rotazione toracica in quadrupedia",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "stretch",
+   "group": "Mobilità colonna",
+   "pattern": "mobility",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Colonna toracica"
+   ],
+   "secondary": [
+    "Spalle"
+   ],
+   "equipment": [
+    "Tappetino"
+   ],
+   "art": {
+    "frames": [
+     "quadrupedStart",
+     "thoracicOpen"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "In quadrupedia, una mano dietro la nuca.",
+    "Ruota il gomito verso il soffitto aprendo il torace, sguardo che segue il gomito.",
+    "Torna in basso portando il gomito verso il braccio d'appoggio."
+   ],
+   "errors": [
+    "Ruotare con la zona lombare.",
+    "Movimento veloce senza pausa in apertura."
+   ],
+   "safety": [
+    "Utile per chi passa molte ore seduto."
+   ],
+   "source": "ACE – mobilità toracica",
+   "mode": "dynamic"
+  },
+  {
+   "id": "s_quadstretch",
+   "name": "Allungamento del quadricipite in piedi",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "stretch",
+   "group": "Quadricipiti",
+   "pattern": "static",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Quadricipite",
+    "Flessore dell'anca"
+   ],
+   "secondary": [],
+   "equipment": [
+    "Appoggio"
+   ],
+   "art": {
+    "frames": [
+     "stand",
+     "quadStretch"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "In piedi, una mano appoggiata per l'equilibrio.",
+    "Afferra la caviglia e porta il tallone verso il gluteo mantenendo le ginocchia vicine.",
+    "Spingi leggermente il bacino avanti e mantieni la posizione."
+   ],
+   "errors": [
+    "Tirare la caviglia comprimendo il ginocchio.",
+    "Inarcare la lombare."
+   ],
+   "safety": [
+    "Ginocchio: se la flessione è fastidiosa, usa la versione sdraiata su un fianco con una fascia."
+   ],
+   "source": "ACE – stretching statico, 20-30 secondi"
+  },
+  {
+   "id": "s_hamstringband",
+   "name": "Allungamento femorali supino con band",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "stretch",
+   "group": "Catena posteriore",
+   "pattern": "static",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Femorali"
+   ],
+   "secondary": [
+    "Polpaccio"
+   ],
+   "equipment": [
+    "Loop band",
+    "Tappetino"
+   ],
+   "art": {
+    "frames": [
+     "supineLegUp",
+     "supineLegUp"
+    ],
+    "implement": "bandFoot"
+   },
+   "steps": [
+    "Supino, band attorno alla pianta di un piede.",
+    "Solleva la gamba tesa verso il soffitto tirando dolcemente la band.",
+    "Mantieni la posizione respirando, poi cambia lato."
+   ],
+   "errors": [
+    "Piegare il ginocchio della gamba che si allunga.",
+    "Sollevare la testa e le spalle dal tappetino."
+   ],
+   "safety": [
+    "Ginocchio: se senti tensione dietro il ginocchio, piegalo leggermente."
+   ],
+   "source": "ACE – stretching statico, 20-30 secondi"
+  },
+  {
+   "id": "s_hipflexor",
+   "name": "Allungamento dei flessori dell'anca in affondo",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "stretch",
+   "group": "Anca",
+   "pattern": "static",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Ileopsoas",
+    "Retto femorale"
+   ],
+   "secondary": [
+    "Quadricipite"
+   ],
+   "equipment": [
+    "Tappetino"
+   ],
+   "art": {
+    "frames": [
+     "lungeDown",
+     "hipFlexorStretch"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "In affondo con il ginocchio posteriore appoggiato sul tappetino.",
+    "Contrai il gluteo del lato posteriore e spingi il bacino leggermente avanti.",
+    "Mantieni il busto eretto, poi cambia lato."
+   ],
+   "errors": [
+    "Inarcare la lombare invece di chiudere il bacino.",
+    "Ginocchio anteriore molto oltre la punta del piede."
+   ],
+   "safety": [
+    "Flessori dell'anca rigidi aumentano il carico su lombare e ginocchio: esercizio prioritario per chi sta molto seduto."
+   ],
+   "source": "ACE – stretching statico"
+  },
+  {
+   "id": "s_glutestretch",
+   "name": "Allungamento dei glutei supino (figura 4)",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "stretch",
+   "group": "Glutei",
+   "pattern": "static",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Grande gluteo",
+    "Piriforme"
+   ],
+   "secondary": [],
+   "equipment": [
+    "Tappetino"
+   ],
+   "art": {
+    "frames": [
+     "figure4",
+     "figure4"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Supino, incrocia una caviglia sopra il ginocchio opposto.",
+    "Afferra la coscia della gamba d'appoggio e tirala verso il petto.",
+    "Mantieni, poi cambia lato."
+   ],
+   "errors": [
+    "Tirare dal ginocchio della gamba incrociata.",
+    "Sollevare la testa dal tappetino."
+   ],
+   "safety": [
+    "Ginocchio: la trazione si applica alla coscia, mai al ginocchio incrociato."
+   ],
+   "source": "ACE – stretching statico"
+  },
+  {
+   "id": "s_adductor",
+   "name": "Allungamento degli adduttori seduto",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "stretch",
+   "group": "Adduttori",
+   "pattern": "static",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Adduttori"
+   ],
+   "secondary": [
+    "Anca"
+   ],
+   "equipment": [
+    "Tappetino"
+   ],
+   "art": {
+    "frames": [
+     "seated",
+     "butterfly"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Seduto, piante dei piedi unite e ginocchia aperte.",
+    "Afferra le caviglie e inclina il busto in avanti dall'anca, schiena lunga.",
+    "Lascia scendere le ginocchia senza spingerle con le mani."
+   ],
+   "errors": [
+    "Spingere le ginocchia verso il basso con forza.",
+    "Arrotondare la schiena per scendere di più."
+   ],
+   "safety": [
+    "Movimento passivo: la gravità fa il lavoro."
+   ],
+   "source": "ACE – stretching statico"
+  },
+  {
+   "id": "s_calfwall",
+   "name": "Allungamento del polpaccio al muro",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "stretch",
+   "group": "Polpacci",
+   "pattern": "static",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Gastrocnemio",
+    "Soleo"
+   ],
+   "secondary": [
+    "Tendine d'Achille"
+   ],
+   "equipment": [
+    "Muro"
+   ],
+   "art": {
+    "frames": [
+     "wallLean",
+     "wallLean"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Mani al muro, una gamba indietro con tallone a terra e ginocchio teso.",
+    "Sposta il peso in avanti fino a sentire tensione nel polpaccio.",
+    "Ripeti poi con ginocchio posteriore leggermente flesso per il soleo."
+   ],
+   "errors": [
+    "Tallone che si stacca da terra.",
+    "Piede posteriore ruotato verso l'esterno."
+   ],
+   "safety": [
+    "Caviglia rigida = maggiore stress su ginocchio nello squat e nella camminata."
+   ],
+   "source": "ACE – stretching statico"
+  },
+  {
+   "id": "s_chestdoor",
+   "name": "Allungamento del pettorale allo stipite",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "stretch",
+   "group": "Petto",
+   "pattern": "static",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Gran pettorale",
+    "Deltoide anteriore"
+   ],
+   "secondary": [],
+   "equipment": [
+    "Stipite o rack"
+   ],
+   "art": {
+    "frames": [
+     "chestDoor",
+     "chestDoor"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Avambraccio appoggiato allo stipite con gomito all'altezza della spalla.",
+    "Ruota lentamente il busto verso il lato opposto.",
+    "Mantieni la posizione, poi cambia lato."
+   ],
+   "errors": [
+    "Ruotare troppo forzando la spalla.",
+    "Alzare la spalla verso l'orecchio."
+   ],
+   "safety": [
+    "Spalla: tensione moderata, mai dolore o formicolio."
+   ],
+   "source": "ACE – stretching statico"
+  },
+  {
+   "id": "s_latstretch",
+   "name": "Allungamento dei dorsali in appoggio",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "stretch",
+   "group": "Dorso",
+   "pattern": "static",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Gran dorsale"
+   ],
+   "secondary": [
+    "Tricipite",
+    "Torace"
+   ],
+   "equipment": [
+    "Appoggio all'altezza dell'anca"
+   ],
+   "art": {
+    "frames": [
+     "hangOver",
+     "hangOver"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Mani su un appoggio stabile all'altezza dell'anca, passo indietro.",
+    "Lascia scendere il petto verso il pavimento con braccia distese.",
+    "Respira e allunga il fianco spostando leggermente il bacino di lato."
+   ],
+   "errors": [
+    "Arrotondare la schiena invece di allungarla.",
+    "Spingere troppo in basso con il collo."
+   ],
+   "safety": [
+    "Schiena: mantieni la colonna lunga, senza forzare l'estensione."
+   ],
+   "source": "ACE – stretching statico"
+  },
+  {
+   "id": "s_childpose",
+   "name": "Posizione del bambino",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "stretch",
+   "group": "Colonna",
+   "pattern": "static",
+   "load": "time",
+   "kneeFriendly": false,
+   "primary": [
+    "Erettori spinali",
+    "Gran dorsale"
+   ],
+   "secondary": [
+    "Glutei"
+   ],
+   "equipment": [
+    "Tappetino"
+   ],
+   "art": {
+    "frames": [
+     "childPose",
+     "childPose"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "In ginocchio, siediti sui talloni e distendi le braccia in avanti.",
+    "Lascia scendere il petto verso il tappetino.",
+    "Respira lentamente allungando la colonna a ogni espirazione."
+   ],
+   "errors": [
+    "Forzare la posizione con ginocchia doloranti.",
+    "Trattenere le spalle in tensione."
+   ],
+   "safety": [
+    "Ginocchio: se la flessione completa è fastidiosa, metti un cuscino tra polpacci e cosce o salta questo esercizio."
+   ],
+   "source": "ACE – stretching statico e respirazione"
+  },
+  {
+   "id": "s_supinetwist",
+   "name": "Torsione spinale supina",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "stretch",
+   "group": "Colonna",
+   "pattern": "static",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Colonna",
+    "Obliqui"
+   ],
+   "secondary": [
+    "Glutei"
+   ],
+   "equipment": [
+    "Tappetino"
+   ],
+   "art": {
+    "frames": [
+     "twistSupine",
+     "twistSupine"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Supino, braccia aperte a croce, ginocchia piegate.",
+    "Lascia cadere le ginocchia da un lato mantenendo entrambe le spalle a terra.",
+    "Respira, poi cambia lato."
+   ],
+   "errors": [
+    "Staccare la spalla opposta dal tappetino.",
+    "Spingere le ginocchia con la mano."
+   ],
+   "safety": [
+    "Schiena: movimento passivo, senza forzare la rotazione."
+   ],
+   "source": "ACE – stretching statico"
+  },
+  {
+   "id": "s_neck",
+   "name": "Allungamento del trapezio superiore",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "stretch",
+   "group": "Collo",
+   "pattern": "static",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Trapezio superiore"
+   ],
+   "secondary": [
+    "Elevatore della scapola"
+   ],
+   "equipment": [],
+   "art": {
+    "frames": [
+     "neckStretch",
+     "neckStretch"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Seduto o in piedi, una mano che tira leggermente la testa di lato.",
+    "Spalla opposta bassa e rilassata.",
+    "Mantieni la posizione respirando, poi cambia lato."
+   ],
+   "errors": [
+    "Ruotare la testa mentre la si inclina.",
+    "Trazione eccessiva."
+   ],
+   "safety": [
+    "Collo: pressione molto leggera, mai dolore o vertigini."
+   ],
+   "source": "ACE – stretching statico cervicale"
+  },
+  {
+   "id": "s_9090",
+   "name": "Posizione 90/90 per l'anca",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "stretch",
+   "group": "Anca",
+   "pattern": "static",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Rotatori dell'anca"
+   ],
+   "secondary": [
+    "Glutei"
+   ],
+   "equipment": [
+    "Tappetino"
+   ],
+   "art": {
+    "frames": [
+     "sit90",
+     "sit90lean"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Seduto con una gamba avanti a 90° e l'altra di lato a 90°.",
+    "Busto eretto sopra il bacino, mani a terra per sostegno.",
+    "Inclinati lentamente in avanti sulla gamba anteriore, poi cambia lato."
+   ],
+   "errors": [
+    "Sedersi con il bacino ruotato all'indietro.",
+    "Forzare l'inclinazione con dolore al ginocchio."
+   ],
+   "safety": [
+    "Ginocchio: se la posizione tira sul ginocchio interno, riduci l'angolo e siediti su un cuscino."
+   ],
+   "source": "ACE – mobilità dell'anca"
+  }
+ ]
+}

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
+<title>Palestra 50</title>
+<meta name="theme-color" content="#0E1620">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Palestra 50">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app">
+
+  <header class="topbar">
+    <div class="row">
+      <h1 id="topTitle">Oggi</h1>
+      <span class="chip" id="topChip">—</span>
+    </div>
+  </header>
+
+  <!-- HOME: sessione del giorno -->
+  <main id="view-home" class="view active"></main>
+
+  <!-- SESSIONE in corso -->
+  <main id="view-session" class="view"></main>
+
+  <!-- STORICO -->
+  <main id="view-history" class="view"></main>
+
+  <!-- PROGRAMMA / IMPOSTAZIONI -->
+  <main id="view-settings" class="view"></main>
+
+  <nav class="nav" id="nav">
+    <button data-go="home" class="active">
+      <svg viewBox="0 0 24 24"><path d="M4 11.5 12 4l8 7.5"/><path d="M6 10.5V20h12v-9.5"/></svg>
+      Oggi
+    </button>
+    <button data-go="history">
+      <svg viewBox="0 0 24 24"><path d="M4 19V5"/><path d="M4 19h16"/><path d="m7 15 4-5 3 3 5-7"/></svg>
+      Progressi
+    </button>
+    <button data-go="settings">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21M5.6 5.6l1.6 1.6M16.8 16.8l1.6 1.6M18.4 5.6l-1.6 1.6M7.2 16.8l-1.6 1.6"/></svg>
+      Programma
+    </button>
+  </nav>
+</div>
+
+<!-- Timer di recupero a tutto schermo -->
+<div class="timer" id="timer">
+  <div style="position:relative;display:grid;place-items:center">
+    <svg class="ring" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="45" stroke="#2B3B4E" stroke-width="7" fill="none"/>
+      <circle id="ringFill" cx="50" cy="50" r="45" stroke="#F5A524" stroke-width="7" fill="none"
+              stroke-linecap="round" stroke-dasharray="283" stroke-dashoffset="0"/>
+    </svg>
+    <div class="count num" id="timerCount">0:00</div>
+  </div>
+  <p class="what" id="timerWhat"></p>
+  <div class="actions">
+    <button class="btn secondary" id="timerMinus">−15 s</button>
+    <button class="btn secondary" id="timerPlus">+15 s</button>
+  </div>
+  <div class="actions">
+    <button class="btn" id="timerSkip">Riprendi ora</button>
+  </div>
+</div>
+
+<!-- Scheda informativa esercizio -->
+<div class="sheet" id="sheet"><div class="panel" id="sheetPanel"></div></div>
+
+<!-- Modale generica (disclaimer, fine sessione) -->
+<div class="modal" id="modal"><div class="box" id="modalBox"></div></div>
+
+<script src="app.js"></script>
+</body>
+</html>

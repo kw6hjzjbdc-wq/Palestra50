@@ -1,0 +1,195 @@
+/* ============================================================
+   Palestra 50 — foglio di stile
+   Tema scuro ad alto contrasto: leggibile sotto le luci della
+   palestra e con lo schermo sporco di sudore. Tap target >= 56px.
+   ============================================================ */
+
+:root{
+  --ink:#0E1620;
+  --surface:#16212E;
+  --surface2:#1E2C3C;
+  --line:#2B3B4E;
+  --text:#EAF1F8;
+  --muted:#93A7BC;
+  --amber:#F5A524;      /* sedute di forza, azioni primarie */
+  --teal:#4FC3A1;       /* sedute di mobilità */
+  --alert:#E8654F;      /* avvertenze, ginocchio, rischi */
+  --radius:14px;
+  --tap:58px;
+  --sans:"Avenir Next","Segoe UI",system-ui,-apple-system,sans-serif;
+  --cond:"Avenir Next Condensed","Helvetica Neue",var(--sans);
+}
+
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;height:100%}
+body{
+  background:var(--ink);color:var(--text);font-family:var(--sans);
+  font-size:17px;line-height:1.45;
+  padding-bottom:env(safe-area-inset-bottom);
+  overscroll-behavior-y:none;
+  -webkit-text-size-adjust:100%;
+}
+button,input,select{font:inherit;color:inherit}
+button{border:0;background:none;cursor:pointer}
+h1,h2,h3{font-family:var(--cond);font-weight:600;letter-spacing:.01em;margin:0}
+h1{font-size:30px;line-height:1.1}
+h2{font-size:22px}
+h3{font-size:19px}
+.num{font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.small{font-size:14px}
+
+/* ---------- struttura ---------- */
+.app{max-width:520px;margin:0 auto;min-height:100%;display:flex;flex-direction:column}
+.view{display:none;flex:1;padding:0 18px 120px}
+.view.active{display:block}
+.topbar{
+  position:sticky;top:0;z-index:20;background:linear-gradient(var(--ink) 72%,transparent);
+  padding:calc(env(safe-area-inset-top) + 14px) 18px 10px;
+}
+.topbar .row{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.chip{
+  display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;
+  background:var(--surface2);color:var(--muted);font-size:13px;border:1px solid var(--line);
+}
+.chip.strength{color:var(--amber);border-color:#5a410f}
+.chip.mobility{color:var(--teal);border-color:#1d4d40}
+
+/* ---------- card ---------- */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin:14px 0}
+.card.flat{background:none;border-color:var(--line)}
+.session-head{display:flex;gap:14px;align-items:flex-start}
+.session-head .kicker{font-family:var(--cond);font-size:15px;color:var(--amber)}
+.session-head.mobility .kicker{color:var(--teal)}
+
+/* elenco esercizi in anteprima */
+.plan{list-style:none;margin:12px 0 0;padding:0}
+.plan li{display:flex;gap:12px;align-items:center;padding:11px 0;border-top:1px solid var(--line)}
+.plan li:first-child{border-top:0}
+.plan .fig{width:44px;height:40px;flex:0 0 44px;opacity:.85}
+.plan .nm{flex:1;min-width:0}
+.plan .nm b{display:block;font-weight:600;font-size:16px}
+.plan .dose{font-family:var(--cond);font-size:15px;color:var(--muted);white-space:nowrap}
+
+/* ---------- pulsanti ---------- */
+.btn{
+  display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
+  min-height:var(--tap);padding:0 18px;border-radius:12px;font-family:var(--cond);
+  font-size:20px;font-weight:600;background:var(--amber);color:#151007;
+}
+.btn:active{transform:scale(.985)}
+.btn.secondary{background:var(--surface2);color:var(--text);border:1px solid var(--line)}
+.btn.teal{background:var(--teal);color:#07211a}
+.btn.ghost{background:none;border:1px solid var(--line);color:var(--muted);min-height:46px;font-size:17px}
+.btn[disabled]{opacity:.45}
+.btn-row{display:flex;gap:10px}
+
+/* segmented control attrezzatura */
+.seg{display:flex;background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:4px;gap:4px}
+.seg button{flex:1;min-height:46px;border-radius:9px;color:var(--muted);font-family:var(--cond);font-size:17px}
+.seg button[aria-pressed="true"]{background:var(--amber);color:#151007}
+
+/* ---------- schermata sessione ---------- */
+.progress{display:flex;gap:4px;margin:2px 0 8px}
+.progress span{flex:1;height:4px;border-radius:2px;background:var(--line)}
+.progress span.done{background:var(--amber)}
+.progress span.now{background:var(--text)}
+
+.exercise .fig-large{
+  width:100%;height:190px;background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--radius);display:flex;align-items:center;justify-content:center;
+}
+.exercise .fig-large svg{height:100%;width:auto}
+.dose-big{font-family:var(--cond);font-size:34px;line-height:1}
+.dose-big small{font-size:16px;color:var(--muted);font-weight:400}
+
+.setdots{display:flex;gap:8px;margin:14px 0 4px}
+.setdots button{
+  flex:1;height:52px;border-radius:10px;border:1px solid var(--line);background:var(--surface2);
+  font-family:var(--cond);font-size:19px;color:var(--muted);
+}
+.setdots button.done{background:var(--amber);color:#151007;border-color:var(--amber)}
+
+.loadrow{display:flex;gap:10px;align-items:center;margin-top:10px}
+.loadrow input,.loadrow select{
+  flex:1;min-height:52px;background:var(--surface2);border:1px solid var(--line);
+  border-radius:10px;padding:0 14px;font-family:var(--cond);font-size:20px;
+}
+.feedback{display:flex;gap:8px}
+.feedback button{
+  width:52px;height:52px;border-radius:10px;border:1px solid var(--line);
+  background:var(--surface2);font-size:22px;color:var(--muted);
+}
+.feedback button[aria-pressed="true"]{border-color:var(--amber);color:var(--amber);background:#2a2110}
+.lasttime{margin-top:10px;font-size:15px;color:var(--muted)}
+.lasttime b{color:var(--text)}
+
+/* ---------- timer ---------- */
+.timer{
+  position:fixed;inset:0;z-index:60;background:rgba(10,17,24,.96);
+  display:none;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:24px;
+}
+.timer.on{display:flex}
+.timer .ring{width:230px;height:230px;transform:rotate(-90deg)}
+.timer .count{
+  position:absolute;font-family:var(--cond);font-size:76px;font-variant-numeric:tabular-nums;
+}
+.timer .what{color:var(--muted);text-align:center;max-width:300px}
+.timer .actions{display:flex;gap:10px;width:100%;max-width:340px;margin-top:18px}
+.timer.warn .count{color:var(--amber)}
+
+/* ---------- scheda esercizio (bottom sheet) ---------- */
+.sheet{
+  position:fixed;inset:0;z-index:70;background:rgba(6,11,16,.7);display:none;
+}
+.sheet.on{display:block}
+.sheet .panel{
+  position:absolute;left:0;right:0;bottom:0;max-height:88%;overflow:auto;
+  background:var(--surface);border-radius:20px 20px 0 0;border-top:1px solid var(--line);
+  padding:18px 18px calc(28px + env(safe-area-inset-bottom));max-width:520px;margin:0 auto;
+}
+.sheet h2{margin-bottom:4px}
+.sheet .frames{display:flex;gap:10px;margin:12px 0}
+.sheet .frames div{flex:1;background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:6px}
+.sheet .frames svg{width:100%;height:120px}
+.sheet ol,.sheet ul{margin:6px 0 0;padding-left:20px}
+.sheet li{margin:4px 0}
+.sheet .block{margin-top:16px}
+.sheet .block h3{font-size:16px;color:var(--muted);font-family:var(--sans);font-weight:600}
+.warnblock{border-left:3px solid var(--alert);padding-left:12px}
+.warnblock h3{color:var(--alert)}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.tags span{font-size:13px;padding:4px 9px;border-radius:999px;background:var(--surface2);border:1px solid var(--line);color:var(--muted)}
+
+/* ---------- storico ---------- */
+.hist{list-style:none;margin:0;padding:0}
+.hist li{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+.hist .spark{width:86px;height:34px;flex:0 0 86px}
+.hist .val{font-family:var(--cond);font-size:19px;white-space:nowrap}
+.trend-up{color:var(--teal)}.trend-down{color:var(--alert)}
+
+/* ---------- nav ---------- */
+.nav{
+  position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;
+  background:rgba(14,22,32,.94);backdrop-filter:blur(12px);border-top:1px solid var(--line);
+  padding-bottom:env(safe-area-inset-bottom);max-width:520px;margin:0 auto;
+}
+.nav button{flex:1;padding:11px 4px 13px;color:var(--muted);font-size:12px;display:grid;gap:3px;justify-items:center}
+.nav button svg{width:23px;height:23px;stroke:currentColor;fill:none;stroke-width:1.8}
+.nav button.active{color:var(--amber)}
+
+/* ---------- modale ---------- */
+.modal{position:fixed;inset:0;z-index:80;background:rgba(6,11,16,.8);display:none;align-items:center;padding:20px}
+.modal.on{display:flex}
+.modal .box{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:20px;max-width:460px;margin:0 auto;max-height:86%;overflow:auto}
+
+.field{margin:14px 0}
+.field label{display:block;font-size:14px;color:var(--muted);margin-bottom:6px}
+.field input,.field select{width:100%;min-height:52px;background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:0 14px}
+.switch{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 0;border-bottom:1px solid var(--line)}
+.switch input{width:52px;height:32px}
+
+.notice{background:#241a12;border:1px solid #5a410f;color:#f3d2a0;border-radius:12px;padding:12px 14px;font-size:15px}
+
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+:focus-visible{outline:2px solid var(--amber);outline-offset:2px}

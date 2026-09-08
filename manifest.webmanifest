@@ -1,0 +1,17 @@
+{
+  "name": "Palestra 50 — allenamento personalizzato",
+  "short_name": "Palestra 50",
+  "description": "Programma di potenziamento e mobilità in 5 sedute settimanali, con timer di recupero, storico dei carichi e schede esercizio.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0E1620",
+  "theme_color": "#0E1620",
+  "lang": "it",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
