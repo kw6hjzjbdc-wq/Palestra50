@@ -19,6 +19,7 @@ const BANDS = ['Azzurra (leggera)', 'Gialla (media)', 'Rossa (dura)', 'Viola (mo
 let DB = { exercises: [] }, PROG = null, POSES = null;
 let S = null;              // stato persistente
 let current = null;        // sessione in corso
+let planCache = null;      // sessione di oggi già generata (per mantenere le sostituzioni)
 let wakeLock = null, audioCtx = null, timerHandle = null;
 
 /* ---------------------------------------------------------------------------
@@ -31,6 +32,7 @@ const DEFAULT_STATE = {
   sessionIndex: 0,         // numero progressivo della prossima sessione da fare
   kneeCare: true,          // dà priorità agli esercizi a basso impatto sul ginocchio
   sound: true,             // campanella del timer
+  audioMode: 'mix',        // 'mix' = suona sopra la musica, 'solo' = priorità alla campanella
   disclaimerOk: false,
   logs: [],                // storico per esercizio
   sessionLog: []           // storico per sessione (durata, note)
@@ -144,15 +146,24 @@ function weekProfile(week, cycleWeeks) {
   };
 }
 
-/* Dose (serie, ripetizioni, recupero) per un obiettivo e una settimana. */
-function dose(goalKey, profile) {
+/* Dose (serie, ripetizioni, recupero) per un obiettivo e una settimana.
+   Gli esercizi unilaterali (un lato alla volta) ricevono sempre un numero PARI
+   di serie, così destra e sinistra lavorano lo stesso numero di volte. */
+function dose(goalKey, profile, ex) {
   const g = PROG.goals[goalKey];
-  const sets = Math.min(5, Math.max(2, g.sets + (profile.setsDelta || 0)));
+  let sets = Math.min(6, Math.max(2, g.sets + (profile.setsDelta || 0)));
+  const perSide = !!(ex && ex.perSide);
+  if (perSide && sets % 2) sets++;                 // arrotonda al pari superiore
   const reps = Math.round(g.repsLow + (g.repsHigh - g.repsLow) * profile.repsBias);
   return {
-    goal: goalKey, goalLabel: g.label, sets, reps,
+    goal: goalKey, goalLabel: g.label, sets, reps, perSide,
     rest: g.rest, hold: g.hold || 0, rpe: g.rpe, source: g.source
   };
+}
+/* Etichetta della singola serie: per gli unilaterali alterna sinistra e destra. */
+function setLabel(it, i) {
+  if (!it.perSide) return String(i + 1);
+  return `${Math.floor(i / 2) + 1}${i % 2 ? ' Dx' : ' Sx'}`;
 }
 
 /* Suggerimento di carico basato sull'ultima seduta e sul feedback dato. */
@@ -227,7 +238,9 @@ function buildStrength(meta) {
     const ex = pickFrom(pool, rot, used);
     if (!ex) return;
     const goalKey = slot.goal || tmpl.goal;
-    items.push({ exId: ex.id, note: slot.note || '', ...dose(goalKey, meta.profile) });
+    items.push({ exId: ex.id, note: slot.note || '', goalKey,
+                 alt: { patterns: slot.patterns.slice(), types: ['strength', 'core'] },
+                 ...dose(goalKey, meta.profile, ex) });
   });
   return { label: tmpl.label, type: 'strength', items };
 }
@@ -243,11 +256,15 @@ function buildStretch(meta) {
   const rot = (meta.mesocycle - 1) * 2 + meta.tmplIdx + (meta.weekInCycle - 1);
   for (let i = 0; i < tmpl.dynamic; i++) {
     const ex = pickFrom(dyn, rot + i, used);
-    if (ex) items.push({ exId: ex.id, note: 'Riscaldamento', ...dose('mobility', meta.profile) });
+    if (ex) items.push({ exId: ex.id, note: 'Riscaldamento', goalKey: 'mobility',
+                         alt: { patterns: ['mobility'], types: ['stretch'] },
+                         ...dose('mobility', meta.profile, ex) });
   }
   for (let i = 0; i < tmpl.count; i++) {
     const ex = pickFrom(stat, rot + i, used);
-    if (ex) items.push({ exId: ex.id, note: '', ...dose('stretch', meta.profile) });
+    if (ex) items.push({ exId: ex.id, note: '', goalKey: 'stretch',
+                         alt: { patterns: ['static'], types: ['stretch'], groups: tmpl.staticGroups.slice() },
+                         ...dose('stretch', meta.profile, ex) });
   }
   return { label: tmpl.label, type: 'stretch', items };
 }
@@ -259,7 +276,9 @@ function buildCore(meta) {
   const used = new Set(), items = [];
   for (let i = 0; i < cfg.count; i++) {
     const ex = pickFrom(pool, (meta.idx + i), used);
-    if (ex) items.push({ exId: ex.id, note: '', ...dose(cfg.goal, meta.profile) });
+    if (ex) items.push({ exId: ex.id, note: '', goalKey: cfg.goal,
+                         alt: { patterns: ['coreAnti', 'coreFlex'], types: ['core'] },
+                         ...dose(cfg.goal, meta.profile, ex) });
   }
   return { label: cfg.label, type: 'core', items };
 }
@@ -278,7 +297,7 @@ function estimateMinutes(items) {
   let sec = 120; // preparazione e transizioni iniziali
   items.forEach(it => {
     let work;
-    if (it.goal === 'stretch') work = it.hold * 2;
+    if (it.goal === 'stretch') work = it.hold;
     else if (it.hold) work = it.hold;
     else {
       const ex = exById(it.exId);
@@ -296,8 +315,8 @@ function fitToTime(items, maxMin) {
   let trimmed = false, guard = 0;
   while (estimateMinutes(items) > maxMin && guard++ < 30) {
     let i = -1;
-    for (let k = items.length - 1; k >= 1; k--) if (items[k].sets > 2) { i = k; break; }
-    if (i >= 0) { items[i].sets--; trimmed = true; continue; }
+    for (let k = items.length - 1; k >= 1; k--) if (items[k].sets > (items[k].perSide ? 2 : 2)) { i = k; break; }
+    if (i >= 0) { items[i].sets -= items[i].perSide ? 2 : 1; trimmed = true; continue; }
     if (items.length > 4) { items.pop(); trimmed = true; continue; }
     break;
   }
@@ -321,15 +340,57 @@ function go(view) {
 }
 
 function doseText(it) {
-  if (it.goal === 'stretch') return `${it.sets}× ${it.hold}s per lato`;
-  if (it.goal === 'mobility') return `${it.sets}× ${it.reps}`;
+  const side = it.perSide ? ` (${it.sets / 2} per lato)` : '';
+  if (it.goal === 'stretch') return `${it.sets}× ${it.hold}s${side}`;
+  if (it.goal === 'mobility') return `${it.sets}× ${it.reps}${side}`;
   const ex = exById(it.exId);
-  if (ex && ex.load === 'time') return `${it.sets}× ${20 + it.reps}s`;
-  return `${it.sets}× ${it.reps}`;
+  if (ex && ex.load === 'time') return `${it.sets}× ${20 + it.reps}s${side}`;
+  return `${it.sets}× ${it.reps}${side}`;
+}
+
+/* --- SOSTITUZIONE DI UN ESERCIZIO -------------------------------------------
+   Le alternative rispettano lo stesso schema di movimento (o lo stesso gruppo,
+   per lo stretching), l'attrezzatura scelta e il filtro ginocchio: l'esercizio
+   sostitutivo resta quindi coerente con l'obiettivo della seduta. */
+function alternativesFor(item, sess) {
+  const alt = item.alt || {};
+  const inUse = new Set((sess ? sess.items : []).map(i => i.exId));
+  let pool = DB.exercises.filter(e =>
+    e.setup.includes(S.setup) &&
+    (alt.types || ['strength']).includes(e.type) &&
+    (alt.patterns || []).includes(e.pattern) &&
+    (!alt.groups || alt.groups.includes(e.group)));
+  if (S.kneeCare) {
+    const safe = pool.filter(e => e.kneeFriendly);
+    if (safe.length) pool = safe;
+  }
+  pool.sort((a, b) => a.id.localeCompare(b.id));
+  return pool.filter(e => e.id === item.exId || !inUse.has(e.id));
+}
+
+/* Passa all'alternativa successiva, ricalcolando la dose sul nuovo esercizio. */
+function swapExercise(item, sess) {
+  const pool = alternativesFor(item, sess);
+  if (pool.length < 2) return false;
+  const i = pool.findIndex(e => e.id === item.exId);
+  const next = pool[(i + 1) % pool.length];
+  const d = dose(item.goalKey || item.goal, sess.profile, next);
+  item.exId = next.id;
+  item.sets = d.sets; item.reps = d.reps; item.rest = d.rest;
+  item.hold = d.hold; item.perSide = d.perSide; item.source = d.source;
+  return true;
+}
+
+/* La seduta del giorno viene generata una volta sola e tenuta in memoria: così
+   le sostituzioni fatte dalla home restano valide quando si preme "Inizia". */
+function todaySession(kind) {
+  const key = `${S.programId}|${S.setup}|${S.sessionIndex}|${kind || ''}`;
+  if (!planCache || planCache.key !== key) planCache = { key, sess: buildSession(S.sessionIndex, kind) };
+  return planCache.sess;
 }
 
 function renderHome() {
-  const s = buildSession(S.sessionIndex);
+  const s = todaySession(null);
   const p = program();
   $('#topTitle').textContent = 'Oggi';
   $('#topChip').textContent = `Sett. ${s.weekInCycle}/${p.cycleWeeks} · ciclo ${s.mesocycle}`;
@@ -383,20 +444,20 @@ function renderHome() {
   // ogni riga dell'elenco apre la scheda illustrativa dell'esercizio
   document.querySelectorAll('[data-plan]').forEach(li => li.onclick = () => {
     const it = s.items[+li.dataset.plan];
-    openSheet(exById(it.exId), it);
+    openSheet(exById(it.exId), it, () => { if (swapExercise(it, s)) renderHome(); });
   });
   if ($('#resumeBtn')) $('#resumeBtn').onclick = () => { go('session'); renderSession(); };
   const begin = kind => {
     if (current && !current.finished) {
       confirmAction('Sessione già in corso', 'Vuoi abbandonarla e iniziarne una nuova? Gli esercizi già conclusi restano nello storico.',
-        'Inizia una nuova sessione', () => startSession(buildSession(S.sessionIndex, kind)));
-    } else startSession(buildSession(S.sessionIndex, kind));
+        'Inizia una nuova sessione', () => startSession(todaySession(kind)));
+    } else startSession(todaySession(kind));
   };
   $('#startBtn').onclick = () => begin(null);
   $('#coreBtn').onclick = () => begin('core');
   $('#skipBtn').onclick = () => confirmAction('Saltare la seduta di oggi?',
     'Passerai alla sessione successiva del programma senza registrare questa.',
-    'Salta', () => { S.sessionIndex++; save(); renderHome(); });
+    'Salta', () => { S.sessionIndex++; planCache = null; save(); renderHome(); });
 }
 
 /* ---------- sessione in corso ---------- */
@@ -420,7 +481,7 @@ function renderSession() {
     `<span class="${i < c.pos ? 'done' : (i === c.pos ? 'now' : '')}"></span>`).join('');
 
   const setBtns = Array.from({ length: it.sets }, (_, i) =>
-    `<button data-set="${i}" class="${i < c.setsDone[c.pos] ? 'done' : ''}">${i + 1}</button>`).join('');
+    `<button data-set="${i}" class="${i < c.setsDone[c.pos] ? 'done' : ''}">${setLabel(it, i)}</button>`).join('');
 
   let loadCtl = '';
   if (ex.load === 'weight') {
@@ -432,6 +493,8 @@ function renderSession() {
   } else {
     loadCtl = `<input id="loadIn" type="text" placeholder="note (es. rip. eseguite)" value="${esc(c.loads[c.pos] || '')}">`;
   }
+
+  const nAlt = alternativesFor(it, s).length;
 
   // esercizi a tempo: stretching statico, plank, wall sit, tenute isometriche
   const timed = it.goal === 'stretch' || it.hold > 0 || ex.load === 'time';
@@ -463,12 +526,13 @@ function renderSession() {
       </div>
       <p class="lasttime">${lastTxt}</p>
 
-      <button class="btn ${timed ? 'teal' : ''}" id="doneSet" style="margin-top:16px">${timed ? 'Avvia ' + hold + ' secondi' : 'Ho finito la serie'}</button>
-      ${timed ? `<p class="small muted" style="margin-top:8px">Il cronometro parte subito: mantieni la posizione fino alla campanella. Gli ultimi tre secondi sono scanditi da un rintocco ciascuno.${it.goal === 'stretch' ? ' Esegui prima un lato, poi ripeti per l\'altro.' : ''}</p>` : ''}
+      <button class="btn ${timed ? 'teal' : ''}" id="doneSet" style="margin-top:16px">${timed ? 'Avvia ' + hold + ' secondi' + (it.perSide ? ' (' + (c.setsDone[c.pos] % 2 ? 'lato destro' : 'lato sinistro') + ')' : '') : 'Ho finito la serie'}</button>
+      ${timed ? `<p class="small muted" style="margin-top:8px">Tre secondi di preparazione scanditi dalla campanella, poi parte il conteggio: mantieni la posizione fino al rintocco finale. Gli ultimi tre secondi sono scanditi da un rintocco ciascuno.${it.goal === 'stretch' ? ' Ogni serie è un lato solo: il pulsante ti dice quale.' : ''}</p>` : ''}
       <div class="btn-row" style="margin-top:10px">
         <button class="btn ghost" id="infoBtn">Scheda esercizio</button>
-        <button class="btn ghost" id="nextBtn">${c.pos === s.items.length - 1 ? 'Chiudi sessione' : 'Prossimo esercizio'}</button>
+        <button class="btn ghost" id="swapBtn" ${nAlt < 2 ? 'disabled' : ''}>Cambia esercizio${nAlt > 1 ? ` (${nAlt - 1})` : ''}</button>
       </div>
+      <button class="btn ghost" id="nextBtn" style="margin-top:10px">${c.pos === s.items.length - 1 ? 'Chiudi sessione' : 'Prossimo esercizio'}</button>
       <p class="small muted" style="margin-top:14px">${esc(it.source)}${it.note ? ' · ' + esc(it.note) : ''}</p>
       <button class="btn ghost" id="abortBtn" style="margin-top:18px">Interrompi</button>
     </div>`;
@@ -500,10 +564,16 @@ function renderSession() {
     captureLoad();
     if (timed) {
       // cronometro della tenuta: al termine parte da solo il recupero
-      startTimer(hold, `Tenuta · ${ex.name}`, closeSet, 'work');
+      startTimer(hold, `Tenuta · ${ex.name}`, closeSet, 'work', 3);
     } else closeSet();
   };
-  $('#infoBtn').onclick = () => openSheet(ex, it);
+  $('#infoBtn').onclick = () => openSheet(ex, it, () => { if (swapExercise(it, s)) renderSession(); });
+  $('#swapBtn').onclick = () => {
+    if (c.setsDone[c.pos] > 0) {
+      confirmAction('Cambiare esercizio?', 'Hai già completato qualche serie: verranno azzerate per il nuovo esercizio.',
+        'Cambia', () => { c.setsDone[c.pos] = 0; c.loads[c.pos] = ''; c.feedback[c.pos] = null; if (swapExercise(it, s)) renderSession(); });
+    } else if (swapExercise(it, s)) renderSession();
+  };
   $('#nextBtn').onclick = () => {
     captureLoad();
     if (c.pos === s.items.length - 1) {
@@ -554,6 +624,7 @@ function endSession() {
     S.sessionLog.push({ ts: Date.now(), idx: s.idx, label: s.label, kind: s.kind, minutes: mins,
       note: withNote ? ($('#sNote').value || '') : '' });
     if (s.kind !== 'core') S.sessionIndex++;
+    planCache = null;
     save(); closeModal(); current = null; go('home');
   };
   $('#saveSession').onclick = () => finish(true);
@@ -561,7 +632,7 @@ function endSession() {
 }
 
 /* ---------- scheda esercizio ---------- */
-function openSheet(ex, it) {
+function openSheet(ex, it, onSwap) {
   $('#sheetPanel').innerHTML = `
     <h2>${esc(ex.name)}</h2>
     <div class="small muted">${esc(ex.group)} · ${esc(ex.equipment.join(', ') || 'corpo libero')}</div>
@@ -577,9 +648,11 @@ function openSheet(ex, it) {
     <div class="block warnblock"><h3>Errori e rischi</h3>
       <ul>${ex.errors.map(e => `<li>${esc(e)}</li>`).join('')}${ex.safety.map(e => `<li>${esc(e)}</li>`).join('')}</ul></div>
     <div class="block"><h3>Riferimento</h3><p class="small muted">${esc(ex.source)}</p></div>
-    <button class="btn secondary" id="closeSheet" style="margin-top:18px">Chiudi</button>`;
+    ${onSwap ? `<button class="btn ghost" id="sheetSwap" style="margin-top:18px">Sostituisci con un altro esercizio</button>` : ''}
+    <button class="btn secondary" id="closeSheet" style="margin-top:10px">Chiudi</button>`;
   $('#sheet').classList.add('on');
   $('#closeSheet').onclick = () => $('#sheet').classList.remove('on');
+  if (onSwap && $('#sheetSwap')) $('#sheetSwap').onclick = () => { $('#sheet').classList.remove('on'); onSwap(); };
 }
 $('#sheet').addEventListener('click', e => { if (e.target.id === 'sheet') $('#sheet').classList.remove('on'); });
 
@@ -682,9 +755,14 @@ function renderSettings() {
         <input type="checkbox" id="kneeChk" ${S.kneeCare ? 'checked' : ''}></div>
       <div class="switch"><span>Campanella del timer</span>
         <input type="checkbox" id="soundChk" ${S.sound !== false ? 'checked' : ''}></div>
+      <div class="switch"><span>Convivenza con la musica</span>
+        <select id="audioSel" style="width:180px;min-height:44px;background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:0 10px">
+          <option value="mix" ${S.audioMode !== 'solo' ? 'selected' : ''}>Sopra la musica</option>
+          <option value="solo" ${S.audioMode === 'solo' ? 'selected' : ''}>Priorità campanella</option>
+        </select></div>
       <div class="switch" style="border:0"><span>Schermo sempre acceso</span><span class="small muted" id="wlStatus">—</span></div>
       <button class="btn ghost" id="testSound" style="margin-top:12px">Prova la campanella</button>
-      <p class="small muted" style="margin-top:8px">Se non senti nulla: disattiva la modalità silenziosa dell'iPhone (interruttore laterale o Centro di Controllo) e alza il volume mentre l'app è aperta. Il suono usa il canale multimediale, quindi il volume va regolato con i tasti laterali durante la riproduzione.</p>
+      <p class="small muted" style="margin-top:8px"><b>Sopra la musica</b>: la campanella si sovrappone a Spotify o YouTube abbassandoli per un attimo, senza fermarli; richiede però che la modalità silenziosa dell'iPhone sia disattivata. <b>Priorità campanella</b>: si sente anche con il telefono in silenzioso, ma mette in pausa l'audio delle altre app. Se non senti nulla, tocca "Prova la campanella" e alza il volume con i tasti laterali mentre suona.</p>
     </div>
 
     <div class="card">
@@ -704,6 +782,7 @@ function renderSettings() {
   $('#setupSel').onchange = e => { S.setup = e.target.value; save(); };
   $('#kneeChk').onchange = e => { S.kneeCare = e.target.checked; save(); };
   $('#soundChk').onchange = e => { S.sound = e.target.checked; save(); if (e.target.checked) { unlockAudio(); setTimeout(() => ding(false), 350); } };
+  $('#audioSel').onchange = e => { S.audioMode = e.target.value; save(); setAudioSession(); };
   $('#testSound').onclick = () => {
     unlockAudio();
     setTimeout(() => ding(false), 250);
@@ -776,9 +855,23 @@ function buildAudio() {
   }
 }
 
+/* Categoria della sessione audio di iOS (Safari 17+):
+     'transient' → la campanella si sovrappone alla musica abbassandola un attimo,
+                   senza fermare Spotify o YouTube (impostazione predefinita);
+     'playback'  → la campanella ha la priorità e ignora l'interruttore silenzioso,
+                   ma mette in pausa l'audio delle altre app.
+   Se l'API non è disponibile il browser usa il comportamento di sistema. */
+function setAudioSession() {
+  try {
+    if (navigator.audioSession) navigator.audioSession.type =
+      (S && S.audioMode === 'solo') ? 'playback' : 'transient';
+  } catch (e) {}
+}
+
 /* Va chiamata dentro un gesto dell'utente (tocco su un pulsante). */
 function unlockAudio() {
   buildAudio();
+  setAudioSession();
   bells.short.concat(bells.final).forEach(a => {
     a.volume = 0;
     const p = a.play();
@@ -831,13 +924,38 @@ function ding(isFinal) {
    Può essere ridotto a icona: continua a girare e resta visibile mentre si
    naviga nel resto dell'app.
 ----------------------------------------------------------------------------- */
-let timerEnd = 0, timerTotal = 0, timerCb = null, timerMode = 'rest', lastLeft = null;
+let timerEnd = 0, timerStart = 0, timerTotal = 0, timerCb = null, timerMode = 'rest';
+let bellTimers = [];
+const AUDIO_LATENCY = 40;      // ms di anticipo per compensare la latenza di play()
 
-function startTimer(seconds, what, cb, mode) {
+function clearBellTimers() { bellTimers.forEach(clearTimeout); bellTimers = []; }
+
+/* I rintocchi non vengono più dedotti dal ciclo di aggiornamento (che gira a
+   scatti e sbagliava di qualche decimo): ogni campanella ha il suo timeout
+   calcolato sull'istante esatto, quindi cade precisa al secondo. */
+function scheduleBells() {
+  clearBellTimers();
+  const marks = [];
+  if (timerStart > Date.now()) {                 // fase di preparazione
+    for (let k = 3; k >= 1; k--) marks.push([timerStart - k * 1000, false]);
+    marks.push([timerStart, true]);              // via!
+  }
+  for (let k = 3; k >= 1; k--) marks.push([timerEnd - k * 1000, false]);
+  marks.push([timerEnd, true]);
+  marks.forEach(m => {
+    const delay = m[0] - Date.now() - AUDIO_LATENCY;
+    if (delay > -200) bellTimers.push(setTimeout(() => ding(m[1]), Math.max(0, delay)));
+  });
+}
+
+/* lead = secondi di preparazione prima che parta il conteggio vero e proprio. */
+function startTimer(seconds, what, cb, mode, lead) {
   stopTimer();
   timerMode = mode || 'rest';
-  timerTotal = seconds; timerEnd = Date.now() + seconds * 1000;
-  timerCb = cb || null; lastLeft = null;
+  const wait = (lead || 0) * 1000;
+  timerStart = Date.now() + wait;
+  timerEnd = timerStart + seconds * 1000;
+  timerTotal = seconds; timerCb = cb || null;
   $('#timerWhat').textContent = what || '';
   $('#miniWhat').textContent = what || '';
   $('#timer').classList.add('on');
@@ -845,22 +963,24 @@ function startTimer(seconds, what, cb, mode) {
   $('#miniTimer').classList.toggle('work', timerMode === 'work');
   $('#miniTimer').classList.remove('on');
   unlockAudio();
+  scheduleBells();
   tick();
-  timerHandle = setInterval(tick, 200);
+  timerHandle = setInterval(tick, 100);
 }
 
 function tick() {
-  const left = Math.max(0, Math.ceil((timerEnd - Date.now()) / 1000));
-  const txt = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+  const now = Date.now();
+  const prep = timerStart > now;
+  const left = prep ? Math.ceil((timerStart - now) / 1000)
+                    : Math.max(0, Math.ceil((timerEnd - now) / 1000));
+  const txt = prep ? `Pronti… ${left}`
+                   : `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
   $('#timerCount').textContent = txt;
   $('#miniCount').textContent = txt;
-  $('#ringFill').setAttribute('stroke-dashoffset', String(283 * (1 - left / timerTotal)));
-  $('#timer').classList.toggle('warn', left <= 3 && timerMode === 'rest');
-  // campanella su ciascuno degli ultimi tre secondi, poi colpo finale
-  if (lastLeft !== null && left !== lastLeft && left >= 1 && left <= 3) ding(false);
-  lastLeft = left;
-  if (left <= 0) {
-    ding(true);
+  $('#ringFill').setAttribute('stroke-dashoffset',
+    String(prep ? 0 : 283 * (1 - left / timerTotal)));
+  $('#timer').classList.toggle('warn', !prep && left <= 3 && timerMode === 'rest');
+  if (!prep && left <= 0) {
     const cb = timerCb;
     stopTimer();
     if (cb) cb();
@@ -869,7 +989,8 @@ function tick() {
 
 function stopTimer() {
   if (timerHandle) clearInterval(timerHandle);
-  timerHandle = null; timerCb = null; lastLeft = null;
+  timerHandle = null; timerCb = null;
+  clearBellTimers();
   $('#timer').classList.remove('on', 'warn');
   $('#miniTimer').classList.remove('on');
 }
@@ -890,8 +1011,10 @@ $('#timerSkip').onclick = skipTimer;
 $('#miniSkip').onclick = skipTimer;
 $('#timerMin').onclick = minimizeTimer;
 $('#miniExpand').onclick = expandTimer;
-$('#timerPlus').onclick = () => { timerEnd += 15000; timerTotal += 15; lastLeft = null; tick(); };
-$('#timerMinus').onclick = () => { timerEnd = Math.max(Date.now() + 1000, timerEnd - 15000); tick(); };
+$('#timerPlus').onclick = () => { timerEnd += 15000; timerTotal += 15; scheduleBells(); tick(); };
+$('#timerMinus').onclick = () => {
+  timerEnd = Math.max(Date.now() + 1000, timerEnd - 15000); scheduleBells(); tick();
+};
 
 async function requestWakeLock() {
   try {

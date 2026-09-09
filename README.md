@@ -45,8 +45,8 @@ Ogni seduta di forza è un elenco di *slot*, ciascuno con uno o più schemi di m
 
 1. filtra il database per attrezzatura selezionata (palestra o casa) e per schema di movimento;
 2. se l'opzione "priorità agli esercizi che proteggono il ginocchio" è attiva, tiene solo gli esercizi marcati `kneeFriendly` — ma il filtro si applica schema per schema, così non elimina mai un intero pattern di movimento;
-3. sceglie in base alla rotazione del mesociclo, evitando doppioni nella stessa seduta;
-4. assegna serie, ripetizioni e recupero in base all'obiettivo dello slot e alla settimana.
+3. sceglie in base alla rotazione del mesociclo, evitando doppioni nella stessa seduta; gli esercizi non scelti restano disponibili come alternative dal pulsante *Cambia esercizio*;
+4. assegna serie, ripetizioni e recupero in base all'obiettivo dello slot e alla settimana, portando al pari superiore le serie degli esercizi marcati `perSide` (un lato alla volta).
 
 Le sedute di mobilità combinano 2-3 esercizi di mobilità dinamica in apertura e 5-6 allungamenti statici sui gruppi previsti dal template, con rotazione settimanale.
 
@@ -64,7 +64,7 @@ Rielaborati (nessun testo riprodotto) da: ACSM *Guidelines for Exercise Testing 
 | Forza | 3-4 | 4-6 | 120 s |
 | Resistenza muscolare | 2-4 | 15-20 | 40 s |
 | Core | 2-4 | 12-15 (o 30-35 s) | 40 s |
-| Stretching statico | 2-3 | 30 s per lato | 15 s |
+| Stretching statico | 2-4 (pari) | 30 s per lato | 15 s |
 | Mobilità dinamica | 2 | 8-10 | 15 s |
 
 I valori in tabella sono i punti di partenza: l'app li ricalcola a ogni seduta in base alla settimana del ciclo.
@@ -128,7 +128,9 @@ I tuoi dati (carichi, storico, settimana del ciclo) restano sul telefono, non su
 - **Oggi**: scegli palestra o casa, controlla la seduta e premi *Inizia la sessione*.
 - Nell'elenco della seduta, **tocca un esercizio** per aprirne subito la scheda illustrativa, senza dover iniziare l'allenamento.
 - Durante l'esercizio: segna le serie completate, scrivi il carico, dai il feedback con le tre frecce, premi **Ho finito la serie**: parte il timer di recupero, con un rintocco su ciascuno degli ultimi 3 secondi e colpo finale più acuto.
-- **Esercizi a tempo** (stretching statico, plank, wall sit): il pulsante diventa *Avvia 30 secondi* e fa partire il cronometro della tenuta, in verde. Al termine parte da solo il recupero. Per gli allungamenti da fare su entrambi i lati, avvia il cronometro una volta per lato.
+- **Esercizi a tempo** (stretching statico, plank, wall sit): il pulsante diventa *Avvia 30 secondi* e fa partire il cronometro della tenuta, in verde. Prima del conteggio ci sono **3 secondi di preparazione**, scanditi da un rintocco ciascuno, per metterti in posizione; al termine parte da solo il recupero.
+- **Esercizi da fare un lato alla volta** (split squat, rematore a un braccio, plank laterale, quasi tutti gli allungamenti) hanno sempre un **numero pari di serie**, così destra e sinistra ricevono lo stesso lavoro: il contatore mostra `1 Sx`, `1 Dx`, `2 Sx`… e il pulsante di avvio indica il lato da fare.
+- **Cambia esercizio**: nella sessione, il pulsante *Cambia esercizio* propone un'alternativa dello stesso schema di movimento (o dello stesso gruppo, per lo stretching), coerente con attrezzatura, obiettivo della seduta e filtro ginocchio; premendolo più volte scorri tutte le alternative. La stessa cosa si può fare prima di iniziare, dalla scheda che si apre toccando un esercizio nell'elenco di Oggi.
 - **Timer riducibile**: durante il recupero tocca *Riduci*. Il conto alla rovescia resta in una barretta in basso e nel frattempo puoi consultare le schede, lo storico o cambiare vista. Tocca la barretta per tornare a schermo intero, o *Salta* per riprendere subito.
 - Chiusura e interruzione della sessione chiedono sempre conferma, così non si esce per errore. Se esci dalla vista della sessione, in Oggi compare il banner **Riprendi**.
 - **Scheda esercizio**: esecuzione passo-passo, muscoli primari e secondari, errori comuni, avvertenze di sicurezza e le due figure inizio/fine.
@@ -148,6 +150,15 @@ I tuoi dati (carichi, storico, settimana del ciclo) restano sul telefono, non su
 2. **Volume multimediale basso** — va alzato con i tasti laterali *mentre l'app riproduce un suono*: usa il pulsante **Prova la campanella** nella scheda Programma e regola il volume in quel momento.
 3. **Interruttore "Campanella del timer"** in Programma, che deve essere attivo.
 4. Se hai aggiornato i file, ricorda di cambiare la versione della cache in `sw.js`, altrimenti gira ancora la versione vecchia.
+
+**Campanella e musica (Spotify, YouTube).** In Programma c'è l'opzione *Convivenza con la musica*:
+
+- **Sopra la musica** (predefinita): l'app dichiara a iOS una sessione audio di tipo `transient`, quindi la campanella si sovrappone alla musica abbassandola per un istante, senza fermare Spotify o YouTube. In questa modalità però l'interruttore del silenzioso deve essere disattivato.
+- **Priorità campanella**: sessione di tipo `playback`, che si sente anche con il telefono in silenzioso ma mette in pausa l'audio delle altre app.
+
+L'API `navigator.audioSession` esiste da Safari 17: su versioni precedenti vale il comportamento predefinito del sistema, cioè la campanella può abbassare o interrompere brevemente la musica.
+
+**Precisione dei rintocchi.** Ogni campanella ha il proprio timeout calcolato sull'istante esatto di fine (con 40 ms di anticipo per compensare la latenza di riproduzione), invece di essere dedotta dal ciclo di aggiornamento dello schermo: i tre secondi finali cadono quindi puntuali. L'aggiornamento del display gira comunque a 100 ms.
 
 Resta il limite di sistema: con l'app in background o lo schermo bloccato iOS sospende comunque l'audio delle pagine web. Per questo il wake lock tiene lo schermo acceso durante la sessione e a fine timer parte anche la vibrazione.
 

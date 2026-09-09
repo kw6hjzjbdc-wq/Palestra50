@@ -171,7 +171,8 @@
    "safety": [
     "Ginocchio: allunga il passo e inclina leggermente il busto avanti per spostare il lavoro su glutei e femorali."
    ],
-   "source": "NSCA – lavoro unilaterale per equilibrio e stabilità"
+   "source": "NSCA – lavoro unilaterale per equilibrio e stabilità",
+   "perSide": true
   },
   {
    "id": "g_lunge",
@@ -726,7 +727,8 @@
    "safety": [
     "Schiena: mantieni il collo in linea, sguardo verso il pavimento."
    ],
-   "source": "NSCA – trazione orizzontale, ipertrofia"
+   "source": "NSCA – trazione orizzontale, ipertrofia",
+   "perSide": true
   },
   {
    "id": "g_rowbar",
@@ -1488,7 +1490,8 @@
    "safety": [
     "Ginocchio: mantieni la tibia anteriore il più possibile verticale."
    ],
-   "source": "NSCA – unilaterale, resistenza muscolare"
+   "source": "NSCA – unilaterale, resistenza muscolare",
+   "perSide": true
   },
   {
    "id": "h_wallsit",
@@ -1614,7 +1617,8 @@
    "safety": [
     "Rinforzo unilaterale utile per correggere asimmetrie che sovraccaricano un ginocchio."
    ],
-   "source": "NSCA – progressione unilaterale"
+   "source": "NSCA – progressione unilaterale",
+   "perSide": true
   },
   {
    "id": "h_rdlband",
@@ -1741,7 +1745,8 @@
    "safety": [
     "Mantieni l'addome attivo: il movimento arriva dall'anca, non dalla schiena."
    ],
-   "source": "ACE – attivazione glutei a basso impatto"
+   "source": "ACE – attivazione glutei a basso impatto",
+   "perSide": true
   },
   {
    "id": "h_pushupfeet",
@@ -2083,7 +2088,8 @@
    "safety": [
     "Lavorare un lato alla volta aiuta a correggere squilibri tra destra e sinistra."
    ],
-   "source": "NSCA – unilaterale dorso"
+   "source": "NSCA – unilaterale dorso",
+   "perSide": true
   },
   {
    "id": "h_superman",
@@ -2620,7 +2626,8 @@
    "safety": [
     "Caviglie forti stabilizzano il ginocchio nei movimenti quotidiani."
    ],
-   "source": "NSCA – resistenza muscolare polpaccio"
+   "source": "NSCA – resistenza muscolare polpaccio",
+   "perSide": true
   },
   {
    "id": "h_calfband",
@@ -2749,7 +2756,8 @@
    "safety": [
     "Versione facilitata con ginocchia a terra se la tenuta scende sotto i 15 secondi."
    ],
-   "source": "ACSM – stabilità laterale del tronco"
+   "source": "ACSM – stabilità laterale del tronco",
+   "perSide": true
   },
   {
    "id": "c_deadbug",
@@ -3010,7 +3018,8 @@
    "safety": [
     "Il busto resta immobile: tutto il lavoro è nel non ruotare."
    ],
-   "source": "NSCA – anti-rotazione"
+   "source": "NSCA – anti-rotazione",
+   "perSide": true
   },
   {
    "id": "s_catcamel",
@@ -3139,7 +3148,8 @@
     "Mobilità dell'anca: meno rigidità all'anca significa meno compensi del ginocchio."
    ],
    "source": "ACE – mobilità articolare mirata",
-   "mode": "dynamic"
+   "mode": "dynamic",
+   "perSide": true
   },
   {
    "id": "s_legswings",
@@ -3183,7 +3193,8 @@
     "Aumenta l'ampiezza solo dopo le prime ripetizioni."
    ],
    "source": "ACE – stretching dinamico pre-attività",
-   "mode": "dynamic"
+   "mode": "dynamic",
+   "perSide": true
   },
   {
    "id": "s_worldgreatest",
@@ -3228,7 +3239,8 @@
     "Ginocchio: appoggia il ginocchio posteriore sul tappetino o su un asciugamano piegato."
    ],
    "source": "ACE – mobilità multiarticolare",
-   "mode": "dynamic"
+   "mode": "dynamic",
+   "perSide": true
   },
   {
    "id": "s_thoracic",
@@ -3271,7 +3283,8 @@
     "Utile per chi passa molte ore seduto."
    ],
    "source": "ACE – mobilità toracica",
-   "mode": "dynamic"
+   "mode": "dynamic",
+   "perSide": true
   },
   {
    "id": "s_quadstretch",
@@ -3312,7 +3325,8 @@
    "safety": [
     "Ginocchio: se la flessione è fastidiosa, usa la versione sdraiata su un fianco con una fascia."
    ],
-   "source": "ACE – stretching statico, 20-30 secondi"
+   "source": "ACE – stretching statico, 20-30 secondi",
+   "perSide": true
   },
   {
    "id": "s_hamstringband",
@@ -3355,7 +3369,8 @@
    "safety": [
     "Ginocchio: se senti tensione dietro il ginocchio, piegalo leggermente."
    ],
-   "source": "ACE – stretching statico, 20-30 secondi"
+   "source": "ACE – stretching statico, 20-30 secondi",
+   "perSide": true
   },
   {
    "id": "s_hipflexor",
@@ -3398,7 +3413,8 @@
    "safety": [
     "Flessori dell'anca rigidi aumentano il carico su lombare e ginocchio: esercizio prioritario per chi sta molto seduto."
    ],
-   "source": "ACE – stretching statico"
+   "source": "ACE – stretching statico",
+   "perSide": true
   },
   {
    "id": "s_glutestretch",
@@ -3439,7 +3455,8 @@
    "safety": [
     "Ginocchio: la trazione si applica alla coscia, mai al ginocchio incrociato."
    ],
-   "source": "ACE – stretching statico"
+   "source": "ACE – stretching statico",
+   "perSide": true
   },
   {
    "id": "s_adductor",
@@ -3524,7 +3541,8 @@
    "safety": [
     "Caviglia rigida = maggiore stress su ginocchio nello squat e nella camminata."
    ],
-   "source": "ACE – stretching statico"
+   "source": "ACE – stretching statico",
+   "perSide": true
   },
   {
    "id": "s_chestdoor",
@@ -3565,7 +3583,8 @@
    "safety": [
     "Spalla: tensione moderata, mai dolore o formicolio."
    ],
-   "source": "ACE – stretching statico"
+   "source": "ACE – stretching statico",
+   "perSide": true
   },
   {
    "id": "s_latstretch",
@@ -3608,7 +3627,8 @@
    "safety": [
     "Schiena: mantieni la colonna lunga, senza forzare l'estensione."
    ],
-   "source": "ACE – stretching statico"
+   "source": "ACE – stretching statico",
+   "perSide": true
   },
   {
    "id": "s_childpose",
@@ -3694,7 +3714,8 @@
    "safety": [
     "Schiena: movimento passivo, senza forzare la rotazione."
    ],
-   "source": "ACE – stretching statico"
+   "source": "ACE – stretching statico",
+   "perSide": true
   },
   {
    "id": "s_neck",
@@ -3734,7 +3755,8 @@
    "safety": [
     "Collo: pressione molto leggera, mai dolore o vertigini."
    ],
-   "source": "ACE – stretching statico cervicale"
+   "source": "ACE – stretching statico cervicale",
+   "perSide": true
   },
   {
    "id": "s_9090",
@@ -3776,7 +3798,8 @@
    "safety": [
     "Ginocchio: se la posizione tira sul ginocchio interno, riduci l'angolo e siediti su un cuscino."
    ],
-   "source": "ACE – mobilità dell'anca"
+   "source": "ACE – mobilità dell'anca",
+   "perSide": true
   }
  ]
 }
