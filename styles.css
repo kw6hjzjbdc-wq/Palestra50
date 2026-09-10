@@ -217,3 +217,9 @@ h3{font-size:19px}
 .plan li{cursor:pointer}
 .plan li:active{opacity:.55}
 .plan .chev{color:var(--muted);font-size:20px;flex:0 0 auto}
+
+/* conteggio di preparazione: sola cifra, perfettamente centrata nel cerchio */
+.timer .count{text-align:center;line-height:1;width:230px}
+.timer.prep .count{color:var(--muted);font-size:88px}
+.mini.prep #miniCount{color:var(--muted)}
+.mini-skip[disabled]{opacity:.35}

@@ -532,6 +532,10 @@ function renderSession() {
         <button class="btn ghost" id="infoBtn">Scheda esercizio</button>
         <button class="btn ghost" id="swapBtn" ${nAlt < 2 ? 'disabled' : ''}>Cambia esercizio${nAlt > 1 ? ` (${nAlt - 1})` : ''}</button>
       </div>
+      <div class="btn-row" style="margin-top:10px">
+        <button class="btn ghost" id="postponeBtn" ${c.pos === s.items.length - 1 ? 'disabled' : ''}>Rimanda a dopo</button>
+        <button class="btn ghost" id="orderBtn" ${c.pos === s.items.length - 1 ? 'disabled' : ''}>Ordine esercizi</button>
+      </div>
       <button class="btn ghost" id="nextBtn" style="margin-top:10px">${c.pos === s.items.length - 1 ? 'Chiudi sessione' : 'Prossimo esercizio'}</button>
       <p class="small muted" style="margin-top:14px">${esc(it.source)}${it.note ? ' · ' + esc(it.note) : ''}</p>
       <button class="btn ghost" id="abortBtn" style="margin-top:18px">Interrompi</button>
@@ -574,6 +578,8 @@ function renderSession() {
         'Cambia', () => { c.setsDone[c.pos] = 0; c.loads[c.pos] = ''; c.feedback[c.pos] = null; if (swapExercise(it, s)) renderSession(); });
     } else if (swapExercise(it, s)) renderSession();
   };
+  $('#postponeBtn').onclick = () => { captureLoad(); stopTimer(); postponeCurrent(); };
+  $('#orderBtn').onclick = () => { captureLoad(); openReorder(); };
   $('#nextBtn').onclick = () => {
     captureLoad();
     if (c.pos === s.items.length - 1) {
@@ -588,6 +594,52 @@ function renderSession() {
   $('#abortBtn').onclick = () => confirmAction('Interrompere la sessione?',
     'Gli esercizi già conclusi restano nello storico, il resto della seduta viene abbandonato.',
     'Interrompi', () => { stopTimer(); releaseWakeLock(); current = null; go('home'); });
+}
+
+/* Sposta un esercizio nella scaletta insieme ai dati già inseriti (serie fatte,
+   carico, feedback), così l'ordine può essere adattato al volo se una macchina
+   o un attrezzo è occupato. Si possono spostare solo gli esercizi non ancora
+   conclusi, cioè dalla posizione corrente in poi. */
+function moveItem(from, to) {
+  const c = current, s = c.sess;
+  if (from === to || from < c.pos || to < c.pos || to >= s.items.length) return;
+  [s.items, c.setsDone, c.loads, c.feedback].forEach(arr => {
+    const v = arr.splice(from, 1)[0];
+    arr.splice(to, 0, v);
+  });
+}
+
+/* Rimanda l'esercizio corrente in fondo alla seduta. */
+function postponeCurrent() {
+  const c = current, s = c.sess;
+  if (c.pos >= s.items.length - 1) return;
+  moveItem(c.pos, s.items.length - 1);
+  renderSession();
+}
+
+/* Pannello di riordino: frecce su/giù sugli esercizi ancora da fare. */
+function openReorder() {
+  const c = current, s = c.sess;
+  const draw = () => {
+    const rows = s.items.map((it, i) => {
+      if (i < c.pos) return '';
+      const ex = exById(it.exId);
+      return `<li style="align-items:center">
+        <div class="nm" style="flex:1"><b>${esc(ex.name)}</b>
+          <div class="small muted">${esc(ex.group)} · ${doseText(it)}${i === c.pos ? ' · in corso' : ''}</div></div>
+        <button class="mini-skip" data-up="${i}" ${i === c.pos ? 'disabled' : ''}>▲</button>
+        <button class="mini-skip" data-down="${i}" ${i === s.items.length - 1 ? 'disabled' : ''}>▼</button>
+      </li>`;
+    }).join('');
+    openModal(`<h2>Ordine degli esercizi</h2>
+      <p class="small muted">Sposta in avanti quello che puoi fare adesso: utile se una macchina o un attrezzo è occupato. I dati già inseriti seguono l'esercizio.</p>
+      <ul class="hist">${rows}</ul>
+      <button class="btn" id="reorderOk" style="margin-top:14px">Fatto</button>`);
+    document.querySelectorAll('[data-up]').forEach(b => b.onclick = () => { moveItem(+b.dataset.up, +b.dataset.up - 1); draw(); });
+    document.querySelectorAll('[data-down]').forEach(b => b.onclick = () => { moveItem(+b.dataset.down, +b.dataset.down + 1); draw(); });
+    $('#reorderOk').onclick = () => { closeModal(); renderSession(); };
+  };
+  draw();
 }
 
 function captureLoad() {
@@ -956,7 +1008,7 @@ function startTimer(seconds, what, cb, mode, lead) {
   timerStart = Date.now() + wait;
   timerEnd = timerStart + seconds * 1000;
   timerTotal = seconds; timerCb = cb || null;
-  $('#timerWhat').textContent = what || '';
+  $('#timerWhat').textContent = (wait ? 'Preparati · ' : '') + (what || '');
   $('#miniWhat').textContent = what || '';
   $('#timer').classList.add('on');
   $('#timer').classList.toggle('work', timerMode === 'work');
@@ -964,6 +1016,7 @@ function startTimer(seconds, what, cb, mode, lead) {
   $('#miniTimer').classList.remove('on');
   unlockAudio();
   scheduleBells();
+  if (wait) bellTimers.push(setTimeout(() => { $('#timerWhat').textContent = what || ''; }, wait));
   tick();
   timerHandle = setInterval(tick, 100);
 }
@@ -973,12 +1026,15 @@ function tick() {
   const prep = timerStart > now;
   const left = prep ? Math.ceil((timerStart - now) / 1000)
                     : Math.max(0, Math.ceil((timerEnd - now) / 1000));
-  const txt = prep ? `Pronti… ${left}`
+  // in preparazione si mostra solo la cifra che scorre: resta centrata nel cerchio
+  const txt = prep ? String(left)
                    : `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
   $('#timerCount').textContent = txt;
   $('#miniCount').textContent = txt;
   $('#ringFill').setAttribute('stroke-dashoffset',
     String(prep ? 0 : 283 * (1 - left / timerTotal)));
+  $('#timer').classList.toggle('prep', prep);
+  $('#miniTimer').classList.toggle('prep', prep);
   $('#timer').classList.toggle('warn', !prep && left <= 3 && timerMode === 'rest');
   if (!prep && left <= 0) {
     const cb = timerCb;
@@ -991,8 +1047,8 @@ function stopTimer() {
   if (timerHandle) clearInterval(timerHandle);
   timerHandle = null; timerCb = null;
   clearBellTimers();
-  $('#timer').classList.remove('on', 'warn');
-  $('#miniTimer').classList.remove('on');
+  $('#timer').classList.remove('on', 'warn', 'prep');
+  $('#miniTimer').classList.remove('on', 'prep');
 }
 const timerRunning = () => !!timerHandle;
 function minimizeTimer() {
