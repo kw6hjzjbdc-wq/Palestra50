@@ -44,7 +44,9 @@ Dentro la settimana la logica è **ondulata** nel programma base: seduta A ipert
 Ogni seduta di forza è un elenco di *slot*, ciascuno con uno o più schemi di movimento ammessi (`squat`, `hinge`, `lunge`, `pushH`, `pushV`, `pullH`, `pullV`, `arms`, `calf`, `coreAnti`…). Per ogni slot l'algoritmo:
 
 1. filtra il database per attrezzatura selezionata (palestra o casa) e per schema di movimento;
-2. se l'opzione "priorità agli esercizi che proteggono il ginocchio" è attiva, tiene solo gli esercizi marcati `kneeFriendly` — ma il filtro si applica schema per schema, così non elimina mai un intero pattern di movimento;
+2. applica i filtri di sicurezza del profilo, schema per schema, così non elimina mai un intero pattern di movimento:
+   - **ginocchio** (`kneeFriendly`): esclude gli esercizi ad alto carico femoro-rotuleo;
+   - **spalla** (`shoulderRisk`): esclude gli esercizi tipicamente dolorosi in caso di conflitto subacromiale e sofferenza del capo lungo del bicipite — spinte sopra la testa con bilanciere a presa prona (military press), panca inclinata con bilanciere, croci ai cavi in massima apertura, lat machine a presa larga, dip su sedia, estensioni sopra la testa, alzate frontali — sostituendoli con varianti a presa neutra e traiettorie sul piano scapolare: spinta con manubri o macchina a impugnature parallele, panca inclinata con manubri a presa neutra, scaption con i pollici in alto, lat machine con triangolo, trazioni assistite a presa neutra, estensioni dei tricipiti a terra;
 3. sceglie in base alla rotazione del mesociclo, evitando doppioni nella stessa seduta; gli esercizi non scelti restano disponibili come alternative dal pulsante *Cambia esercizio*;
 4. assegna serie, ripetizioni e recupero in base all'obiettivo dello slot e alla settimana, portando al pari superiore le serie degli esercizi marcati `perSide` (un lato alla volta).
 
@@ -128,15 +130,17 @@ I tuoi dati (carichi, storico, settimana del ciclo) restano sul telefono, non su
 - **Oggi**: scegli palestra o casa, controlla la seduta e premi *Inizia la sessione*.
 - Nell'elenco della seduta, **tocca un esercizio** per aprirne subito la scheda illustrativa, senza dover iniziare l'allenamento.
 - Durante l'esercizio: segna le serie completate, scrivi il carico, dai il feedback con le tre frecce, premi **Ho finito la serie**: parte il timer di recupero, con un rintocco su ciascuno degli ultimi 3 secondi e colpo finale più acuto.
-- **Esercizi a tempo** (stretching statico, plank, wall sit): il pulsante diventa *Avvia 30 secondi* e fa partire il cronometro della tenuta, in verde. Prima del conteggio ci sono **3 secondi di preparazione**, scanditi da un rintocco ciascuno, per metterti in posizione; al termine parte da solo il recupero.
+- **Esercizi a tempo** (stretching statico, plank, wall sit): il pulsante diventa *Avvia 30 secondi* e fa partire il cronometro della tenuta, in verde. Prima del conteggio ci sono **3 secondi di preparazione**, scanditi da un rintocco ciascuno, mostrati come sola cifra al centro del cerchio; al termine parte da solo il recupero.
 - **Esercizi da fare un lato alla volta** (split squat, rematore a un braccio, plank laterale, quasi tutti gli allungamenti) hanno sempre un **numero pari di serie**, così destra e sinistra ricevono lo stesso lavoro: il contatore mostra `1 Sx`, `1 Dx`, `2 Sx`… e il pulsante di avvio indica il lato da fare.
 - **Cambia esercizio**: nella sessione, il pulsante *Cambia esercizio* propone un'alternativa dello stesso schema di movimento (o dello stesso gruppo, per lo stretching), coerente con attrezzatura, obiettivo della seduta e filtro ginocchio; premendolo più volte scorri tutte le alternative. La stessa cosa si può fare prima di iniziare, dalla scheda che si apre toccando un esercizio nell'elenco di Oggi.
+- **Scambia seduta**: in Oggi puoi anticipare un'altra seduta della settimana (per esempio fare il potenziamento al posto della mobilità). Quella di oggi prende il suo posto più avanti, quindi nessuna seduta va persa e il conteggio delle 5 settimanali resta intatto.
+- **Ordine degli esercizi**: se una macchina o un attrezzo è occupato, usa *Rimanda a dopo* (sposta l'esercizio corrente in fondo) oppure *Ordine esercizi*, che apre la scaletta di quello che resta da fare con le frecce su/giù. Serie già completate, carico e feedback seguono l'esercizio spostato.
 - **Timer riducibile**: durante il recupero tocca *Riduci*. Il conto alla rovescia resta in una barretta in basso e nel frattempo puoi consultare le schede, lo storico o cambiare vista. Tocca la barretta per tornare a schermo intero, o *Salta* per riprendere subito.
 - Chiusura e interruzione della sessione chiedono sempre conferma, così non si esce per errore. Se esci dalla vista della sessione, in Oggi compare il banner **Riprendi**.
 - **Scheda esercizio**: esecuzione passo-passo, muscoli primari e secondari, errori comuni, avvertenze di sicurezza e le due figure inizio/fine.
 - A fine seduta puoi annotare una nota libera sulla seduta (sensazioni, ginocchio, carichi).
 - **Progressi**: andamento del carico per esercizio e riepilogo delle ultime sedute.
-- **Programma**: cambio di programma (3, 4 o 6 settimane), attrezzatura predefinita, priorità ginocchio, spostamento avanti/indietro nella settimana, esportazione e azzeramento dati.
+- **Programma**: cambio di programma (3, 4 o 6 settimane), attrezzatura predefinita, priorità ginocchio, esclusione degli esercizi critici per la spalla, spostamento avanti/indietro nella settimana, esportazione e azzeramento dati.
 
 ---
 

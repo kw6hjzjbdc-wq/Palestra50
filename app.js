@@ -31,6 +31,8 @@ const DEFAULT_STATE = {
   programId: 'tono50',
   sessionIndex: 0,         // numero progressivo della prossima sessione da fare
   kneeCare: true,          // dà priorità agli esercizi a basso impatto sul ginocchio
+  shoulderCare: true,      // esclude gli esercizi critici per il conflitto subacromiale
+  perms: {},               // ordine delle 5 sedute all'interno di ciascuna settimana
   sound: true,             // campanella del timer
   audioMode: 'mix',        // 'mix' = suona sopra la musica, 'solo' = priorità alla campanella
   disclaimerOk: false,
@@ -196,16 +198,50 @@ function suggestLoad(ex) {
    attrezzatura). Cambiando mesociclo la rotazione sposta la scelta nel pool,
    così gli esercizi cambiano automaticamente ogni ciclo.
 --------------------------------------------------------------------------- */
+/* Ordine delle 5 sedute dentro una settimana. Di base è 1..5 (forza, mobilità,
+   forza, mobilità, forza); scambiando due sedute la permutazione viene salvata,
+   così la seduta rinviata resta in programma e non va persa. */
+function weekPerm(week) {
+  return (S.perms && S.perms[week]) ? S.perms[week].slice() : [1, 2, 3, 4, 5];
+}
+function swapDay(posA, posB) {
+  const week = Math.floor(S.sessionIndex / 5) + 1;
+  const perm = weekPerm(week);
+  const t = perm[posA]; perm[posA] = perm[posB]; perm[posB] = t;
+  S.perms = S.perms || {};
+  S.perms[week] = perm;
+  planCache = null;
+  save();
+}
+
 function sessionMeta(idx) {
   const p = program();
-  const dayInWeek = (idx % 5) + 1;
   const weekAbs = Math.floor(idx / 5) + 1;
+  const dayInWeek = weekPerm(weekAbs)[idx % 5];
   const weekInCycle = ((weekAbs - 1) % p.cycleWeeks) + 1;
   const mesocycle = Math.floor((weekAbs - 1) / p.cycleWeeks) + 1;
   const isStrength = DAYS_STRENGTH.includes(dayInWeek);
-  return { idx, dayInWeek, weekAbs, weekInCycle, mesocycle, isStrength,
+  return { idx, dayInWeek, pos: (idx % 5) + 1, weekAbs, weekInCycle, mesocycle, isStrength,
            tmplIdx: isStrength ? DAYS_STRENGTH.indexOf(dayInWeek) : DAYS_STRETCH.indexOf(dayInWeek),
            profile: weekProfile(weekInCycle, p.cycleWeeks), program: p };
+}
+
+/* Filtri di sicurezza applicati a ogni pool di esercizi.
+   - ginocchio: preferisce gli esercizi a basso impatto femoro-rotuleo
+   - spalla: esclude spinte sopra la testa a presa prona, aperture in massima
+     estensione e trazioni a presa larga, tipiche fonti di dolore in caso di
+     conflitto subacromiale e sofferenza del capo lungo del bicipite
+   Se il filtro svuoterebbe il pool, si mantiene l'elenco completo. */
+function applyCare(pool) {
+  if (S.kneeCare) {
+    const safe = pool.filter(e => e.kneeFriendly);
+    if (safe.length) pool = safe;
+  }
+  if (S.shoulderCare) {
+    const safe = pool.filter(e => !e.shoulderRisk);
+    if (safe.length) pool = safe;
+  }
+  return pool;
 }
 
 function pickFrom(pool, rotation, used) {
@@ -228,10 +264,7 @@ function buildStrength(meta) {
     slot.patterns.forEach(pat => {
       let sub = DB.exercises.filter(e => e.setup.includes(S.setup) &&
         (e.type === 'strength' || e.type === 'core') && e.pattern === pat);
-      if (S.kneeCare) {
-        const safe = sub.filter(e => e.kneeFriendly);
-        if (safe.length) sub = safe;
-      }
+      sub = applyCare(sub);
       pool = pool.concat(sub.sort((a, b) => a.id.localeCompare(b.id)));
     });
     const rot = (meta.mesocycle - 1) * (meta.tmplIdx + 2) + i;   // rotazione per mesociclo
@@ -360,10 +393,7 @@ function alternativesFor(item, sess) {
     (alt.types || ['strength']).includes(e.type) &&
     (alt.patterns || []).includes(e.pattern) &&
     (!alt.groups || alt.groups.includes(e.group)));
-  if (S.kneeCare) {
-    const safe = pool.filter(e => e.kneeFriendly);
-    if (safe.length) pool = safe;
-  }
+  pool = applyCare(pool);
   pool.sort((a, b) => a.id.localeCompare(b.id));
   return pool.filter(e => e.id === item.exId || !inUse.has(e.id));
 }
@@ -420,7 +450,7 @@ function renderHome() {
     <div class="card">
       <div class="session-head ${s.isStrength ? '' : 'mobility'}">
         <div>
-          <div class="kicker">Sessione ${s.dayInWeek} di 5 · ${s.isStrength ? 'potenziamento' : 'mobilità'}</div>
+          <div class="kicker">Sessione ${s.pos} di 5 della settimana · ${s.isStrength ? 'potenziamento' : 'mobilità'}</div>
           <h2>${esc(s.label)}</h2>
           <p class="small muted" style="margin:6px 0 0">${esc(s.profile.note)} Durata stimata ${s.minutes} minuti.${s.trimmed ? ' Volume adattato per restare nei 30 minuti.' : ''}</p>
         </div>
@@ -432,8 +462,9 @@ function renderHome() {
     <button class="btn ${s.isStrength ? '' : 'teal'}" id="startBtn">Inizia la sessione</button>
     <div class="btn-row" style="margin-top:10px">
       <button class="btn ghost" id="coreBtn">Solo blocco core</button>
-      <button class="btn ghost" id="skipBtn">Salta a domani</button>
+      <button class="btn ghost" id="swapDayBtn" ${s.pos >= 5 ? 'disabled' : ''}>Scambia seduta</button>
     </div>
+    <button class="btn ghost" id="skipBtn" style="margin-top:10px">Salta a domani</button>
     <p class="small muted" style="margin-top:16px">Programma attivo: ${esc(p.name)} · ${esc(p.periodization)}.</p>
   `;
 
@@ -447,6 +478,7 @@ function renderHome() {
     openSheet(exById(it.exId), it, () => { if (swapExercise(it, s)) renderHome(); });
   });
   if ($('#resumeBtn')) $('#resumeBtn').onclick = () => { go('session'); renderSession(); };
+  $('#swapDayBtn').onclick = openDaySwap;
   const begin = kind => {
     if (current && !current.finished) {
       confirmAction('Sessione già in corso', 'Vuoi abbandonarla e iniziarne una nuova? Gli esercizi già conclusi restano nello storico.',
@@ -458,6 +490,31 @@ function renderHome() {
   $('#skipBtn').onclick = () => confirmAction('Saltare la seduta di oggi?',
     'Passerai alla sessione successiva del programma senza registrare questa.',
     'Salta', () => { S.sessionIndex++; planCache = null; save(); renderHome(); });
+}
+
+/* Scambio fra le sedute ancora da fare nella settimana corrente: utile per
+   anticipare un potenziamento e rimandare la mobilità (o viceversa). La seduta
+   spostata resta in calendario nei giorni successivi. */
+function openDaySwap() {
+  const here = S.sessionIndex % 5;
+  const weekStart = S.sessionIndex - here;
+  let rows = '';
+  for (let q = here + 1; q < 5; q++) {
+    const alt = buildSession(weekStart + q);
+    rows += `<li style="align-items:center">
+      <div class="nm" style="flex:1"><b>${esc(alt.label)}</b>
+        <div class="small muted">Sessione ${q + 1} di 5 · ${alt.isStrength ? 'potenziamento' : 'mobilità'} · ${alt.minutes} min</div></div>
+      <button class="mini-skip" data-swapday="${q}">Scambia</button></li>`;
+  }
+  openModal(`<h2>Scambia la seduta di oggi</h2>
+    <p class="small muted">Scegli quale seduta fare adesso: quella di oggi prenderà il suo posto più avanti nella settimana.</p>
+    <ul class="hist">${rows}</ul>
+    <button class="btn ghost" id="closeSwapDay" style="margin-top:14px">Annulla</button>`);
+  document.querySelectorAll('[data-swapday]').forEach(b => b.onclick = () => {
+    swapDay(here, +b.dataset.swapday);
+    closeModal(); renderHome();
+  });
+  $('#closeSwapDay').onclick = closeModal;
 }
 
 /* ---------- sessione in corso ---------- */
@@ -805,6 +862,8 @@ function renderSettings() {
           <option value="home" ${S.setup === 'home' ? 'selected' : ''}>Casa</option></select></div>
       <div class="switch"><span>Priorità agli esercizi che proteggono il ginocchio</span>
         <input type="checkbox" id="kneeChk" ${S.kneeCare ? 'checked' : ''}></div>
+      <div class="switch"><span>Escludi gli esercizi critici per la spalla (conflitto subacromiale)</span>
+        <input type="checkbox" id="shoulderChk" ${S.shoulderCare ? 'checked' : ''}></div>
       <div class="switch"><span>Campanella del timer</span>
         <input type="checkbox" id="soundChk" ${S.sound !== false ? 'checked' : ''}></div>
       <div class="switch"><span>Convivenza con la musica</span>
@@ -833,6 +892,7 @@ function renderSettings() {
   $('#progSel').onchange = e => { S.programId = e.target.value; save(); renderSettings(); };
   $('#setupSel').onchange = e => { S.setup = e.target.value; save(); };
   $('#kneeChk').onchange = e => { S.kneeCare = e.target.checked; save(); };
+  $('#shoulderChk').onchange = e => { S.shoulderCare = e.target.checked; planCache = null; save(); };
   $('#soundChk').onchange = e => { S.sound = e.target.checked; save(); if (e.target.checked) { unlockAudio(); setTimeout(() => ding(false), 350); } };
   $('#audioSel').onchange = e => { S.audioMode = e.target.value; save(); setAudioSession(); };
   $('#testSound').onclick = () => {

@@ -514,7 +514,8 @@
    "safety": [
     "Usa i fermi o un assistente quando lavori vicino al cedimento."
    ],
-   "source": "NSCA – forza/ipertrofia parte superiore"
+   "source": "NSCA – forza/ipertrofia parte superiore",
+   "shoulderRisk": true
   },
   {
    "id": "g_chestpress",
@@ -597,7 +598,8 @@
    "safety": [
     "Spalla: l'apertura si ferma dove il petto è teso ma la spalla resta comoda."
    ],
-   "source": "NSCA – isolamento, ipertrofia"
+   "source": "NSCA – isolamento, ipertrofia",
+   "shoulderRisk": true
   },
   {
    "id": "g_pushup",
@@ -683,7 +685,8 @@
    "safety": [
     "Il movimento parte dalle scapole, non dalle mani: così si protegge la spalla."
    ],
-   "source": "NSCA – trazione verticale, ipertrofia"
+   "source": "NSCA – trazione verticale, ipertrofia",
+   "shoulderRisk": true
   },
   {
    "id": "g_rowdb",
@@ -900,7 +903,8 @@
    "safety": [
     "Se la spalla è sensibile, usa presa neutra (palmi affacciati)."
    ],
-   "source": "NSCA – spinta verticale, ipertrofia"
+   "source": "NSCA – spinta verticale, ipertrofia",
+   "shoulderRisk": true
   },
   {
    "id": "g_lateral",
@@ -1027,7 +1031,8 @@
    "safety": [
     "Schiena: glutei e addome contratti per tutta la serie."
    ],
-   "source": "NSCA – forza spinta verticale"
+   "source": "NSCA – forza spinta verticale",
+   "shoulderRisk": true
   },
   {
    "id": "g_curldb",
@@ -1236,7 +1241,8 @@
    "safety": [
     "Spalla e gomito: scendi solo fino a dove il movimento resta indolore."
    ],
-   "source": "NSCA – ipertrofia tricipite"
+   "source": "NSCA – ipertrofia tricipite",
+   "shoulderRisk": true
   },
   {
    "id": "g_calfstanding",
@@ -2338,7 +2344,8 @@
    "safety": [
     "Alterna con lavoro sui deltoidi posteriori per mantenere l'equilibrio della spalla."
    ],
-   "source": "NSCA – isolamento deltoide anteriore"
+   "source": "NSCA – isolamento deltoide anteriore",
+   "shoulderRisk": true
   },
   {
    "id": "h_reverseflyband",
@@ -2545,7 +2552,8 @@
    "safety": [
     "Spalla: fermati a 90° e usa una sedia che non scivoli."
    ],
-   "source": "ACSM – esercizio a corpo libero per tricipiti"
+   "source": "ACSM – esercizio a corpo libero per tricipiti",
+   "shoulderRisk": true
   },
   {
    "id": "h_frenchband",
@@ -2584,7 +2592,8 @@
    "safety": [
     "Spalla: se non riesci a tenere i gomiti fermi, riduci la tensione della band."
    ],
-   "source": "NSCA – ipertrofia tricipite"
+   "source": "NSCA – ipertrofia tricipite",
+   "shoulderRisk": true
   },
   {
    "id": "h_calfhome",
@@ -3800,6 +3809,385 @@
    ],
    "source": "ACE – mobilità dell'anca",
    "perSide": true
+  },
+  {
+   "id": "g_neutralpress",
+   "name": "Spinta sopra la testa con manubri a presa neutra",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Spalle",
+   "pattern": "pushV",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Deltoide anteriore e laterale"
+   ],
+   "secondary": [
+    "Tricipiti",
+    "Trapezio"
+   ],
+   "equipment": [
+    "Manubri",
+    "Panca con schienale"
+   ],
+   "art": {
+    "frames": [
+     "ohpStart",
+     "ohpEnd"
+    ],
+    "implement": "dumbbells"
+   },
+   "steps": [
+    "Seduto con schiena appoggiata, manubri all'altezza delle spalle con i palmi affacciati (presa neutra).",
+    "Spingi verso l'alto mantenendo i gomiti davanti al busto, non aperti di lato.",
+    "Scendi in 3 secondi fermandoti quando i gomiti arrivano all'altezza delle spalle."
+   ],
+   "errors": [
+    "Ruotare i polsi verso la presa prona durante la salita.",
+    "Scendere sotto la linea delle spalle, che riduce lo spazio subacromiale."
+   ],
+   "safety": [
+    "Spalla: la presa neutra e i gomiti avanti mantengono l'omero in rotazione esterna, riducendo l'attrito sul sovraspinato e sul capo lungo del bicipite."
+   ],
+   "source": "NSCA – spinta verticale in versione a basso stress articolare"
+  },
+  {
+   "id": "g_inclineneutral",
+   "name": "Panca inclinata con manubri a presa neutra",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Petto",
+   "pattern": "pushH",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Gran pettorale (fasci clavicolari)"
+   ],
+   "secondary": [
+    "Tricipiti",
+    "Deltoide anteriore"
+   ],
+   "equipment": [
+    "Manubri",
+    "Panca inclinata"
+   ],
+   "art": {
+    "frames": [
+     "inclineStart",
+     "inclineEnd"
+    ],
+    "implement": "dumbbells"
+   },
+   "steps": [
+    "Panca a 30-40°, manubri con i palmi affacciati e gomiti a circa 45° dal busto.",
+    "Scendi finché i manubri arrivano all'altezza del petto, senza andare oltre la linea del busto.",
+    "Spingi in alto mantenendo la presa neutra per tutta l'escursione."
+   ],
+   "errors": [
+    "Aprire i gomiti a 90°.",
+    "Scendere troppo cercando il massimo allungamento."
+   ],
+   "safety": [
+    "Spalla: rispetto al bilanciere, i manubri a presa neutra lasciano libera la rotazione dell'omero e limitano lo stress sul capo lungo del bicipite."
+   ],
+   "source": "NSCA – spinta orizzontale, variante articolarmente conservativa"
+  },
+  {
+   "id": "g_scaption",
+   "name": "Alzate sul piano scapolare (scaption)",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Spalle",
+   "pattern": "shoulderIso",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Deltoide laterale",
+    "Sovraspinato"
+   ],
+   "secondary": [
+    "Trapezio inferiore"
+   ],
+   "equipment": [
+    "Manubri"
+   ],
+   "art": {
+    "frames": [
+     "stand",
+     "frontUp"
+    ],
+    "implement": "dumbbells"
+   },
+   "steps": [
+    "In piedi, manubri davanti alle cosce con i pollici rivolti verso l'alto.",
+    "Solleva le braccia lungo una diagonale a circa 30-45° rispetto al piano frontale, come una V aperta.",
+    "Fermati all'altezza delle spalle e scendi in 3 secondi."
+   ],
+   "errors": [
+    "Salire oltre l'altezza delle spalle.",
+    "Ruotare i pollici verso il basso, posizione che chiude lo spazio subacromiale."
+   ],
+   "safety": [
+    "Spalla: il piano scapolare con i pollici in su è la traiettoria più tollerata in caso di conflitto subacromiale; carichi leggeri e 12-15 ripetizioni."
+   ],
+   "source": "ACSM – rinforzo della cuffia dei rotatori"
+  },
+  {
+   "id": "g_latneutral",
+   "name": "Lat machine con triangolo a presa neutra",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Dorso",
+   "pattern": "pullV",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Gran dorsale"
+   ],
+   "secondary": [
+    "Bicipiti",
+    "Romboidi"
+   ],
+   "equipment": [
+    "Lat machine",
+    "Triangolo"
+   ],
+   "art": {
+    "frames": [
+     "latStart",
+     "latEnd"
+    ],
+    "implement": "cable"
+   },
+   "steps": [
+    "Cosce bloccate sotto i cuscinetti, impugna il triangolo con i palmi affacciati.",
+    "Abbassa prima le scapole, poi tira verso la parte alta del petto tenendo i gomiti vicini al busto.",
+    "Risali controllato fino a braccia quasi tese, senza lasciare che le spalle salgano verso le orecchie."
+   ],
+   "errors": [
+    "Tirare con i gomiti larghi.",
+    "Sbilanciare tutto il busto all'indietro."
+   ],
+   "safety": [
+    "Spalla: la presa neutra e i gomiti vicini riducono la rotazione interna dell'omero rispetto alla presa larga prona."
+   ],
+   "source": "NSCA – trazione verticale a presa neutra"
+  },
+  {
+   "id": "g_pullassist",
+   "name": "Trazioni assistite a presa neutra",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Dorso",
+   "pattern": "pullV",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Gran dorsale"
+   ],
+   "secondary": [
+    "Bicipiti",
+    "Core"
+   ],
+   "equipment": [
+    "Macchina assistita",
+    "Elastico"
+   ],
+   "art": {
+    "frames": [
+     "latStart",
+     "latEnd"
+    ],
+    "implement": "machine"
+   },
+   "steps": [
+    "Impugna le maniglie parallele con i palmi affacciati, ginocchia sulla pedana di assistenza.",
+    "Sali portando il petto verso le mani, gomiti che scendono lungo i fianchi.",
+    "Scendi in 3 secondi fino a braccia quasi tese, senza rilassare del tutto le scapole."
+   ],
+   "errors": [
+    "Assistenza troppo bassa che porta a strappare il movimento.",
+    "Fermarsi a metà escursione."
+   ],
+   "safety": [
+    "Spalla: la presa parallela evita la posizione di massima rotazione interna, la più critica in caso di conflitto subacromiale."
+   ],
+   "source": "NSCA – trazione verticale progressiva"
+  },
+  {
+   "id": "h_neutralpress",
+   "name": "Spinta sopra la testa con manubri a presa neutra",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Spalle",
+   "pattern": "pushV",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Deltoidi"
+   ],
+   "secondary": [
+    "Tricipiti",
+    "Core"
+   ],
+   "equipment": [
+    "Manubri 1-2 kg"
+   ],
+   "art": {
+    "frames": [
+     "ohpStandStart",
+     "ohpStandEnd"
+    ],
+    "implement": "dumbbells"
+   },
+   "steps": [
+    "In piedi, manubri all'altezza delle spalle con i palmi affacciati e gomiti davanti al busto.",
+    "Spingi in alto in 2 secondi senza inarcare la schiena.",
+    "Scendi in 3 secondi fermandoti all'altezza delle spalle."
+   ],
+   "errors": [
+    "Aprire i gomiti sul piano frontale.",
+    "Compensare con la zona lombare quando l'esercizio si fa duro."
+   ],
+   "safety": [
+    "Spalla: presa neutra e gomiti avanti; con 1-2 kg lavora a 15-20 ripetizioni lente."
+   ],
+   "source": "ACSM – carichi leggeri ad alte ripetizioni"
+  },
+  {
+   "id": "h_scaption",
+   "name": "Alzate sul piano scapolare con manubri leggeri",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Spalle",
+   "pattern": "shoulderIso",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Deltoide laterale",
+    "Sovraspinato"
+   ],
+   "secondary": [
+    "Trapezio inferiore"
+   ],
+   "equipment": [
+    "Manubri 1-2 kg"
+   ],
+   "art": {
+    "frames": [
+     "stand",
+     "frontUp"
+    ],
+    "implement": "dumbbells"
+   },
+   "steps": [
+    "In piedi, manubri davanti alle cosce con i pollici verso l'alto.",
+    "Solleva lungo una diagonale a metà tra avanti e lato, fino all'altezza delle spalle.",
+    "Scendi in 3 secondi mantenendo il controllo."
+   ],
+   "errors": [
+    "Superare l'altezza delle spalle.",
+    "Pollici ruotati verso il basso."
+   ],
+   "safety": [
+    "Spalla: traiettoria di elezione quando c'è sospetto di conflitto subacromiale."
+   ],
+   "source": "ACE – rinforzo della spalla a basso impatto"
+  },
+  {
+   "id": "h_skullcrusher",
+   "name": "Estensioni dei tricipiti a terra",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Braccia",
+   "pattern": "arms",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Tricipite"
+   ],
+   "secondary": [],
+   "equipment": [
+    "Manubri 1-2 kg",
+    "Tappetino"
+   ],
+   "art": {
+    "frames": [
+     "floorPressStart",
+     "floorPressEnd"
+    ],
+    "implement": "dumbbells"
+   },
+   "steps": [
+    "Supino, ginocchia piegate, braccia perpendicolari al pavimento con presa neutra.",
+    "Fletti i gomiti portando i manubri verso le orecchie, mantenendo le braccia ferme.",
+    "Estendi senza bloccare di scatto, 2 secondi in salita e 3 in discesa."
+   ],
+   "errors": [
+    "Spostare le braccia avanti e indietro.",
+    "Aprire i gomiti verso l'esterno."
+   ],
+   "safety": [
+    "Spalla: la posizione a terra con braccia a 90° evita l'estensione sopra la testa, meglio tollerata in caso di conflitto subacromiale."
+   ],
+   "source": "NSCA – isolamento tricipite, variante conservativa"
+  },
+  {
+   "id": "g_machinepress",
+   "name": "Shoulder press alla macchina, impugnature parallele",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Spalle",
+   "pattern": "pushV",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Deltoidi"
+   ],
+   "secondary": [
+    "Tricipiti"
+   ],
+   "equipment": [
+    "Macchina shoulder press"
+   ],
+   "art": {
+    "frames": [
+     "seatedPressStart",
+     "seatedPressEnd"
+    ],
+    "implement": "machine"
+   },
+   "steps": [
+    "Regola il sedile in modo che le impugnature parallele siano all'altezza delle spalle.",
+    "Spingi verso l'alto senza bloccare i gomiti di scatto.",
+    "Ritorna in 3 secondi fermandoti all'altezza delle spalle."
+   ],
+   "errors": [
+    "Sedile troppo basso, che costringe a partire da sotto la linea delle spalle.",
+    "Staccare la schiena dallo schienale per spingere di più."
+   ],
+   "safety": [
+    "Spalla: le impugnature parallele mantengono l'omero in rotazione neutra e la guida della macchina evita compensi quando l'esercizio si fa impegnativo."
+   ],
+   "source": "ACSM – macchine guidate per adulti over 50"
   }
  ]
 }
