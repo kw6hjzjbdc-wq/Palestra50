@@ -898,8 +898,9 @@ function renderSettings() {
   $('#testSound').onclick = () => {
     unlockAudio();
     setTimeout(() => ding(false), 250);
-    setTimeout(() => ding(false), 1150);
-    setTimeout(() => ding(true), 2050);
+    setTimeout(() => ding(false), 1250);
+    setTimeout(() => ding(false), 2250);
+    setTimeout(() => ding(true), 3250);
   };
   $('#prevSess').onclick = () => { S.sessionIndex = Math.max(0, S.sessionIndex - 1); save(); renderSettings(); };
   $('#nextSess').onclick = () => { S.sessionIndex++; save(); renderSettings(); };
@@ -948,7 +949,8 @@ function wavDataUri(freqs, dur, decay) {
     const t = i / sr;
     let v = 0;
     freqs.forEach((f, k) => { v += Math.sin(2 * Math.PI * f * t) / (k + 1.5); });
-    v *= Math.exp(-t * decay) * 0.9;
+    const attack = Math.min(1, t / 0.006);            // percussione morbida, senza click
+    v *= attack * Math.exp(-t * decay) * 0.92;
     dv.setInt16(44 + i * 2, Math.max(-1, Math.min(1, v)) * 32767, true);
   }
   let bin = '';
@@ -958,9 +960,11 @@ function wavDataUri(freqs, dur, decay) {
 
 function buildAudio() {
   if (bells.short.length) return;
-  const s1 = wavDataUri([880, 1760, 2640], 0.5, 8);    // rintocco dei secondi
-  const s2 = wavDataUri([1320, 2640, 3300], 1.1, 4);   // colpo finale, più lungo
-  for (let i = 0; i < 3; i++) {                        // pool: rintocchi ravvicinati
+  // Una sola campana per rintocco: un unico timbro, niente accordi sovrapposti.
+  // Cambia solo l'altezza fra i secondi (La5) e il colpo finale (Mi6).
+  const s1 = wavDataUri([880], 0.55, 7);
+  const s2 = wavDataUri([1319], 1.0, 4.2);
+  for (let i = 0; i < 2; i++) {
     const a = new Audio(s1), b = new Audio(s2);
     a.preload = b.preload = 'auto';
     bells.short.push(a); bells.final.push(b);
@@ -999,22 +1003,24 @@ function unlockAudio() {
 /* Riserva: sintesi diretta con Web Audio se l'elemento <audio> non parte. */
 function webBell(isFinal) {
   if (!audioCtx) return;
-  const at = audioCtx.currentTime, base = isFinal ? 1320 : 880;
-  [base, base * 2.02].forEach((f, i) => {
-    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
-    o.type = 'sine'; o.frequency.value = f;
-    g.gain.setValueAtTime(0.0001, at);
-    g.gain.exponentialRampToValueAtTime(0.9 / (i + 1), at + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.0001, at + (isFinal ? 1 : 0.55));
-    o.connect(g); g.connect(audioCtx.destination);
-    o.start(at); o.stop(at + 1.1);
-  });
+  const at = audioCtx.currentTime, f = isFinal ? 1319 : 880;
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.type = 'sine'; o.frequency.value = f;
+  g.gain.setValueAtTime(0.0001, at);
+  g.gain.exponentialRampToValueAtTime(0.9, at + 0.008);
+  g.gain.exponentialRampToValueAtTime(0.0001, at + (isFinal ? 1 : 0.55));
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(at); o.stop(at + 1.1);
 }
 
 /* Un rintocco, con vibrazione di supporto. */
 function ding(isFinal) {
   if (S && S.sound === false) return;
   const pool = isFinal ? bells.final : bells.short;
+  // zittisce qualunque rintocco ancora in coda: si sente una campana per volta
+  bells.short.concat(bells.final).forEach(a => {
+    try { if (!a.paused) { a.pause(); a.currentTime = 0; } } catch (e) {}
+  });
   let played = false;
   if (pool.length) {
     const a = pool[bellIdx++ % pool.length];
@@ -1183,6 +1189,13 @@ function disclaimer() {
     return;
   }
   go('home');
-  if (!S.disclaimerOk) disclaimer();
+  // l'intro resta visibile ~2 s, poi viene rimossa e solo dopo compare l'avvertenza
+  const splash = document.getElementById('splash');
+  const afterSplash = () => {
+    if (splash && splash.parentNode) splash.parentNode.removeChild(splash);
+    if (!S.disclaimerOk) disclaimer();
+  };
+  if (splash) { splash.onclick = afterSplash; setTimeout(afterSplash, 2300); }
+  else afterSplash();
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 })();

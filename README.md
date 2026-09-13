@@ -127,6 +127,8 @@ I tuoi dati (carichi, storico, settimana del ciclo) restano sul telefono, non su
 
 ## 3. Uso quotidiano
 
+All'apertura scorre un'intro di circa due secondi con il marchio dell'app (un anello aperto, il segno di ascesa e il punto verde della mobilità); si può saltare toccando lo schermo, e rispetta l'impostazione di sistema per il movimento ridotto. Subito dopo compare la seduta del giorno.
+
 - **Oggi**: scegli palestra o casa, controlla la seduta e premi *Inizia la sessione*.
 - Nell'elenco della seduta, **tocca un esercizio** per aprirne subito la scheda illustrativa, senza dover iniziare l'allenamento.
 - Durante l'esercizio: segna le serie completate, scrivi il carico, dai il feedback con le tre frecce, premi **Ho finito la serie**: parte il timer di recupero, con un rintocco su ciascuno degli ultimi 3 secondi e colpo finale più acuto.
@@ -154,6 +156,8 @@ I tuoi dati (carichi, storico, settimana del ciclo) restano sul telefono, non su
 2. **Volume multimediale basso** — va alzato con i tasti laterali *mentre l'app riproduce un suono*: usa il pulsante **Prova la campanella** nella scheda Programma e regola il volume in quel momento.
 3. **Interruttore "Campanella del timer"** in Programma, che deve essere attivo.
 4. Se hai aggiornato i file, ricorda di cambiare la versione della cache in `sw.js`, altrimenti gira ancora la versione vecchia.
+
+**Timbro della campanella.** Ogni rintocco è una sola campana: un unico timbro sintetizzato, con attacco morbido e coda che si spegne in mezzo secondo. Cambia solo l'altezza fra i tre rintocchi dei secondi (La5) e il colpo finale (Mi6), e prima di ogni rintocco l'app zittisce quello precedente, così non si sovrappongono mai due suoni.
 
 **Campanella e musica (Spotify, YouTube).** In Programma c'è l'opzione *Convivenza con la musica*:
 

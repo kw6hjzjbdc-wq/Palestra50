@@ -223,3 +223,107 @@ h3{font-size:19px}
 .timer.prep .count{color:var(--muted);font-size:88px}
 .mini.prep #miniCount{color:var(--muted)}
 .mini-skip[disabled]{opacity:.35}
+
+
+/* ============================================================
+   ESTETICA — rifinitura visiva (nessuna modifica ai contenuti)
+   ============================================================ */
+:root{
+  --amber2:#FFD27A;
+  --glow:0 8px 22px rgba(245,165,36,.28);
+}
+body{
+  background:
+    radial-gradient(120% 60% at 50% -10%, #1B2B3C 0%, rgba(27,43,60,0) 60%),
+    radial-gradient(80% 40% at 100% 100%, #17282B 0%, rgba(23,40,43,0) 70%),
+    var(--ink);
+  background-attachment:fixed;
+}
+
+/* marchio nella barra superiore */
+.topbar .row{align-items:center}
+.mark{width:30px;height:30px;flex:0 0 30px;margin-right:2px}
+.topbar h1{flex:1}
+
+/* card con leggera profondità */
+.card{
+  background:linear-gradient(180deg,#1B2735 0%,#141E2A 100%);
+  border-color:rgba(255,255,255,.07);
+  box-shadow:0 10px 24px rgba(0,0,0,.28);
+}
+.card.flat{background:none;box-shadow:none}
+.session-head .kicker{letter-spacing:.06em;text-transform:uppercase;font-size:13px}
+h1,h2{letter-spacing:.005em}
+
+/* pulsanti con volume */
+.btn{
+  background:linear-gradient(180deg,var(--amber2) 0%,var(--amber) 100%);
+  box-shadow:var(--glow);letter-spacing:.02em;
+}
+.btn.teal{background:linear-gradient(180deg,#7FE0C1 0%,var(--teal) 100%);box-shadow:0 8px 22px rgba(79,195,161,.24)}
+.btn.secondary{background:linear-gradient(180deg,#243546 0%,#1B2836 100%);box-shadow:none}
+.btn.ghost{background:rgba(255,255,255,.03);box-shadow:none}
+.btn:active{transform:translateY(1px) scale(.99)}
+.seg{background:rgba(255,255,255,.04)}
+.seg button[aria-pressed="true"]{background:linear-gradient(180deg,var(--amber2),var(--amber));box-shadow:var(--glow)}
+
+/* illustrazione dell'esercizio */
+.exercise .fig-large{
+  background:radial-gradient(70% 90% at 50% 30%, #22303F 0%, #151F2B 70%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
+}
+.dose-big{color:var(--amber)}
+.dose-big small{color:var(--muted)}
+
+/* avanzamento e serie */
+.progress span{background:rgba(255,255,255,.09)}
+.progress span.done{background:linear-gradient(90deg,var(--amber2),var(--amber));box-shadow:0 0 10px rgba(245,165,36,.45)}
+.setdots button.done{background:linear-gradient(180deg,var(--amber2),var(--amber));box-shadow:var(--glow)}
+
+/* elenco della seduta */
+.plan li{border-color:rgba(255,255,255,.07)}
+.plan .fig{background:rgba(255,255,255,.03);border-radius:10px;opacity:1}
+.chip{background:rgba(255,255,255,.05)}
+
+/* barra di navigazione con indicatore */
+.nav button{position:relative}
+.nav button.active::before{
+  content:"";position:absolute;top:4px;left:50%;transform:translateX(-50%);
+  width:22px;height:3px;border-radius:2px;background:var(--amber);box-shadow:0 0 10px rgba(245,165,36,.6);
+}
+
+/* timer */
+.timer{background:rgba(9,15,22,.94);backdrop-filter:blur(14px)}
+.timer .count{text-shadow:0 6px 24px rgba(0,0,0,.5)}
+
+/* ---------- intro di apertura ---------- */
+.splash{
+  position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:14px;
+  background:radial-gradient(90% 60% at 50% 40%, #1C2C3D 0%, #0B121A 70%);
+  animation:splashOut .45s 1.85s forwards;
+}
+.splash .logo{width:118px;height:118px;animation:logoIn .7s cubic-bezier(.2,.8,.3,1) both}
+.splash .ring{stroke-dashoffset:277;animation:ringDraw 1s .15s cubic-bezier(.2,.8,.3,1) forwards}
+.splash .chev{opacity:0;animation:rise .55s .5s cubic-bezier(.2,.8,.3,1) forwards}
+.splash .dot{opacity:0;transform-origin:91px 29px;animation:pop .45s .95s cubic-bezier(.2,1.4,.4,1) forwards}
+.splash .word{
+  font-family:var(--cond);font-size:30px;letter-spacing:.22em;color:var(--text);
+  opacity:0;animation:fadeUp .6s .75s ease-out forwards;
+}
+.splash .word b{color:var(--amber);font-weight:700}
+.splash .tag{
+  font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);
+  opacity:0;animation:fadeUp .6s 1.05s ease-out forwards;
+}
+@keyframes ringDraw{to{stroke-dashoffset:0}}
+@keyframes logoIn{from{opacity:0;transform:scale(.86)}to{opacity:1;transform:scale(1)}}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pop{from{opacity:0;transform:scale(.2)}to{opacity:1;transform:scale(1)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes splashOut{to{opacity:0;visibility:hidden}}
+@media (prefers-reduced-motion:reduce){
+  .splash,.splash *{animation:none!important}
+  .splash .ring{stroke-dashoffset:0}
+  .splash .chev,.splash .dot,.splash .word,.splash .tag{opacity:1}
+}
