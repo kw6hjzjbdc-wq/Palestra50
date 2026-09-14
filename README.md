@@ -56,6 +56,29 @@ Le sedute di mobilità combinano 2-3 esercizi di mobilità dinamica in apertura 
 
 Dopo la generazione, `fitToTime()` stima la durata (lavoro + recuperi, allungamenti contati su entrambi i lati) e, se supera i 32 minuti, riduce prima le serie degli esercizi accessori e solo in ultima istanza toglie l'ultimo esercizio. Il primo esercizio, quello principale, non viene mai toccato. Quando la seduta è stata ridotta, la home lo segnala.
 
+### Blocco trazioni alla sbarra
+
+Obiettivo attivabile da Programma (predefinito: attivo). Aggiunge due esercizi **in apertura** di ciascuna delle tre sedute di forza — quindi tre volte a settimana, sempre a fresco, secondo il principio NSCA di mettere per primo il movimento obiettivo — e il budget tempo delle sedute complete sale da 32 a 35 minuti (tetto 38).
+
+L'onda settimanale non è casuale, segue le evidenze sulla progressione:
+
+| Giorno | Blocco | Dose |
+|---|---|---|
+| A | attivazione + **eccentriche** (trazioni negative, discesa 4-5 s) | 4× 3-5, recupero 2 min |
+| B | attivazione + **isometria** (mento sopra la sbarra) | 4× 8-12 s, recupero 90 s |
+| C | attivazione + **volume assistito** (band o macchina) | 3× 5-8, recupero 90 s |
+
+L'attivazione è sospensione alla sbarra o trazioni scapolari: è la fase iniziale del movimento, quella che quasi tutti saltano. A casa, senza sbarra, il blocco si traduce in attivazione scapolare, pulldown con band a eccentrica lenta di 5 secondi e tenuta isometrica con band.
+
+**Perché eccentriche e non solo band.** Uno studio del Journal of Strength and Conditioning Research ha confrontato per otto settimane tre gruppi di principianti — assistenza elastica, macchina a contrappeso e lavoro solo eccentrico: il gruppo con la band ha avuto il minor miglioramento nelle trazioni libere, quello eccentrico il maggiore, pur non eseguendo mai una trazione completa in allenamento. Il motivo è meccanico: la band assiste al massimo in basso, dove sei più debole, e quasi per nulla in alto. Le band restano utili come accumulo di volume, perché l'analisi EMG mostra che l'assistenza elastica riproduce il pattern della trazione libera meglio della macchina, core e stabilizzatori scapolari inclusi: il corpo resta sospeso e deve stabilizzarsi. La lat machine è un complemento, non il lavoro centrale: tre sedute settimanali di trazioni assistite con riduzione progressiva della band hanno prodotto in dieci settimane 4-5 ripetizioni strict in più contro 1-2 di un gruppo che usava solo la lat machine.
+
+**Presa e spalla.** Le trazioni riducono lo spazio subacromiale, e in uno studio biomeccanico la presa prona a larghezza spalle è risultata a minor rischio di conflitto rispetto alle altre varianti; la presa neutra mantiene la spalla in rotazione più esterna ed è di norma la più tollerata. Le schede indicano presa neutra o prona a larghezza spalle e sconsigliano la presa larga, coerentemente con il filtro spalla del profilo.
+
+**Criteri di avanzamento** (per checkpoint, non per calendario):
+- riduci la band (viola → rossa → gialla → azzurra) quando completi le ripetizioni previste con due di margine;
+- passa alla trazione completa quando tieni 5 secondi con il mento sopra la sbarra e scendi in 5 secondi controllati;
+- non portare mai a cedimento il blocco: è lavoro di forza e di tecnica, non di esaurimento.
+
 ### Parametri e fonti
 
 Rielaborati (nessun testo riprodotto) da: ACSM *Guidelines for Exercise Testing and Prescription*, NSCA *Essentials of Strength Training and Conditioning*, linee guida ACE per stretching e mobilità, raccomandazioni OMS sull'attività fisica per adulti 45-64 anni (150 minuti settimanali di attività moderata più due sedute di rinforzo: le cinque sedute qui previste rientrano in quel volume).
@@ -114,8 +137,9 @@ Su `app.netlify.com/drop`, dopo aver fatto l'accesso, puoi caricare direttamente
 
 ### Sostituire l'icona sulla schermata Home
 
-iOS fotografa l'icona al momento dell'installazione e non la aggiorna da sola: dopo aver cambiato le icone nel repository bisogna reinstallare la scorciatoia.
+iOS fotografa l'icona al momento dell'installazione e non la aggiorna da sola: dopo aver cambiato le icone nel repository bisogna reinstallare la scorciatoia, e reinstallare significa **perdere i dati salvati** (vedi il riquadro sopra). Prima di procedere:
 
+0. Apri l'app, vai in **Programma → Dati** e tocca **Esporta JSON**: salva il file da qualche parte che ricordi (finisce in File → Download).
 1. Carica le tre icone aggiornate (`icon-192.png`, `icon-512.png`, `icon-512-maskable.png`) insieme agli altri file.
 2. Sulla schermata Home tieni premuta l'icona vecchia → **Rimuovi app** → **Rimuovi dalla schermata Home** (i tuoi dati non si perdono: restano nell'archivio del sito).
 3. Apri l'indirizzo dell'app con Safari, tocca **Condividi** → **Aggiungi a Home** → **Aggiungi**.
@@ -140,13 +164,12 @@ All'apertura scorre un'intro di tre secondi: l'anello del marchio si disegna, le
 
 **L'ora** è sempre visibile in piccolo in alto a destra, sopra l'indicatore della settimana, e al centro in alto durante il timer a tutto schermo: comoda per sapere da quanto sei in palestra senza uscire dall'app.
 
-- **Oggi**: scegli palestra o casa, controlla la seduta e premi *Inizia la sessione*.
+- **Oggi**: scegli palestra o casa, poi il **calendario della settimana** mostra tutte e cinque le sedute previste più il blocco core facoltativo. Quella da fare secondo il programma è evidenziata con l'etichetta *da programma*, le già svolte restano barrate e non riapribili. Tocca la seduta che vuoi fare adesso — anche il blocco core — e sotto compare il suo elenco esercizi; poi premi *Inizia la sessione*. Scegliendo una seduta diversa da quella prevista, quella di oggi prende il suo posto più avanti nella settimana, quindi non si perde nulla.
 - Nell'elenco della seduta, **tocca un esercizio** per aprirne subito la scheda illustrativa, senza dover iniziare l'allenamento.
 - Durante l'esercizio: segna le serie completate, scrivi il carico, dai il feedback con le tre frecce, premi **Ho finito la serie**: parte il timer di recupero, con un rintocco su ciascuno degli ultimi 3 secondi e colpo finale più acuto.
 - **Esercizi a tempo** (stretching statico, plank, wall sit): il pulsante diventa *Avvia 30 secondi* e fa partire il cronometro della tenuta, in verde. Prima del conteggio ci sono **3 secondi di preparazione**, scanditi da un rintocco ciascuno, mostrati come sola cifra al centro del cerchio; al termine parte da solo il recupero.
 - **Esercizi da fare un lato alla volta** (split squat, rematore a un braccio, plank laterale, quasi tutti gli allungamenti) hanno sempre un **numero pari di serie**, così destra e sinistra ricevono lo stesso lavoro: il contatore mostra `1 Sx`, `1 Dx`, `2 Sx`… e il pulsante di avvio indica il lato da fare.
 - **Cambia esercizio**: nella sessione, il pulsante *Cambia esercizio* propone un'alternativa dello stesso schema di movimento (o dello stesso gruppo, per lo stretching), coerente con attrezzatura, obiettivo della seduta e filtro ginocchio; premendolo più volte scorri tutte le alternative. La stessa cosa si può fare prima di iniziare, dalla scheda che si apre toccando un esercizio nell'elenco di Oggi.
-- **Scambia seduta**: in Oggi puoi anticipare un'altra seduta della settimana (per esempio fare il potenziamento al posto della mobilità). Quella di oggi prende il suo posto più avanti, quindi nessuna seduta va persa e il conteggio delle 5 settimanali resta intatto.
 - **Esercizio precedente**: il pulsante *‹ Precedente* torna indietro nella scaletta per correggere un carico o completare una serie saltata. Lo storico non si sdoppia: il record dell'esercizio viene aggiornato, non duplicato.
 - **Ordine degli esercizi**: se una macchina o un attrezzo è occupato, usa *Rimanda a dopo* (sposta l'esercizio corrente in fondo) oppure *Ordine esercizi*, che apre la scaletta di quello che resta da fare con le frecce su/giù. Serie già completate, carico e feedback seguono l'esercizio spostato.
 - **Timer riducibile**: durante il recupero tocca *Riduci*. Il conto alla rovescia resta in una barretta in basso e nel frattempo puoi consultare le schede, lo storico o cambiare vista. Tocca la barretta per tornare a schermo intero, o *Salta* per riprendere subito.
@@ -154,7 +177,7 @@ All'apertura scorre un'intro di tre secondi: l'anello del marchio si disegna, le
 - **Scheda esercizio**: esecuzione passo-passo, muscoli primari e secondari, errori comuni, avvertenze di sicurezza e le due figure inizio/fine.
 - A fine seduta puoi annotare una nota libera sulla seduta (sensazioni, ginocchio, carichi).
 - **Progressi**: andamento del carico per esercizio e riepilogo delle ultime dieci sedute. Toccando una seduta si apre il suo **riepilogo completo**: data e ora, durata, nota, e l'elenco degli esercizi svolti con serie, ripetizioni, carico e feedback.
-- **Programma**: cambio di programma (3, 4 o 6 settimane), attrezzatura predefinita, priorità ginocchio, esclusione degli esercizi critici per la spalla, spostamento avanti/indietro nella settimana, esportazione e azzeramento dati.
+- **Programma**: cambio di programma (3, 4 o 6 settimane), attrezzatura predefinita, priorità ginocchio, esclusione degli esercizi critici per la spalla, obiettivo trazioni, spostamento avanti/indietro nella settimana, esportazione e azzeramento dati.
 
 ---
 
@@ -192,7 +215,13 @@ Resta il limite di sistema: con l'app in background o lo schermo bloccato iOS so
 
 Poiché nessuna di queste opzioni è il collegamento automatico richiesto, l'inserimento manuale dei battiti è stato tolto: la scheda di fine sessione registra ora durata e una nota libera. L'intensità reale si legge direttamente sull'orologio o nell'app Garmin Connect, dove la seduta è già registrata. Se in futuro vuoi l'import del `.tcx`, il punto di innesto è `endSession()` in `app.js` e il campo da aggiungere ai record di `sessionLog`.
 
-**Persistenza dei dati.** `localStorage` in Safari può essere ripulito dopo lunghi periodi di inutilizzo del sito. Installando l'app a Home il rischio si riduce molto; in ogni caso esporta ogni tanto il JSON dalla scheda Programma. Per volumi di dati maggiori il passo successivo naturale è IndexedDB, con la stessa struttura di record già usata nei log.
+**Persistenza dei dati — leggi con attenzione.** Tutti i dati (carichi, storico, settimana del ciclo) vivono solo su questo iPhone, in `localStorage`: non c'è alcun salvataggio su server. Su iOS questo tipo di memoria può sparire in tre casi:
+
+1. **Rimuovi l'icona dalla schermata Home** ("Rimuovi app"): iOS cancella insieme all'icona anche i dati che l'app aveva salvato. È la causa più comune di perdita dati, ed è quello che succede tipicamente quando si reinstalla l'app per aggiornare l'icona.
+2. **Il sito non viene aperto per una settimana** (limite ITP di Safari): capita raramente se usi l'app regolarmente, ma è un rischio reale nei periodi di pausa.
+3. **Cancelli manualmente i dati dei siti** da Impostazioni → Safari → Cancella dati siti web.
+
+Per questo la scheda **Programma → Dati** mostra da quanto non fai un backup e propone **Esporta JSON**; se sono passati più di 7 giorni dall'ultimo salvataggio, anche la schermata Oggi lo ricorda con un avviso. Il pulsante **Importa backup** carica di nuovo un file esportato in precedenza, per i casi in cui i dati sul telefono vadano persi. Regola pratica: esporta un backup **prima** di rimuovere l'app dalla Home per qualsiasi motivo (aggiornare l'icona compreso) — è l'unico modo per non perdere lo storico in quel passaggio. Per volumi di dati maggiori il passo successivo naturale è IndexedDB, con la stessa struttura di record già usata nei log.
 
 **Suggerimento di carico.** Si basa solo su ciò che annoti: alla prima seduta non c'è proposta ed è giusto partire prudenti. L'app non calcola l'1RM e non lo stima da carichi submassimali: per la fascia d'età e l'obiettivo, la regolazione per sensazione con RPE è più sicura di un test massimale.
 

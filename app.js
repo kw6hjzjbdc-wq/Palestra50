@@ -20,6 +20,7 @@ let DB = { exercises: [] }, PROG = null, POSES = null;
 let S = null;              // stato persistente
 let current = null;        // sessione in corso
 let planCache = null;      // sessione di oggi già generata (per mantenere le sostituzioni)
+let homeSel = 'session';   // cosa è selezionato nella home: 'session' o 'core'
 let wakeLock = null, audioCtx = null, timerHandle = null;
 
 /* ---------------------------------------------------------------------------
@@ -32,12 +33,14 @@ const DEFAULT_STATE = {
   sessionIndex: 0,         // numero progressivo della prossima sessione da fare
   kneeCare: true,          // dà priorità agli esercizi a basso impatto sul ginocchio
   shoulderCare: true,      // esclude gli esercizi critici per il conflitto subacromiale
+  pullupGoal: true,        // blocco trazioni in apertura delle sedute di forza
   perms: {},               // ordine delle 5 sedute all'interno di ciascuna settimana
   sound: true,             // campanella del timer
   audioMode: 'mix',        // 'mix' = suona sopra la musica, 'solo' = priorità alla campanella
   disclaimerOk: false,
   logs: [],                // storico per esercizio
-  sessionLog: []           // storico per sessione (durata, note)
+  sessionLog: [],          // storico per sessione (durata, note)
+  lastExport: 0             // timestamp dell'ultimo salvataggio JSON esportato
 };
 
 function load() {
@@ -157,9 +160,11 @@ function dose(goalKey, profile, ex) {
   const perSide = !!(ex && ex.perSide);
   if (perSide && sets % 2) sets++;                 // arrotonda al pari superiore
   const reps = Math.round(g.repsLow + (g.repsHigh - g.repsLow) * profile.repsBias);
+  // la tenuta vale solo per gli esercizi a tempo (allungamenti, isometrie)
+  const timed = goalKey === 'stretch' || !ex || ex.load === 'time';
   return {
     goal: goalKey, goalLabel: g.label, sets, reps, perSide,
-    rest: g.rest, hold: g.hold || 0, rpe: g.rpe, source: g.source
+    rest: g.rest, hold: timed ? (g.hold || 0) : 0, rpe: g.rpe, source: g.source
   };
 }
 /* Etichetta della singola serie: per gli unilaterali alterna sinistra e destra. */
@@ -253,9 +258,55 @@ function pickFrom(pool, rotation, used) {
   return pool[rotation % pool.length];
 }
 
+/* ---------------------------------------------------------------------------
+   BLOCCO TRAZIONI
+   Tre sedute a settimana, sempre in apertura della seduta di forza (a fresco,
+   come vuole l'ordine degli esercizi NSCA: il movimento obiettivo per primo).
+   L'onda settimanale segue le evidenze sulla progressione alla trazione:
+     giorno A → eccentriche lente (il lavoro che trasferisce di più)
+     giorno B → tenute isometriche nell'angolo in cui si cede
+     giorno C → volume con assistenza elastica o macchina
+   Ogni blocco si apre con attivazione scapolare o sospensione, la fase che
+   quasi tutti saltano e che insegna l'avvio della trazione.
+   Criterio di avanzamento: quando tieni 5 secondi con il mento sopra la sbarra
+   e scendi in 5 secondi controllati, prova la trazione completa; riduci la band
+   (viola → rossa → gialla → azzurra) appena le ripetizioni diventano facili.
+--------------------------------------------------------------------------- */
+const PULL_GOALS = { activation: 'pullupActivation', eccentric: 'pullupStrength',
+                     isometric: 'pullupIso', volume: 'pullupVolume', row: 'pullupVolume' };
+
+function pullPool(role) {
+  let pool = DB.exercises.filter(e => e.pattern === 'pullup' && e.setup.includes(S.setup) &&
+                                      e.pullRole === role);
+  if (!pool.length) {          // a casa, senza sbarra, alcuni ruoli non esistono
+    pool = DB.exercises.filter(e => e.pattern === 'pullup' && e.setup.includes(S.setup) &&
+                                    e.pullRole !== 'activation');
+  }
+  return applyCare(pool).sort((a, b) => a.id.localeCompare(b.id));
+}
+
+function buildPullBlock(meta, used) {
+  const cfg = PROG.pullupBlock;
+  if (!cfg || !S.pullupGoal) return [];
+  const roles = cfg.days[meta.tmplIdx % cfg.days.length];
+  const items = [];
+  roles.forEach((role, i) => {
+    const pool = pullPool(role);
+    const ex = pickFrom(pool, (meta.mesocycle - 1) + i, used);
+    if (!ex) return;
+    const goalKey = PULL_GOALS[ex.pullRole] || PULL_GOALS[role];
+    items.push({ exId: ex.id, note: 'Obiettivo trazioni', goalKey, block: 'pullup',
+                 alt: { patterns: ['pullup'], types: ['strength'], roles: [role] },
+                 ...dose(goalKey, meta.profile, ex) });
+  });
+  return items;
+}
+
 function buildStrength(meta) {
   const tmpl = meta.program.strengthDays[meta.tmplIdx];
   const used = new Set(), items = [];
+  // il blocco trazioni apre la seduta e non viene mai tagliato dal budget tempo
+  buildPullBlock(meta, used).forEach(it => items.push(it));
   tmpl.slots.forEach((slot, i) => {
     // Il pool si costruisce pattern per pattern: così il filtro "ginocchio" non
     // cancella un intero schema di movimento (es. gli affondi) lasciando in piedi
@@ -319,7 +370,9 @@ function buildCore(meta) {
 function buildSession(idx, kind) {
   const meta = sessionMeta(idx);
   const body = kind === 'core' ? buildCore(meta) : (meta.isStrength ? buildStrength(meta) : buildStretch(meta));
-  const trimmed = fitToTime(body.items, kind === 'core' ? 14 : 32);
+  // budget tempo: 35 minuti per le sedute complete (tetto operativo 38), 14 per il core
+  const pullCount = body.items.filter(it => it.block === 'pullup').length;
+  const trimmed = fitToTime(body.items, kind === 'core' ? 14 : 35, Math.max(1, pullCount));
   const minutes = estimateMinutes(body.items);
   return Object.assign({}, meta, body, { minutes, trimmed, kind: kind || (meta.isStrength ? 'strength' : 'stretch') });
 }
@@ -344,13 +397,14 @@ function estimateMinutes(items) {
 /* Vincolo dei 30 minuti: se la seduta è troppo lunga si riduce prima il volume
    degli esercizi accessori (mai il primo, che è il movimento principale) e solo
    in ultima istanza si toglie l'ultimo esercizio. */
-function fitToTime(items, maxMin) {
+function fitToTime(items, maxMin, protect) {
+  const keep = Math.max(1, protect || 1);       // esercizi intoccabili in apertura
   let trimmed = false, guard = 0;
-  while (estimateMinutes(items) > maxMin && guard++ < 30) {
+  while (estimateMinutes(items) > maxMin && guard++ < 40) {
     let i = -1;
-    for (let k = items.length - 1; k >= 1; k--) if (items[k].sets > (items[k].perSide ? 2 : 2)) { i = k; break; }
+    for (let k = items.length - 1; k >= keep; k--) if (items[k].sets > 2) { i = k; break; }
     if (i >= 0) { items[i].sets -= items[i].perSide ? 2 : 1; trimmed = true; continue; }
-    if (items.length > 4) { items.pop(); trimmed = true; continue; }
+    if (items.length > keep + 3) { items.pop(); trimmed = true; continue; }
     break;
   }
   return trimmed;
@@ -377,7 +431,7 @@ function doseText(it) {
   if (it.goal === 'stretch') return `${it.sets}× ${it.hold}s${side}`;
   if (it.goal === 'mobility') return `${it.sets}× ${it.reps}${side}`;
   const ex = exById(it.exId);
-  if (ex && ex.load === 'time') return `${it.sets}× ${20 + it.reps}s${side}`;
+  if (ex && ex.load === 'time') return `${it.sets}× ${it.hold || (20 + it.reps)}s${side}`;
   return `${it.sets}× ${it.reps}${side}`;
 }
 
@@ -392,7 +446,11 @@ function alternativesFor(item, sess) {
     e.setup.includes(S.setup) &&
     (alt.types || ['strength']).includes(e.type) &&
     (alt.patterns || []).includes(e.pattern) &&
-    (!alt.groups || alt.groups.includes(e.group)));
+    (!alt.groups || alt.groups.includes(e.group)) &&
+    (!alt.roles || alt.roles.includes(e.pullRole)));
+  if (alt.roles && pool.length < 2) {
+    pool = DB.exercises.filter(e => e.setup.includes(S.setup) && e.pattern === 'pullup');
+  }
   pool = applyCare(pool);
   pool.sort((a, b) => a.id.localeCompare(b.id));
   return pool.filter(e => e.id === item.exId || !inUse.has(e.id));
@@ -420,18 +478,53 @@ function todaySession(kind) {
 }
 
 function renderHome() {
-  const s = todaySession(null);
   const p = program();
+  const here = S.sessionIndex % 5;                 // posizione prevista dal programma
+  const weekStart = S.sessionIndex - here;
+  const core = homeSel === 'core';
+  const s = todaySession(core ? 'core' : null);
+
   $('#topTitle').textContent = 'Oggi';
   $('#topChip').textContent = `Sett. ${s.weekInCycle}/${p.cycleWeeks} · ciclo ${s.mesocycle}`;
-  $('#topChip').className = 'chip ' + (s.isStrength ? 'strength' : 'mobility');
+  $('#topChip').className = 'chip ' + (s.isStrength && !core ? 'strength' : 'mobility');
 
+  // --- calendario della settimana: le 5 sedute previste, più il blocco core ---
+  let week = '';
+  for (let q = 0; q < 5; q++) {
+    const alt = buildSession(weekStart + q);
+    const state = q < here ? 'done' : (q === here ? 'now' : 'next');
+    const badge = q < here ? '<span class="wkbadge done">svolta</span>'
+                : q === here ? '<span class="wkbadge">da programma</span>'
+                : '<span class="chev">›</span>';
+    week += `<li class="wk ${state}${(!core && q === here) ? ' sel' : ''}" data-day="${q}">
+      <span class="wknum ${alt.isStrength ? 'strength' : 'mobility'}">${q + 1}</span>
+      <div class="nm"><b>${esc(alt.label)}</b>
+        <div class="small muted">${alt.isStrength ? 'potenziamento' : 'mobilità'} · ${alt.minutes} min${alt.items.some(i => i.block === 'pullup') ? ' · trazioni' : ''}</div></div>
+      ${badge}</li>`;
+  }
+  const coreS = buildSession(S.sessionIndex, 'core');
+  week += `<li class="wk next${core ? ' sel' : ''}" data-core="1">
+      <span class="wknum core">+</span>
+      <div class="nm"><b>Solo blocco core</b>
+        <div class="small muted">facoltativo · ${coreS.minutes} min</div></div>
+      <span class="chev">›</span></li>`;
+
+  // --- elenco esercizi della seduta selezionata ---
   const rows = s.items.map((it, i) => {
     const ex = exById(it.exId);
-    return `<li data-plan="${i}"><div class="fig">${figureFor(ex, 1, { ground: false })}</div>
+    return `<li data-plan="${i}" class="${it.block === 'pullup' ? 'pullrow' : ''}"><div class="fig">${figureFor(ex, 1, { ground: false })}</div>
       <div class="nm"><b>${esc(ex.name)}</b><span class="small muted">${esc(ex.group)}${it.note ? ' · ' + esc(it.note) : ''}</span></div>
       <div class="dose">${doseText(it)}</div><div class="chev">›</div></li>`;
   }).join('');
+
+  // promemoria di backup: compare se ci sono dati non ancora salvati da almeno
+  // 7 giorni, o se non è mai stato fatto un export pur avendo dello storico
+  const daysSince = S.lastExport ? (Date.now() - S.lastExport) / 86400000 : Infinity;
+  const backupNag = (S.logs.length > 0 && daysSince > 7)
+    ? `<div class="notice" style="margin-top:14px;display:flex;align-items:center;gap:12px">
+         <span style="flex:1">${S.lastExport ? 'Backup non aggiornato da un po\'' : 'Non hai ancora un backup'}: se rimuovi l'app dalla Home, i dati si perdono.</span>
+         <button class="btn secondary" id="nagExport" style="width:auto;min-height:44px;font-size:15px">Esporta ora</button>
+       </div>` : '';
 
   // banner di ripresa se una sessione è rimasta aperta
   const resume = (current && !current.finished)
@@ -442,28 +535,33 @@ function renderHome() {
 
   $('#view-home').innerHTML = `
     ${resume}
+    ${resume ? '' : backupNag}
     <div class="seg" role="group" aria-label="Attrezzatura">
       <button data-setup="gym" aria-pressed="${S.setup === 'gym'}">Palestra</button>
       <button data-setup="home" aria-pressed="${S.setup === 'home'}">Casa</button>
     </div>
 
     <div class="card">
-      <div class="session-head ${s.isStrength ? '' : 'mobility'}">
+      <div class="kicker" style="font-family:var(--cond);letter-spacing:.06em;text-transform:uppercase;font-size:13px;color:var(--muted)">
+        Settimana ${s.weekInCycle} di ${p.cycleWeeks} · ${esc(p.name)}</div>
+      <h2 style="margin-top:2px">La tua settimana</h2>
+      <ul class="week">${week}</ul>
+      <p class="small muted" style="margin-top:10px">Tocca la seduta che vuoi fare adesso: quella prevista oggi prenderà il suo posto più avanti nella settimana.</p>
+    </div>
+
+    <div class="card">
+      <div class="session-head ${(s.isStrength && !core) ? '' : 'mobility'}">
         <div>
-          <div class="kicker">Sessione ${s.pos} di 5 della settimana · ${s.isStrength ? 'potenziamento' : 'mobilità'}</div>
+          <div class="kicker">${core ? 'Blocco core facoltativo' : `Sessione ${s.pos} di 5 · ${s.isStrength ? 'potenziamento' : 'mobilità'}`}</div>
           <h2>${esc(s.label)}</h2>
-          <p class="small muted" style="margin:6px 0 0">${esc(s.profile.note)} Durata stimata ${s.minutes} minuti.${s.trimmed ? ' Volume adattato per restare nei 30 minuti.' : ''}</p>
+          <p class="small muted" style="margin:6px 0 0">${core ? 'Blocco breve da aggiungere quando hai tempo: non avanza la settimana del programma.' : esc(s.profile.note)} Durata stimata ${s.minutes} minuti.${s.trimmed ? ' Volume adattato per restare nei 30 minuti.' : ''}</p>
         </div>
       </div>
       <ul class="plan">${rows}</ul>
       <p class="small muted" style="margin-top:10px">Tocca un esercizio per aprire la scheda con esecuzione, muscoli coinvolti ed errori da evitare.</p>
     </div>
 
-    <button class="btn ${s.isStrength ? '' : 'teal'}" id="startBtn">Inizia la sessione</button>
-    <div class="btn-row" style="margin-top:10px">
-      <button class="btn ghost" id="coreBtn">Solo blocco core</button>
-      <button class="btn ghost" id="swapDayBtn" ${s.pos >= 5 ? 'disabled' : ''}>Scambia seduta</button>
-    </div>
+    <button class="btn ${(s.isStrength && !core) ? '' : 'teal'}" id="startBtn">${core ? 'Inizia il blocco core' : 'Inizia la sessione'}</button>
     <button class="btn ghost" id="skipBtn" style="margin-top:10px">Salta a domani</button>
     <p class="small muted" style="margin-top:16px">Programma attivo: ${esc(p.name)} · ${esc(p.periodization)}.</p>
   `;
@@ -472,49 +570,37 @@ function renderHome() {
     if (current && !current.finished) return;   // non cambiare attrezzatura a sessione aperta
     S.setup = b.dataset.setup; save(); renderHome();
   });
+
+  // selezione della seduta dal calendario settimanale
+  document.querySelectorAll('[data-day]').forEach(li => li.onclick = () => {
+    const q = +li.dataset.day;
+    if (q < here) return;                       // le sedute già svolte non si riaprono
+    homeSel = 'session';
+    if (q > here) swapDay(here, q);             // la scelta diventa la seduta di oggi
+    planCache = null;
+    renderHome();
+  });
+  const coreLi = document.querySelector('[data-core]');
+  if (coreLi) coreLi.onclick = () => { homeSel = 'core'; planCache = null; renderHome(); };
+
   // ogni riga dell'elenco apre la scheda illustrativa dell'esercizio
   document.querySelectorAll('[data-plan]').forEach(li => li.onclick = () => {
     const it = s.items[+li.dataset.plan];
     openSheet(exById(it.exId), it, () => { if (swapExercise(it, s)) renderHome(); });
   });
   if ($('#resumeBtn')) $('#resumeBtn').onclick = () => { go('session'); renderSession(); };
-  $('#swapDayBtn').onclick = openDaySwap;
+  if ($('#nagExport')) $('#nagExport').onclick = exportData;
+
   const begin = kind => {
     if (current && !current.finished) {
       confirmAction('Sessione già in corso', 'Vuoi abbandonarla e iniziarne una nuova? Gli esercizi già conclusi restano nello storico.',
         'Inizia una nuova sessione', () => startSession(todaySession(kind)));
     } else startSession(todaySession(kind));
   };
-  $('#startBtn').onclick = () => begin(null);
-  $('#coreBtn').onclick = () => begin('core');
+  $('#startBtn').onclick = () => begin(core ? 'core' : null);
   $('#skipBtn').onclick = () => confirmAction('Saltare la seduta di oggi?',
     'Passerai alla sessione successiva del programma senza registrare questa.',
-    'Salta', () => { S.sessionIndex++; planCache = null; save(); renderHome(); });
-}
-
-/* Scambio fra le sedute ancora da fare nella settimana corrente: utile per
-   anticipare un potenziamento e rimandare la mobilità (o viceversa). La seduta
-   spostata resta in calendario nei giorni successivi. */
-function openDaySwap() {
-  const here = S.sessionIndex % 5;
-  const weekStart = S.sessionIndex - here;
-  let rows = '';
-  for (let q = here + 1; q < 5; q++) {
-    const alt = buildSession(weekStart + q);
-    rows += `<li style="align-items:center">
-      <div class="nm" style="flex:1"><b>${esc(alt.label)}</b>
-        <div class="small muted">Sessione ${q + 1} di 5 · ${alt.isStrength ? 'potenziamento' : 'mobilità'} · ${alt.minutes} min</div></div>
-      <button class="mini-skip" data-swapday="${q}">Scambia</button></li>`;
-  }
-  openModal(`<h2>Scambia la seduta di oggi</h2>
-    <p class="small muted">Scegli quale seduta fare adesso: quella di oggi prenderà il suo posto più avanti nella settimana.</p>
-    <ul class="hist">${rows}</ul>
-    <button class="btn ghost" id="closeSwapDay" style="margin-top:14px">Annulla</button>`);
-  document.querySelectorAll('[data-swapday]').forEach(b => b.onclick = () => {
-    swapDay(here, +b.dataset.swapday);
-    closeModal(); renderHome();
-  });
-  $('#closeSwapDay').onclick = closeModal;
+    'Salta', () => { S.sessionIndex++; planCache = null; homeSel = 'session'; save(); renderHome(); });
 }
 
 /* ---------- sessione in corso ---------- */
@@ -743,7 +829,7 @@ function endSession() {
       label: s.label, kind: s.kind, minutes: mins,
       note: withNote ? ($('#sNote').value || '') : '' });
     if (s.kind !== 'core') S.sessionIndex++;
-    planCache = null;
+    planCache = null; homeSel = 'session';
     save(); closeModal(); current = null; go('home');
   };
   $('#saveSession').onclick = () => finish(true);
@@ -906,6 +992,8 @@ function renderSettings() {
         <input type="checkbox" id="kneeChk" ${S.kneeCare ? 'checked' : ''}></div>
       <div class="switch"><span>Escludi gli esercizi critici per la spalla (conflitto subacromiale)</span>
         <input type="checkbox" id="shoulderChk" ${S.shoulderCare ? 'checked' : ''}></div>
+      <div class="switch"><span>Obiettivo trazioni alla sbarra<br><span class="small muted">Blocco dedicato in apertura delle tre sedute di forza</span></span>
+        <input type="checkbox" id="pullChk" ${S.pullupGoal ? 'checked' : ''}></div>
       <div class="switch"><span>Campanella del timer</span>
         <input type="checkbox" id="soundChk" ${S.sound !== false ? 'checked' : ''}></div>
       <div class="switch"><span>Convivenza con la musica</span>
@@ -920,10 +1008,14 @@ function renderSettings() {
 
     <div class="card">
       <h2>Dati</h2>
+      <p class="small muted">${S.lastExport ? 'Ultimo salvataggio: ' + new Date(S.lastExport).toLocaleDateString('it-IT') : 'Non hai ancora salvato un backup.'} ${S.logs.length} esercizi e ${S.sessionLog.length} sedute registrate su questo telefono.</p>
       <div class="btn-row">
         <button class="btn ghost" id="exportBtn">Esporta JSON</button>
-        <button class="btn ghost" id="resetBtn">Azzera tutto</button>
+        <button class="btn ghost" id="importBtn">Importa backup</button>
       </div>
+      <input type="file" id="importFile" accept="application/json,.json" style="display:none">
+      <button class="btn ghost" id="resetBtn" style="margin-top:10px">Azzera tutto</button>
+      <div class="notice" style="margin-top:12px">Su iPhone, se rimuovi l'icona dell'app dalla schermata Home, iOS cancella anche i dati salvati al suo interno. Esporta un backup prima di rimuovere o reinstallare l'app, così puoi ripristinarlo con "Importa backup".</div>
     </div>
 
     <div class="card flat">
@@ -934,6 +1026,7 @@ function renderSettings() {
   $('#progSel').onchange = e => { S.programId = e.target.value; save(); renderSettings(); };
   $('#setupSel').onchange = e => { S.setup = e.target.value; save(); };
   $('#kneeChk').onchange = e => { S.kneeCare = e.target.checked; save(); };
+  $('#pullChk').onchange = e => { S.pullupGoal = e.target.checked; planCache = null; save(); };
   $('#shoulderChk').onchange = e => { S.shoulderCare = e.target.checked; planCache = null; save(); };
   $('#soundChk').onchange = e => { S.sound = e.target.checked; save(); if (e.target.checked) { unlockAudio(); setTimeout(() => ding(false), 350); } };
   $('#audioSel').onchange = e => { S.audioMode = e.target.value; save(); setAudioSession(); };
@@ -947,6 +1040,8 @@ function renderSettings() {
   $('#prevSess').onclick = () => { S.sessionIndex = Math.max(0, S.sessionIndex - 1); save(); renderSettings(); };
   $('#nextSess').onclick = () => { S.sessionIndex++; save(); renderSettings(); };
   $('#exportBtn').onclick = exportData;
+  $('#importBtn').onclick = () => $('#importFile').click();
+  $('#importFile').onchange = e => { if (e.target.files[0]) importData(e.target.files[0]); e.target.value = ''; };
   $('#resetBtn').onclick = () => {
     openModal(`<h2>Azzerare i dati?</h2><p class="small muted">Verranno cancellati storico carichi, sedute e impostazioni. L'operazione non è reversibile.</p>
       <button class="btn" id="yesReset">Sì, azzera</button>
@@ -958,11 +1053,36 @@ function renderSettings() {
 }
 
 function exportData() {
+  S.lastExport = Date.now(); save();
   const blob = new Blob([JSON.stringify(S, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = `palestra50-${new Date().toISOString().slice(0, 10)}.json`;
   a.click();
+  renderSettings();
+}
+
+/* Importa un backup esportato in precedenza: sostituisce i dati correnti dopo
+   conferma, perché su iOS i dati di un'app rimossa dalla Home vengono
+   cancellati e questo è l'unico modo per recuperarli. */
+function importData(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    let data;
+    try { data = JSON.parse(reader.result); }
+    catch (e) { openModal(`<h2>File non valido</h2><p class="small muted">Il file scelto non è un backup JSON di Palestra 50.</p><button class="btn secondary" id="impClose" style="margin-top:14px">Chiudi</button>`); $('#impClose').onclick = closeModal; return; }
+    if (!data || !Array.isArray(data.logs)) {
+      openModal(`<h2>File non valido</h2><p class="small muted">Il file non sembra un backup di Palestra 50.</p><button class="btn secondary" id="impClose2" style="margin-top:14px">Chiudi</button>`);
+      $('#impClose2').onclick = closeModal; return;
+    }
+    confirmAction('Ripristinare questo backup?',
+      `Contiene ${data.logs.length} esercizi registrati e ${(data.sessionLog || []).length} sedute. I dati attualmente sul telefono verranno sostituiti.`,
+      'Ripristina', () => {
+        S = Object.assign({}, DEFAULT_STATE, data);
+        save(); planCache = null; go('home'); renderSettings();
+      });
+  };
+  reader.readAsText(file);
 }
 
 /* ---------------------------------------------------------------------------

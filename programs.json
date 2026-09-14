@@ -56,6 +56,44 @@
    "hold": 0,
    "rpe": "riscaldamento",
    "source": "ACE – mobilità dinamica pre-attività"
+  },
+  "pullupActivation": {
+   "label": "Trazioni · attivazione",
+   "sets": 2,
+   "repsLow": 6,
+   "repsHigh": 8,
+   "rest": 45,
+   "hold": 20,
+   "rpe": "5-6",
+   "source": "Progressione trazioni – attivazione scapolare e sospensione"
+  },
+  "pullupStrength": {
+   "label": "Trazioni · eccentriche",
+   "sets": 4,
+   "repsLow": 3,
+   "repsHigh": 5,
+   "rest": 120,
+   "rpe": "7-8, mai a cedimento",
+   "source": "Evidenza JSCR – lavoro eccentrico 4-5 s, recupero pieno"
+  },
+  "pullupIso": {
+   "label": "Trazioni · isometria",
+   "sets": 4,
+   "repsLow": 1,
+   "repsHigh": 1,
+   "rest": 90,
+   "hold": 10,
+   "rpe": "7-8",
+   "source": "Progressione trazioni – tenute di 8-12 s nell'angolo critico"
+  },
+  "pullupVolume": {
+   "label": "Trazioni · volume assistito",
+   "sets": 3,
+   "repsLow": 5,
+   "repsHigh": 8,
+   "rest": 90,
+   "rpe": "7, due ripetizioni di margine",
+   "source": "Evidenza EMG – band come accumulo di volume, non lavoro principale"
   }
  },
  "programs": [
@@ -500,5 +538,22 @@
   "label": "Blocco core facoltativo",
   "count": 4,
   "goal": "core"
+ },
+ "pullupBlock": {
+  "note": "Blocco trazioni in apertura delle sedute di forza: 3 volte a settimana, a fresco. Giorno A eccentriche, giorno B isometria, giorno C volume assistito. Prima di ogni blocco, attivazione scapolare o sospensione.",
+  "days": [
+   [
+    "activation",
+    "eccentric"
+   ],
+   [
+    "activation",
+    "isometric"
+   ],
+   [
+    "activation",
+    "volume"
+   ]
+  ]
  }
 }

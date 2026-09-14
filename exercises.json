@@ -4188,6 +4188,493 @@
     "Spalla: le impugnature parallele mantengono l'omero in rotazione neutra e la guida della macchina evita compensi quando l'esercizio si fa impegnativo."
    ],
    "source": "ACSM – macchine guidate per adulti over 50"
+  },
+  {
+   "id": "g_scappull",
+   "name": "Trazioni scapolari alla sbarra",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Trazioni",
+   "pattern": "pullup",
+   "pullRole": "activation",
+   "load": "bodyweight",
+   "kneeFriendly": true,
+   "primary": [
+    "Trapezio inferiore",
+    "Gran dorsale"
+   ],
+   "secondary": [
+    "Romboidi"
+   ],
+   "equipment": [
+    "Sbarra"
+   ],
+   "art": {
+    "frames": [
+     "latStart",
+     "latEnd"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Appeso a braccia tese, presa neutra o prona a larghezza spalle, corpo fermo.",
+    "Senza piegare i gomiti, abbassa le spalle allontanandole dalle orecchie: il corpo sale di 3-5 cm.",
+    "Mantieni un secondo in alto e torna in sospensione controllata."
+   ],
+   "errors": [
+    "Piegare i gomiti trasformandola in una mezza trazione.",
+    "Oscillare con le gambe."
+   ],
+   "safety": [
+    "Spalla: è il gesto che insegna la prima fase della trazione, quella che quasi tutti saltano; va fatto prima del lavoro pesante."
+   ],
+   "source": "Progressione trazioni – attivazione scapolare (controllo della fase iniziale)"
+  },
+  {
+   "id": "g_deadhang",
+   "name": "Sospensione alla sbarra (dead hang)",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Trazioni",
+   "pattern": "pullup",
+   "pullRole": "activation",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Presa",
+    "Gran dorsale"
+   ],
+   "secondary": [
+    "Core",
+    "Spalle"
+   ],
+   "equipment": [
+    "Sbarra"
+   ],
+   "art": {
+    "frames": [
+     "latStart",
+     "latStart"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Presa neutra o prona a larghezza spalle, pollice chiuso attorno alla sbarra.",
+    "Spalle attive, non completamente rilasciate: costole basse e glutei contratti.",
+    "Mantieni la sospensione respirando, poi scendi appoggiando i piedi."
+   ],
+   "errors": [
+    "Restare appesi completamente passivi con le spalle alle orecchie.",
+    "Stringere la presa fino al cedimento nella prima serie."
+   ],
+   "safety": [
+    "Costruisce presa e tenuta nella posizione bassa, quella dove la trazione è più difficile. Obiettivo: arrivare a 30-40 secondi."
+   ],
+   "source": "Progressione trazioni – tenuta in sospensione e forza di presa"
+  },
+  {
+   "id": "g_negpull",
+   "name": "Trazioni negative (solo eccentrica)",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Trazioni",
+   "pattern": "pullup",
+   "pullRole": "eccentric",
+   "load": "bodyweight",
+   "kneeFriendly": true,
+   "primary": [
+    "Gran dorsale",
+    "Bicipiti"
+   ],
+   "secondary": [
+    "Trapezio",
+    "Core"
+   ],
+   "equipment": [
+    "Sbarra",
+    "Rialzo"
+   ],
+   "art": {
+    "frames": [
+     "latEnd",
+     "latStart"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Sali con l'aiuto di un rialzo o di un piccolo salto fino ad avere il mento sopra la sbarra.",
+    "Stacca i piedi e scendi il più lentamente possibile, contando almeno 4-5 secondi.",
+    "Appoggia i piedi, risali sul rialzo e ripeti senza fretta."
+   ],
+   "errors": [
+    "Lasciarsi cadere negli ultimi centimetri, proprio dove serve il controllo.",
+    "Scendere di scatto con le spalle rilassate."
+   ],
+   "safety": [
+    "Spalla: presa neutra o prona a larghezza spalle, mai larghissima. Fermati quando la discesa scende sotto i 3 secondi: è il segnale che la serie è finita."
+   ],
+   "source": "Evidenza JSCR: il lavoro eccentrico trasferisce alla trazione libera più dell'assistenza elastica"
+  },
+  {
+   "id": "g_isohold",
+   "name": "Tenuta isometrica con mento sopra la sbarra",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Trazioni",
+   "pattern": "pullup",
+   "pullRole": "isometric",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Gran dorsale",
+    "Bicipiti"
+   ],
+   "secondary": [
+    "Trapezio medio",
+    "Core"
+   ],
+   "equipment": [
+    "Sbarra",
+    "Rialzo"
+   ],
+   "art": {
+    "frames": [
+     "latEnd",
+     "latEnd"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Portati in cima con un rialzo, mento sopra la sbarra e petto verso l'alto.",
+    "Mantieni la posizione con le scapole basse, gomiti stretti al corpo.",
+    "Scendi controllato quando la tenuta comincia a cedere, senza crollare."
+   ],
+   "errors": [
+    "Tirare il collo verso l'alto per guadagnare centimetri.",
+    "Tenere fino al cedimento completo."
+   ],
+   "safety": [
+    "Sviluppa forza nell'angolo di massima difficoltà. Criterio di avanzamento: 5 secondi puliti indicano che sei pronto a tentare una trazione completa."
+   ],
+   "source": "Progressione trazioni – lavoro isometrico nell'angolo critico"
+  },
+  {
+   "id": "g_bandpull",
+   "name": "Trazioni assistite con loop band",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Trazioni",
+   "pattern": "pullup",
+   "pullRole": "volume",
+   "load": "band",
+   "kneeFriendly": true,
+   "primary": [
+    "Gran dorsale",
+    "Bicipiti"
+   ],
+   "secondary": [
+    "Trapezio",
+    "Core"
+   ],
+   "equipment": [
+    "Sbarra",
+    "Loop band"
+   ],
+   "art": {
+    "frames": [
+     "latStart",
+     "latEnd"
+    ],
+    "implement": "bandTop"
+   },
+   "steps": [
+    "Aggancia la band alla sbarra e appoggia un piede o un ginocchio nel cappio inferiore.",
+    "Parti da braccia tese, abbassa prima le scapole, poi tira il petto verso la sbarra.",
+    "Scendi in 3 secondi fino a braccia distese, senza rimbalzare sull'elastico."
+   ],
+   "errors": [
+    "Sfruttare il rimbalzo della band in fondo alla discesa.",
+    "Restare mesi sulla stessa band: va ridotta quando le ripetizioni diventano facili."
+   ],
+   "safety": [
+    "La band aiuta molto in basso e poco in alto: serve per accumulare volume, non come lavoro principale. Cambia band (viola → rossa → gialla → azzurra) ogni volta che superi le ripetizioni previste con facilità."
+   ],
+   "source": "Evidenza EMG: l'assistenza elastica riproduce il pattern della trazione libera meglio della macchina"
+  },
+  {
+   "id": "g_pullmachine",
+   "name": "Trazioni alla macchina assistita, presa neutra",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Trazioni",
+   "pattern": "pullup",
+   "pullRole": "volume",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Gran dorsale"
+   ],
+   "secondary": [
+    "Bicipiti",
+    "Trapezio"
+   ],
+   "equipment": [
+    "Macchina assistita"
+   ],
+   "art": {
+    "frames": [
+     "latStart",
+     "latEnd"
+    ],
+    "implement": "machine"
+   },
+   "steps": [
+    "Imposta il contrappeso, impugna le maniglie parallele, ginocchia sulla pedana.",
+    "Abbassa le scapole e sali portando il petto verso le mani.",
+    "Scendi in 3 secondi fino a braccia quasi tese."
+   ],
+   "errors": [
+    "Contrappeso alto che permette di saltare la fase difficile.",
+    "Rilassare completamente le spalle in basso."
+   ],
+   "safety": [
+    "Utile per il volume con tecnica pulita, ma il carico costante rende il lavoro meno simile alla trazione libera rispetto alla band: alternalo, non usarlo da solo."
+   ],
+   "source": "Evidenza: il contrappeso costante riduce la richiesta di stabilizzazione rispetto alla sospensione libera"
+  },
+  {
+   "id": "g_pullup",
+   "name": "Trazioni complete alla sbarra",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Trazioni",
+   "pattern": "pullup",
+   "pullRole": "volume",
+   "load": "bodyweight",
+   "kneeFriendly": true,
+   "primary": [
+    "Gran dorsale",
+    "Bicipiti"
+   ],
+   "secondary": [
+    "Trapezio",
+    "Core",
+    "Presa"
+   ],
+   "equipment": [
+    "Sbarra"
+   ],
+   "art": {
+    "frames": [
+     "latStart",
+     "latEnd"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Presa neutra o prona a larghezza spalle, partenza da braccia tese e spalle attive.",
+    "Abbassa le scapole, poi tira i gomiti verso il basso e indietro fino a portare il mento sopra la sbarra.",
+    "Scendi in 2-3 secondi fino alla completa estensione, senza perdere la tensione."
+   ],
+   "errors": [
+    "Slanciare le gambe per guadagnare la salita.",
+    "Presa molto più larga delle spalle."
+   ],
+   "safety": [
+    "Spalla: la presa neutra o prona a larghezza spalle è la meno critica per lo spazio subacromiale; la presa larghissima è quella più a rischio. Ferma la serie quando la tecnica si sporca, non al cedimento."
+   ],
+   "source": "Presa a larghezza spalle: minor rischio di conflitto subacromiale fra le varianti studiate"
+  },
+  {
+   "id": "g_invrow",
+   "name": "Rematore inverso al bilanciere (australian row)",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Trazioni",
+   "pattern": "pullup",
+   "pullRole": "row",
+   "load": "bodyweight",
+   "kneeFriendly": true,
+   "primary": [
+    "Gran dorsale",
+    "Romboidi"
+   ],
+   "secondary": [
+    "Bicipiti",
+    "Core"
+   ],
+   "equipment": [
+    "Bilanciere in rack",
+    "Smith machine"
+   ],
+   "art": {
+    "frames": [
+     "rowStart",
+     "rowEnd"
+    ],
+    "implement": "barbell"
+   },
+   "steps": [
+    "Bilanciere fissato all'altezza dell'anca, corpo disteso sotto, talloni a terra.",
+    "Corpo in linea, tira il petto verso la barra stringendo le scapole.",
+    "Scendi in 3 secondi fino a braccia distese."
+   ],
+   "errors": [
+    "Bacino che cede verso il pavimento.",
+    "Escursione parziale che non porta il petto alla barra."
+   ],
+   "safety": [
+    "Alza la barra per rendere l'esercizio più facile, abbassala per renderlo più duro: è la progressione più graduale verso la trazione."
+   ],
+   "source": "Progressione trazioni – trazione orizzontale come base di forza"
+  },
+  {
+   "id": "h_scapband",
+   "name": "Attivazione scapolare con band sopra la testa",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Trazioni",
+   "pattern": "pullup",
+   "pullRole": "activation",
+   "load": "band",
+   "kneeFriendly": true,
+   "primary": [
+    "Trapezio inferiore",
+    "Gran dorsale"
+   ],
+   "secondary": [
+    "Romboidi"
+   ],
+   "equipment": [
+    "Loop band",
+    "Ancoraggio alto"
+   ],
+   "art": {
+    "frames": [
+     "latStart",
+     "latEnd"
+    ],
+    "implement": "bandTop"
+   },
+   "steps": [
+    "Band ancorata in alto, braccia distese sopra la testa, in ginocchio o in piedi.",
+    "Senza piegare i gomiti, tira verso il basso abbassando le scapole di pochi centimetri.",
+    "Mantieni un secondo e torna su controllato."
+   ],
+   "errors": [
+    "Flettere i gomiti.",
+    "Inarcare la schiena per tirare di più."
+   ],
+   "safety": [
+    "Riproduce a casa la fase iniziale della trazione, quella scapolare."
+   ],
+   "source": "Progressione trazioni – attivazione scapolare senza sbarra"
+  },
+  {
+   "id": "h_bandlatpull",
+   "name": "Pulldown con band, eccentrica lenta",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Trazioni",
+   "pattern": "pullup",
+   "pullRole": "eccentric",
+   "load": "band",
+   "kneeFriendly": true,
+   "primary": [
+    "Gran dorsale"
+   ],
+   "secondary": [
+    "Bicipiti",
+    "Trapezio"
+   ],
+   "equipment": [
+    "Loop band",
+    "Ancoraggio alto"
+   ],
+   "art": {
+    "frames": [
+     "latStart",
+     "latEnd"
+    ],
+    "implement": "bandTop"
+   },
+   "steps": [
+    "Band ancorata in alto, in ginocchio, braccia distese e scapole attive.",
+    "Tira verso il petto in 1 secondo abbassando prima le scapole.",
+    "Risali in 5 secondi contrastando la band, fino a braccia completamente distese."
+   ],
+   "errors": [
+    "Ritorno rapido, che annulla la parte utile dell'esercizio.",
+    "Tirare solo con le braccia."
+   ],
+   "safety": [
+    "Sostituisce a casa le trazioni negative: il lavoro utile è nella risalita lenta."
+   ],
+   "source": "Evidenza: la fase eccentrica lenta è la parte che trasferisce di più alla trazione"
+  },
+  {
+   "id": "h_bandiso",
+   "name": "Tenuta isometrica di trazione con band",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Trazioni",
+   "pattern": "pullup",
+   "pullRole": "isometric",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Gran dorsale",
+    "Bicipiti"
+   ],
+   "secondary": [
+    "Trapezio medio"
+   ],
+   "equipment": [
+    "Loop band",
+    "Ancoraggio alto"
+   ],
+   "art": {
+    "frames": [
+     "latEnd",
+     "latEnd"
+    ],
+    "implement": "bandTop"
+   },
+   "steps": [
+    "Band ancorata in alto, tira i capi fino ad avere i gomiti bassi e vicini ai fianchi.",
+    "Mantieni la posizione di massima contrazione con le scapole basse.",
+    "Rilascia controllato quando la tenuta comincia a cedere."
+   ],
+   "errors": [
+    "Alzare le spalle verso le orecchie durante la tenuta.",
+    "Trattenere il respiro."
+   ],
+   "safety": [
+    "Riproduce la posizione alta della trazione, l'angolo in cui si cede per primo."
+   ],
+   "source": "Progressione trazioni – isometria nell'angolo critico"
   }
  ]
 }

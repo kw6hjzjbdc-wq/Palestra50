@@ -344,3 +344,37 @@ h1,h2{letter-spacing:.005em}
   position:absolute;top:calc(env(safe-area-inset-top) + 18px);left:0;right:0;text-align:center;
   font-family:var(--cond);font-size:17px;color:var(--muted);letter-spacing:.06em;
 }
+
+
+/* ---------- calendario della settimana in home ---------- */
+.week{list-style:none;margin:12px 0 0;padding:0}
+.week li{
+  display:flex;align-items:center;gap:12px;padding:11px 10px;margin:6px 0;
+  border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.02);
+}
+.week li:active{opacity:.6}
+.week .nm{flex:1;min-width:0}
+.week .nm b{display:block;font-size:16px;font-weight:600}
+.week .wknum{
+  width:34px;height:34px;flex:0 0 34px;border-radius:10px;display:grid;place-items:center;
+  font-family:var(--cond);font-size:18px;color:var(--muted);
+  background:rgba(255,255,255,.05);border:1px solid var(--line);
+}
+.week .wknum.strength{color:var(--amber)}
+.week .wknum.mobility{color:var(--teal)}
+.week .wknum.core{color:var(--text)}
+.week .wkbadge{
+  font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#151007;
+  background:var(--amber);border-radius:999px;padding:4px 9px;white-space:nowrap;
+}
+.week .wkbadge.done{background:transparent;color:var(--muted);border:1px solid var(--line)}
+.week li.done{opacity:.45}
+.week li.done .nm b{text-decoration:line-through;text-decoration-color:var(--muted)}
+.week li.sel{
+  border-color:var(--amber);background:linear-gradient(180deg,rgba(245,165,36,.12),rgba(245,165,36,.04));
+  box-shadow:0 0 0 1px rgba(245,165,36,.25);
+}
+.week li.sel .wknum{border-color:rgba(245,165,36,.45)}
+
+/* blocco trazioni evidenziato nell'elenco della seduta */
+.plan li.pullrow{border-left:3px solid var(--teal);padding-left:9px;margin-left:-9px}
