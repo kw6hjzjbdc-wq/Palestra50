@@ -520,7 +520,8 @@ function openDaySwap() {
 /* ---------- sessione in corso ---------- */
 function startSession(sess) {
   current = { sess, pos: 0, setsDone: sess.items.map(() => 0), loads: sess.items.map(() => ''),
-              feedback: sess.items.map(() => null), started: Date.now() };
+              feedback: sess.items.map(() => null), logRef: sess.items.map(() => null),
+              started: Date.now() };
   requestWakeLock();
   unlockAudio();
   go('session');
@@ -593,7 +594,10 @@ function renderSession() {
         <button class="btn ghost" id="postponeBtn" ${c.pos === s.items.length - 1 ? 'disabled' : ''}>Rimanda a dopo</button>
         <button class="btn ghost" id="orderBtn" ${c.pos === s.items.length - 1 ? 'disabled' : ''}>Ordine esercizi</button>
       </div>
-      <button class="btn ghost" id="nextBtn" style="margin-top:10px">${c.pos === s.items.length - 1 ? 'Chiudi sessione' : 'Prossimo esercizio'}</button>
+      <div class="btn-row" style="margin-top:10px">
+        <button class="btn ghost" id="prevBtn" ${c.pos === 0 ? 'disabled' : ''}>‹ Precedente</button>
+        <button class="btn ghost" id="nextBtn">${c.pos === s.items.length - 1 ? 'Chiudi sessione' : 'Prossimo esercizio'}</button>
+      </div>
       <p class="small muted" style="margin-top:14px">${esc(it.source)}${it.note ? ' · ' + esc(it.note) : ''}</p>
       <button class="btn ghost" id="abortBtn" style="margin-top:18px">Interrompi</button>
     </div>`;
@@ -635,6 +639,7 @@ function renderSession() {
         'Cambia', () => { c.setsDone[c.pos] = 0; c.loads[c.pos] = ''; c.feedback[c.pos] = null; if (swapExercise(it, s)) renderSession(); });
     } else if (swapExercise(it, s)) renderSession();
   };
+  $('#prevBtn').onclick = () => { captureLoad(); stopTimer(); if (c.pos > 0) { c.pos--; renderSession(); } };
   $('#postponeBtn').onclick = () => { captureLoad(); stopTimer(); postponeCurrent(); };
   $('#orderBtn').onclick = () => { captureLoad(); openReorder(); };
   $('#nextBtn').onclick = () => {
@@ -660,7 +665,7 @@ function renderSession() {
 function moveItem(from, to) {
   const c = current, s = c.sess;
   if (from === to || from < c.pos || to < c.pos || to >= s.items.length) return;
-  [s.items, c.setsDone, c.loads, c.feedback].forEach(arr => {
+  [s.items, c.setsDone, c.loads, c.feedback, c.logRef].forEach(arr => {
     const v = arr.splice(from, 1)[0];
     arr.splice(to, 0, v);
   });
@@ -708,11 +713,15 @@ const arrow = f => f === 'up' ? '<span class="trend-up">↑</span>' : f === 'dow
 function nextExercise() {
   const c = current, s = c.sess;
   if (c.finished) return;              // evita doppie registrazioni sull'ultimo esercizio
-  // registra l'esercizio appena concluso
+  // registra l'esercizio appena concluso (o aggiorna il record, se ci si era
+  // tornati sopra con "Esercizio precedente": niente doppioni nello storico)
   const it = s.items[c.pos];
-  S.logs.push({ ts: Date.now(), exId: it.exId, name: exById(it.exId).name, setup: S.setup,
-                load: c.loads[c.pos] || '', feedback: c.feedback[c.pos] || 'same',
-                sets: c.setsDone[c.pos], reps: it.reps, goal: it.goal, week: s.weekInCycle });
+  const entry = { ts: Date.now(), sid: c.started, exId: it.exId, name: exById(it.exId).name,
+                  setup: S.setup, load: c.loads[c.pos] || '', feedback: c.feedback[c.pos] || 'same',
+                  sets: c.setsDone[c.pos], reps: it.reps, goal: it.goal, week: s.weekInCycle };
+  const ref = c.logRef[c.pos];
+  if (ref !== null && S.logs[ref]) S.logs[ref] = entry;
+  else { c.logRef[c.pos] = S.logs.length; S.logs.push(entry); }
   save();
   if (c.pos < s.items.length - 1) { c.pos++; renderSession(); }
   else { c.finished = true; endSession(); }
@@ -730,7 +739,8 @@ function endSession() {
     <button class="btn ghost" id="skipSave" style="margin-top:10px">Chiudi senza note</button>
   `);
   const finish = (withNote) => {
-    S.sessionLog.push({ ts: Date.now(), idx: s.idx, label: s.label, kind: s.kind, minutes: mins,
+    S.sessionLog.push({ ts: Date.now(), sid: current ? current.started : 0, idx: s.idx,
+      label: s.label, kind: s.kind, minutes: mins,
       note: withNote ? ($('#sNote').value || '') : '' });
     if (s.kind !== 'core') S.sessionIndex++;
     planCache = null;
@@ -792,15 +802,47 @@ function renderHistory() {
       <div class="val">${esc(last.load || '—')} ${arrow(last.feedback)}</div></li>`;
   }).join('');
 
-  const sess = S.sessionLog.slice(-8).reverse().map(x =>
-    `<li><div class="nm" style="flex:1"><b>${esc(x.label)}</b>
-      <div class="small muted">${new Date(x.ts).toLocaleDateString('it-IT')} · ${x.minutes} min${x.note ? ' · ' + esc(x.note) : ''}</div></div></li>`).join('');
+  const sess = S.sessionLog.map((x, i) => [x, i]).slice(-10).reverse().map(pair => {
+    const x = pair[0], i = pair[1];
+    return `<li data-sess="${i}"><div class="nm" style="flex:1"><b>${esc(x.label)}</b>
+      <div class="small muted">${new Date(x.ts).toLocaleDateString('it-IT')} · ${x.minutes} min${x.note ? ' · ' + esc(x.note) : ''}</div></div>
+      <div class="chev">›</div></li>`;
+  }).join('');
 
   $('#view-history').innerHTML = `
     <div class="card"><h2>Carichi per esercizio</h2><ul class="hist">${rows}</ul></div>
     ${sess ? `<div class="card"><h2>Ultime sedute</h2><ul class="hist">${sess}</ul></div>` : ''}`;
 
   document.querySelectorAll('[data-ex]').forEach(li => li.onclick = () => detailFor(li.dataset.ex, byEx[li.dataset.ex]));
+  document.querySelectorAll('[data-sess]').forEach(li => li.onclick = () => openSessionDetail(+li.dataset.sess));
+}
+
+/* Esercizi appartenenti a una seduta già conclusa: si usa l'identificativo di
+   sessione salvato nei record; per i dati più vecchi si ricade sulla finestra
+   temporale della seduta. */
+function logsOfSession(x) {
+  if (x.sid) {
+    const l = S.logs.filter(g => g.sid === x.sid);
+    if (l.length) return l;
+  }
+  const start = x.ts - (x.minutes + 3) * 60000;
+  return S.logs.filter(g => g.ts >= start && g.ts <= x.ts + 60000);
+}
+
+/* Riepilogo completo di una seduta già chiusa. */
+function openSessionDetail(i) {
+  const x = S.sessionLog[i], logs = logsOfSession(x);
+  const d = new Date(x.ts);
+  const rows = logs.map(l => `<li>
+      <div class="nm" style="flex:1"><b>${esc(l.name)}</b>
+        <div class="small muted">${l.sets}×${l.reps} · ${l.goal === 'stretch' ? 'allungamento' : esc(l.goal)}</div></div>
+      <div class="val">${esc(l.load || '—')} ${arrow(l.feedback)}</div></li>`).join('');
+  openModal(`<h2>${esc(x.label)}</h2>
+    <p class="small muted">${d.toLocaleDateString('it-IT')} alle ${d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })} · ${x.minutes} minuti · ${logs.length} esercizi${x.kind === 'core' ? ' · blocco core' : ''}</p>
+    ${x.note ? `<div class="notice" style="margin-bottom:10px">${esc(x.note)}</div>` : ''}
+    <ul class="hist">${rows || '<li><span class="small muted">Nessun esercizio registrato per questa seduta.</span></li>'}</ul>
+    <button class="btn secondary" id="closeModal2" style="margin-top:16px">Chiudi</button>`);
+  $('#closeModal2').onclick = closeModal;
 }
 
 function sparkline(vals) {
@@ -1163,6 +1205,15 @@ function confirmAction(title, text, okLabel, onOk) {
   $('#cfNo').onclick = closeModal;
 }
 
+/* Orologio: sempre visibile nella barra superiore e durante il timer. */
+function updateClock() {
+  const t = new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+  const a = $('#clock'), b = $('#timerClock');
+  if (a) a.textContent = t;
+  if (b) b.textContent = t;
+}
+setInterval(updateClock, 10000);
+
 function openModal(html) { $('#modalBox').innerHTML = html; $('#modal').classList.add('on'); }
 function closeModal() { $('#modal').classList.remove('on'); }
 
@@ -1189,13 +1240,19 @@ function disclaimer() {
     return;
   }
   go('home');
-  // l'intro resta visibile ~2 s, poi viene rimossa e solo dopo compare l'avvertenza
+  // l'intro si anima per 3 secondi e resta sull'ultimo fotogramma: sparisce solo
+  // quando l'utente tocca lo schermo, e solo dopo compare l'avvertenza
   const splash = document.getElementById('splash');
   const afterSplash = () => {
-    if (splash && splash.parentNode) splash.parentNode.removeChild(splash);
-    if (!S.disclaimerOk) disclaimer();
+    if (!splash || splash.dataset.done) { if (!S.disclaimerOk) disclaimer(); return; }
+    splash.dataset.done = '1';
+    splash.classList.add('hide');
+    setTimeout(() => {
+      if (splash.parentNode) splash.parentNode.removeChild(splash);
+      if (!S.disclaimerOk) disclaimer();
+    }, 420);
   };
-  if (splash) { splash.onclick = afterSplash; setTimeout(afterSplash, 2300); }
-  else afterSplash();
+  if (splash) splash.onclick = afterSplash; else afterSplash();
+  updateClock();
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 })();

@@ -112,6 +112,15 @@ I file devono restare tutti allo stesso livello: la struttura è piatta apposta,
 ### Alternativa più rapida ma temporanea
 Su `app.netlify.com/drop`, dopo aver fatto l'accesso, puoi caricare direttamente il file **`palestra50.zip`** dal selettore file: Netlify lo scompatta e ti dà subito un indirizzo `https://...netlify.app`. È comodo per provare l'app in due minuti, ma senza account collegato quei siti sono provvisori: per l'uso quotidiano resta meglio GitHub Pages.
 
+### Sostituire l'icona sulla schermata Home
+
+iOS fotografa l'icona al momento dell'installazione e non la aggiorna da sola: dopo aver cambiato le icone nel repository bisogna reinstallare la scorciatoia.
+
+1. Carica le tre icone aggiornate (`icon-192.png`, `icon-512.png`, `icon-512-maskable.png`) insieme agli altri file.
+2. Sulla schermata Home tieni premuta l'icona vecchia → **Rimuovi app** → **Rimuovi dalla schermata Home** (i tuoi dati non si perdono: restano nell'archivio del sito).
+3. Apri l'indirizzo dell'app con Safari, tocca **Condividi** → **Aggiungi a Home** → **Aggiungi**.
+4. Se ricompare l'icona vecchia, in Safari apri Impostazioni → Safari → Cancella dati siti web e cronologia oppure ricarica la pagina due volte, poi ripeti il punto 3.
+
 ### Aggiornare l'app in seguito
 Carica i file modificati nello stesso repository (**Add file → Upload files** sovrascrive quelli con lo stesso nome) e cambia il numero di versione in `sw.js` (`palestra50-v1` → `palestra50-v2`), altrimenti l'iPhone continua a usare la copia in cache. Poi apri l'app, chiudila dal multitasking e riaprila.
 
@@ -127,7 +136,9 @@ I tuoi dati (carichi, storico, settimana del ciclo) restano sul telefono, non su
 
 ## 3. Uso quotidiano
 
-All'apertura scorre un'intro di circa due secondi con il marchio dell'app (un anello aperto, il segno di ascesa e il punto verde della mobilità); si può saltare toccando lo schermo, e rispetta l'impostazione di sistema per il movimento ridotto. Subito dopo compare la seduta del giorno.
+All'apertura scorre un'intro di tre secondi: l'anello del marchio si disegna, le tre barre della progressione salgono una dopo l'altra, compaiono nome e sottotitolo. Finita l'animazione l'intro resta ferma sull'ultimo fotogramma e sparisce **solo quando tocchi lo schermo** (in basso compare il suggerimento "Tocca per iniziare"). Rispetta l'impostazione di sistema per il movimento ridotto.
+
+**L'ora** è sempre visibile in piccolo in alto a destra, sopra l'indicatore della settimana, e al centro in alto durante il timer a tutto schermo: comoda per sapere da quanto sei in palestra senza uscire dall'app.
 
 - **Oggi**: scegli palestra o casa, controlla la seduta e premi *Inizia la sessione*.
 - Nell'elenco della seduta, **tocca un esercizio** per aprirne subito la scheda illustrativa, senza dover iniziare l'allenamento.
@@ -136,12 +147,13 @@ All'apertura scorre un'intro di circa due secondi con il marchio dell'app (un an
 - **Esercizi da fare un lato alla volta** (split squat, rematore a un braccio, plank laterale, quasi tutti gli allungamenti) hanno sempre un **numero pari di serie**, così destra e sinistra ricevono lo stesso lavoro: il contatore mostra `1 Sx`, `1 Dx`, `2 Sx`… e il pulsante di avvio indica il lato da fare.
 - **Cambia esercizio**: nella sessione, il pulsante *Cambia esercizio* propone un'alternativa dello stesso schema di movimento (o dello stesso gruppo, per lo stretching), coerente con attrezzatura, obiettivo della seduta e filtro ginocchio; premendolo più volte scorri tutte le alternative. La stessa cosa si può fare prima di iniziare, dalla scheda che si apre toccando un esercizio nell'elenco di Oggi.
 - **Scambia seduta**: in Oggi puoi anticipare un'altra seduta della settimana (per esempio fare il potenziamento al posto della mobilità). Quella di oggi prende il suo posto più avanti, quindi nessuna seduta va persa e il conteggio delle 5 settimanali resta intatto.
+- **Esercizio precedente**: il pulsante *‹ Precedente* torna indietro nella scaletta per correggere un carico o completare una serie saltata. Lo storico non si sdoppia: il record dell'esercizio viene aggiornato, non duplicato.
 - **Ordine degli esercizi**: se una macchina o un attrezzo è occupato, usa *Rimanda a dopo* (sposta l'esercizio corrente in fondo) oppure *Ordine esercizi*, che apre la scaletta di quello che resta da fare con le frecce su/giù. Serie già completate, carico e feedback seguono l'esercizio spostato.
 - **Timer riducibile**: durante il recupero tocca *Riduci*. Il conto alla rovescia resta in una barretta in basso e nel frattempo puoi consultare le schede, lo storico o cambiare vista. Tocca la barretta per tornare a schermo intero, o *Salta* per riprendere subito.
 - Chiusura e interruzione della sessione chiedono sempre conferma, così non si esce per errore. Se esci dalla vista della sessione, in Oggi compare il banner **Riprendi**.
 - **Scheda esercizio**: esecuzione passo-passo, muscoli primari e secondari, errori comuni, avvertenze di sicurezza e le due figure inizio/fine.
 - A fine seduta puoi annotare una nota libera sulla seduta (sensazioni, ginocchio, carichi).
-- **Progressi**: andamento del carico per esercizio e riepilogo delle ultime sedute.
+- **Progressi**: andamento del carico per esercizio e riepilogo delle ultime dieci sedute. Toccando una seduta si apre il suo **riepilogo completo**: data e ora, durata, nota, e l'elenco degli esercizi svolti con serie, ripetizioni, carico e feedback.
 - **Programma**: cambio di programma (3, 4 o 6 settimane), attrezzatura predefinita, priorità ginocchio, esclusione degli esercizi critici per la spalla, spostamento avanti/indietro nella settimana, esportazione e azzeramento dati.
 
 ---

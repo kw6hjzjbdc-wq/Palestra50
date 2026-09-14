@@ -14,7 +14,9 @@
 </head>
 <body>
 <!-- Intro di apertura: circa 2 secondi, poi si dissolve da sola -->
-<div class="splash" id="splash" aria-hidden="true">
+<!-- Intro di apertura: si anima per 3 secondi e resta sull'ultimo fotogramma
+     finché l'utente non tocca lo schermo -->
+<div class="splash" id="splash">
   <svg class="logo" viewBox="0 0 120 120">
     <defs>
       <linearGradient id="logoGrad" x1="0" y1="0" x2="1" y2="1">
@@ -24,12 +26,13 @@
     <circle class="ring" cx="60" cy="60" r="44" fill="none" stroke="url(#logoGrad)"
             stroke-width="9" stroke-linecap="round" stroke-dasharray="214 62.5"
             transform="rotate(-4.3 60 60)"/>
-    <path class="chev" d="M42 73 L60 47 L78 73" fill="none" stroke="#EAF1F8"
-          stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
-    <circle class="dot" cx="91" cy="29" r="6" fill="#4FC3A1"/>
+    <rect class="bar b1" x="39" y="66" width="11" height="18" rx="5.5" fill="#EAF1F8"/>
+    <rect class="bar b2" x="54" y="54" width="11" height="30" rx="5.5" fill="#EAF1F8"/>
+    <rect class="bar b3" x="69" y="40" width="11" height="44" rx="5.5" fill="#4FC3A1"/>
   </svg>
   <div class="word">PALESTRA <b>50</b></div>
   <div class="tag">Forza · Mobilità · Ogni giorno</div>
+  <div class="hint">Tocca per iniziare</div>
 </div>
 
 <div class="app">
@@ -39,12 +42,15 @@
       <svg class="mark" viewBox="0 0 120 120" aria-hidden="true">
         <circle cx="60" cy="60" r="44" fill="none" stroke="#F5A524" stroke-width="10"
                 stroke-linecap="round" stroke-dasharray="214 62.5" transform="rotate(-4.3 60 60)"/>
-        <path d="M42 73 L60 47 L78 73" fill="none" stroke="#EAF1F8" stroke-width="11"
-              stroke-linecap="round" stroke-linejoin="round"/>
-        <circle cx="91" cy="29" r="7" fill="#4FC3A1"/>
+        <rect x="39" y="66" width="11" height="18" rx="5.5" fill="#EAF1F8"/>
+        <rect x="54" y="54" width="11" height="30" rx="5.5" fill="#EAF1F8"/>
+        <rect x="69" y="40" width="11" height="44" rx="5.5" fill="#4FC3A1"/>
       </svg>
       <h1 id="topTitle">Oggi</h1>
-      <span class="chip" id="topChip">—</span>
+      <div class="rightcol">
+        <span class="clock num" id="clock">--:--</span>
+        <span class="chip" id="topChip">—</span>
+      </div>
     </div>
   </header>
 
@@ -78,6 +84,7 @@
 
 <!-- Timer di recupero a tutto schermo -->
 <div class="timer" id="timer">
+  <div class="timer-clock num" id="timerClock">--:--</div>
   <div style="position:relative;display:grid;place-items:center">
     <svg class="ring" viewBox="0 0 100 100">
       <circle cx="50" cy="50" r="45" stroke="#2B3B4E" stroke-width="7" fill="none"/>
