@@ -337,14 +337,6 @@ h1,h2{letter-spacing:.005em}
 }
 
 
-/* orologio: barra superiore e timer a tutto schermo */
-.rightcol{display:flex;flex-direction:column;align-items:flex-end;gap:5px}
-.clock{font-family:var(--cond);font-size:16px;color:var(--muted);letter-spacing:.04em}
-.timer-clock{
-  position:absolute;top:calc(env(safe-area-inset-top) + 18px);left:0;right:0;text-align:center;
-  font-family:var(--cond);font-size:17px;color:var(--muted);letter-spacing:.06em;
-}
-
 
 /* ---------- calendario della settimana in home ---------- */
 .week{list-style:none;margin:12px 0 0;padding:0}
@@ -378,3 +370,40 @@ h1,h2{letter-spacing:.005em}
 
 /* blocco trazioni evidenziato nell'elenco della seduta */
 .plan li.pullrow{border-left:3px solid var(--teal);padding-left:9px;margin-left:-9px}
+
+
+/* ---------- animazioni di riduzione e ripristino del timer ---------- */
+.timer{transform-origin:50% 88%}
+.timer.on{animation:timerOpen .3s cubic-bezier(.2,.8,.3,1)}
+.timer.closing{animation:timerShrink .28s cubic-bezier(.4,0,.6,1) forwards}
+@keyframes timerOpen{
+  from{opacity:0;transform:scale(.35) translateY(26%)}
+  to{opacity:1;transform:scale(1) translateY(0)}
+}
+@keyframes timerShrink{
+  from{opacity:1;transform:scale(1) translateY(0)}
+  to{opacity:0;transform:scale(.32) translateY(28%)}
+}
+.mini.on{animation:miniPop .26s cubic-bezier(.2,1.2,.4,1)}
+.mini.closing{animation:miniHide .2s ease-in forwards}
+@keyframes miniPop{
+  from{opacity:0;transform:translateY(16px) scale(.9)}
+  to{opacity:1;transform:translateY(0) scale(1)}
+}
+@keyframes miniHide{
+  from{opacity:1;transform:translateY(0) scale(1)}
+  to{opacity:0;transform:translateY(10px) scale(.92)}
+}
+
+/* ---------- valutazione a stelle ---------- */
+.stars{letter-spacing:.06em;color:var(--amber);font-size:14px;white-space:nowrap}
+.stars .off{color:var(--line)}
+.rate{display:flex;align-items:center;gap:8px;margin-top:8px}
+.rate .txt{font-size:14px;color:var(--muted);flex:1}
+.warnbox{
+  margin-top:10px;border-left:3px solid var(--alert);background:rgba(232,101,79,.09);
+  border-radius:10px;padding:10px 12px;font-size:14px;color:#f6c4b8;
+}
+.medal{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.medal:last-child{border-bottom:0}
+.medal .pos{width:26px;font-family:var(--cond);font-size:18px;color:var(--amber);text-align:center}

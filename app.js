@@ -198,6 +198,86 @@ function suggestLoad(ex) {
 }
 
 /* ---------------------------------------------------------------------------
+   VALUTAZIONE DEI PROGRESSI (stelle da 1 a 5)
+   Il punteggio confronta quanto hai registrato con quanto l'algoritmo si
+   aspettava: dentro il mesociclo il modello prevede circa +2,5% di carico a
+   settimana. La fascia di sicurezza per un singolo incremento è il 2-10%
+   (raccomandazione ACSM: aumentare il carico del 2-10% quando si completano
+   una o due ripetizioni oltre l'obiettivo). Oltre il 10% l'app segnala il salto,
+   perché un aumento troppo brusco è la via più comune al sovraccarico dei
+   tendini e alle interruzioni per dolore, specie sopra i 50 anni.
+--------------------------------------------------------------------------- */
+const SAFE_STEP = 0.10;          // incremento massimo consigliato per volta
+
+/* Valore confrontabile di una registrazione: kg, colore della band (1-4),
+   oppure il numero annotato per gli esercizi a corpo libero e a tempo. */
+function logValue(l) {
+  const ex = exById(l.exId);
+  if (!ex) return null;
+  if (ex.load === 'band') { const i = BANDS.indexOf(l.load); return i >= 0 ? i + 1 : null; }
+  const n = parseFloat(String(l.load || '').replace(',', '.'));
+  return (isFinite(n) && n > 0) ? n : null;
+}
+const volValue = l => (l.sets || 0) * (l.reps || 0);
+
+/* Confronta una registrazione con la precedente dello stesso esercizio. */
+function rateLog(cur, prev, deload) {
+  const ex = exById(cur.exId);
+  // allungamenti e mobilità non hanno un carico da confrontare: niente punteggio
+  if (ex && ex.type === 'stretch') return { stars: 0, text: '' };
+  if (!prev) return { stars: 0, text: 'Prima registrazione: da qui parte il confronto.' };
+
+  // le band hanno una scala a gradini: un colore in più è già la progressione
+  // prevista, due colori insieme sono un salto da segnalare
+  if (ex && ex.load === 'band') {
+    const ia = BANDS.indexOf(cur.load), ib = BANDS.indexOf(prev.load);
+    if (ia >= 0 && ib >= 0) {
+      const step = ia - ib;
+      if (step >= 2) return { stars: 3, warn: 'salto',
+        text: `Due band più dure in una volta sola: è un salto di carico importante.`,
+        advice: 'Torna al colore intermedio per una seduta e sali solo quando completi le ripetizioni con due di margine.' };
+      if (step === 1) return { stars: 5, text: 'Sei passato alla band successiva: progressione riuscita.' };
+      if (step === 0) {
+        const va = volValue(cur), vb = volValue(prev);
+        if (vb && va / vb > 1.02) return { stars: 4, text: 'Stessa band, più volume completato.' };
+        return { stars: 3, text: 'Stessa band della volta scorsa: consolidamento.' };
+      }
+      return { stars: 1, text: 'Sei sceso a una band più leggera rispetto alla volta scorsa.' };
+    }
+  }
+
+  const a = logValue(cur), b = logValue(prev);
+  let ratio, what;
+  if (a !== null && b !== null && b > 0) { ratio = a / b; what = 'carico'; }
+  else {
+    const va = volValue(cur), vb = volValue(prev);
+    if (!vb) return { stars: 0, text: 'Dati insufficienti per il confronto.' };
+    ratio = va / vb; what = 'volume';
+  }
+  const weeks = Math.max(0, Math.floor((cur.sIdx || 0) / 5) - Math.floor((prev.sIdx || 0) / 5));
+  const expected = weeks > 0 ? 1 + 0.025 * weeks : 1;
+  const pct = Math.round((ratio - 1) * 100);
+
+  if (ratio > 1 + SAFE_STEP) {
+    return { stars: 3, warn: 'salto',
+      text: `Aumento del ${pct}% sul ${what}: oltre la fascia del 2-10% consigliata per singolo incremento.`,
+      advice: 'Resta su questo carico almeno una seduta e verifica che la tecnica regga: la progressione lenta è quella che dura.' };
+  }
+  if (deload && ratio > 1.02) {
+    return { stars: 3, warn: 'scarico',
+      text: `Settimana di scarico: hai aumentato del ${pct}% invece di ridurre.`,
+      advice: 'Lo scarico serve al recupero di tendini e articolazioni: la settimana prossima riparti più forte.' };
+  }
+  if (ratio < 0.97) return { stars: 1, text: `Calo del ${Math.abs(pct)}% sul ${what} rispetto alla volta scorsa.` };
+  if (ratio < expected - 0.005) return { stars: 2, text: `Stabile: atteso circa +${Math.round((expected - 1) * 100)}%.` };
+  if (ratio <= expected + 0.02) return { stars: 3, text: `In linea con la progressione prevista (+${pct}%).` };
+  if (ratio <= 1 + SAFE_STEP / 2) return { stars: 4, text: `Sopra le attese: +${pct}% dove ne era previsto +${Math.round((expected - 1) * 100)}%.` };
+  return { stars: 5, text: `Progresso netto: +${pct}%, dentro la fascia di sicurezza.` };
+}
+
+const starsHtml = n => n ? `<span class="stars">${'★'.repeat(n)}<span class="off">${'★'.repeat(5 - n)}</span></span>` : '';
+
+/* ---------------------------------------------------------------------------
    5. GENERAZIONE DELLA SESSIONE
    La sessione è deterministica: dipende solo da (indice sessione, programma,
    attrezzatura). Cambiando mesociclo la rotazione sposta la scelta nel pool,
@@ -645,8 +725,18 @@ function renderSession() {
   const hold = it.hold ? it.hold : (ex.load === 'time' ? 20 + it.reps : 30);
 
   const lastTxt = sug && sug.last
-    ? `Ultima volta: <b>${esc(sug.last.load || '—')}</b> ${arrow(sug.last.feedback)} · ${new Date(sug.last.ts).toLocaleDateString('it-IT')}`
+    ? `Ultima volta: <b>${esc(sug.last.load || '—')}</b> ${arrow(sug.last.feedback)} · ${new Date(sug.last.ts).toLocaleDateString('it-IT')} ${starsHtml(sug.last.stars)}`
     : 'Prima volta con questo esercizio: parti conservativo e annota il carico.';
+
+  // avviso immediato se il carico digitato supera del 10% quello precedente
+  let jump = '';
+  if (sug && sug.last) {
+    const prevV = logValue(sug.last);
+    const nowV = logValue({ exId: it.exId, load: c.loads[c.pos] });
+    if (prevV && nowV && nowV / prevV > 1 + SAFE_STEP) {
+      jump = `<div class="warnbox">Stai salendo del ${Math.round((nowV / prevV - 1) * 100)}% rispetto alla volta scorsa. Le linee guida suggeriscono incrementi del 2-10% per volta: valuta un passo più piccolo, soprattutto se la tecnica peggiora nelle ultime ripetizioni.</div>`;
+    }
+  }
 
   $('#view-session').innerHTML = `
     <div class="progress">${bars}</div>
@@ -669,6 +759,7 @@ function renderSession() {
         </div>
       </div>
       <p class="lasttime">${lastTxt}</p>
+      ${jump}
 
       <button class="btn ${timed ? 'teal' : ''}" id="doneSet" style="margin-top:16px">${timed ? 'Avvia ' + hold + ' secondi' + (it.perSide ? ' (' + (c.setsDone[c.pos] % 2 ? 'lato destro' : 'lato sinistro') + ')' : '') : 'Ho finito la serie'}</button>
       ${timed ? `<p class="small muted" style="margin-top:8px">Tre secondi di preparazione scanditi dalla campanella, poi parte il conteggio: mantieni la posizione fino al rintocco finale. Gli ultimi tre secondi sono scanditi da un rintocco ciascuno.${it.goal === 'stretch' ? ' Ogni serie è un lato solo: il pulsante ti dice quale.' : ''}</p>` : ''}
@@ -697,7 +788,7 @@ function renderSession() {
     c.feedback[c.pos] = c.feedback[c.pos] === b.dataset.fb ? null : b.dataset.fb;
     captureLoad(); renderSession();
   });
-  $('#loadIn').onchange = captureLoad;
+  $('#loadIn').onchange = () => { captureLoad(); renderSession(); };
   // conclude una serie e avvia il recupero
   const closeSet = () => {
     captureLoad();
@@ -802,9 +893,14 @@ function nextExercise() {
   // registra l'esercizio appena concluso (o aggiorna il record, se ci si era
   // tornati sopra con "Esercizio precedente": niente doppioni nello storico)
   const it = s.items[c.pos];
-  const entry = { ts: Date.now(), sid: c.started, exId: it.exId, name: exById(it.exId).name,
+  const entry = { ts: Date.now(), sid: c.started, sIdx: s.idx, exId: it.exId, name: exById(it.exId).name,
                   setup: S.setup, load: c.loads[c.pos] || '', feedback: c.feedback[c.pos] || 'same',
                   sets: c.setsDone[c.pos], reps: it.reps, goal: it.goal, week: s.weekInCycle };
+  // valutazione automatica rispetto alla registrazione precedente dello stesso esercizio
+  const ref0 = c.logRef[c.pos];
+  const prev = S.logs.filter((g, gi) => g.exId === it.exId && gi !== ref0).pop() || null;
+  const r = rateLog(entry, prev, s.weekInCycle >= program().cycleWeeks);
+  entry.stars = r.stars; entry.rateText = r.text; entry.warn = r.warn || ''; entry.advice = r.advice || '';
   const ref = c.logRef[c.pos];
   if (ref !== null && S.logs[ref]) S.logs[ref] = entry;
   else { c.logRef[c.pos] = S.logs.length; S.logs.push(entry); }
@@ -831,6 +927,12 @@ function endSession() {
     if (s.kind !== 'core') S.sessionIndex++;
     planCache = null; homeSel = 'session';
     save(); closeModal(); current = null; go('home');
+    // settimana completata: riepilogo automatico (richiamabile poi da Progressi)
+    if (s.kind !== 'core' && S.sessionIndex % 5 === 0) {
+      const w = S.sessionIndex / 5;
+      S.lastRecap = w; save();
+      setTimeout(() => openWeekReport(w), 500);
+    }
   };
   $('#saveSession').onclick = () => finish(true);
   $('#skipSave').onclick = () => finish(false);
@@ -885,7 +987,7 @@ function renderHistory() {
       <div class="spark">${sparkline(nums)}</div>
       <div class="nm" style="flex:1"><b>${esc(last.name)}</b>
         <div class="small muted">${logs.length} sedute · ultima ${new Date(last.ts).toLocaleDateString('it-IT')}</div></div>
-      <div class="val">${esc(last.load || '—')} ${arrow(last.feedback)}</div></li>`;
+      <div class="val">${esc(last.load || '—')} ${arrow(last.feedback)}<br>${starsHtml(last.stars)}</div></li>`;
   }).join('');
 
   const sess = S.sessionLog.map((x, i) => [x, i]).slice(-10).reverse().map(pair => {
@@ -895,12 +997,18 @@ function renderHistory() {
       <div class="chev">›</div></li>`;
   }).join('');
 
+  const wks = weeksWithData().slice(0, 4).map(w =>
+    `<button class="btn ghost" data-week="${w}" style="margin-top:8px">Settimana ${w} · ${weekReport(w).sessions} sedute</button>`).join('');
+
   $('#view-history').innerHTML = `
+    ${wks ? `<div class="card"><h2>Riepilogo settimanale</h2>
+      <p class="small muted">Traguardi migliori e punti a cui fare attenzione, dalla valutazione automatica dei progressi.</p>${wks}</div>` : ''}
     <div class="card"><h2>Carichi per esercizio</h2><ul class="hist">${rows}</ul></div>
     ${sess ? `<div class="card"><h2>Ultime sedute</h2><ul class="hist">${sess}</ul></div>` : ''}`;
 
   document.querySelectorAll('[data-ex]').forEach(li => li.onclick = () => detailFor(li.dataset.ex, byEx[li.dataset.ex]));
   document.querySelectorAll('[data-sess]').forEach(li => li.onclick = () => openSessionDetail(+li.dataset.sess));
+  document.querySelectorAll('[data-week]').forEach(b => b.onclick = () => openWeekReport(+b.dataset.week));
 }
 
 /* Esercizi appartenenti a una seduta già conclusa: si usa l'identificativo di
@@ -931,6 +1039,61 @@ function openSessionDetail(i) {
   $('#closeModal2').onclick = closeModal;
 }
 
+/* ---------------------------------------------------------------------------
+   RIEPILOGO SETTIMANALE
+   Alla fine delle 5 sedute l'app raccoglie le valutazioni della settimana e
+   mostra i traguardi migliori e i punti a cui fare attenzione. Richiamabile in
+   qualsiasi momento dalla scheda Progressi.
+--------------------------------------------------------------------------- */
+function weekReport(weekAbs) {
+  const logs = S.logs.filter(l => l.sIdx != null && Math.floor(l.sIdx / 5) + 1 === weekAbs);
+  const sessions = new Set(logs.map(l => l.sid)).size;
+  const rated = logs.filter(l => l.stars > 0);
+  const avg = rated.length ? rated.reduce((a, l) => a + l.stars, 0) / rated.length : 0;
+  const best = rated.slice().sort((a, b) => (b.stars - a.stars) || (b.ts - a.ts)).slice(0, 3);
+  const warns = logs.filter(l => l.warn);
+  const hard = logs.filter(l => l.feedback === 'down');
+  return { weekAbs, logs, sessions, rated, avg, best, warns, hard };
+}
+
+function weeksWithData() {
+  const set = new Set(S.logs.filter(l => l.sIdx != null).map(l => Math.floor(l.sIdx / 5) + 1));
+  return Array.from(set).sort((a, b) => b - a);
+}
+
+function openWeekReport(weekAbs) {
+  const r = weekReport(weekAbs);
+  if (!r.logs.length) {
+    openModal(`<h2>Settimana ${weekAbs}</h2><p class="small muted">Nessun dato registrato in questa settimana.</p>
+      <button class="btn secondary" id="wrClose" style="margin-top:14px">Chiudi</button>`);
+    $('#wrClose').onclick = closeModal; return;
+  }
+  const medals = r.best.map((l, i) => `<div class="medal">
+      <div class="pos">${i + 1}</div>
+      <div class="nm" style="flex:1"><b>${esc(l.name)}</b>
+        <div class="small muted">${esc(l.load || '—')} · ${esc(l.rateText || '')}</div></div>
+      ${starsHtml(l.stars)}</div>`).join('');
+
+  const cautions = r.warns.map(l => `<li><b>${esc(l.name)}</b> — ${esc(l.rateText)}${l.advice ? ' ' + esc(l.advice) : ''}</li>`).join('');
+  const fatigue = r.hard.length >= 3
+    ? `<li>${r.hard.length} esercizi segnati come più difficili del previsto: se si ripete la prossima settimana, tieni i carichi fermi e controlla sonno e recupero.</li>` : '';
+
+  const tone = r.avg >= 4 ? 'Settimana sopra le attese: la progressione sta andando meglio del previsto.'
+    : r.avg >= 3 ? 'Settimana in linea con il programma: è esattamente così che si costruisce.'
+    : r.avg >= 2 ? 'Settimana di mantenimento: nessun passo indietro, e va benissimo così.'
+    : 'Settimana in calo: capita, spesso dipende da sonno o stress. Riparti dal carico dell\'ultima seduta riuscita.';
+
+  openModal(`<h2>Riepilogo settimana ${weekAbs}</h2>
+    <p class="small muted">${r.sessions} sedute completate · ${r.logs.length} esercizi registrati · media ${r.avg.toFixed(1)} stelle</p>
+    <div style="margin:10px 0">${starsHtml(Math.round(r.avg))}</div>
+    <p class="small">${tone}</p>
+    ${medals ? `<div class="block" style="margin-top:16px"><h3 style="font-size:16px;color:var(--muted)">Migliori traguardi</h3>${medals}</div>` : ''}
+    ${(cautions || fatigue) ? `<div class="block warnblock" style="margin-top:16px"><h3>Da tenere d'occhio</h3><ul>${cautions}${fatigue}</ul></div>`
+      : '<p class="small muted" style="margin-top:14px">Nessun incremento fuori scala: progressione regolare.</p>'}
+    <button class="btn" id="wrOk" style="margin-top:18px">Chiudi</button>`);
+  $('#wrOk').onclick = closeModal;
+}
+
 function sparkline(vals) {
   if (vals.length < 2) return `<svg viewBox="0 0 86 34"><line x1="2" y1="30" x2="84" y2="30" stroke="#2B3B4E" stroke-width="2"/></svg>`;
   const min = Math.min(...vals), max = Math.max(...vals), r = (max - min) || 1;
@@ -942,8 +1105,9 @@ function detailFor(exId, logs) {
   const ex = exById(exId);
   const rows = logs.slice().reverse().map(l =>
     `<li><div class="nm" style="flex:1"><b>${esc(l.load || '—')}</b>
-      <div class="small muted">${new Date(l.ts).toLocaleDateString('it-IT')} · ${l.sets}×${l.reps} · ${l.setup === 'gym' ? 'palestra' : 'casa'}</div></div>
-      <div class="val">${arrow(l.feedback)}</div></li>`).join('');
+      <div class="small muted">${new Date(l.ts).toLocaleDateString('it-IT')} · ${l.sets}×${l.reps} · ${l.setup === 'gym' ? 'palestra' : 'casa'}</div>
+      ${l.rateText ? `<div class="small muted">${esc(l.rateText)}</div>` : ''}</div>
+      <div class="val">${arrow(l.feedback)}<br>${starsHtml(l.stars)}</div></li>`).join('');
   openModal(`<h2>${esc(ex.name)}</h2>
     <div style="height:110px;margin:10px 0">${bigChart(logs)}</div>
     <ul class="hist">${rows}</ul>
@@ -1139,17 +1303,36 @@ function buildAudio() {
      'playback'  → la campanella ha la priorità e ignora l'interruttore silenzioso,
                    ma mette in pausa l'audio delle altre app.
    Se l'API non è disponibile il browser usa il comportamento di sistema. */
-function setAudioSession() {
+function setAudioSession(priority) {
   try {
-    if (navigator.audioSession) navigator.audioSession.type =
-      (S && S.audioMode === 'solo') ? 'playback' : 'transient';
+    if (!navigator.audioSession) return;
+    // durante un timer attivo la campanella ha la precedenza su tutto: 'playback'
+    // si sente anche con l'iPhone in silenzioso; fuori dal timer si torna alla
+    // modalità scelta dall'utente, che può convivere con la musica.
+    navigator.audioSession.type = priority
+      ? 'playback'
+      : ((S && S.audioMode === 'solo') ? 'playback' : 'transient');
+  } catch (e) {}
+}
+
+/* Traccia silenziosa in loop: tiene viva la sessione audio anche quando l'app
+   è ridotta o in secondo piano, così le campanelle programmate riescono a
+   suonare invece di essere sospese da iOS. */
+function keepAlive(on) {
+  try {
+    if (!bells.keep) {
+      bells.keep = new Audio(wavDataUri([1], 1, 60));   // un secondo di silenzio
+      bells.keep.loop = true; bells.keep.volume = 0.02;
+    }
+    if (on) { const p = bells.keep.play(); if (p && p.catch) p.catch(() => {}); }
+    else { bells.keep.pause(); }
   } catch (e) {}
 }
 
 /* Va chiamata dentro un gesto dell'utente (tocco su un pulsante). */
 function unlockAudio() {
   buildAudio();
-  setAudioSession();
+  setAudioSession(false);
   bells.short.concat(bells.final).forEach(a => {
     a.volume = 0;
     const p = a.play();
@@ -1162,17 +1345,26 @@ function unlockAudio() {
   } catch (e) {}
 }
 
-/* Riserva: sintesi diretta con Web Audio se l'elemento <audio> non parte. */
-function webBell(isFinal) {
-  if (!audioCtx) return;
-  const at = audioCtx.currentTime, f = isFinal ? 1319 : 880;
+/* Campanella programmata sulla timeline di Web Audio: è precisa al campione e
+   continua a suonare anche se i timer JavaScript vengono rallentati perché
+   l'app è ridotta o in secondo piano. Una sola oscillazione = una sola campana. */
+let webNodes = [];
+function scheduleWebBell(at, isFinal) {
+  if (!audioCtx) return false;
+  const f = isFinal ? 1319 : 880;
   const o = audioCtx.createOscillator(), g = audioCtx.createGain();
   o.type = 'sine'; o.frequency.value = f;
   g.gain.setValueAtTime(0.0001, at);
-  g.gain.exponentialRampToValueAtTime(0.9, at + 0.008);
+  g.gain.exponentialRampToValueAtTime(1, at + 0.008);
   g.gain.exponentialRampToValueAtTime(0.0001, at + (isFinal ? 1 : 0.55));
   o.connect(g); g.connect(audioCtx.destination);
   o.start(at); o.stop(at + 1.1);
+  webNodes.push(o);
+  return true;
+}
+function clearWebBells() {
+  webNodes.forEach(o => { try { o.stop(); } catch (e) {} });
+  webNodes = [];
 }
 
 /* Un rintocco, con vibrazione di supporto. */
@@ -1190,10 +1382,10 @@ function ding(isFinal) {
       a.currentTime = 0; a.volume = 1;
       const p = a.play();
       played = true;
-      if (p && p.catch) p.catch(() => webBell(isFinal));
+      if (p && p.catch) p.catch(() => { if (audioCtx) scheduleWebBell(audioCtx.currentTime + 0.01, isFinal); });
     } catch (e) { played = false; }
   }
-  if (!played) webBell(isFinal);
+  if (!played && audioCtx) scheduleWebBell(audioCtx.currentTime + 0.01, isFinal);
   if (navigator.vibrate) navigator.vibrate(isFinal ? [150, 70, 150] : 70);
 }
 
@@ -1214,7 +1406,7 @@ function clearBellTimers() { bellTimers.forEach(clearTimeout); bellTimers = []; 
    scatti e sbagliava di qualche decimo): ogni campanella ha il suo timeout
    calcolato sull'istante esatto, quindi cade precisa al secondo. */
 function scheduleBells() {
-  clearBellTimers();
+  clearBellTimers(); clearWebBells();
   const marks = [];
   if (timerStart > Date.now()) {                 // fase di preparazione
     for (let k = 3; k >= 1; k--) marks.push([timerStart - k * 1000, false]);
@@ -1222,9 +1414,18 @@ function scheduleBells() {
   }
   for (let k = 3; k >= 1; k--) marks.push([timerEnd - k * 1000, false]);
   marks.push([timerEnd, true]);
+
+  const ctxReady = audioCtx && audioCtx.state === 'running';
   marks.forEach(m => {
-    const delay = m[0] - Date.now() - AUDIO_LATENCY;
-    if (delay > -200) bellTimers.push(setTimeout(() => ding(m[1]), Math.max(0, delay)));
+    const delay = m[0] - Date.now();
+    if (delay < -200) return;
+    // 1) programmazione sulla timeline audio: immune al rallentamento dei timer
+    if (ctxReady) scheduleWebBell(audioCtx.currentTime + Math.max(0, delay) / 1000, m[1]);
+    // 2) riserva: se il contesto audio non è disponibile si usa l'elemento <audio>
+    bellTimers.push(setTimeout(() => {
+      if (!audioCtx || audioCtx.state !== 'running') ding(m[1]);
+      else if (navigator.vibrate) navigator.vibrate(m[1] ? [150, 70, 150] : 70);
+    }, Math.max(0, delay - AUDIO_LATENCY)));
   });
 }
 
@@ -1243,6 +1444,8 @@ function startTimer(seconds, what, cb, mode, lead) {
   $('#miniTimer').classList.toggle('work', timerMode === 'work');
   $('#miniTimer').classList.remove('on');
   unlockAudio();
+  setAudioSession(true);          // la campanella ha la precedenza finché il timer gira
+  keepAlive(true);                // tiene viva la sessione audio anche in secondo piano
   scheduleBells();
   if (wait) bellTimers.push(setTimeout(() => { $('#timerWhat').textContent = what || ''; }, wait));
   tick();
@@ -1274,20 +1477,29 @@ function tick() {
 function stopTimer() {
   if (timerHandle) clearInterval(timerHandle);
   timerHandle = null; timerCb = null;
-  clearBellTimers();
+  clearBellTimers(); clearWebBells();
+  keepAlive(false); setAudioSession(false);
   $('#timer').classList.remove('on', 'warn', 'prep');
   $('#miniTimer').classList.remove('on', 'prep');
 }
 const timerRunning = () => !!timerHandle;
 function minimizeTimer() {
   if (!timerHandle) return;
-  $('#timer').classList.remove('on');
-  $('#miniTimer').classList.add('on');
+  const t = $('#timer');
+  t.classList.add('closing');                    // il pannello rimpicciolisce verso il basso
+  setTimeout(() => {
+    t.classList.remove('on', 'closing');
+    $('#miniTimer').classList.add('on');         // la barretta entra dal basso
+  }, 260);
 }
 function expandTimer() {
   if (!timerHandle) return;
-  $('#miniTimer').classList.remove('on');
-  $('#timer').classList.add('on');
+  const m = $('#miniTimer');
+  m.classList.add('closing');
+  setTimeout(() => {
+    m.classList.remove('on', 'closing');
+    $('#timer').classList.add('on');             // il pannello si riapre ingrandendosi
+  }, 180);
 }
 function skipTimer() { const cb = timerCb; stopTimer(); if (cb) cb(); }
 
@@ -1309,8 +1521,10 @@ function releaseWakeLock() { try { if (wakeLock) wakeLock.release(); } catch (e)
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
     if (current) requestWakeLock();
-    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-    if (timerHandle) tick();
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume().then(() => { if (timerHandle) scheduleBells(); }).catch(() => {});
+    }
+    if (timerHandle) { keepAlive(true); tick(); }
   }
 });
 
@@ -1324,15 +1538,6 @@ function confirmAction(title, text, okLabel, onOk) {
   $('#cfOk').onclick = () => { closeModal(); onOk(); };
   $('#cfNo').onclick = closeModal;
 }
-
-/* Orologio: sempre visibile nella barra superiore e durante il timer. */
-function updateClock() {
-  const t = new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
-  const a = $('#clock'), b = $('#timerClock');
-  if (a) a.textContent = t;
-  if (b) b.textContent = t;
-}
-setInterval(updateClock, 10000);
 
 function openModal(html) { $('#modalBox').innerHTML = html; $('#modal').classList.add('on'); }
 function closeModal() { $('#modal').classList.remove('on'); }
@@ -1373,6 +1578,5 @@ function disclaimer() {
     }, 420);
   };
   if (splash) splash.onclick = afterSplash; else afterSplash();
-  updateClock();
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 })();

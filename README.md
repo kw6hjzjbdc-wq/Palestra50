@@ -94,6 +94,26 @@ Rielaborati (nessun testo riprodotto) da: ACSM *Guidelines for Exercise Testing 
 
 I valori in tabella sono i punti di partenza: l'app li ricalcola a ogni seduta in base alla settimana del ciclo.
 
+### Valutazione automatica dei progressi
+
+A ogni esercizio concluso l'app confronta quanto hai registrato con quanto il modello si aspettava — dentro il mesociclo circa +2,5% di carico a settimana — e assegna da 1 a 5 stelle:
+
+| Stelle | Significato |
+|---|---|
+| ★ | calo superiore al 3% rispetto alla volta scorsa |
+| ★★ | stabile, sotto la progressione prevista |
+| ★★★ | in linea con la previsione dell'algoritmo |
+| ★★★★ | sopra le attese, entro il 5% |
+| ★★★★★ | progresso netto, fino al 10%: la fascia massima consigliata |
+
+Per gli esercizi con elastico la scala è a gradini: passare alla band successiva vale cinque stelle, saltarne due in una volta viene segnalato. Allungamenti e mobilità non ricevono punteggio, perché non hanno un carico confrontabile.
+
+**Segnalazione degli incrementi troppo rapidi.** La fascia di riferimento è il 2-10% per singolo incremento (raccomandazione ACSM: aumentare il carico del 2-10% quando si completano una o due ripetizioni oltre l'obiettivo). Oltre il 10% l'app avvisa già mentre digiti il carico, e la registrazione resta marcata nel riepilogo settimanale. Vengono segnalati anche gli aumenti in settimana di scarico, che ne annullano la funzione, e la presenza di tre o più esercizi marcati come più difficili del previsto nella stessa settimana, indizio di recupero insufficiente.
+
+### Riepilogo settimanale
+
+Completate le cinque sedute, l'app apre un riepilogo con le sedute svolte, la media delle stelle, i tre migliori traguardi della settimana e l'elenco di ciò a cui fare attenzione. Resta richiamabile in qualsiasi momento dalla scheda **Progressi → Riepilogo settimanale**, per le ultime quattro settimane con dati.
+
 ### Gestione dei carichi
 
 A fine esercizio si registrano carico e feedback (↑ più facile del previsto, – invariato, ↓ più difficile). Alla seduta successiva l'app mostra "Ultima volta: 12 kg ↑" e propone il carico aggiornato: +5% dopo un ↑, −7% dopo un ↓, invariato dopo un –, arrotondato a 0,5 kg sotto i 10 kg e a 1 kg sopra. Per gli esercizi con elastico la stessa logica cambia colore della band (azzurra → gialla → rossa → viola). Tutto è in `localStorage`, con esportazione JSON dalla scheda Programma.
@@ -162,8 +182,6 @@ I tuoi dati (carichi, storico, settimana del ciclo) restano sul telefono, non su
 
 All'apertura scorre un'intro di tre secondi: l'anello del marchio si disegna, le tre barre della progressione salgono una dopo l'altra, compaiono nome e sottotitolo. Finita l'animazione l'intro resta ferma sull'ultimo fotogramma e sparisce **solo quando tocchi lo schermo** (in basso compare il suggerimento "Tocca per iniziare"). Rispetta l'impostazione di sistema per il movimento ridotto.
 
-**L'ora** è sempre visibile in piccolo in alto a destra, sopra l'indicatore della settimana, e al centro in alto durante il timer a tutto schermo: comoda per sapere da quanto sei in palestra senza uscire dall'app.
-
 - **Oggi**: scegli palestra o casa, poi il **calendario della settimana** mostra tutte e cinque le sedute previste più il blocco core facoltativo. Quella da fare secondo il programma è evidenziata con l'etichetta *da programma*, le già svolte restano barrate e non riapribili. Tocca la seduta che vuoi fare adesso — anche il blocco core — e sotto compare il suo elenco esercizi; poi premi *Inizia la sessione*. Scegliendo una seduta diversa da quella prevista, quella di oggi prende il suo posto più avanti nella settimana, quindi non si perde nulla.
 - Nell'elenco della seduta, **tocca un esercizio** per aprirne subito la scheda illustrativa, senza dover iniziare l'allenamento.
 - Durante l'esercizio: segna le serie completate, scrivi il carico, dai il feedback con le tre frecce, premi **Ho finito la serie**: parte il timer di recupero, con un rintocco su ciascuno degli ultimi 3 secondi e colpo finale più acuto.
@@ -172,7 +190,7 @@ All'apertura scorre un'intro di tre secondi: l'anello del marchio si disegna, le
 - **Cambia esercizio**: nella sessione, il pulsante *Cambia esercizio* propone un'alternativa dello stesso schema di movimento (o dello stesso gruppo, per lo stretching), coerente con attrezzatura, obiettivo della seduta e filtro ginocchio; premendolo più volte scorri tutte le alternative. La stessa cosa si può fare prima di iniziare, dalla scheda che si apre toccando un esercizio nell'elenco di Oggi.
 - **Esercizio precedente**: il pulsante *‹ Precedente* torna indietro nella scaletta per correggere un carico o completare una serie saltata. Lo storico non si sdoppia: il record dell'esercizio viene aggiornato, non duplicato.
 - **Ordine degli esercizi**: se una macchina o un attrezzo è occupato, usa *Rimanda a dopo* (sposta l'esercizio corrente in fondo) oppure *Ordine esercizi*, che apre la scaletta di quello che resta da fare con le frecce su/giù. Serie già completate, carico e feedback seguono l'esercizio spostato.
-- **Timer riducibile**: durante il recupero tocca *Riduci*. Il conto alla rovescia resta in una barretta in basso e nel frattempo puoi consultare le schede, lo storico o cambiare vista. Tocca la barretta per tornare a schermo intero, o *Salta* per riprendere subito.
+- **Timer riducibile**: durante il recupero tocca *Riduci*. Il pannello rimpicciolisce verso il basso con un'animazione e il conto alla rovescia resta in una barretta, mentre puoi consultare schede e storico. Tocca la barretta e il pannello si riapre ingrandendosi; *Salta* riprende subito.
 - Chiusura e interruzione della sessione chiedono sempre conferma, così non si esce per errore. Se esci dalla vista della sessione, in Oggi compare il banner **Riprendi**.
 - **Scheda esercizio**: esecuzione passo-passo, muscoli primari e secondari, errori comuni, avvertenze di sicurezza e le due figure inizio/fine.
 - A fine seduta puoi annotare una nota libera sulla seduta (sensazioni, ginocchio, carichi).
@@ -203,7 +221,7 @@ L'API `navigator.audioSession` esiste da Safari 17: su versioni precedenti vale 
 
 **Precisione dei rintocchi.** Ogni campanella ha il proprio timeout calcolato sull'istante esatto di fine (con 40 ms di anticipo per compensare la latenza di riproduzione), invece di essere dedotta dal ciclo di aggiornamento dello schermo: i tre secondi finali cadono quindi puntuali. L'aggiornamento del display gira comunque a 100 ms.
 
-Resta il limite di sistema: con l'app in background o lo schermo bloccato iOS sospende comunque l'audio delle pagine web. Per questo il wake lock tiene lo schermo acceso durante la sessione e a fine timer parte anche la vibrazione.
+**Campanella con app ridotta o in secondo piano.** Durante un timer attivo l'app fa tre cose: dichiara la sessione audio come `playback`, che dà alla campanella la precedenza su qualunque altro suono e la fa sentire anche con l'iPhone in silenzioso; tiene in riproduzione una traccia silenziosa in loop, che impedisce a iOS di sospendere la sessione audio quando l'app passa in secondo piano; e programma i rintocchi sulla timeline di Web Audio, che continua a scorrere anche se i timer JavaScript vengono rallentati. Al rientro in primo piano il contesto audio viene ripreso e le campanelle riprogrammate. Resta un limite di sistema che nessuna PWA può aggirare: se iOS decide comunque di sospendere la scheda (batteria molto bassa, memoria sotto pressione, schermo bloccato a lungo), il suono può non arrivare. Per questo il wake lock tiene lo schermo acceso durante la sessione e a fine timer parte anche la vibrazione.
 
 **Notifiche.** Su iOS le notifiche push da PWA richiedono l'installazione a Home e permessi espliciti; non sono usate qui per non introdurre dipendenze da un server.
 
