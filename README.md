@@ -110,6 +110,10 @@ Per gli esercizi con elastico la scala è a gradini: passare alla band successiv
 
 **Segnalazione degli incrementi troppo rapidi.** La fascia di riferimento è il 2-10% per singolo incremento (raccomandazione ACSM: aumentare il carico del 2-10% quando si completano una o due ripetizioni oltre l'obiettivo). Oltre il 10% l'app avvisa già mentre digiti il carico, e la registrazione resta marcata nel riepilogo settimanale. Vengono segnalati anche gli aumenti in settimana di scarico, che ne annullano la funzione, e la presenza di tre o più esercizi marcati come più difficili del previsto nella stessa settimana, indizio di recupero insufficiente.
 
+### Animazioni
+
+Tutti i pop up hanno un'animazione di apertura (velo in dissolvenza, riquadro che sale e si ingrandisce) e una di chiusura speculare; le schede esercizio scorrono dal basso e rientrano verso il basso. Il timer si riduce e si riapre con la stessa logica di scala. Tutto rispetta l'impostazione di sistema per il movimento ridotto.
+
 ### Riepilogo settimanale
 
 Completate le cinque sedute, l'app apre un riepilogo con le sedute svolte, la media delle stelle, i tre migliori traguardi della settimana e l'elenco di ciò a cui fare attenzione. Resta richiamabile in qualsiasi momento dalla scheda **Progressi → Riepilogo settimanale**, per le ultime quattro settimane con dati.
@@ -180,7 +184,7 @@ I tuoi dati (carichi, storico, settimana del ciclo) restano sul telefono, non su
 
 ## 3. Uso quotidiano
 
-All'apertura scorre un'intro di tre secondi: l'anello del marchio si disegna, le tre barre della progressione salgono una dopo l'altra, compaiono nome e sottotitolo. Finita l'animazione l'intro resta ferma sull'ultimo fotogramma e sparisce **solo quando tocchi lo schermo** (in basso compare il suggerimento "Tocca per iniziare"). Rispetta l'impostazione di sistema per il movimento ridotto.
+All'apertura scorre un'intro di tre secondi: l'anello del marchio si disegna, le tre barre della progressione salgono una dopo l'altra, compaiono nome, sottotitolo e una **frase motivazionale** in italiano, inglese o francese. Le frasi sono 123, originali e non attribuite, e l'app tiene in memoria le ultime cento mostrate: una frase non può quindi ripetersi prima di altre cento aperture. Si aggiungono o si modificano in `quotes.json`. Finita l'animazione l'intro resta ferma sull'ultimo fotogramma e sparisce **solo quando tocchi lo schermo** (in basso compare il suggerimento "Tocca per iniziare"). Rispetta l'impostazione di sistema per il movimento ridotto.
 
 - **Oggi**: scegli palestra o casa, poi il **calendario della settimana** mostra tutte e cinque le sedute previste più il blocco core facoltativo. Quella da fare secondo il programma è evidenziata con l'etichetta *da programma*, le già svolte restano barrate e non riapribili. Tocca la seduta che vuoi fare adesso — anche il blocco core — e sotto compare il suo elenco esercizi; poi premi *Inizia la sessione*. Scegliendo una seduta diversa da quella prevista, quella di oggi prende il suo posto più avanti nella settimana, quindi non si perde nulla.
 - Nell'elenco della seduta, **tocca un esercizio** per aprirne subito la scheda illustrativa, senza dover iniziare l'allenamento.
@@ -193,7 +197,7 @@ All'apertura scorre un'intro di tre secondi: l'anello del marchio si disegna, le
 - **Timer riducibile**: durante il recupero tocca *Riduci*. Il pannello rimpicciolisce verso il basso con un'animazione e il conto alla rovescia resta in una barretta, mentre puoi consultare schede e storico. Tocca la barretta e il pannello si riapre ingrandendosi; *Salta* riprende subito.
 - Chiusura e interruzione della sessione chiedono sempre conferma, così non si esce per errore. Se esci dalla vista della sessione, in Oggi compare il banner **Riprendi**.
 - **Scheda esercizio**: esecuzione passo-passo, muscoli primari e secondari, errori comuni, avvertenze di sicurezza e le due figure inizio/fine.
-- A fine seduta puoi annotare una nota libera sulla seduta (sensazioni, ginocchio, carichi).
+- A fine seduta puoi annotare una nota libera (sensazioni, ginocchio, carichi). Salvando, un **pop up di complimenti** celebra la seduta conclusa: cerchio che si disegna, spunta, scintille, minuti, esercizi e media delle stelle, con una riga di commento che cambia in base a com'è andata. Se era la quinta seduta della settimana, alla chiusura lascia il posto al riepilogo settimanale.
 - **Progressi**: andamento del carico per esercizio e riepilogo delle ultime dieci sedute. Toccando una seduta si apre il suo **riepilogo completo**: data e ora, durata, nota, e l'elenco degli esercizi svolti con serie, ripetizioni, carico e feedback.
 - **Programma**: cambio di programma (3, 4 o 6 settimane), attrezzatura predefinita, priorità ginocchio, esclusione degli esercizi critici per la spalla, obiettivo trazioni, spostamento avanti/indietro nella settimana, esportazione e azzeramento dati.
 

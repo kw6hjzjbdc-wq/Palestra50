@@ -16,7 +16,7 @@ const DAYS_STRENGTH = [1, 3, 5];   // sessioni 1,3,5 = potenziamento
 const DAYS_STRETCH  = [2, 4];      // sessioni 2,4 = stretching/mobilità
 const BANDS = ['Azzurra (leggera)', 'Gialla (media)', 'Rossa (dura)', 'Viola (molto dura)'];
 
-let DB = { exercises: [] }, PROG = null, POSES = null;
+let DB = { exercises: [] }, PROG = null, POSES = null, QUOTES = [];
 let S = null;              // stato persistente
 let current = null;        // sessione in corso
 let planCache = null;      // sessione di oggi già generata (per mantenere le sostituzioni)
@@ -40,7 +40,8 @@ const DEFAULT_STATE = {
   disclaimerOk: false,
   logs: [],                // storico per esercizio
   sessionLog: [],          // storico per sessione (durata, note)
-  lastExport: 0             // timestamp dell'ultimo salvataggio JSON esportato
+  lastExport: 0,            // timestamp dell'ultimo salvataggio JSON esportato
+  quoteQueue: []            // indici delle ultime 100 frasi mostrate all'avvio
 };
 
 function load() {
@@ -53,12 +54,13 @@ function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e
    2. DATI
 --------------------------------------------------------------------------- */
 async function loadData() {
-  const [ex, pr, po] = await Promise.all([
+  const [ex, pr, po, qu] = await Promise.all([
     fetch('exercises.json').then(r => r.json()),
     fetch('programs.json').then(r => r.json()),
-    fetch('poses.json').then(r => r.json())
+    fetch('poses.json').then(r => r.json()),
+    fetch('quotes.json').then(r => r.json()).catch(() => ({ quotes: [] }))
   ]);
-  DB = ex; PROG = pr; POSES = po;
+  DB = ex; PROG = pr; POSES = po; QUOTES = qu.quotes || [];
 }
 const exById = id => DB.exercises.find(e => e.id === id);
 const program = () => PROG.programs.find(p => p.id === S.programId) || PROG.programs[0];
@@ -195,6 +197,21 @@ function suggestLoad(ex) {
   const raw = n * f;
   const step = raw < 10 ? 0.5 : 1;
   return { value: (Math.round(raw / step) * step).toString(), last };
+}
+
+/* Frase dell'intro: si pesca a caso fra quelle non ancora uscite nelle ultime
+   100 aperture. La coda è lunga 100, quindi una frase non può ripetersi prima
+   di altre cento aperture (l'elenco ne contiene più di 100). */
+function pickQuote() {
+  if (!QUOTES.length) return '';
+  const q = S.quoteQueue || [];
+  let pool = QUOTES.map((_, i) => i).filter(i => q.indexOf(i) < 0);
+  if (!pool.length) pool = QUOTES.map((_, i) => i);
+  const i = pool[Math.floor(Math.random() * pool.length)];
+  q.push(i);
+  while (q.length > Math.min(100, QUOTES.length - 1)) q.shift();
+  S.quoteQueue = q; save();
+  return QUOTES[i];
 }
 
 /* ---------------------------------------------------------------------------
@@ -921,21 +938,64 @@ function endSession() {
     <button class="btn ghost" id="skipSave" style="margin-top:10px">Chiudi senza note</button>
   `);
   const finish = (withNote) => {
-    S.sessionLog.push({ ts: Date.now(), sid: current ? current.started : 0, idx: s.idx,
+    const sid = current ? current.started : 0;
+    S.sessionLog.push({ ts: Date.now(), sid: sid, idx: s.idx,
       label: s.label, kind: s.kind, minutes: mins,
       note: withNote ? ($('#sNote').value || '') : '' });
     if (s.kind !== 'core') S.sessionIndex++;
     planCache = null; homeSel = 'session';
-    save(); closeModal(); current = null; go('home');
-    // settimana completata: riepilogo automatico (richiamabile poi da Progressi)
-    if (s.kind !== 'core' && S.sessionIndex % 5 === 0) {
-      const w = S.sessionIndex / 5;
-      S.lastRecap = w; save();
-      setTimeout(() => openWeekReport(w), 500);
-    }
+    const weekDone = (s.kind !== 'core' && S.sessionIndex % 5 === 0) ? S.sessionIndex / 5 : 0;
+    if (weekDone) S.lastRecap = weekDone;
+    save();
+
+    // statistiche della seduta appena chiusa, per il pop up di complimenti
+    const done = S.logs.filter(l => l.sid === sid);
+    const rated = done.filter(l => l.stars > 0);
+    const avg = rated.length ? rated.reduce((a, l) => a + l.stars, 0) / rated.length : 0;
+
+    current = null;
+    closeModal(() => celebrate({ label: s.label, mins, count: done.length, avg, weekDone }));
   };
+
   $('#saveSession').onclick = () => finish(true);
   $('#skipSave').onclick = () => finish(false);
+}
+
+/* Pop up di complimenti: cerchio che si disegna, spunta, scintille e numeri
+   della seduta. Alla chiusura, se la settimana è completa, lascia il posto al
+   riepilogo settimanale. */
+function celebrate(st) {
+  const line = st.avg >= 4 ? 'Seduta sopra le attese: stai andando meglio del programma.'
+    : st.avg >= 3 ? 'Progressione perfettamente in linea con il programma.'
+    : st.avg >= 2 ? 'Seduta solida: il mantenimento è già un risultato.'
+    : 'Fatto. Presentarsi nei giorni storti vale più di una seduta brillante.';
+
+  const sparks = [[60, 8], [102, 30], [102, 90], [60, 112], [18, 90], [18, 30]]
+    .map((p, i) => `<circle class="spark" cx="${p[0]}" cy="${p[1]}" r="3.4" fill="#4FC3A1" style="animation-delay:${1 + i * 0.05}s"/>`).join('');
+
+  openModal(`<div class="cheer">
+    <svg viewBox="0 0 120 120" aria-hidden="true">
+      ${sparks}
+      <circle class="ring" cx="60" cy="60" r="45" fill="none" stroke="#F5A524" stroke-width="7"
+              stroke-linecap="round" transform="rotate(-90 60 60)"/>
+      <path class="tick" d="M40 61 L54 75 L81 46" fill="none" stroke="#EAF1F8" stroke-width="8"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <h2>Seduta completata!</h2>
+    <p class="sub small muted">${esc(st.label)}</p>
+    <div class="statline">
+      <div class="stat"><b>${st.mins}</b><span>minuti</span></div>
+      <div class="stat"><b>${st.count}</b><span>esercizi</span></div>
+      <div class="stat"><b>${st.avg ? st.avg.toFixed(1) : '—'}</b><span>stelle medie</span></div>
+    </div>
+    <p class="sub small" style="margin-top:12px">${line}</p>
+    <button class="btn" id="cheerOk" style="margin-top:18px">Continua</button>
+  </div>`);
+
+  $('#cheerOk').onclick = () => closeModal(() => {
+    go('home');
+    if (st.weekDone) setTimeout(() => openWeekReport(st.weekDone), 260);
+  });
 }
 
 /* ---------- scheda esercizio ---------- */
@@ -958,10 +1018,10 @@ function openSheet(ex, it, onSwap) {
     ${onSwap ? `<button class="btn ghost" id="sheetSwap" style="margin-top:18px">Sostituisci con un altro esercizio</button>` : ''}
     <button class="btn secondary" id="closeSheet" style="margin-top:10px">Chiudi</button>`;
   $('#sheet').classList.add('on');
-  $('#closeSheet').onclick = () => $('#sheet').classList.remove('on');
-  if (onSwap && $('#sheetSwap')) $('#sheetSwap').onclick = () => { $('#sheet').classList.remove('on'); onSwap(); };
+  $('#closeSheet').onclick = closeSheet;
+  if (onSwap && $('#sheetSwap')) $('#sheetSwap').onclick = () => { closeSheet(); onSwap(); };
 }
-$('#sheet').addEventListener('click', e => { if (e.target.id === 'sheet') $('#sheet').classList.remove('on'); });
+$('#sheet').addEventListener('click', e => { if (e.target.id === 'sheet') closeSheet(); });
 
 /* ---------- progressi ---------- */
 function renderHistory() {
@@ -1539,8 +1599,27 @@ function confirmAction(title, text, okLabel, onOk) {
   $('#cfNo').onclick = closeModal;
 }
 
-function openModal(html) { $('#modalBox').innerHTML = html; $('#modal').classList.add('on'); }
-function closeModal() { $('#modal').classList.remove('on'); }
+function openModal(html) {
+  const m = $('#modal');
+  m.classList.remove('closing');
+  $('#modalBox').innerHTML = html;
+  m.classList.add('on');
+}
+function closeModal(then) {
+  const m = $('#modal');
+  if (!m.classList.contains('on')) { if (then) then(); return; }
+  m.classList.add('closing');                    // dissolvenza e rientro verso il basso
+  setTimeout(() => {
+    m.classList.remove('on', 'closing');
+    if (then) then();
+  }, 200);
+}
+function closeSheet() {
+  const sh = $('#sheet');
+  if (!sh.classList.contains('on')) return;
+  sh.classList.add('closing');
+  setTimeout(() => sh.classList.remove('on', 'closing'), 220);
+}
 
 document.querySelectorAll('.nav button').forEach(b => b.onclick = () => {
   if (current && b.dataset.go !== 'session') { /* la sessione resta in memoria */ }
@@ -1577,6 +1656,8 @@ function disclaimer() {
       if (!S.disclaimerOk) disclaimer();
     }, 420);
   };
+  const qEl = document.getElementById('splashQuote');
+  if (qEl) qEl.textContent = pickQuote();
   if (splash) splash.onclick = afterSplash; else afterSplash();
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 })();

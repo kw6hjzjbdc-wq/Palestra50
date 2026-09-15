@@ -1,9 +1,9 @@
 /* Service worker: cache-first sull'app shell, così l'app funziona anche senza
    rete (utile in palestre con poco segnale). Cambia CACHE a ogni aggiornamento. */
-const CACHE = 'palestra50-v11';
+const CACHE = 'palestra50-v12';
 const ASSETS = [
   './', './index.html', './styles.css', './app.js',
-  './exercises.json', './programs.json', './poses.json',
+  './exercises.json', './programs.json', './poses.json', './quotes.json',
   './manifest.webmanifest', './icon-192.png', './icon-512.png'
 ];
 
