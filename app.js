@@ -87,6 +87,13 @@ function implementSvg(kind, p) {
     case 'goblet':       return `<rect x="${n[0] - 4}" y="${n[1] + 4}" width="8" height="13" rx="2.5" class="impf"/>`;
     case 'wheel':        return `<circle cx="${h[0]}" cy="${h[1] + 2}" r="6" class="imp" fill="none" stroke-width="3"/>`;
     case 'machine':      return `<line x1="108" y1="18" x2="108" y2="100" class="imp" stroke-width="3"/>` + band(108, h[1]);
+    // pedana della leg press: piano inclinato appoggiato ai piedi
+    case 'platform':     return `<line x1="${(p.toe || p.ankle)[0] - 6}" y1="${(p.toe || p.ankle)[1] - 14}" x2="${(p.toe || p.ankle)[0] + 10}" y2="${(p.toe || p.ankle)[1] + 10}" class="imp" stroke-width="4.5" stroke-linecap="round"/>`;
+    // cuscino sulle cosce del calf seduto
+    case 'thighPad':     return `<rect x="${(p.hip[0] + p.knee[0]) / 2 - 9}" y="${p.knee[1] - 11}" width="18" height="7" rx="3" class="impf"/>`;
+    // impugnature parallele delle macchine guidate
+    case 'grips':        return `<line x1="${h[0]}" y1="${h[1] - 6}" x2="${h[0]}" y2="${h[1] + 6}" class="imp" stroke-width="4" stroke-linecap="round"/>` +
+                                `<line x1="${h2[0]}" y1="${h2[1] - 6}" x2="${h2[0]}" y2="${h2[1] + 6}" class="imp" stroke-width="3" stroke-linecap="round"/>`;
     case 'cable':        return `<line x1="112" y1="6" x2="112" y2="100" class="imp" stroke-width="3"/>` + band(112, Math.min(h[1], 30));
     case 'bandVertical': return band(a[0], 99);
     case 'bandShoulder': return `<path d="M ${n[0]} ${n[1] + 3} L ${a[0]} 99" class="band" stroke-width="2.6" stroke-dasharray="4 3" fill="none"/>`;
@@ -555,17 +562,100 @@ function alternativesFor(item, sess) {
   return pool.filter(e => e.id === item.exId || !inUse.has(e.id));
 }
 
-/* Passa all'alternativa successiva, ricalcolando la dose sul nuovo esercizio. */
-function swapExercise(item, sess) {
-  const pool = alternativesFor(item, sess);
-  if (pool.length < 2) return false;
-  const i = pool.findIndex(e => e.id === item.exId);
-  const next = pool[(i + 1) % pool.length];
-  const d = dose(item.goalKey || item.goal, sess.profile, next);
-  item.exId = next.id;
+/* Mette un esercizio preciso nello slot, ricalcolando la dose su di esso. */
+function applyExercise(item, sess, ex) {
+  if (!ex || ex.id === item.exId) return false;
+  const d = dose(item.goalKey || item.goal, sess.profile, ex);
+  item.exId = ex.id;
   item.sets = d.sets; item.reps = d.reps; item.rest = d.rest;
   item.hold = d.hold; item.perSide = d.perSide; item.source = d.source;
   return true;
+}
+
+/* Quanto un esercizio è pertinente come sostituto di quello in programma:
+   conta lo schema di movimento, il ruolo nel blocco trazioni, il gruppo, i
+   muscoli primari condivisi e il tipo di carico. Serve solo a ordinare la
+   lista, la scelta resta all'utente. */
+function relevance(ex, cur, item) {
+  if (!cur) return 0;
+  let n = 0;
+  if (ex.pattern === cur.pattern) n += 6;
+  else if ((item.alt && item.alt.patterns || []).includes(ex.pattern)) n += 4;
+  if (ex.pullRole && ex.pullRole === cur.pullRole) n += 3;
+  if (ex.group === cur.group) n += 3;
+  const prim = new Set(cur.primary || []);
+  (ex.primary || []).forEach(m => { if (prim.has(m)) n += 2; });
+  (ex.secondary || []).forEach(m => { if (prim.has(m)) n += 1; });
+  if (ex.load === cur.load) n += 1;
+  if (ex.type === cur.type) n += 1;
+  return n;
+}
+
+function whyLabel(ex, cur, item) {
+  if (!cur) return '';
+  if (ex.id === cur.id) return 'in programma';
+  if (ex.pattern === cur.pattern) return 'stesso schema di movimento';
+  if (ex.group === cur.group) return 'stesso gruppo muscolare';
+  const prim = new Set(cur.primary || []);
+  if ((ex.primary || []).some(m => prim.has(m))) return 'stesso muscolo principale';
+  return 'alternativa possibile';
+}
+
+/* Pagina di scelta: elenco ordinato per pertinenza, con la possibilità di
+   tenere l'esercizio originale. */
+function openExercisePicker(item, sess, after, opts) {
+  const o = opts || {};
+  const cur = exById(item.exId);
+  let pool = o.pool || alternativesFor(item, sess);
+  if (!pool.some(e => e.id === item.exId) && cur) pool = [cur].concat(pool);
+  pool = pool.slice().sort((a, b) => relevance(b, cur, item) - relevance(a, cur, item) ||
+                                     a.name.localeCompare(b.name));
+
+  const rows = pool.map(ex => {
+    const isCur = ex.id === item.exId;
+    return `<li class="${isCur ? 'cur' : ''}" data-pickex="${ex.id}">
+      <div class="fig">${figureFor(ex, 1, { ground: false })}</div>
+      <div class="nm"><b>${esc(ex.name)}</b>
+        <div class="small muted">${esc(ex.group)} · ${esc(ex.equipment.join(', ') || 'corpo libero')}</div>
+        <div class="why">${esc(whyLabel(ex, cur, item))}</div></div>
+      <button class="pick">${isCur ? 'Mantieni' : 'Scegli'}</button></li>`;
+  }).join('');
+
+  openModal(`<h2>${esc(o.title || 'Sostituisci esercizio')}</h2>
+    <p class="small muted">${esc(o.subtitle || 'In ordine di pertinenza rispetto a “' + (cur ? cur.name : '') + '”. Puoi anche tenere quello previsto dal programma.')}</p>
+    <ul class="picker">${rows || '<li><span class="small muted">Nessuna alternativa disponibile con l\'attrezzatura selezionata.</span></li>'}</ul>
+    <button class="btn ghost" id="pickKeep" style="margin-top:14px">Tieni l'esercizio in programma</button>`);
+
+  document.querySelectorAll('[data-pickex]').forEach(li => li.onclick = () => {
+    const ex = exById(li.dataset.pickex);
+    const changed = applyExercise(item, sess, ex);
+    closeModal(() => { if (after) after(changed); });
+  });
+  $('#pickKeep').onclick = () => closeModal(() => { if (after) after(false); });
+}
+
+/* Elenco degli esercizi che coinvolgono un gruppo muscolare, richiamato
+   toccando una delle etichette nella scheda esercizio. */
+function openMusclePicker(muscle, item, sess, after) {
+  let pool = DB.exercises.filter(e => e.setup.includes(S.setup) &&
+    ((e.primary || []).includes(muscle) || (e.secondary || []).includes(muscle)));
+  pool = applyCare(pool);
+  if (!item || !sess) {
+    const rows = pool.sort((a, b) => a.name.localeCompare(b.name)).map(ex => `<li>
+      <div class="fig">${figureFor(ex, 1, { ground: false })}</div>
+      <div class="nm"><b>${esc(ex.name)}</b><div class="small muted">${esc(ex.group)}</div></div></li>`).join('');
+    openModal(`<h2>${esc(muscle)}</h2>
+      <p class="small muted">Esercizi disponibili con l'attrezzatura selezionata.</p>
+      <ul class="picker">${rows}</ul>
+      <button class="btn secondary" id="mpClose" style="margin-top:14px">Chiudi</button>`);
+    $('#mpClose').onclick = closeModal;
+    return;
+  }
+  openExercisePicker(item, sess, after, {
+    pool,
+    title: muscle,
+    subtitle: `Esercizi che coinvolgono questo muscolo, in ordine di pertinenza rispetto a quello in programma. Tocca “Scegli” per sostituirlo, oppure tieni quello previsto.`
+  });
 }
 
 /* La seduta del giorno viene generata una volta sola e tenuta in memoria: così
@@ -591,9 +681,14 @@ function renderHome() {
   let week = '';
   for (let q = 0; q < 5; q++) {
     const alt = buildSession(weekStart + q);
+    // "da programma" resta attaccata alla seduta che il programma prevede come
+    // prossima (il suo giorno di calendario), anche dopo uno scambio di ordine;
+    // la posizione scelta per oggi è marcata a parte come "scelta per oggi".
+    const isPlanned = alt.dayInWeek === here + 1;
     const state = q < here ? 'done' : (q === here ? 'now' : 'next');
     const badge = q < here ? '<span class="wkbadge done">svolta</span>'
-                : q === here ? '<span class="wkbadge">da programma</span>'
+                : isPlanned ? '<span class="wkbadge">da programma</span>'
+                : q === here ? '<span class="wkbadge alt">scelta per oggi</span>'
                 : '<span class="chev">›</span>';
     week += `<li class="wk ${state}${(!core && q === here) ? ' sel' : ''}" data-day="${q}">
       <span class="wknum ${alt.isStrength ? 'strength' : 'mobility'}">${q + 1}</span>
@@ -685,7 +780,7 @@ function renderHome() {
   // ogni riga dell'elenco apre la scheda illustrativa dell'esercizio
   document.querySelectorAll('[data-plan]').forEach(li => li.onclick = () => {
     const it = s.items[+li.dataset.plan];
-    openSheet(exById(it.exId), it, () => { if (swapExercise(it, s)) renderHome(); });
+    openSheet(exById(it.exId), it, { sess: s, after: () => renderHome() });
   });
   if ($('#resumeBtn')) $('#resumeBtn').onclick = () => { go('session'); renderSession(); };
   if ($('#nagExport')) $('#nagExport').onclick = exportData;
@@ -784,7 +879,7 @@ function renderSession() {
       ${timed ? `<p class="small muted" style="margin-top:8px">Tre secondi di preparazione scanditi dalla campanella, poi parte il conteggio: mantieni la posizione fino al rintocco finale. Gli ultimi tre secondi sono scanditi da un rintocco ciascuno.${it.goal === 'stretch' ? ' Ogni serie è un lato solo: il pulsante ti dice quale.' : ''}</p>` : ''}
       <div class="btn-row" style="margin-top:10px">
         <button class="btn ghost" id="infoBtn">Scheda esercizio</button>
-        <button class="btn ghost" id="swapBtn" ${nAlt < 2 ? 'disabled' : ''}>Cambia esercizio${nAlt > 1 ? ` (${nAlt - 1})` : ''}</button>
+        <button class="btn ghost" id="swapBtn">Cambia esercizio${nAlt > 1 ? ` (${nAlt - 1})` : ''}</button>
       </div>
       <div class="btn-row" style="margin-top:10px">
         <button class="btn ghost" id="postponeBtn" ${c.pos === s.items.length - 1 ? 'disabled' : ''}>Rimanda a dopo</button>
@@ -828,13 +923,11 @@ function renderSession() {
       startTimer(hold, `Tenuta · ${ex.name}`, closeSet, 'work', 3);
     } else closeSet();
   };
-  $('#infoBtn').onclick = () => openSheet(ex, it, () => { if (swapExercise(it, s)) renderSession(); });
-  $('#swapBtn').onclick = () => {
-    if (c.setsDone[c.pos] > 0) {
-      confirmAction('Cambiare esercizio?', 'Hai già completato qualche serie: verranno azzerate per il nuovo esercizio.',
-        'Cambia', () => { c.setsDone[c.pos] = 0; c.loads[c.pos] = ''; c.feedback[c.pos] = null; if (swapExercise(it, s)) renderSession(); });
-    } else if (swapExercise(it, s)) renderSession();
-  };
+  $('#infoBtn').onclick = () => openSheet(ex, it, { sess: s, after: () => renderSession() });
+  $('#swapBtn').onclick = () => openExercisePicker(it, s, changed => {
+    if (changed) { c.setsDone[c.pos] = 0; c.loads[c.pos] = ''; c.feedback[c.pos] = null; }
+    renderSession();
+  });
   $('#prevBtn').onclick = () => { captureLoad(); if (c.pos > 0) { c.pos--; renderSession(); } };
   $('#postponeBtn').onclick = () => { captureLoad(); stopTimer(); postponeCurrent(); };
   $('#orderBtn').onclick = () => { captureLoad(); openReorder(); };
@@ -1001,7 +1094,7 @@ function celebrate(st) {
 }
 
 /* ---------- scheda esercizio ---------- */
-function openSheet(ex, it, onSwap) {
+function openSheet(ex, it, ctx) {
   $('#sheetPanel').innerHTML = `
     <h2>${esc(ex.name)}</h2>
     <div class="small muted">${esc(ex.group)} · ${esc(ex.equipment.join(', ') || 'corpo libero')}</div>
@@ -1012,16 +1105,25 @@ function openSheet(ex, it, onSwap) {
     ${it ? `<p class="small muted">Oggi: ${doseText(it)}, recupero ${it.rest}s, RPE ${esc(it.rpe)}. ${esc(it.source)}</p>` : ''}
     <div class="block"><h3>Esecuzione</h3><ol>${ex.steps.map(s => `<li>${esc(s)}</li>`).join('')}</ol></div>
     <div class="block"><h3>Muscoli coinvolti</h3>
-      <div class="tags">${ex.primary.map(m => `<span>${esc(m)}</span>`).join('')}
-      ${ex.secondary.map(m => `<span>${esc(m)} (secondario)</span>`).join('')}</div></div>
+      <div class="tags">${ex.primary.map(m => `<span data-muscle="${esc(m)}">${esc(m)} ›</span>`).join('')}
+      ${ex.secondary.map(m => `<span data-muscle="${esc(m)}">${esc(m)} (secondario) ›</span>`).join('')}</div>
+      <p class="small muted" style="margin-top:8px">Tocca un muscolo per vedere tutti gli esercizi che lo coinvolgono${ctx ? ' e, se vuoi, sostituire quello in programma' : ''}.</p></div>
     <div class="block warnblock"><h3>Errori e rischi</h3>
       <ul>${ex.errors.map(e => `<li>${esc(e)}</li>`).join('')}${ex.safety.map(e => `<li>${esc(e)}</li>`).join('')}</ul></div>
     <div class="block"><h3>Riferimento</h3><p class="small muted">${esc(ex.source)}</p></div>
-    ${onSwap ? `<button class="btn ghost" id="sheetSwap" style="margin-top:18px">Sostituisci con un altro esercizio</button>` : ''}
+    ${ctx ? `<button class="btn ghost" id="sheetSwap" style="margin-top:18px">Sostituisci con un altro esercizio</button>` : ''}
     <button class="btn secondary" id="closeSheet" style="margin-top:10px">Chiudi</button>`;
   $('#sheet').classList.add('on');
   $('#closeSheet').onclick = closeSheet;
-  if (onSwap && $('#sheetSwap')) $('#sheetSwap').onclick = () => { closeSheet(); onSwap(); };
+  if (ctx && $('#sheetSwap')) $('#sheetSwap').onclick = () => {
+    closeSheet();
+    setTimeout(() => openExercisePicker(it, ctx.sess, ctx.after), 240);
+  };
+  document.querySelectorAll('[data-muscle]').forEach(t => t.onclick = () => {
+    const m = t.dataset.muscle;
+    closeSheet();
+    setTimeout(() => openMusclePicker(m, ctx ? it : null, ctx ? ctx.sess : null, ctx ? ctx.after : null), 240);
+  });
 }
 $('#sheet').addEventListener('click', e => { if (e.target.id === 'sheet') closeSheet(); });
 

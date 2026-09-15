@@ -26,10 +26,10 @@
    ],
    "art": {
     "frames": [
-     "seatedPressStart",
-     "seatedPressEnd"
+     "legPressStart",
+     "legPressEnd"
     ],
-    "implement": "machine"
+    "implement": "platform"
    },
    "steps": [
     "Siediti con schiena e bacino aderenti allo schienale, piedi a larghezza spalle a metà pedana.",
@@ -1308,10 +1308,10 @@
    ],
    "art": {
     "frames": [
-     "seated",
+     "seatedCalfDown",
      "seatedCalfUp"
     ],
-    "implement": "machine"
+    "implement": "thighPad"
    },
    "steps": [
     "Cuscino sulle cosce basse, avampiedi sul poggiapiedi.",
@@ -4170,10 +4170,10 @@
    ],
    "art": {
     "frames": [
-     "seatedPressStart",
-     "seatedPressEnd"
+     "ohpStart",
+     "ohpEnd"
     ],
-    "implement": "machine"
+    "implement": "grips"
    },
    "steps": [
     "Regola il sedile in modo che le impugnature parallele siano all'altezza delle spalle.",
