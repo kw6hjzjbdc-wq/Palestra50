@@ -21,7 +21,7 @@ let S = null;              // stato persistente
 let current = null;        // sessione in corso
 let planCache = null;      // sessione di oggi già generata (per mantenere le sostituzioni)
 let homeSel = 'session';   // cosa è selezionato nella home: 'session' o 'core'
-let wakeLock = null, audioCtx = null, timerHandle = null;
+let wakeLock = null, timerHandle = null;
 
 /* ---------------------------------------------------------------------------
    1. STATO
@@ -36,7 +36,6 @@ const DEFAULT_STATE = {
   pullupGoal: true,        // blocco trazioni in apertura delle sedute di forza
   perms: {},               // ordine delle 5 sedute all'interno di ciascuna settimana
   sound: true,             // campanella del timer
-  audioMode: 'mix',        // 'mix' = suona sopra la musica, 'solo' = priorità alla campanella
   disclaimerOk: false,
   logs: [],                // storico per esercizio
   sessionLog: [],          // storico per sessione (durata, note)
@@ -514,6 +513,9 @@ const $ = sel => document.querySelector(sel);
 const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 function go(view) {
+  // uscendo dalla schermata della sessione il timer NON si ferma: si riduce da
+  // solo alla barretta in basso e continua a scorrere mentre navighi
+  if (timerRunning() && view !== 'session' && $('#timer').classList.contains('on')) minimizeTimer();
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   $('#view-' + view).classList.add('active');
   document.querySelectorAll('.nav button').forEach(b => b.classList.toggle('active', b.dataset.go === view));
@@ -833,7 +835,7 @@ function renderSession() {
         'Cambia', () => { c.setsDone[c.pos] = 0; c.loads[c.pos] = ''; c.feedback[c.pos] = null; if (swapExercise(it, s)) renderSession(); });
     } else if (swapExercise(it, s)) renderSession();
   };
-  $('#prevBtn').onclick = () => { captureLoad(); stopTimer(); if (c.pos > 0) { c.pos--; renderSession(); } };
+  $('#prevBtn').onclick = () => { captureLoad(); if (c.pos > 0) { c.pos--; renderSession(); } };
   $('#postponeBtn').onclick = () => { captureLoad(); stopTimer(); postponeCurrent(); };
   $('#orderBtn').onclick = () => { captureLoad(); openReorder(); };
   $('#nextBtn').onclick = () => {
@@ -1220,14 +1222,10 @@ function renderSettings() {
         <input type="checkbox" id="pullChk" ${S.pullupGoal ? 'checked' : ''}></div>
       <div class="switch"><span>Campanella del timer</span>
         <input type="checkbox" id="soundChk" ${S.sound !== false ? 'checked' : ''}></div>
-      <div class="switch"><span>Convivenza con la musica</span>
-        <select id="audioSel" style="width:180px;min-height:44px;background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:0 10px">
-          <option value="mix" ${S.audioMode !== 'solo' ? 'selected' : ''}>Sopra la musica</option>
-          <option value="solo" ${S.audioMode === 'solo' ? 'selected' : ''}>Priorità campanella</option>
-        </select></div>
+
       <div class="switch" style="border:0"><span>Schermo sempre acceso</span><span class="small muted" id="wlStatus">—</span></div>
       <button class="btn ghost" id="testSound" style="margin-top:12px">Prova la campanella</button>
-      <p class="small muted" style="margin-top:8px"><b>Sopra la musica</b>: la campanella si sovrappone a Spotify o YouTube abbassandoli per un attimo, senza fermarli; richiede però che la modalità silenziosa dell'iPhone sia disattivata. <b>Priorità campanella</b>: si sente anche con il telefono in silenzioso, ma mette in pausa l'audio delle altre app. Se non senti nulla, tocca "Prova la campanella" e alza il volume con i tasti laterali mentre suona.</p>
+      <p class="small muted" style="margin-top:8px">La campanella si sovrappone a Spotify o YouTube abbassandoli per il tempo di un rintocco, senza mai metterli in pausa. Perché si senta, la modalità silenziosa dell'iPhone deve essere disattivata: tocca "Prova la campanella" e alza il volume con i tasti laterali mentre suona.</p>
     </div>
 
     <div class="card">
@@ -1253,7 +1251,6 @@ function renderSettings() {
   $('#pullChk').onchange = e => { S.pullupGoal = e.target.checked; planCache = null; save(); };
   $('#shoulderChk').onchange = e => { S.shoulderCare = e.target.checked; planCache = null; save(); };
   $('#soundChk').onchange = e => { S.sound = e.target.checked; save(); if (e.target.checked) { unlockAudio(); setTimeout(() => ding(false), 350); } };
-  $('#audioSel').onchange = e => { S.audioMode = e.target.value; save(); setAudioSession(); };
   $('#testSound').onclick = () => {
     unlockAudio();
     setTimeout(() => ding(false), 250);
@@ -1357,95 +1354,49 @@ function buildAudio() {
   }
 }
 
-/* Categoria della sessione audio di iOS (Safari 17+):
-     'transient' → la campanella si sovrappone alla musica abbassandola un attimo,
-                   senza fermare Spotify o YouTube (impostazione predefinita);
-     'playback'  → la campanella ha la priorità e ignora l'interruttore silenzioso,
-                   ma mette in pausa l'audio delle altre app.
-   Se l'API non è disponibile il browser usa il comportamento di sistema. */
-function setAudioSession(priority) {
+/* Categoria della sessione audio di iOS (Safari 17+). Se l'API non è
+   disponibile vale il comportamento di sistema. */
+function setAudioSession() {
   try {
     if (!navigator.audioSession) return;
-    // durante un timer attivo la campanella ha la precedenza su tutto: 'playback'
-    // si sente anche con l'iPhone in silenzioso; fuori dal timer si torna alla
-    // modalità scelta dall'utente, che può convivere con la musica.
-    navigator.audioSession.type = priority
-      ? 'playback'
-      : ((S && S.audioMode === 'solo') ? 'playback' : 'transient');
+    // 'transient' = suono breve che si SOVRAPPONE alla musica abbassandola per
+    // un istante. Non si usa mai 'playback' né 'transient-solo', che metterebbero
+    // in pausa Spotify o YouTube: la campanella deve coprire la musica, mai
+    // interromperla.
+    navigator.audioSession.type = 'transient';
   } catch (e) {}
 }
 
-/* Traccia silenziosa in loop: tiene viva la sessione audio anche quando l'app
-   è ridotta o in secondo piano, così le campanelle programmate riescono a
-   suonare invece di essere sospese da iOS. */
-function keepAlive(on) {
-  try {
-    if (!bells.keep) {
-      bells.keep = new Audio(wavDataUri([1], 1, 60));   // un secondo di silenzio
-      bells.keep.loop = true; bells.keep.volume = 0.02;
-    }
-    if (on) { const p = bells.keep.play(); if (p && p.catch) p.catch(() => {}); }
-    else { bells.keep.pause(); }
-  } catch (e) {}
-}
-
-/* Va chiamata dentro un gesto dell'utente (tocco su un pulsante). */
+/* Va chiamata dentro un gesto dell'utente (tocco su un pulsante): "sblocca" gli
+   elementi audio, che è la condizione posta da Safari per poterli riprodurre
+   più tardi da un timer. Nessun contesto Web Audio viene tenuto aperto: un
+   contesto attivo manterrebbe occupata la sessione audio del telefono e
+   terrebbe la musica abbassata per tutta la durata del recupero. */
 function unlockAudio() {
   buildAudio();
-  setAudioSession(false);
+  setAudioSession();
   bells.short.concat(bells.final).forEach(a => {
     a.volume = 0;
     const p = a.play();
     const reset = () => { try { a.pause(); a.currentTime = 0; } catch (e) {} a.volume = 1; bells.ready = true; };
     if (p && p.then) p.then(reset).catch(() => { a.volume = 1; }); else reset();
   });
-  try {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-  } catch (e) {}
 }
 
-/* Campanella programmata sulla timeline di Web Audio: è precisa al campione e
-   continua a suonare anche se i timer JavaScript vengono rallentati perché
-   l'app è ridotta o in secondo piano. Una sola oscillazione = una sola campana. */
-let webNodes = [];
-function scheduleWebBell(at, isFinal) {
-  if (!audioCtx) return false;
-  const f = isFinal ? 1319 : 880;
-  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
-  o.type = 'sine'; o.frequency.value = f;
-  g.gain.setValueAtTime(0.0001, at);
-  g.gain.exponentialRampToValueAtTime(1, at + 0.008);
-  g.gain.exponentialRampToValueAtTime(0.0001, at + (isFinal ? 1 : 0.55));
-  o.connect(g); g.connect(audioCtx.destination);
-  o.start(at); o.stop(at + 1.1);
-  webNodes.push(o);
-  return true;
-}
-function clearWebBells() {
-  webNodes.forEach(o => { try { o.stop(); } catch (e) {} });
-  webNodes = [];
-}
-
-/* Un rintocco, con vibrazione di supporto. */
+/* Un rintocco: una sola campana per volta, breve, così la musica torna subito
+   al volume pieno. */
 function ding(isFinal) {
   if (S && S.sound === false) return;
   const pool = isFinal ? bells.final : bells.short;
-  // zittisce qualunque rintocco ancora in coda: si sente una campana per volta
+  // zittisce un eventuale rintocco ancora in coda: mai due campane insieme
   bells.short.concat(bells.final).forEach(a => {
     try { if (!a.paused) { a.pause(); a.currentTime = 0; } } catch (e) {}
   });
-  let played = false;
   if (pool.length) {
     const a = pool[bellIdx++ % pool.length];
-    try {
-      a.currentTime = 0; a.volume = 1;
-      const p = a.play();
-      played = true;
-      if (p && p.catch) p.catch(() => { if (audioCtx) scheduleWebBell(audioCtx.currentTime + 0.01, isFinal); });
-    } catch (e) { played = false; }
+    try { a.currentTime = 0; a.volume = 1; const p = a.play(); if (p && p.catch) p.catch(() => {}); }
+    catch (e) {}
   }
-  if (!played && audioCtx) scheduleWebBell(audioCtx.currentTime + 0.01, isFinal);
   if (navigator.vibrate) navigator.vibrate(isFinal ? [150, 70, 150] : 70);
 }
 
@@ -1462,30 +1413,28 @@ const AUDIO_LATENCY = 40;      // ms di anticipo per compensare la latenza di pl
 
 function clearBellTimers() { bellTimers.forEach(clearTimeout); bellTimers = []; }
 
-/* I rintocchi non vengono più dedotti dal ciclo di aggiornamento (che gira a
-   scatti e sbagliava di qualche decimo): ogni campanella ha il suo timeout
-   calcolato sull'istante esatto, quindi cade precisa al secondo. */
+/* Ogni rintocco ha il proprio timeout calcolato sull'istante esatto in cui il
+   contatore cambia secondo, con un piccolo anticipo per la latenza di
+   riproduzione. Un solo meccanismo, quindi nessun rischio di doppioni o di
+   rintocchi che si accavallano. Se un timeout arriva in forte ritardo (app
+   messa da parte e ripresa) viene scartato invece di suonare fuori tempo. */
 function scheduleBells() {
-  clearBellTimers(); clearWebBells();
+  clearBellTimers();
   const marks = [];
-  if (timerStart > Date.now()) {                 // fase di preparazione
+  if (timerStart > Date.now()) {                 // secondi di preparazione
     for (let k = 3; k >= 1; k--) marks.push([timerStart - k * 1000, false]);
     marks.push([timerStart, true]);              // via!
   }
   for (let k = 3; k >= 1; k--) marks.push([timerEnd - k * 1000, false]);
-  marks.push([timerEnd, true]);
+  marks.push([timerEnd, true]);                  // fine del conteggio
 
-  const ctxReady = audioCtx && audioCtx.state === 'running';
   marks.forEach(m => {
-    const delay = m[0] - Date.now();
-    if (delay < -200) return;
-    // 1) programmazione sulla timeline audio: immune al rallentamento dei timer
-    if (ctxReady) scheduleWebBell(audioCtx.currentTime + Math.max(0, delay) / 1000, m[1]);
-    // 2) riserva: se il contesto audio non è disponibile si usa l'elemento <audio>
+    const at = m[0], delay = at - Date.now() - AUDIO_LATENCY;
+    if (delay < -250) return;                    // istante già passato: si salta
     bellTimers.push(setTimeout(() => {
-      if (!audioCtx || audioCtx.state !== 'running') ding(m[1]);
-      else if (navigator.vibrate) navigator.vibrate(m[1] ? [150, 70, 150] : 70);
-    }, Math.max(0, delay - AUDIO_LATENCY)));
+      if (Date.now() - at > 450) return;         // troppo in ritardo: niente rintocco
+      ding(m[1]);
+    }, Math.max(0, delay)));
   });
 }
 
@@ -1504,8 +1453,6 @@ function startTimer(seconds, what, cb, mode, lead) {
   $('#miniTimer').classList.toggle('work', timerMode === 'work');
   $('#miniTimer').classList.remove('on');
   unlockAudio();
-  setAudioSession(true);          // la campanella ha la precedenza finché il timer gira
-  keepAlive(true);                // tiene viva la sessione audio anche in secondo piano
   scheduleBells();
   if (wait) bellTimers.push(setTimeout(() => { $('#timerWhat').textContent = what || ''; }, wait));
   tick();
@@ -1537,8 +1484,7 @@ function tick() {
 function stopTimer() {
   if (timerHandle) clearInterval(timerHandle);
   timerHandle = null; timerCb = null;
-  clearBellTimers(); clearWebBells();
-  keepAlive(false); setAudioSession(false);
+  clearBellTimers();
   $('#timer').classList.remove('on', 'warn', 'prep');
   $('#miniTimer').classList.remove('on', 'prep');
 }
@@ -1581,10 +1527,8 @@ function releaseWakeLock() { try { if (wakeLock) wakeLock.release(); } catch (e)
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
     if (current) requestWakeLock();
-    if (audioCtx && audioCtx.state === 'suspended') {
-      audioCtx.resume().then(() => { if (timerHandle) scheduleBells(); }).catch(() => {});
-    }
-    if (timerHandle) { keepAlive(true); tick(); }
+    // al rientro in primo piano si riallineano contatore e rintocchi
+    if (timerHandle) { scheduleBells(); tick(); }
   }
 });
 

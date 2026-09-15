@@ -464,3 +464,16 @@ h1,h2{letter-spacing:.005em}
   .cheer .ring,.cheer .tick{stroke-dashoffset:0}
   .cheer .spark,.cheer h2,.cheer .sub,.cheer .statline,.cheer .btn{opacity:1}
 }
+
+
+/* ---------- transizioni fra le schermate ---------- */
+.view.active{animation:viewIn .3s cubic-bezier(.2,.8,.3,1)}
+@keyframes viewIn{
+  from{opacity:0;transform:translateY(10px)}
+  to{opacity:1;transform:translateY(0)}
+}
+.topbar h1{animation:titleIn .3s cubic-bezier(.2,.8,.3,1)}
+@keyframes titleIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+@media (prefers-reduced-motion:reduce){
+  .view.active,.topbar h1{animation:none!important}
+}

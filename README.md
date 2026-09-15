@@ -112,7 +112,7 @@ Per gli esercizi con elastico la scala è a gradini: passare alla band successiv
 
 ### Animazioni
 
-Tutti i pop up hanno un'animazione di apertura (velo in dissolvenza, riquadro che sale e si ingrandisce) e una di chiusura speculare; le schede esercizio scorrono dal basso e rientrano verso il basso. Il timer si riduce e si riapre con la stessa logica di scala. Tutto rispetta l'impostazione di sistema per il movimento ridotto.
+Il passaggio da una schermata all'altra avviene con una breve dissolvenza in salita, titolo compreso. Tutti i pop up hanno un'animazione di apertura (velo in dissolvenza, riquadro che sale e si ingrandisce) e una di chiusura speculare; le schede esercizio scorrono dal basso e rientrano verso il basso. Il timer si riduce e si riapre con la stessa logica di scala. Tutto rispetta l'impostazione di sistema per il movimento ridotto.
 
 ### Riepilogo settimanale
 
@@ -194,6 +194,7 @@ All'apertura scorre un'intro di tre secondi: l'anello del marchio si disegna, le
 - **Cambia esercizio**: nella sessione, il pulsante *Cambia esercizio* propone un'alternativa dello stesso schema di movimento (o dello stesso gruppo, per lo stretching), coerente con attrezzatura, obiettivo della seduta e filtro ginocchio; premendolo più volte scorri tutte le alternative. La stessa cosa si può fare prima di iniziare, dalla scheda che si apre toccando un esercizio nell'elenco di Oggi.
 - **Esercizio precedente**: il pulsante *‹ Precedente* torna indietro nella scaletta per correggere un carico o completare una serie saltata. Lo storico non si sdoppia: il record dell'esercizio viene aggiornato, non duplicato.
 - **Ordine degli esercizi**: se una macchina o un attrezzo è occupato, usa *Rimanda a dopo* (sposta l'esercizio corrente in fondo) oppure *Ordine esercizi*, che apre la scaletta di quello che resta da fare con le frecce su/giù. Serie già completate, carico e feedback seguono l'esercizio spostato.
+- **Il timer non si ferma mai cambiando schermata**: se passi a Progressi o a Programma mentre scorre, si riduce da solo alla barretta in basso e continua il conteggio, rintocchi compresi.
 - **Timer riducibile**: durante il recupero tocca *Riduci*. Il pannello rimpicciolisce verso il basso con un'animazione e il conto alla rovescia resta in una barretta, mentre puoi consultare schede e storico. Tocca la barretta e il pannello si riapre ingrandendosi; *Salta* riprende subito.
 - Chiusura e interruzione della sessione chiedono sempre conferma, così non si esce per errore. Se esci dalla vista della sessione, in Oggi compare il banner **Riprendi**.
 - **Scheda esercizio**: esecuzione passo-passo, muscoli primari e secondari, errori comuni, avvertenze di sicurezza e le due figure inizio/fine.
@@ -216,16 +217,11 @@ All'apertura scorre un'intro di tre secondi: l'anello del marchio si disegna, le
 
 **Timbro della campanella.** Ogni rintocco è una sola campana: un unico timbro sintetizzato, con attacco morbido e coda che si spegne in mezzo secondo. Cambia solo l'altezza fra i tre rintocchi dei secondi (La5) e il colpo finale (Mi6), e prima di ogni rintocco l'app zittisce quello precedente, così non si sovrappongono mai due suoni.
 
-**Campanella e musica (Spotify, YouTube).** In Programma c'è l'opzione *Convivenza con la musica*:
+**Campanella e musica (Spotify, YouTube).** La campanella non mette mai in pausa la musica. Durante un timer l'app dichiara la sessione audio come `transient`: un suono breve che si sovrappone abbassando per un istante l'audio delle altre app, che tornano subito al volume pieno. Le categorie `playback` e `transient-solo`, che invece interromperebbero Spotify, non vengono mai usate, e l'app non tiene aperto alcun contesto Web Audio né tracce silenziose in loop, perché una sessione audio sempre attiva terrebbe la musica abbassata per tutto il recupero. Il prezzo di questa scelta è che in modalità `transient` l'interruttore del silenzioso dell'iPhone silenzia anche la campanella: per sentirla, il telefono non deve essere in silenzioso.
 
-- **Sopra la musica** (predefinita): l'app dichiara a iOS una sessione audio di tipo `transient`, quindi la campanella si sovrappone alla musica abbassandola per un istante, senza fermare Spotify o YouTube. In questa modalità però l'interruttore del silenzioso deve essere disattivato.
-- **Priorità campanella**: sessione di tipo `playback`, che si sente anche con il telefono in silenzioso ma mette in pausa l'audio delle altre app.
+**Precisione dei rintocchi.** Un solo meccanismo li governa: ogni rintocco ha il proprio timeout calcolato sull'istante esatto in cui il contatore cambia secondo, con 40 ms di anticipo per compensare la latenza di riproduzione. Suonano i tre secondi finali di ogni timer, l'istante di fine, e allo stesso modo i tre secondi di preparazione con il colpo di via. Prima di ogni rintocco l'app zittisce l'eventuale precedente, quindi non si accavallano mai; un rintocco che arrivasse con più di mezzo secondo di ritardo viene scartato invece di suonare fuori tempo.
 
-L'API `navigator.audioSession` esiste da Safari 17: su versioni precedenti vale il comportamento predefinito del sistema, cioè la campanella può abbassare o interrompere brevemente la musica.
-
-**Precisione dei rintocchi.** Ogni campanella ha il proprio timeout calcolato sull'istante esatto di fine (con 40 ms di anticipo per compensare la latenza di riproduzione), invece di essere dedotta dal ciclo di aggiornamento dello schermo: i tre secondi finali cadono quindi puntuali. L'aggiornamento del display gira comunque a 100 ms.
-
-**Campanella con app ridotta o in secondo piano.** Durante un timer attivo l'app fa tre cose: dichiara la sessione audio come `playback`, che dà alla campanella la precedenza su qualunque altro suono e la fa sentire anche con l'iPhone in silenzioso; tiene in riproduzione una traccia silenziosa in loop, che impedisce a iOS di sospendere la sessione audio quando l'app passa in secondo piano; e programma i rintocchi sulla timeline di Web Audio, che continua a scorrere anche se i timer JavaScript vengono rallentati. Al rientro in primo piano il contesto audio viene ripreso e le campanelle riprogrammate. Resta un limite di sistema che nessuna PWA può aggirare: se iOS decide comunque di sospendere la scheda (batteria molto bassa, memoria sotto pressione, schermo bloccato a lungo), il suono può non arrivare. Per questo il wake lock tiene lo schermo acceso durante la sessione e a fine timer parte anche la vibrazione.
+**Campanella con app ridotta o in secondo piano.** Con il timer ridotto a barretta l'app resta in primo piano e i rintocchi suonano regolarmente. Se invece esci dall'app o blocchi lo schermo, iOS sospende l'audio delle pagine web e il suono può non arrivare: è un limite di sistema che nessuna PWA può aggirare senza tenere occupata la sessione audio, cosa che fermerebbe la musica. Per questo il wake lock tiene lo schermo acceso durante la sessione e a fine timer parte anche la vibrazione.
 
 **Notifiche.** Su iOS le notifiche push da PWA richiedono l'installazione a Home e permessi espliciti; non sono usate qui per non introdurre dipendenze da un server.
 
