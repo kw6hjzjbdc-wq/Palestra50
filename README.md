@@ -56,6 +56,26 @@ Le sedute di mobilità combinano 2-3 esercizi di mobilità dinamica in apertura 
 
 Dopo la generazione, `fitToTime()` stima la durata (lavoro + recuperi, allungamenti contati su entrambi i lati) e, se supera i 32 minuti, riduce prima le serie degli esercizi accessori e solo in ultima istanza toglie l'ultimo esercizio. Il primo esercizio, quello principale, non viene mai toccato. Quando la seduta è stata ridotta, la home lo segnala.
 
+### Macrociclo fino al 30 maggio 2027
+
+È il programma predefinito: 37 settimane, sempre 3 sedute di pesi e 2 di mobilità, con l'obiettivo che cambia fase dopo fase. La logica è quella della periodizzazione a blocchi: non si insegue un solo obiettivo per nove mesi, si alternano fasi di volume e fasi di forza, perché più forza significa poter usare carichi più alti nella fase di volume successiva, e quindi più stimolo per la crescita.
+
+| Fase | Settimane | Obiettivi (giorni A · B · C) | A cosa serve |
+|---|---|---|---|
+| Adattamento | 4 | resistenza · ipertrofia · resistenza | preparare tendini, articolazioni e tecnica |
+| Ipertrofia 1 | 8 | ipertrofia · forza · ipertrofia | accumulo di volume, dove si costruisce la massa |
+| Forza | 6 | forza · ipertrofia · forza | alzare il tetto di carico |
+| Ipertrofia 2 | 8 | ipertrofia · ipertrofia · resistenza | volume con i carichi più alti guadagnati prima |
+| Forza-ipertrofia | 5 | forza · ipertrofia · ipertrofia | mantenere la forza senza fermare la crescita |
+| Densità e tono | 5 | ipertrofia · resistenza · resistenza | recuperi brevi e più core: il muscolo diventa visibile |
+| Rifinitura | 1 | volume ridotto | arrivare scarichi al 30 maggio |
+
+Dentro ogni fase si lavora a blocchi di quattro settimane, con la quarta di scarico (volume ridotto e circa −15% di carico), e la rotazione degli esercizi cambia a ogni blocco. La home mostra fase in corso, settimana nella fase, settimana assoluta e quante ne mancano alla data obiettivo.
+
+**Corsa e aerobica** non compaiono come sedute: restano nel fine settimana, in autonomia. La home mostra però un suggerimento facoltativo, diverso per fase — una sola uscita facile nella fase di forza per non interferire con il recupero, una o due nelle fasi di volume, due nella fase di densità.
+
+**Cambiando programma non si perde nulla**: storico dei carichi, valutazioni a stelle, riepiloghi e backup sono indipendenti dal programma attivo, e gli altri programmi (3, 4 e 6 settimane) restano disponibili in Programma.
+
 ### Blocco trazioni alla sbarra
 
 Obiettivo attivabile da Programma (predefinito: attivo). Aggiunge due esercizi **in apertura** di ciascuna delle tre sedute di forza — quindi tre volte a settimana, sempre a fresco, secondo il principio NSCA di mettere per primo il movimento obiettivo — e il budget tempo delle sedute complete sale da 32 a 35 minuti (tetto 38).
@@ -191,7 +211,7 @@ All'apertura scorre un'intro di tre secondi: l'anello del marchio si disegna, le
 - Durante l'esercizio: segna le serie completate, scrivi il carico, dai il feedback con le tre frecce, premi **Ho finito la serie**: parte il timer di recupero, con un rintocco su ciascuno degli ultimi 3 secondi e colpo finale più acuto.
 - **Esercizi a tempo** (stretching statico, plank, wall sit): il pulsante diventa *Avvia 30 secondi* e fa partire il cronometro della tenuta, in verde. Prima del conteggio ci sono **3 secondi di preparazione**, scanditi da un rintocco ciascuno, mostrati come sola cifra al centro del cerchio; al termine parte da solo il recupero.
 - **Esercizi da fare un lato alla volta** (split squat, rematore a un braccio, plank laterale, quasi tutti gli allungamenti) hanno sempre un **numero pari di serie**, così destra e sinistra ricevono lo stesso lavoro: il contatore mostra `1 Sx`, `1 Dx`, `2 Sx`… e il pulsante di avvio indica il lato da fare.
-- **Cambia esercizio**: apre una pagina di scelta con le alternative disponibili, ordinate per pertinenza rispetto a quello in programma — pesano lo schema di movimento, il ruolo nel blocco trazioni, il gruppo, i muscoli primari condivisi e il tipo di carico — ciascuna con l'illustrazione, l'attrezzatura e il motivo per cui è proposta. L'esercizio previsto compare in cima con il pulsante *Mantieni*, quindi decidi tu se cambiare. Lo stesso vale dalla scheda esercizio (*Sostituisci con un altro esercizio*) e prima di iniziare, dall'elenco di Oggi.
+- **Cambia esercizio**: apre una pagina di scelta (si esce con *Indietro*, che non modifica nulla) con le alternative disponibili, ordinate per pertinenza rispetto a quello in programma — pesano lo schema di movimento, il ruolo nel blocco trazioni, il gruppo, i muscoli primari condivisi e il tipo di carico — ciascuna con l'illustrazione, l'attrezzatura e il motivo per cui è proposta. L'esercizio previsto compare in cima con il pulsante *Mantieni*, quindi decidi tu se cambiare. Lo stesso vale dalla scheda esercizio (*Sostituisci con un altro esercizio*) e prima di iniziare, dall'elenco di Oggi.
 - **Dai muscoli agli esercizi**: nella scheda esercizio le etichette dei muscoli coinvolti sono toccabili e aprono l'elenco di tutti gli esercizi che lavorano quel muscolo con l'attrezzatura selezionata, sempre con la possibilità di sostituire quello in programma o di tenerlo.
 - **Esercizio precedente**: il pulsante *‹ Precedente* torna indietro nella scaletta per correggere un carico o completare una serie saltata. Lo storico non si sdoppia: il record dell'esercizio viene aggiornato, non duplicato.
 - **Ordine degli esercizi**: se una macchina o un attrezzo è occupato, usa *Rimanda a dopo* (sposta l'esercizio corrente in fondo) oppure *Ordine esercizi*, che apre la scaletta di quello che resta da fare con le frecce su/giù. Serie già completate, carico e feedback seguono l'esercizio spostato.

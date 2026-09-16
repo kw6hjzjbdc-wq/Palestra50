@@ -98,6 +98,245 @@
  },
  "programs": [
   {
+   "id": "macro2027",
+   "name": "Macrociclo → 30 maggio 2027",
+   "target": "2027-05-30",
+   "cycleWeeks": 4,
+   "periodization": "macrociclo a fasi: adattamento → ipertrofia → forza → ipertrofia → misto → densità e tono",
+   "summary": "Programma lungo 37 settimane che arriva al 30 maggio 2027. Tre sedute di pesi e due di mobilità ogni settimana, con l'obiettivo che cambia fase dopo fase: prima si preparano tessuti e tecnica, poi si accumula volume per l'ipertrofia, si alza il tetto di forza per poter poi allenarsi con carichi più alti, si torna sul volume, e si chiude con densità e tono. Ogni quarta settimana è di scarico.",
+   "kneeSafeFirst": true,
+   "phases": [
+    {
+     "name": "Adattamento",
+     "weeks": 4,
+     "goals": [
+      "endurance",
+      "hypertrophy",
+      "endurance"
+     ],
+     "aim": "Preparare tendini, articolazioni e tecnica prima di alzare i carichi.",
+     "aerobic": "Fine settimana: una corsa facile di 30-40 minuti, conversazione possibile.",
+     "stretchEmphasis": 0
+    },
+    {
+     "name": "Ipertrofia 1",
+     "weeks": 8,
+     "goals": [
+      "hypertrophy",
+      "strength",
+      "hypertrophy"
+     ],
+     "aim": "Accumulo di volume nella fascia 8-12 ripetizioni: è qui che si costruisce il grosso della massa muscolare.",
+     "aerobic": "Fine settimana: una corsa facile, al massimo due, mai il giorno prima della seduta di gambe.",
+     "stretchEmphasis": 0
+    },
+    {
+     "name": "Forza",
+     "weeks": 6,
+     "goals": [
+      "strength",
+      "hypertrophy",
+      "strength"
+     ],
+     "aim": "Alzare il tetto di carico con 4-6 ripetizioni: più forza oggi significa poter usare pesi più alti nella fase di volume successiva, quindi più stimolo per l'ipertrofia.",
+     "aerobic": "Fine settimana: una sola uscita facile, per non interferire con il recupero nervoso.",
+     "stretchEmphasis": 1
+    },
+    {
+     "name": "Ipertrofia 2",
+     "weeks": 8,
+     "goals": [
+      "hypertrophy",
+      "hypertrophy",
+      "endurance"
+     ],
+     "aim": "Secondo blocco di volume, ora con i carichi più alti guadagnati nella fase di forza: è la fase in cui il volume muscolare diventa visibile.",
+     "aerobic": "Fine settimana: una o due corse facili, utili per il controllo del grasso addominale.",
+     "stretchEmphasis": 0
+    },
+    {
+     "name": "Forza-ipertrofia",
+     "weeks": 5,
+     "goals": [
+      "strength",
+      "hypertrophy",
+      "hypertrophy"
+     ],
+     "aim": "Blocco misto: si mantiene la forza e si continua a stimolare la crescita, riducendo il rischio di stallo.",
+     "aerobic": "Fine settimana: una corsa facile più un'uscita lunga a ritmo blando, se le gambe rispondono bene.",
+     "stretchEmphasis": 1
+    },
+    {
+     "name": "Densità e tono",
+     "weeks": 5,
+     "goals": [
+      "hypertrophy",
+      "endurance",
+      "endurance"
+     ],
+     "aim": "Recuperi più brevi e più lavoro sul core: si mantiene la massa costruita e si lavora sulla definizione, che è ciò che rende visibile il muscolo.",
+     "aerobic": "Fine settimana: due uscite, una facile e una un po' più mossa.",
+     "stretchEmphasis": 2
+    },
+    {
+     "name": "Rifinitura",
+     "weeks": 1,
+     "goals": [
+      "hypertrophy",
+      "endurance",
+      "hypertrophy"
+     ],
+     "aim": "Settimana finale leggera: volume ridotto, mobilità curata, arrivi al 30 maggio scarico e in forma.",
+     "aerobic": "Fine settimana: una corsa breve e rilassata.",
+     "stretchEmphasis": 2,
+     "deload": true
+    }
+   ],
+   "strengthDays": [
+    {
+     "label": "Forza A · Gambe e spinta",
+     "goal": "hypertrophy",
+     "slots": [
+      {
+       "patterns": [
+        "squat"
+       ],
+       "note": "Multiarticolare gambe"
+      },
+      {
+       "patterns": [
+        "pushH"
+       ]
+      },
+      {
+       "patterns": [
+        "hinge"
+       ],
+       "note": "Catena posteriore"
+      },
+      {
+       "patterns": [
+        "pullH",
+        "pullV"
+       ]
+      },
+      {
+       "patterns": [
+        "quadIso",
+        "hamIso",
+        "calf"
+       ],
+       "note": "Rinforzo articolare mirato"
+      }
+     ]
+    },
+    {
+     "label": "Forza B · Parte alta e unilaterale",
+     "goal": "strength",
+     "slots": [
+      {
+       "patterns": [
+        "pushV",
+        "pushH"
+       ]
+      },
+      {
+       "patterns": [
+        "pullV",
+        "pullH"
+       ]
+      },
+      {
+       "patterns": [
+        "lunge",
+        "squat"
+       ],
+       "note": "Lavoro unilaterale"
+      },
+      {
+       "patterns": [
+        "arms"
+       ]
+      },
+      {
+       "patterns": [
+        "coreAnti"
+       ],
+       "goal": "core"
+      }
+     ]
+    },
+    {
+     "label": "Forza C · Full body e core",
+     "goal": "endurance",
+     "slots": [
+      {
+       "patterns": [
+        "hinge"
+       ]
+      },
+      {
+       "patterns": [
+        "squat",
+        "lunge"
+       ]
+      },
+      {
+       "patterns": [
+        "pullH"
+       ]
+      },
+      {
+       "patterns": [
+        "pushH"
+       ]
+      },
+      {
+       "patterns": [
+        "calf",
+        "shoulderIso"
+       ]
+      },
+      {
+       "patterns": [
+        "coreAnti",
+        "coreFlex"
+       ],
+       "goal": "core"
+      }
+     ]
+    }
+   ],
+   "stretchDays": [
+    {
+     "label": "Mobilità · Anca, gambe e ginocchio",
+     "dynamic": 2,
+     "staticGroups": [
+      "Quadricipiti",
+      "Catena posteriore",
+      "Anca",
+      "Glutei",
+      "Polpacci",
+      "Adduttori"
+     ],
+     "count": 6
+    },
+    {
+     "label": "Mobilità · Colonna, spalle e parte alta",
+     "dynamic": 2,
+     "staticGroups": [
+      "Colonna",
+      "Petto",
+      "Dorso",
+      "Collo",
+      "Anca",
+      "Adduttori"
+     ],
+     "count": 6
+    }
+   ]
+  },
+  {
    "id": "tono50",
    "name": "Tono e ginocchio protetto",
    "cycleWeeks": 4,

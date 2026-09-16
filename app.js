@@ -29,7 +29,8 @@ let wakeLock = null, timerHandle = null;
 const DEFAULT_STATE = {
   v: 1,
   setup: 'gym',            // 'gym' | 'home'
-  programId: 'tono50',
+  programId: 'macro2027',
+  macroMigrated: false,    // passaggio una tantum al macrociclo
   sessionIndex: 0,         // numero progressivo della prossima sessione da fare
   kneeCare: true,          // dà priorità agli esercizi a basso impatto sul ginocchio
   shoulderCare: true,      // esclude gli esercizi critici per il conflitto subacromiale
@@ -46,6 +47,16 @@ const DEFAULT_STATE = {
 function load() {
   try { S = Object.assign({}, DEFAULT_STATE, JSON.parse(localStorage.getItem(KEY) || '{}')); }
   catch (e) { S = Object.assign({}, DEFAULT_STATE); }
+}
+
+/* Passaggio al macrociclo fino al 30 maggio 2027. Cambia solo il programma
+   attivo: indice della settimana, storico dei carichi, valutazioni e backup
+   restano intatti. Si può sempre tornare a un altro programma da Programma. */
+function migrateToMacro() {
+  if (S.macroMigrated) return;
+  S.macroMigrated = true;
+  if (PROG.programs.some(p => p.id === 'macro2027')) S.programId = 'macro2027';
+  save();
 }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
 
@@ -322,16 +333,44 @@ function swapDay(posA, posB) {
   save();
 }
 
+/* Nei programmi a fasi (macrociclo) ogni fase ha il proprio obiettivo e la
+   propria durata; dentro la fase si lavora a blocchi di 4 settimane con la
+   quarta di scarico. Restituisce la fase e la settimana al suo interno. */
+function phaseOf(p, weekAbs) {
+  if (!p.phases) return null;
+  let acc = 0;
+  for (let i = 0; i < p.phases.length; i++) {
+    const ph = p.phases[i];
+    if (weekAbs <= acc + ph.weeks) return { ph, index: i, weekInPhase: weekAbs - acc, start: acc };
+    acc += ph.weeks;
+  }
+  const last = p.phases[p.phases.length - 1];       // oltre la fine: si resta sull'ultima fase
+  return { ph: last, index: p.phases.length - 1, weekInPhase: ((weekAbs - acc - 1) % last.weeks) + 1, start: acc, over: true };
+}
+const totalWeeks = p => (p.phases ? p.phases.reduce((a, f) => a + f.weeks, 0) : 0);
+
 function sessionMeta(idx) {
   const p = program();
   const weekAbs = Math.floor(idx / 5) + 1;
   const dayInWeek = weekPerm(weekAbs)[idx % 5];
-  const weekInCycle = ((weekAbs - 1) % p.cycleWeeks) + 1;
-  const mesocycle = Math.floor((weekAbs - 1) / p.cycleWeeks) + 1;
   const isStrength = DAYS_STRENGTH.includes(dayInWeek);
-  return { idx, dayInWeek, pos: (idx % 5) + 1, weekAbs, weekInCycle, mesocycle, isStrength,
-           tmplIdx: isStrength ? DAYS_STRENGTH.indexOf(dayInWeek) : DAYS_STRETCH.indexOf(dayInWeek),
-           profile: weekProfile(weekInCycle, p.cycleWeeks), program: p };
+  const ph = phaseOf(p, weekAbs);
+
+  let weekInCycle, mesocycle, cycleLen, profile;
+  if (ph) {
+    cycleLen = 4;                                   // blocchi di 4 settimane dentro la fase
+    weekInCycle = ph.ph.deload ? 4 : ((ph.weekInPhase - 1) % 4) + 1;   // fase di rifinitura = scarico
+    mesocycle = ph.index * 3 + Math.floor((ph.weekInPhase - 1) / 4) + 1;
+    profile = weekProfile(weekInCycle, cycleLen);
+  } else {
+    cycleLen = p.cycleWeeks;
+    weekInCycle = ((weekAbs - 1) % cycleLen) + 1;
+    mesocycle = Math.floor((weekAbs - 1) / cycleLen) + 1;
+    profile = weekProfile(weekInCycle, cycleLen);
+  }
+  return { idx, dayInWeek, pos: (idx % 5) + 1, weekAbs, weekInCycle, cycleLen, mesocycle, isStrength,
+           phase: ph, tmplIdx: isStrength ? DAYS_STRENGTH.indexOf(dayInWeek) : DAYS_STRETCH.indexOf(dayInWeek),
+           profile, program: p };
 }
 
 /* Filtri di sicurezza applicati a ogni pool di esercizi.
@@ -424,12 +463,16 @@ function buildStrength(meta) {
     const rot = (meta.mesocycle - 1) * (meta.tmplIdx + 2) + i;   // rotazione per mesociclo
     const ex = pickFrom(pool, rot, used);
     if (!ex) return;
-    const goalKey = slot.goal || tmpl.goal;
+    // nei programmi a fasi l'obiettivo del giorno lo decide la fase in corso
+    const dayGoal = (meta.phase && meta.phase.ph.goals && meta.phase.ph.goals[meta.tmplIdx]) || tmpl.goal;
+    const goalKey = slot.goal || dayGoal;
     items.push({ exId: ex.id, note: slot.note || '', goalKey,
                  alt: { patterns: slot.patterns.slice(), types: ['strength', 'core'] },
                  ...dose(goalKey, meta.profile, ex) });
   });
-  return { label: tmpl.label, type: 'strength', items };
+  const gLabel = meta.phase && PROG.goals[(meta.phase.ph.goals || [])[meta.tmplIdx]]
+    ? PROG.goals[meta.phase.ph.goals[meta.tmplIdx]].label : '';
+  return { label: tmpl.label, type: 'strength', items, dayGoalLabel: gLabel };
 }
 
 function buildStretch(meta) {
@@ -624,14 +667,15 @@ function openExercisePicker(item, sess, after, opts) {
   openModal(`<h2>${esc(o.title || 'Sostituisci esercizio')}</h2>
     <p class="small muted">${esc(o.subtitle || 'In ordine di pertinenza rispetto a “' + (cur ? cur.name : '') + '”. Puoi anche tenere quello previsto dal programma.')}</p>
     <ul class="picker">${rows || '<li><span class="small muted">Nessuna alternativa disponibile con l\'attrezzatura selezionata.</span></li>'}</ul>
-    <button class="btn ghost" id="pickKeep" style="margin-top:14px">Tieni l'esercizio in programma</button>`);
+    <button class="btn ghost" id="pickKeep" style="margin-top:14px">Indietro</button>`);
 
   document.querySelectorAll('[data-pickex]').forEach(li => li.onclick = () => {
     const ex = exById(li.dataset.pickex);
     const changed = applyExercise(item, sess, ex);
     closeModal(() => { if (after) after(changed); });
   });
-  $('#pickKeep').onclick = () => closeModal(() => { if (after) after(false); });
+  // "Indietro" chiude il pannello e riporta alla pagina sottostante senza modifiche
+  $('#pickKeep').onclick = () => closeModal();
 }
 
 /* Elenco degli esercizi che coinvolgono un gruppo muscolare, richiamato
@@ -660,6 +704,14 @@ function openMusclePicker(muscle, item, sess, after) {
 
 /* La seduta del giorno viene generata una volta sola e tenuta in memoria: così
    le sostituzioni fatte dalla home restano valide quando si preme "Inizia". */
+function weeksLeftText(p, weekAbs) {
+  const tot = totalWeeks(p);
+  if (!tot) return '';
+  const left = tot - weekAbs;
+  if (left > 0) return `, ${left} alla chiusura del 30 maggio 2027`;
+  return ', ultima settimana del programma';
+}
+
 function todaySession(kind) {
   const key = `${S.programId}|${S.setup}|${S.sessionIndex}|${kind || ''}`;
   if (!planCache || planCache.key !== key) planCache = { key, sess: buildSession(S.sessionIndex, kind) };
@@ -737,10 +789,13 @@ function renderHome() {
 
     <div class="card">
       <div class="kicker" style="font-family:var(--cond);letter-spacing:.06em;text-transform:uppercase;font-size:13px;color:var(--muted)">
-        Settimana ${s.weekInCycle} di ${p.cycleWeeks} · ${esc(p.name)}</div>
+        ${s.phase ? `Fase ${s.phase.index + 1} di ${p.phases.length} · ${esc(s.phase.ph.name)}`
+                  : `Settimana ${s.weekInCycle} di ${p.cycleWeeks} · ${esc(p.name)}`}</div>
       <h2 style="margin-top:2px">La tua settimana</h2>
+      ${s.phase ? `<p class="small muted" style="margin:6px 0 0">Settimana ${s.phase.weekInPhase} di ${s.phase.ph.weeks} della fase, ${s.weekAbs} di ${totalWeeks(p)} del programma${weeksLeftText(p, s.weekAbs)}. ${esc(s.phase.ph.aim)}</p>` : ''}
       <ul class="week">${week}</ul>
       <p class="small muted" style="margin-top:10px">Tocca la seduta che vuoi fare adesso: quella prevista oggi prenderà il suo posto più avanti nella settimana.</p>
+      ${s.phase && s.phase.ph.aerobic ? `<div class="weekend"><span class="wknum core">~</span><div class="nm"><b>Fine settimana, facoltativo</b><div class="small muted">${esc(s.phase.ph.aerobic)}</div></div></div>` : ''}
     </div>
 
     <div class="card">
@@ -1689,6 +1744,7 @@ function disclaimer() {
     document.body.innerHTML = '<p style="padding:24px">Impossibile caricare i dati degli esercizi. Apri l\'app da un server web (o dalla schermata Home dopo l\'installazione), non da file locale.</p>';
     return;
   }
+  migrateToMacro();
   go('home');
   // l'intro si anima per 3 secondi e resta sull'ultimo fotogramma: sparisce solo
   // quando l'utente tocca lo schermo, e solo dopo compare l'avvertenza

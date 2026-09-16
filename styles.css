@@ -411,8 +411,13 @@ h1,h2{letter-spacing:.005em}
 
 /* frase motivazionale dell'intro */
 .splash .quote{
-  max-width:300px;text-align:center;font-size:16px;line-height:1.4;color:var(--text);
-  font-style:italic;opacity:0;animation:fadeUp .8s 2.5s ease-out forwards;
+  position:absolute;left:24px;right:24px;bottom:calc(112px + env(safe-area-inset-bottom));
+  max-width:320px;margin:0 auto;text-align:center;font-size:16px;line-height:1.45;
+  color:var(--text);font-style:italic;opacity:0;animation:fadeUp .8s 2.5s ease-out forwards;
+}
+.splash .ver{
+  position:absolute;top:calc(env(safe-area-inset-top) + 18px);right:20px;
+  font-family:var(--cond);font-size:14px;letter-spacing:.1em;color:var(--muted);opacity:.85;
 }
 .splash .quote::before{content:"“"}
 .splash .quote::after{content:"”"}
@@ -490,3 +495,14 @@ h1,h2{letter-spacing:.005em}
 .picker .why{font-size:12px;color:var(--teal)}
 .tags span{cursor:pointer}
 .tags span:active{opacity:.6}
+
+/* suggerimento aerobico del fine settimana */
+.weekend{
+  display:flex;align-items:center;gap:12px;margin-top:10px;padding:10px;
+  border:1px dashed var(--line);border-radius:12px;background:rgba(79,195,161,.05);
+}
+.weekend .wknum{
+  width:34px;height:34px;flex:0 0 34px;border-radius:10px;display:grid;place-items:center;
+  font-family:var(--cond);font-size:18px;color:var(--teal);background:rgba(255,255,255,.04);
+  border:1px solid var(--line);
+}
