@@ -347,7 +347,7 @@
   },
   {
    "id": "g_backext",
-   "name": "Iperestensioni a 45°",
+   "name": "Iperestensioni orizzontali",
    "setup": [
     "gym"
    ],
@@ -364,26 +364,26 @@
     "Femorali"
    ],
    "equipment": [
-    "Panca a 45°"
+    "Panca lombare orizzontale"
    ],
    "art": {
     "frames": [
-     "hyperDown",
-     "hyperUp"
+     "proneStart",
+     "proneEnd"
     ],
     "implement": null
    },
    "steps": [
-    "Regola il cuscino appena sotto le creste iliache, caviglie bloccate.",
-    "Scendi flettendo l'anca con schiena neutra fino a sentire i femorali in tensione.",
-    "Risali fino all'allineamento tronco-gambe, senza andare oltre."
+    "Sdraiati prono sulla panca orizzontale con il bacino appoggiato sul cuscino e le caviglie bloccate.",
+    "Scendi flettendo l'anca con la schiena neutra fino a sentire i femorali in tensione.",
+    "Risali fino all'allineamento tra tronco e gambe, senza superarlo."
    ],
    "errors": [
     "Estendere oltre la linea del corpo iperestendendo la lombare.",
     "Slanciare il busto in risalita."
    ],
    "safety": [
-    "Se hai sensibilità lombare, mantieni ripetizioni lente e fermati all'allineamento."
+    "Sulla panca orizzontale l'escursione è maggiore rispetto alla versione a 45°: controlla la discesa e fermati all'allineamento in risalita."
    ],
    "source": "ACSM – rinforzo della muscolatura estensoria del tronco"
   },
@@ -1246,7 +1246,7 @@
   },
   {
    "id": "g_calfstanding",
-   "name": "Calf raise in piedi",
+   "name": "Calf raise in piedi con manubri",
    "setup": [
     "gym"
    ],
@@ -1288,7 +1288,7 @@
   },
   {
    "id": "g_calfseated",
-   "name": "Calf raise seduto",
+   "name": "Calf raise in piedi alla macchina",
    "setup": [
     "gym"
    ],
@@ -1298,34 +1298,35 @@
    "load": "weight",
    "kneeFriendly": true,
    "primary": [
-    "Soleo"
-   ],
-   "secondary": [
     "Gastrocnemio"
    ],
+   "secondary": [
+    "Soleo",
+    "Stabilizzatori caviglia"
+   ],
    "equipment": [
-    "Macchina calf seduto"
+    "Macchina calf in piedi"
    ],
    "art": {
     "frames": [
-     "seatedCalfDown",
-     "seatedCalfUp"
+     "stand",
+     "calfUp"
     ],
-    "implement": "thighPad"
+    "implement": "machine"
    },
    "steps": [
-    "Cuscino sulle cosce basse, avampiedi sul poggiapiedi.",
-    "Spingi sulle punte estendendo completamente la caviglia.",
-    "Scendi in 3 secondi fino al massimo allungamento."
+    "Spalle sotto i cuscinetti, avampiedi sulla pedana con i talloni liberi di scendere.",
+    "Sali sulle punte il più in alto possibile e mantieni un secondo la contrazione.",
+    "Scendi in 3 secondi fino al massimo allungamento del polpaccio."
    ],
    "errors": [
-    "Movimento breve e veloce.",
-    "Sollevare i talloni solo di pochi centimetri."
+    "Rimbalzare in basso senza controllo.",
+    "Escursione ridotta a metà movimento."
    ],
    "safety": [
-    "Con ginocchio flesso il lavoro si concentra sul soleo, utile per la resistenza in cammino."
+    "Con ginocchio esteso il lavoro si concentra sul gastrocnemio: polpacci forti stabilizzano caviglia e ginocchio."
    ],
-   "source": "NSCA – ipertrofia polpaccio"
+   "source": "NSCA – ipertrofia polpaccio alla macchina"
   },
   {
    "id": "h_squattempo",

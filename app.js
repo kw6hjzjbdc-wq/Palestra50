@@ -49,6 +49,34 @@ function load() {
   catch (e) { S = Object.assign({}, DEFAULT_STATE); }
 }
 
+/* Esercizi rinominati: le registrazioni restano agganciate all'identificativo,
+   qui si aggiorna solo il nome mostrato nello storico. */
+const RENAMED = {
+  g_backext: 'Iperestensioni orizzontali',
+  g_calfseated: 'Calf raise in piedi alla macchina',
+  g_calfstanding: 'Calf raise in piedi con manubri'
+};
+/* Il calf seduto è stato sostituito dal calf in piedi alla macchina: i carichi
+   registrati sul vecchio attrezzo non sono confrontabili con quelli del nuovo,
+   quindi vengono cancellati una volta sola per non falsare suggerimenti e
+   valutazioni. Tutti gli altri esercizi restano intatti. */
+function resetCalfLogs() {
+  if (S.calfReset) return;
+  S.calfReset = true;
+  const before = S.logs.length;
+  S.logs = S.logs.filter(l => l.exId !== 'g_calfseated');
+  if (S.logs.length !== before) planCache = null;
+  save();
+}
+
+function migrateNames() {
+  let touched = false;
+  S.logs.forEach(l => {
+    if (RENAMED[l.exId] && l.name !== RENAMED[l.exId]) { l.name = RENAMED[l.exId]; touched = true; }
+  });
+  if (touched) save();
+}
+
 /* Passaggio al macrociclo fino al 30 maggio 2027. Cambia solo il programma
    attivo: indice della settimana, storico dei carichi, valutazioni e backup
    restano intatti. Si può sempre tornare a un altro programma da Programma. */
@@ -930,7 +958,8 @@ function renderSession() {
       <p class="lasttime">${lastTxt}</p>
       ${jump}
 
-      <button class="btn ${timed ? 'teal' : ''}" id="doneSet" style="margin-top:16px">${timed ? 'Avvia ' + hold + ' secondi' + (it.perSide ? ' (' + (c.setsDone[c.pos] % 2 ? 'lato destro' : 'lato sinistro') + ')' : '') : 'Ho finito la serie'}</button>
+      <button class="btn ${timed ? 'teal' : ''}" id="doneSet" ${timerRunning() ? 'disabled' : ''} style="margin-top:16px">${timed ? 'Avvia ' + hold + ' secondi' + (it.perSide ? ' (' + (c.setsDone[c.pos] % 2 ? 'lato destro' : 'lato sinistro') + ')' : '') : 'Ho finito la serie'}</button>
+      ${timerRunning() ? `<p class="small muted" style="margin-top:8px">Timer in corso: il pulsante si riattiva allo scadere del recupero.</p>` : ''}
       ${timed ? `<p class="small muted" style="margin-top:8px">Tre secondi di preparazione scanditi dalla campanella, poi parte il conteggio: mantieni la posizione fino al rintocco finale. Gli ultimi tre secondi sono scanditi da un rintocco ciascuno.${it.goal === 'stretch' ? ' Ogni serie è un lato solo: il pulsante ti dice quale.' : ''}</p>` : ''}
       <div class="btn-row" style="margin-top:10px">
         <button class="btn ghost" id="infoBtn">Scheda esercizio</button>
@@ -972,6 +1001,7 @@ function renderSession() {
   };
 
   $('#doneSet').onclick = () => {
+    if (timerRunning()) return;                  // un timer è già in corso
     captureLoad();
     if (timed) {
       // cronometro della tenuta: al termine parte da solo il recupero
@@ -984,8 +1014,11 @@ function renderSession() {
     renderSession();
   });
   $('#prevBtn').onclick = () => { captureLoad(); if (c.pos > 0) { c.pos--; renderSession(); } };
-  $('#postponeBtn').onclick = () => { captureLoad(); stopTimer(); postponeCurrent(); };
+  $('#postponeBtn').onclick = () => { captureLoad(); timerCb = null; postponeCurrent(); };
   $('#orderBtn').onclick = () => { captureLoad(); openReorder(); };
+  // il timer di recupero accompagna al prossimo esercizio: passando avanti
+  // continua a scorrere, si stacca solo l'azione automatica che aveva in coda
+  const goNext = () => { timerCb = null; nextExercise(); };
   $('#nextBtn').onclick = () => {
     captureLoad();
     if (c.pos === s.items.length - 1) {
@@ -993,9 +1026,8 @@ function renderSession() {
         'Chiudi la sessione', () => { stopTimer(); nextExercise(); });
     } else if (c.setsDone[c.pos] < it.sets) {
       confirmAction('Passare al prossimo esercizio?',
-        `Hai completato ${c.setsDone[c.pos]} serie su ${it.sets}.`, 'Vai avanti',
-        () => { stopTimer(); nextExercise(); });
-    } else { stopTimer(); nextExercise(); }
+        `Hai completato ${c.setsDone[c.pos]} serie su ${it.sets}.`, 'Vai avanti', goNext);
+    } else goNext();
   };
   $('#abortBtn').onclick = () => confirmAction('Interrompere la sessione?',
     'Gli esercizi già conclusi restano nello storico, il resto della seduta viene abbandonato.',
@@ -1031,8 +1063,8 @@ function openReorder() {
       if (i < c.pos) return '';
       const ex = exById(it.exId);
       return `<li style="align-items:center">
-        <div class="nm" style="flex:1"><b>${esc(ex.name)}</b>
-          <div class="small muted">${esc(ex.group)} · ${doseText(it)}${i === c.pos ? ' · in corso' : ''}</div></div>
+        <div class="nm" style="flex:1" data-openex="${i}"><b>${esc(ex.name)}</b>
+          <div class="small muted">${esc(ex.group)} · ${doseText(it)}${i === c.pos ? ' · in corso' : ''} · scheda ›</div></div>
         <button class="mini-skip" data-up="${i}" ${i === c.pos ? 'disabled' : ''}>▲</button>
         <button class="mini-skip" data-down="${i}" ${i === s.items.length - 1 ? 'disabled' : ''}>▼</button>
       </li>`;
@@ -1043,6 +1075,10 @@ function openReorder() {
       <button class="btn" id="reorderOk" style="margin-top:14px">Fatto</button>`);
     document.querySelectorAll('[data-up]').forEach(b => b.onclick = () => { moveItem(+b.dataset.up, +b.dataset.up - 1); draw(); });
     document.querySelectorAll('[data-down]').forEach(b => b.onclick = () => { moveItem(+b.dataset.down, +b.dataset.down + 1); draw(); });
+    document.querySelectorAll('[data-openex]').forEach(el => el.onclick = () => {
+      const i = +el.dataset.openex, item = s.items[i];
+      closeModal(() => openSheet(exById(item.exId), item, { sess: s, after: () => renderSession() }));
+    });
     $('#reorderOk').onclick = () => { closeModal(); renderSession(); };
   };
   draw();
@@ -1158,6 +1194,15 @@ function openSheet(ex, it, ctx) {
       <div>${figureFor(ex, 1)}<div class="small muted" style="text-align:center">posizione finale</div></div>
     </div>
     ${it ? `<p class="small muted">Oggi: ${doseText(it)}, recupero ${it.rest}s, RPE ${esc(it.rpe)}. ${esc(it.source)}</p>` : ''}
+    ${(() => {
+      const sug = suggestLoad(ex), last = sug && sug.last;
+      if (!last) return `<div class="notice" style="margin-top:10px">Nessuna registrazione precedente per questo esercizio: parti prudente e annota il carico.</div>`;
+      return `<div class="notice" style="margin-top:10px">
+        <b>Ultima volta</b> (${new Date(last.ts).toLocaleDateString('it-IT')}): ${esc(last.load || '—')} ${arrow(last.feedback)} ${starsHtml(last.stars)}
+        ${last.rateText ? `<div class="small" style="opacity:.85">${esc(last.rateText)}</div>` : ''}
+        ${sug.value ? `<div style="margin-top:6px"><b>Suggerito oggi:</b> ${esc(sug.value)}</div>` : ''}
+      </div>`;
+    })()}
     <div class="block"><h3>Esecuzione</h3><ol>${ex.steps.map(s => `<li>${esc(s)}</li>`).join('')}</ol></div>
     <div class="block"><h3>Muscoli coinvolti</h3>
       <div class="tags">${ex.primary.map(m => `<span data-muscle="${esc(m)}">${esc(m)} ›</span>`).join('')}
@@ -1169,6 +1214,7 @@ function openSheet(ex, it, ctx) {
     ${ctx ? `<button class="btn ghost" id="sheetSwap" style="margin-top:18px">Sostituisci con un altro esercizio</button>` : ''}
     <button class="btn secondary" id="closeSheet" style="margin-top:10px">Chiudi</button>`;
   $('#sheet').classList.add('on');
+  $('#sheetPanel').scrollTop = 0;                // si apre sempre dalla cima
   $('#closeSheet').onclick = closeSheet;
   if (ctx && $('#sheetSwap')) $('#sheetSwap').onclick = () => {
     closeSheet();
@@ -1330,8 +1376,15 @@ function detailFor(exId, logs) {
   openModal(`<h2>${esc(ex.name)}</h2>
     <div style="height:110px;margin:10px 0">${bigChart(logs)}</div>
     <ul class="hist">${rows}</ul>
-    <button class="btn secondary" id="closeModal" style="margin-top:16px">Chiudi</button>`);
+    <button class="btn secondary" id="closeModal" style="margin-top:16px">Chiudi</button>
+    <button class="btn ghost" id="wipeEx" style="margin-top:10px">Cancella lo storico di questo esercizio</button>`);
   $('#closeModal').onclick = closeModal;
+  $('#wipeEx').onclick = () => confirmAction('Cancellare lo storico?',
+    `Verranno eliminate le ${logs.length} registrazioni di ${ex.name}. Gli altri esercizi non vengono toccati e l'operazione non è reversibile.`,
+    'Cancella', () => {
+      S.logs = S.logs.filter(l => l.exId !== exId);
+      save(); renderHistory();
+    });
 }
 function bigChart(logs) {
   const vals = logs.map(l => parseFloat(l.load)).filter(n => isFinite(n));
@@ -1407,14 +1460,8 @@ function renderSettings() {
   $('#kneeChk').onchange = e => { S.kneeCare = e.target.checked; save(); };
   $('#pullChk').onchange = e => { S.pullupGoal = e.target.checked; planCache = null; save(); };
   $('#shoulderChk').onchange = e => { S.shoulderCare = e.target.checked; planCache = null; save(); };
-  $('#soundChk').onchange = e => { S.sound = e.target.checked; save(); if (e.target.checked) { unlockAudio(); setTimeout(() => ding(false), 350); } };
-  $('#testSound').onclick = () => {
-    unlockAudio();
-    setTimeout(() => ding(false), 250);
-    setTimeout(() => ding(false), 1250);
-    setTimeout(() => ding(false), 2250);
-    setTimeout(() => ding(true), 3250);
-  };
+  $('#soundChk').onchange = e => { S.sound = e.target.checked; save(); if (e.target.checked) testBells(); };
+  $('#testSound').onclick = testBells;
   $('#prevSess').onclick = () => { S.sessionIndex = Math.max(0, S.sessionIndex - 1); save(); renderSettings(); };
   $('#nextSess').onclick = () => { S.sessionIndex++; save(); renderSettings(); };
   $('#exportBtn').onclick = exportData;
@@ -1466,96 +1513,117 @@ function importData(file) {
 /* ---------------------------------------------------------------------------
    7. TIMER, AUDIO, WAKE LOCK
 --------------------------------------------------------------------------- */
-/* --- AUDIO ------------------------------------------------------------------
-   Su iOS il suono generato con Web Audio è spesso inaudibile: il contesto viene
-   sospeso appena l'app perde il fuoco e il volume segue il canale "suoneria".
-   Per questo la campanella è un file WAV generato al volo e riprodotto con un
-   elemento <audio> (canale multimediale, più affidabile), con Web Audio come
-   riserva. Gli elementi vengono "sbloccati" al primo tocco dell'utente.
+/* --- CAMPANELLE (riscritte da zero) -----------------------------------------
+   Idea di fondo: invece di programmare molti suoni con dei timer — soluzione
+   che su iOS produce rintocchi sfasati e, con l'app in secondo piano, nessun
+   suono — l'app costruisce UNA sola traccia audio che contiene già il silenzio
+   e i rintocchi nei punti esatti, e la manda in riproduzione all'avvio del
+   timer. Da lì in poi il tempo lo tiene il motore audio del telefono:
+     · i rintocchi cadono precisi al campione, mai accavallati;
+     · continuano se apri un'altra schermata dell'app;
+     · continuano finché iOS lascia proseguire la riproduzione in background.
+   La sessione audio è dichiarata 'ambient': si mescola all'audio delle altre
+   app, quindi Spotify o YouTube non vengono mai interrotti né abbassati, e la
+   campanella si sovrappone alla musica.
 ----------------------------------------------------------------------------- */
-let bells = { short: [], final: [], ready: false }, bellIdx = 0;
+const BELL_SR = 8000;            // basta per una campana a 880 Hz
+const BELL_LOW = 880;            // rintocco dei secondi
+const BELL_HIGH = 1319;          // colpo di via e colpo finale
 
-/* Sintetizza una campanella e la restituisce come data URI WAV. */
-function wavDataUri(freqs, dur, decay) {
-  const sr = 22050, n = Math.floor(sr * dur);
-  const bytes = new Uint8Array(44 + n * 2), dv = new DataView(bytes.buffer);
-  const wr = (o, t) => { for (let i = 0; i < t.length; i++) bytes[o + i] = t.charCodeAt(i); };
-  wr(0, 'RIFF'); dv.setUint32(4, 36 + n * 2, true); wr(8, 'WAVEfmt ');
-  dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true);
-  dv.setUint32(24, sr, true); dv.setUint32(28, sr * 2, true);
-  dv.setUint16(32, 2, true); dv.setUint16(34, 16, true);
-  wr(36, 'data'); dv.setUint32(40, n * 2, true);
-  for (let i = 0; i < n; i++) {
-    const t = i / sr;
-    let v = 0;
-    freqs.forEach((f, k) => { v += Math.sin(2 * Math.PI * f * t) / (k + 1.5); });
-    const attack = Math.min(1, t / 0.006);            // percussione morbida, senza click
-    v *= attack * Math.exp(-t * decay) * 0.92;
-    dv.setInt16(44 + i * 2, Math.max(-1, Math.min(1, v)) * 32767, true);
-  }
-  let bin = '';
-  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-  return 'data:audio/wav;base64,' + btoa(bin);
-}
+let bellTrack = null, bellUrl = null;
 
-function buildAudio() {
-  if (bells.short.length) return;
-  // Una sola campana per rintocco: un unico timbro, niente accordi sovrapposti.
-  // Cambia solo l'altezza fra i secondi (La5) e il colpo finale (Mi6).
-  const s1 = wavDataUri([880], 0.55, 7);
-  const s2 = wavDataUri([1319], 1.0, 4.2);
-  for (let i = 0; i < 2; i++) {
-    const a = new Audio(s1), b = new Audio(s2);
-    a.preload = b.preload = 'auto';
-    bells.short.push(a); bells.final.push(b);
-  }
-}
-
-/* Categoria della sessione audio di iOS (Safari 17+). Se l'API non è
-   disponibile vale il comportamento di sistema. */
 function setAudioSession() {
   try {
-    if (!navigator.audioSession) return;
-    // 'transient' = suono breve che si SOVRAPPONE alla musica abbassandola per
-    // un istante. Non si usa mai 'playback' né 'transient-solo', che metterebbero
-    // in pausa Spotify o YouTube: la campanella deve coprire la musica, mai
-    // interromperla.
-    navigator.audioSession.type = 'transient';
+    if (navigator.audioSession) navigator.audioSession.type = 'ambient';
   } catch (e) {}
 }
 
-/* Va chiamata dentro un gesto dell'utente (tocco su un pulsante): "sblocca" gli
-   elementi audio, che è la condizione posta da Safari per poterli riprodurre
-   più tardi da un timer. Nessun contesto Web Audio viene tenuto aperto: un
-   contesto attivo manterrebbe occupata la sessione audio del telefono e
-   terrebbe la musica abbassata per tutta la durata del recupero. */
-function unlockAudio() {
-  buildAudio();
-  setAudioSession();
-  bells.short.concat(bells.final).forEach(a => {
-    a.volume = 0;
-    const p = a.play();
-    const reset = () => { try { a.pause(); a.currentTime = 0; } catch (e) {} a.volume = 1; bells.ready = true; };
-    if (p && p.then) p.then(reset).catch(() => { a.volume = 1; }); else reset();
-  });
+/* Scrive l'intestazione WAV e restituisce la vista sui campioni. */
+function wavBuffer(samples) {
+  const bytes = new Uint8Array(44 + samples * 2), dv = new DataView(bytes.buffer);
+  const wr = (o, t) => { for (let i = 0; i < t.length; i++) bytes[o + i] = t.charCodeAt(i); };
+  wr(0, 'RIFF'); dv.setUint32(4, 36 + samples * 2, true); wr(8, 'WAVEfmt ');
+  dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true);
+  dv.setUint32(24, BELL_SR, true); dv.setUint32(28, BELL_SR * 2, true);
+  dv.setUint16(32, 2, true); dv.setUint16(34, 16, true);
+  wr(36, 'data'); dv.setUint32(40, samples * 2, true);
+  return { bytes, dv };
 }
 
-/* Un rintocco: una sola campana per volta, breve, così la musica torna subito
-   al volume pieno. */
-function ding(isFinal) {
-  if (S && S.sound === false) return;
-  const pool = isFinal ? bells.final : bells.short;
-  // zittisce un eventuale rintocco ancora in coda: mai due campane insieme
-  bells.short.concat(bells.final).forEach(a => {
-    try { if (!a.paused) { a.pause(); a.currentTime = 0; } } catch (e) {}
-  });
-  if (pool.length) {
-    const a = pool[bellIdx++ % pool.length];
-    try { a.currentTime = 0; a.volume = 1; const p = a.play(); if (p && p.catch) p.catch(() => {}); }
-    catch (e) {}
+/* Disegna un singolo rintocco nella traccia, a partire dal secondo indicato.
+   Una sola sinusoide: una campana per volta, nessuna sovrapposizione. */
+function renderTock(dv, total, atSec, high) {
+  const f = high ? BELL_HIGH : BELL_LOW;
+  const dur = high ? 1.1 : 0.55, decay = high ? 4.2 : 7;
+  let i0 = Math.round(atSec * BELL_SR);
+  if (i0 < 0) return;
+  const n = Math.min(Math.round(dur * BELL_SR), total - i0);
+  for (let i = 0; i < n; i++) {
+    const t = i / BELL_SR;
+    const attack = Math.min(1, t / 0.005);
+    const v = Math.sin(2 * Math.PI * f * t) * attack * Math.exp(-t * decay) * 0.97;
+    dv.setInt16(44 + (i0 + i) * 2, v * 32767, true);
   }
-  if (navigator.vibrate) navigator.vibrate(isFinal ? [150, 70, 150] : 70);
 }
+
+/* Costruisce la traccia di un timer: silenzio + rintocchi ai secondi giusti.
+   marks = elenco di [secondo, acuto?]. */
+function bellTrackFor(leadSec, durSec) {
+  const tail = 1.3, totalSec = leadSec + durSec + tail;
+  const total = Math.ceil(totalSec * BELL_SR);
+  const { bytes, dv } = wavBuffer(total);
+  const marks = [];
+  for (let k = 3; k >= 1; k--) if (leadSec >= k) marks.push([leadSec - k, false]);
+  if (leadSec > 0) marks.push([leadSec, true]);              // via!
+  for (let k = 3; k >= 1; k--) if (durSec >= k) marks.push([leadSec + durSec - k, false]);
+  marks.push([leadSec + durSec, true]);                      // fine
+  marks.forEach(m => renderTock(dv, total, m[0], m[1]));
+  return new Blob([bytes], { type: 'audio/wav' });
+}
+
+function stopBells() {
+  if (bellTrack) { try { bellTrack.pause(); } catch (e) {} }
+  if (bellUrl) { try { URL.revokeObjectURL(bellUrl); } catch (e) {} }
+  bellTrack = null; bellUrl = null;
+}
+
+/* Avvia la traccia. offset = secondi già trascorsi (per riallineare al rientro
+   in primo piano o dopo un +/- 15 s). */
+function playBells(leadSec, durSec, offset) {
+  stopBells();
+  if (S && S.sound === false) return;
+  try {
+    setAudioSession();
+    bellUrl = URL.createObjectURL(bellTrackFor(leadSec, durSec));
+    bellTrack = new Audio(bellUrl);
+    bellTrack.preload = 'auto';
+    bellTrack.volume = 1;
+    if (offset > 0) {
+      const seek = () => { try { bellTrack.currentTime = offset; } catch (e) {} };
+      bellTrack.addEventListener('loadedmetadata', seek, { once: true });
+      seek();
+    }
+    const p = bellTrack.play();
+    if (p && p.catch) p.catch(() => {});
+  } catch (e) {}
+}
+
+/* Riallinea la traccia al contatore: usata al rientro in primo piano. */
+function resyncBells(elapsed) {
+  if (!bellTrack) return;
+  try {
+    if (Math.abs(bellTrack.currentTime - elapsed) > 0.35) bellTrack.currentTime = elapsed;
+    if (bellTrack.paused) { const p = bellTrack.play(); if (p && p.catch) p.catch(() => {}); }
+  } catch (e) {}
+}
+
+/* Prova della campanella dalle impostazioni: tre rintocchi e colpo finale. */
+function testBells() {
+  playBells(4, 0.001, 0);
+}
+
+/* Sblocco dell'audio al primo tocco dell'utente, richiesto da Safari. */
+function unlockAudio() { setAudioSession(); }
 
 /* --- TIMER ------------------------------------------------------------------
    Un solo timer per tutta l'app, con due modalità:
@@ -1564,43 +1632,15 @@ function ding(isFinal) {
    Può essere ridotto a icona: continua a girare e resta visibile mentre si
    naviga nel resto dell'app.
 ----------------------------------------------------------------------------- */
-let timerEnd = 0, timerStart = 0, timerTotal = 0, timerCb = null, timerMode = 'rest';
-let bellTimers = [];
-const AUDIO_LATENCY = 40;      // ms di anticipo per compensare la latenza di play()
-
-function clearBellTimers() { bellTimers.forEach(clearTimeout); bellTimers = []; }
-
-/* Ogni rintocco ha il proprio timeout calcolato sull'istante esatto in cui il
-   contatore cambia secondo, con un piccolo anticipo per la latenza di
-   riproduzione. Un solo meccanismo, quindi nessun rischio di doppioni o di
-   rintocchi che si accavallano. Se un timeout arriva in forte ritardo (app
-   messa da parte e ripresa) viene scartato invece di suonare fuori tempo. */
-function scheduleBells() {
-  clearBellTimers();
-  const marks = [];
-  if (timerStart > Date.now()) {                 // secondi di preparazione
-    for (let k = 3; k >= 1; k--) marks.push([timerStart - k * 1000, false]);
-    marks.push([timerStart, true]);              // via!
-  }
-  for (let k = 3; k >= 1; k--) marks.push([timerEnd - k * 1000, false]);
-  marks.push([timerEnd, true]);                  // fine del conteggio
-
-  marks.forEach(m => {
-    const at = m[0], delay = at - Date.now() - AUDIO_LATENCY;
-    if (delay < -250) return;                    // istante già passato: si salta
-    bellTimers.push(setTimeout(() => {
-      if (Date.now() - at > 450) return;         // troppo in ritardo: niente rintocco
-      ding(m[1]);
-    }, Math.max(0, delay)));
-  });
-}
+let timerEnd = 0, timerStart = 0, timerTotal = 0, timerCb = null, timerMode = 'rest', timerT0 = 0;
 
 /* lead = secondi di preparazione prima che parta il conteggio vero e proprio. */
 function startTimer(seconds, what, cb, mode, lead) {
   stopTimer();
   timerMode = mode || 'rest';
   const wait = (lead || 0) * 1000;
-  timerStart = Date.now() + wait;
+  timerT0 = Date.now();
+  timerStart = timerT0 + wait;
   timerEnd = timerStart + seconds * 1000;
   timerTotal = seconds; timerCb = cb || null;
   $('#timerWhat').textContent = (wait ? 'Preparati · ' : '') + (what || '');
@@ -1610,8 +1650,8 @@ function startTimer(seconds, what, cb, mode, lead) {
   $('#miniTimer').classList.toggle('work', timerMode === 'work');
   $('#miniTimer').classList.remove('on');
   unlockAudio();
-  scheduleBells();
-  if (wait) bellTimers.push(setTimeout(() => { $('#timerWhat').textContent = what || ''; }, wait));
+  playBells(lead || 0, seconds, 0);               // traccia unica con i rintocchi già dentro
+  if (wait) setTimeout(() => { if (timerHandle) $('#timerWhat').textContent = what || ''; }, wait);
   tick();
   timerHandle = setInterval(tick, 100);
 }
@@ -1635,13 +1675,14 @@ function tick() {
     const cb = timerCb;
     stopTimer();
     if (cb) cb();
+    else if (current) renderSession();          // riabilita il pulsante di avvio
   }
 }
 
 function stopTimer() {
   if (timerHandle) clearInterval(timerHandle);
   timerHandle = null; timerCb = null;
-  clearBellTimers();
+  stopBells();
   $('#timer').classList.remove('on', 'warn', 'prep');
   $('#miniTimer').classList.remove('on', 'prep');
 }
@@ -1653,6 +1694,7 @@ function minimizeTimer() {
   setTimeout(() => {
     t.classList.remove('on', 'closing');
     $('#miniTimer').classList.add('on');         // la barretta entra dal basso
+    if (current) renderSession();                // aggiorna lo stato del pulsante di avvio
   }, 260);
 }
 function expandTimer() {
@@ -1670,9 +1712,15 @@ $('#timerSkip').onclick = skipTimer;
 $('#miniSkip').onclick = skipTimer;
 $('#timerMin').onclick = minimizeTimer;
 $('#miniExpand').onclick = expandTimer;
-$('#timerPlus').onclick = () => { timerEnd += 15000; timerTotal += 15; scheduleBells(); tick(); };
+$('#timerPlus').onclick = () => {
+  timerEnd += 15000; timerTotal += 15;
+  playBells(0, Math.max(1, (timerEnd - Date.now()) / 1000), 0);
+  tick();
+};
 $('#timerMinus').onclick = () => {
-  timerEnd = Math.max(Date.now() + 1000, timerEnd - 15000); scheduleBells(); tick();
+  timerEnd = Math.max(Date.now() + 1000, timerEnd - 15000);
+  playBells(0, Math.max(1, (timerEnd - Date.now()) / 1000), 0);
+  tick();
 };
 
 async function requestWakeLock() {
@@ -1684,8 +1732,8 @@ function releaseWakeLock() { try { if (wakeLock) wakeLock.release(); } catch (e)
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
     if (current) requestWakeLock();
-    // al rientro in primo piano si riallineano contatore e rintocchi
-    if (timerHandle) { scheduleBells(); tick(); }
+    // al rientro in primo piano si riallinea la traccia al contatore
+    if (timerHandle) { resyncBells((Date.now() - timerT0) / 1000); tick(); }
   }
 });
 
@@ -1745,6 +1793,8 @@ function disclaimer() {
     return;
   }
   migrateToMacro();
+  migrateNames();
+  resetCalfLogs();
   go('home');
   // l'intro si anima per 3 secondi e resta sull'ultimo fotogramma: sparisce solo
   // quando l'utente tocca lo schermo, e solo dopo compare l'avvertenza
