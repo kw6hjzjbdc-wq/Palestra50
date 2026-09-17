@@ -529,3 +529,83 @@ h1,h2{letter-spacing:.005em}
 }
 @keyframes dangerPulse{0%,100%{box-shadow:0 0 0 4px rgba(255,59,31,.2)}50%{box-shadow:0 0 0 9px rgba(255,59,31,.05)}}
 @media (prefers-reduced-motion:reduce){.danger-ico{animation:none}}
+
+/* ============================================================
+   REGISTRAZIONE IN SEDUTA — ripetizioni reali e RIR
+   ============================================================ */
+.repsrow,.rirrow{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  margin-top:12px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;
+  background:rgba(255,255,255,.03);
+}
+.repsrow .lab,.rirrow .lab{flex:1;min-width:120px;font-size:15px}
+.stepper{display:flex;align-items:center;gap:4px}
+.stepper button{
+  width:48px;height:48px;border-radius:10px;border:1px solid var(--line);
+  background:var(--surface2);font-size:24px;color:var(--text);
+}
+.stepper button:active{background:var(--amber);color:#151007}
+.stepper b{min-width:44px;text-align:center;font-family:var(--cond);font-size:26px;color:var(--amber)}
+.rirbtns{display:flex;gap:6px}
+.rirbtns button{
+  width:48px;height:48px;border-radius:10px;border:1px solid var(--line);
+  background:var(--surface2);font-family:var(--cond);font-size:20px;color:var(--muted);
+}
+.rirbtns button[aria-pressed="true"]{background:var(--teal);color:#07211a;border-color:var(--teal)}
+
+/* nota personale sull'esercizio */
+.exnote{
+  margin-top:12px;padding:10px 12px;border-radius:12px;font-size:15px;
+  background:rgba(79,195,161,.08);border:1px solid #1d4d40;color:#bfe9dc;cursor:pointer;
+}
+
+/* ============================================================
+   BARRA COMANDI FISSA DELLA SESSIONE
+   ============================================================ */
+.actionbar{
+  position:fixed;left:0;right:0;bottom:0;z-index:45;display:none;gap:10px;
+  max-width:520px;margin:0 auto;padding:10px 16px calc(10px + env(safe-area-inset-bottom));
+  background:linear-gradient(transparent, rgba(14,22,32,.92) 22%);
+  backdrop-filter:blur(10px);
+}
+.actionbar.on{display:flex}
+.actionbar .btn{flex:1;min-height:56px;font-size:19px;box-shadow:0 6px 18px rgba(0,0,0,.4)}
+.actionbar .btn.secondary{flex:0 0 38%}
+body.in-session .nav{display:none}          /* durante la seduta comanda la barra */
+#view-session{padding-bottom:104px}
+
+/* ============================================================
+   CATALOGO ESERCIZI E VOLUME SETTIMANALE
+   ============================================================ */
+.search{
+  width:100%;min-height:52px;background:var(--surface2);border:1px solid var(--line);
+  border-radius:12px;padding:0 14px;margin-bottom:10px;
+}
+.filters{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:8px;-webkit-overflow-scrolling:touch}
+.filters button{
+  flex:0 0 auto;padding:8px 13px;border-radius:999px;border:1px solid var(--line);
+  background:var(--surface2);color:var(--muted);font-size:14px;white-space:nowrap;
+}
+.filters button[aria-pressed="true"]{background:var(--amber);color:#151007;border-color:var(--amber)}
+.volrow{display:flex;align-items:center;gap:10px;padding:7px 0}
+.volrow .nm{flex:0 0 40%;font-size:14px}
+.volbar{flex:1;height:9px;border-radius:5px;background:rgba(255,255,255,.07);position:relative;overflow:hidden}
+.volbar i{position:absolute;left:0;top:0;bottom:0;border-radius:5px;background:var(--amber)}
+.volbar i.low{background:var(--alert)}
+.volbar i.good{background:var(--teal)}
+.volrow .val{flex:0 0 46px;text-align:right;font-family:var(--cond);font-size:16px}
+.voltarget{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--text);opacity:.5}
+
+/* avviso di aggiornamento disponibile */
+.updbar{
+  position:fixed;left:12px;right:12px;bottom:calc(74px + env(safe-area-inset-bottom));z-index:55;
+  display:flex;align-items:center;gap:10px;max-width:496px;margin:0 auto;
+  background:var(--surface2);border:1px solid var(--teal);border-radius:14px;padding:10px 12px;
+  box-shadow:0 10px 26px rgba(0,0,0,.45);
+  opacity:0;transform:translateY(12px);transition:opacity .25s,transform .25s;
+}
+.updbar.on{opacity:1;transform:translateY(0)}
+.updbar span{flex:1;font-size:15px}
+.updbar .pick{padding:9px 14px;border:1px solid var(--teal);border-radius:10px;color:var(--teal);font-size:15px}
+.updbar .mini-skip{padding:9px 12px}
+body.in-session .updbar{bottom:calc(88px + env(safe-area-inset-bottom))}

@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Palestra 50</title>
 <meta name="theme-color" content="#0E1620">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -10,13 +10,22 @@
 <meta name="apple-mobile-web-app-title" content="Palestra 50">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
+<!-- Schermate di avvio: evitano il lampo bianco all'apertura dall'icona -->
+<link rel="apple-touch-startup-image" href="splash-1170x2532.png"
+      media="(device-width:390px) and (device-height:844px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)">
+<link rel="apple-touch-startup-image" href="splash-1125x2436.png"
+      media="(device-width:375px) and (device-height:812px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)">
+<link rel="apple-touch-startup-image" href="splash-1284x2778.png"
+      media="(device-width:428px) and (device-height:926px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)">
+<link rel="apple-touch-startup-image" href="splash-1179x2556.png"
+      media="(device-width:393px) and (device-height:852px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <!-- Intro di apertura: si anima per 3 secondi e resta sull'ultimo fotogramma
      finché l'utente non tocca lo schermo -->
 <div class="splash" id="splash">
-  <div class="ver num">3.2 0916</div>
+  <div class="ver num">4.0 1709</div>
   <svg class="logo" viewBox="0 0 120 120">
     <defs>
       <linearGradient id="logoGrad" x1="0" y1="0" x2="1" y2="1">
@@ -61,8 +70,14 @@
   <!-- STORICO -->
   <main id="view-history" class="view"></main>
 
+  <!-- CATALOGO ESERCIZI -->
+  <main id="view-catalog" class="view"></main>
+
   <!-- PROGRAMMA / IMPOSTAZIONI -->
   <main id="view-settings" class="view"></main>
+
+  <!-- Barra comandi della sessione: resta in basso, nella zona del pollice -->
+  <div class="actionbar" id="actionBar"></div>
 
   <nav class="nav" id="nav">
     <button data-go="home" class="active">
@@ -72,6 +87,10 @@
     <button data-go="history">
       <svg viewBox="0 0 24 24"><path d="M4 19V5"/><path d="M4 19h16"/><path d="m7 15 4-5 3 3 5-7"/></svg>
       Progressi
+    </button>
+    <button data-go="catalog">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4 4"/></svg>
+      Esercizi
     </button>
     <button data-go="settings">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21M5.6 5.6l1.6 1.6M16.8 16.8l1.6 1.6M18.4 5.6l-1.6 1.6M7.2 16.8l-1.6 1.6"/></svg>
@@ -90,7 +109,7 @@
       <circle id="ringFill" cx="50" cy="50" r="45" stroke="url(#ringGrad)" stroke-width="7" fill="none"
               stroke-linecap="round" stroke-dasharray="283" stroke-dashoffset="0"/>
     </svg>
-    <div class="count num" id="timerCount">0:00</div>
+    <div class="count num" id="timerCount" role="timer" aria-live="polite" aria-atomic="true">0:00</div>
   </div>
   <p class="what" id="timerWhat"></p>
   <div class="actions">
@@ -104,7 +123,7 @@
 </div>
 
 <!-- Timer miniaturizzato: resta visibile mentre si usa il resto dell'app -->
-<div class="mini" id="miniTimer">
+<div class="mini" id="miniTimer" role="status" aria-live="polite">
   <button id="miniExpand"><span class="num" id="miniCount">0:00</span><span class="small" id="miniWhat"></span></button>
   <button class="mini-skip" id="miniSkip">Salta</button>
 </div>

@@ -41,12 +41,110 @@ const DEFAULT_STATE = {
   logs: [],                // storico per esercizio
   sessionLog: [],          // storico per sessione (durata, note)
   lastExport: 0,            // timestamp dell'ultimo salvataggio JSON esportato
-  quoteQueue: []            // indici delle ultime 100 frasi mostrate all'avvio
+  quoteQueue: [],           // indici delle ultime 100 frasi mostrate all'avvio
+  exNotes: {},              // nota personale per esercizio (regolazioni, accorgimenti)
+  paceFactor: 1,            // calibrazione della durata stimata sulle sedute reali
+  autoBackup: true,         // istantanea automatica a fine settimana
+  snapshots: [],            // ultime 3 istantanee settimanali, ripristinabili
+  resume: null,             // seduta interrotta, recuperabile dopo la chiusura dell'app
+  lastRecap: 0              // ultima settimana di cui è stato mostrato il riepilogo
 };
 
 function load() {
   try { S = Object.assign({}, DEFAULT_STATE, JSON.parse(localStorage.getItem(KEY) || '{}')); }
   catch (e) { S = Object.assign({}, DEFAULT_STATE); }
+  if (!S.exNotes) S.exNotes = {};
+  if (!Array.isArray(S.snapshots)) S.snapshots = [];
+}
+
+/* ---------------------------------------------------------------------------
+   ARCHIVIO DEI RISULTATI (IndexedDB)
+   localStorage ha un limite di pochi megabyte e obbliga a riscrivere l'intero
+   stato a ogni salvataggio: con cinque sedute a settimana per nove mesi i
+   record diventano qualche migliaio, e ogni serie registrata costa di più.
+   Qui le impostazioni restano in localStorage, mentre i record di allenamento
+   vivono in IndexedDB. In memoria S.logs resta un normale array, così il resto
+   del codice non cambia: la scrittura avviene in sottofondo.
+   Se IndexedDB non è disponibile si continua con il solo localStorage.
+--------------------------------------------------------------------------- */
+const IDB_NAME = 'palestra50', IDB_STORE = 'logs';
+let idb = null, idbReady = false;
+
+function idbOpen() {
+  return new Promise(resolve => {
+    try {
+      if (!window.indexedDB) return resolve(null);
+      const req = indexedDB.open(IDB_NAME, 1);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(IDB_STORE)) {
+          const st = db.createObjectStore(IDB_STORE, { keyPath: 'k', autoIncrement: true });
+          st.createIndex('exId', 'exId', { unique: false });
+          st.createIndex('ts', 'ts', { unique: false });
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(null);
+      setTimeout(() => resolve(req.result || null), 1500);   // non bloccare l'avvio
+    } catch (e) { resolve(null); }
+  });
+}
+
+function idbAll() {
+  return new Promise(resolve => {
+    if (!idb) return resolve(null);
+    try {
+      const tx = idb.transaction(IDB_STORE, 'readonly');
+      const req = tx.objectStore(IDB_STORE).getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => resolve(null);
+    } catch (e) { resolve(null); }
+  });
+}
+
+/* Riscrive l'archivio: chiamata in sottofondo dopo ogni modifica ai record. */
+function idbWrite(logs) {
+  if (!idb) return;
+  try {
+    const tx = idb.transaction(IDB_STORE, 'readwrite');
+    const st = tx.objectStore(IDB_STORE);
+    st.clear();
+    logs.forEach((l, i) => st.put(Object.assign({ k: i + 1 }, l)));
+  } catch (e) {}
+}
+
+/* All'avvio: apre l'archivio, recupera i record e li fonde con quelli ancora
+   in localStorage (migrazione una tantum, senza perdere nulla). */
+async function initStore() {
+  idb = await idbOpen();
+  idbReady = !!idb;
+  if (!idb) return;
+  const rows = await idbAll();
+  if (rows === null) return;
+  const clean = rows.map(r => { const o = Object.assign({}, r); delete o.k; return o; });
+  if (clean.length && clean.length >= (S.logs || []).length) {
+    S.logs = clean;                       // l'archivio è la fonte più aggiornata
+  } else if ((S.logs || []).length) {
+    idbWrite(S.logs);                     // prima migrazione da localStorage
+  }
+  S.idbMigrated = true;
+  save();
+}
+
+/* ---------------------------------------------------------------------------
+   PERSISTENZA DELLO SPAZIO DI ARCHIVIAZIONE
+   Chiede al sistema di non cancellare i dati durante le pulizie automatiche.
+   È l'unica difesa contro la scadenza per inutilizzo prolungato; non protegge
+   dalla rimozione manuale dell'icona dalla schermata Home, per quella serve il
+   backup. L'esito viene mostrato nella scheda Dati.
+--------------------------------------------------------------------------- */
+let storagePersisted = null;
+async function requestPersistence() {
+  try {
+    if (!navigator.storage || !navigator.storage.persist) { storagePersisted = 'n/d'; return; }
+    if (navigator.storage.persisted && await navigator.storage.persisted()) { storagePersisted = true; return; }
+    storagePersisted = await navigator.storage.persist();
+  } catch (e) { storagePersisted = 'n/d'; }
 }
 
 /* Esercizi rinominati: le registrazioni restano agganciate all'identificativo,
@@ -69,6 +167,19 @@ function resetCalfLogs() {
   save();
 }
 
+/* I record salvati prima della versione 4.0 non hanno ripetizioni eseguite né
+   RIR: si allineano al target, così i confronti restano possibili e la regola
+   2-for-2 semplicemente non scatta finché non ci sono dati reali. */
+function migrateLogFields() {
+  let touched = false;
+  S.logs.forEach(l => {
+    if (l.repsTarget === undefined) { l.repsTarget = l.reps; touched = true; }
+    if (l.repsDone === undefined) { l.repsDone = l.reps; touched = true; }
+    if (l.rir === undefined) { l.rir = null; touched = true; }
+  });
+  if (touched) save();
+}
+
 function migrateNames() {
   let touched = false;
   S.logs.forEach(l => {
@@ -86,7 +197,22 @@ function migrateToMacro() {
   if (PROG.programs.some(p => p.id === 'macro2027')) S.programId = 'macro2027';
   save();
 }
-function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+function save() {
+  try {
+    // i record di allenamento vivono in IndexedDB: in localStorage resta tutto
+    // il resto, così il salvataggio delle impostazioni non riscrive lo storico
+    if (idbReady) {
+      const light = Object.assign({}, S, { logs: [] });
+      localStorage.setItem(KEY, JSON.stringify(light));
+      idbWrite(S.logs);
+    } else {
+      localStorage.setItem(KEY, JSON.stringify(S));
+    }
+  } catch (e) {
+    // quota superata: si tenta comunque il salvataggio senza lo storico
+    try { localStorage.setItem(KEY, JSON.stringify(Object.assign({}, S, { logs: [] }))); } catch (e2) {}
+  }
+}
 
 /* ---------------------------------------------------------------------------
    2. DATI
@@ -101,6 +227,79 @@ async function loadData() {
   DB = ex; PROG = pr; POSES = po; QUOTES = qu.quotes || [];
 }
 const exById = id => DB.exercises.find(e => e.id === id);
+
+/* ---------------------------------------------------------------------------
+   VALIDAZIONE DEI FILE DI DATI
+   Tre illustrazioni sbagliate erano pose riciclate da altri esercizi: formalmente
+   valide, visivamente assurde. Qui si controlla che ogni esercizio abbia pose
+   esistenti, un attrezzo riconosciuto e i campi obbligatori, e che nessuna posa
+   sia usata da esercizi di gruppi muscolari incompatibili. Gli errori compaiono
+   nella console e, se gravi, in un avviso nella scheda Programma: meglio
+   trovarli alla scrivania che in palestra.
+--------------------------------------------------------------------------- */
+const KNOWN_IMPLEMENTS = [
+  null, 'barbell', 'barbellBack', 'dumbbells', 'dumbbell1', 'goblet', 'machine',
+  'cable', 'wheel', 'platform', 'thighPad', 'grips', 'bar', 'barBand', 'pullbar',
+  'bandVertical', 'bandTop', 'bandFront', 'bandBack', 'bandFeet', 'bandFoot',
+  'bandKnees', 'bandAnkle', 'bandShoulder', 'bandSide'
+];
+const REQUIRED_FIELDS = ['id', 'name', 'setup', 'type', 'group', 'pattern', 'load',
+                         'primary', 'equipment', 'art', 'steps', 'errors', 'safety', 'source'];
+let dataIssues = [];
+
+function validateData() {
+  dataIssues = [];
+  const seen = new Set();
+  const poseNames = new Set(Object.keys(POSES.poses).concat(Object.keys(POSES.aliases || {})));
+  const poseUse = {};
+
+  DB.exercises.forEach(e => {
+    const who = e.id || e.name || '(senza id)';
+    REQUIRED_FIELDS.forEach(f => {
+      if (e[f] === undefined || e[f] === null) dataIssues.push(`${who}: manca il campo "${f}"`);
+    });
+    if (seen.has(e.id)) dataIssues.push(`${who}: identificativo duplicato`);
+    seen.add(e.id);
+    if (!Array.isArray(e.setup) || !e.setup.length) dataIssues.push(`${who}: attrezzatura non indicata`);
+    if (!['strength', 'core', 'stretch'].includes(e.type)) dataIssues.push(`${who}: tipo "${e.type}" sconosciuto`);
+    if (!['weight', 'band', 'bodyweight', 'time'].includes(e.load)) dataIssues.push(`${who}: carico "${e.load}" sconosciuto`);
+    const art = e.art || {};
+    if (!Array.isArray(art.frames) || art.frames.length !== 2) {
+      dataIssues.push(`${who}: servono esattamente due pose`);
+    } else {
+      art.frames.forEach(f => {
+        if (!poseNames.has(f)) dataIssues.push(`${who}: posa "${f}" inesistente`);
+        (poseUse[f] = poseUse[f] || []).push(e);
+      });
+      if (art.frames[0] === art.frames[1] && e.load !== 'time' && e.type !== 'stretch') {
+        dataIssues.push(`${who}: le due pose sono identiche pur non essendo un esercizio a tempo`);
+      }
+    }
+    if (KNOWN_IMPLEMENTS.indexOf(art.implement === undefined ? null : art.implement) < 0) {
+      dataIssues.push(`${who}: attrezzo "${art.implement}" non riconosciuto dal disegnatore`);
+    }
+    if (e.levels && (!Array.isArray(e.levels) || e.levels.length < 2)) {
+      dataIssues.push(`${who}: la progressione deve avere almeno due gradini`);
+    }
+  });
+
+  // una posa condivisa da gruppi molto diversi è il segnale del riciclo sbagliato.
+  // Le pose neutre di partenza sono legittimamente comuni e restano fuori dal controllo.
+  const NEUTRAL = ['stand', 'seated', 'plank'];
+  Object.keys(poseUse).forEach(f => {
+    if (NEUTRAL.indexOf(f) >= 0) return;
+    const groups = new Set(poseUse[f].map(e => e.group));
+    if (groups.size > 3) {
+      dataIssues.push(`posa "${f}" usata da ${groups.size} gruppi diversi (${Array.from(groups).join(', ')}): verificare la pertinenza`);
+    }
+  });
+
+  if (dataIssues.length) {
+    console.warn(`[Palestra 50] ${dataIssues.length} anomalie nei dati:`);
+    dataIssues.forEach(m => console.warn('  · ' + m));
+  }
+  return dataIssues;
+}
 const program = () => PROG.programs.find(p => p.id === S.programId) || PROG.programs[0];
 
 /* ---------------------------------------------------------------------------
@@ -158,7 +357,12 @@ function implementSvg(kind, p) {
 function figure(frameName, implement, opts) {
   const p = pose(frameName), o = opts || {};
   // Colori inline: l'SVG deve restare autonomo anche fuori dal foglio di stile.
-  const s = `<svg viewBox="${POSES.viewBox}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">`;
+  // Le illustrazioni sono contenuto informativo, non decorazione: se il
+  // chiamante fornisce una descrizione, la figura viene esposta agli screen
+  // reader con il proprio testo invece di essere nascosta.
+  const lab = o.label ? ` role="img" aria-label="${esc(o.label)}"` : ' aria-hidden="true"';
+  const s = `<svg viewBox="${POSES.viewBox}" xmlns="http://www.w3.org/2000/svg"${lab}>` +
+            (o.label ? `<title>${esc(o.label)}</title>` : '');
   const cBack = '#5B7188', cBody = o.color || '#EAF1F8', cArm = o.accent || '#F5A524', cImp = '#B9CBDD';
   let g = '';
   if (o.ground !== false) g += `<line x1="4" y1="${POSES.ground}" x2="116" y2="${POSES.ground}" stroke="#2B3B4E" stroke-width="2"/>`;
@@ -178,6 +382,17 @@ function figure(frameName, implement, opts) {
   return s + g + '</svg>';
 }
 const figureFor = (ex, frameIdx, opts) => figure(ex.art.frames[frameIdx || 0], ex.art.implement, opts);
+
+/* Descrizione testuale della figura, ricavata dai dati già presenti nella
+   scheda: nome dell'esercizio, fase e attrezzatura. */
+function figureLabel(ex, frameIdx) {
+  const fase = frameIdx ? 'posizione finale' : 'posizione iniziale';
+  const att = (ex.equipment || []).join(', ');
+  return `${ex.name}: ${fase}${att ? ', con ' + att.toLowerCase() : ', a corpo libero'}`;
+}
+const figureA11y = (ex, frameIdx, opts) =>
+  figure(ex.art.frames[frameIdx || 0], ex.art.implement,
+         Object.assign({ label: figureLabel(ex, frameIdx) }, opts || {}));
 
 /* ---------------------------------------------------------------------------
    4. PERIODIZZAZIONE
@@ -228,28 +443,96 @@ function setLabel(it, i) {
   return `${Math.floor(i / 2) + 1}${i % 2 ? ' Dx' : ' Sx'}`;
 }
 
-/* Suggerimento di carico basato sull'ultima seduta e sul feedback dato. */
+/* ---------------------------------------------------------------------------
+   PROGRESSIONE DEL CARICO — regola 2-for-2 (NSCA)
+   Il carico sale solo quando il miglioramento si è ripetuto: nelle ultime DUE
+   sedute dello stesso esercizio devi aver completato almeno DUE ripetizioni
+   oltre l'obiettivo nell'ultima serie. L'incremento resta nella fascia 2,5-10%
+   raccomandata, più prudente sui piccoli gruppi muscolari. Le ripetizioni in
+   riserva (RIR) e il feedback soggettivo servono come correttivo: se l'ultima
+   volta sei arrivato al limite (RIR 0) il carico non sale comunque, se è stato
+   troppo pesante scende.
+   Riferimenti: NSCA, regola 2-for-2; ACSM, incremento del 2-10%.
+--------------------------------------------------------------------------- */
+const SMALL_GROUPS = ['Braccia', 'Spalle', 'Polpacci', 'Core'];
 function lastEntry(exId) {
   for (let i = S.logs.length - 1; i >= 0; i--) if (S.logs[i].exId === exId) return S.logs[i];
   return null;
 }
+function lastEntries(exId, n) {
+  return S.logs.filter(l => l.exId === exId).slice(-n);
+}
+
+/* Vero se in quella registrazione hai superato l'obiettivo di 2+ ripetizioni. */
+function beatTarget(l) {
+  if (!l || !isFinite(l.repsDone) || !isFinite(l.repsTarget)) return false;
+  return l.repsDone >= l.repsTarget + 2;
+}
+
+/* Elenco dei gradini per gli esercizi a corpo libero con progressione. */
+const levelsOf = ex => (ex && ex.levels) ? ex.levels : null;
+
 function suggestLoad(ex) {
   const last = lastEntry(ex.id);
   if (!last) return null;
-  if (ex.load === 'band') {
-    let i = BANDS.indexOf(last.load);
+  const recent = lastEntries(ex.id, 2);
+  const twoForTwo = recent.length >= 2 && recent.every(beatTarget);
+  // due condizioni distinte: arrivare al limite una volta (RIR 0) blocca
+  // l'aumento ma non fa scendere il carico; solo un "troppo difficile"
+  // esplicito lo riduce.
+  const tooHard = last.feedback === 'down';
+  const atLimit = last.rir === 0;
+  const info = { last, twoForTwo, reason: '' };
+
+  // --- scale a gradini: band ed esercizi a corpo libero con progressione ---
+  const steps = ex.load === 'band' ? BANDS : levelsOf(ex);
+  if (steps) {
+    let i = steps.indexOf(last.load);
     if (i < 0) i = 0;
-    if (last.feedback === 'up') i = Math.min(BANDS.length - 1, i + 1);
-    if (last.feedback === 'down') i = Math.max(0, i - 1);
-    return { value: BANDS[i], last };
+    if (twoForTwo && !tooHard && !atLimit && i < steps.length - 1) {
+      i++; info.reason = 'Regola 2-for-2 soddisfatta: passa al gradino successivo.';
+    } else if (tooHard && i > 0) {
+      i--; info.reason = 'L\'ultima volta è stata troppo impegnativa: torna al gradino precedente.';
+    } else if (atLimit) {
+      info.reason = 'L\'ultima serie è finita al limite: consolida questo gradino prima di salire.';
+    } else {
+      info.reason = twoForTwo ? 'Consolida su questo gradino.'
+                              : 'Resta qui finché non superi l\'obiettivo di 2 ripetizioni per due sedute.';
+    }
+    return Object.assign(info, { value: steps[i], steps });
   }
-  if (ex.load !== 'weight') return { value: null, last };
-  const n = parseFloat(last.load);
-  if (!isFinite(n)) return { value: null, last };
-  const f = last.feedback === 'up' ? 1.05 : last.feedback === 'down' ? 0.93 : 1;
-  const raw = n * f;
-  const step = raw < 10 ? 0.5 : 1;
-  return { value: (Math.round(raw / step) * step).toString(), last };
+
+  if (ex.load !== 'weight') return Object.assign(info, { value: null });
+  const n = parseFloat(String(last.load).replace(',', '.'));
+  if (!isFinite(n) || n <= 0) return Object.assign(info, { value: null });
+
+  const small = SMALL_GROUPS.includes(ex.group);
+  // passo minimo realmente disponibile in palestra: 0,5 kg sui carichi leggeri,
+  // 1 kg sui piccoli gruppi (manubri), 2,5 kg sui grandi (dischi da 1,25 per lato)
+  const step = n < 10 ? 0.5 : (small ? 1 : 2.5);
+  let val = n;
+
+  if (tooHard) {
+    val = Math.max(step, Math.floor(n * 0.93 / step) * step);
+    info.reason = 'L\'ultima volta è stata troppo impegnativa: scendi di circa il 7%.';
+  } else if (atLimit) {
+    info.reason = 'L\'ultima serie è finita al limite: consolida questo carico prima di salire.';
+  } else if (twoForTwo) {
+    // si sale di un passo intero, arrotondando per eccesso: arrotondare per
+    // difetto annullerebbe l'incremento sui carichi bassi. Il risultato resta
+    // comunque dentro il tetto del 10%.
+    const target = n * (small ? 1.025 : 1.05);
+    val = Math.ceil(target / step) * step;
+    if (val <= n) val = n + step;
+    const cap = Math.floor(n * (1 + SAFE_STEP) / step) * step;
+    if (cap > n && val > cap) val = cap;
+    info.reason = `Regola 2-for-2 soddisfatta nelle ultime due sedute: +${(val - n).toFixed(1).replace('.0', '')} kg (${Math.round((val / n - 1) * 100)}%).`;
+  } else {
+    info.reason = recent.length < 2
+      ? 'Serve una seconda seduta sopra l\'obiettivo prima di aumentare.'
+      : 'Mantieni il carico: l\'obiettivo non è stato superato di 2 ripetizioni per due sedute.';
+  }
+  return Object.assign(info, { value: String(val % 1 === 0 ? val : val.toFixed(1)) });
 }
 
 /* Frase dell'intro: si pesca a caso fra quelle non ancora uscite nelle ultime
@@ -279,16 +562,50 @@ function pickQuote() {
 --------------------------------------------------------------------------- */
 const SAFE_STEP = 0.10;          // incremento massimo consigliato per volta
 
-/* Valore confrontabile di una registrazione: kg, colore della band (1-4),
-   oppure il numero annotato per gli esercizi a corpo libero e a tempo. */
+/* Valore confrontabile di una registrazione: kg, gradino della scala (band o
+   progressione a corpo libero), oppure niente. */
 function logValue(l) {
   const ex = exById(l.exId);
   if (!ex) return null;
-  if (ex.load === 'band') { const i = BANDS.indexOf(l.load); return i >= 0 ? i + 1 : null; }
+  const steps = ex.load === 'band' ? BANDS : levelsOf(ex);
+  if (steps) { const i = steps.indexOf(l.load); return i >= 0 ? i + 1 : null; }
   const n = parseFloat(String(l.load || '').replace(',', '.'));
   return (isFinite(n) && n > 0) ? n : null;
 }
-const volValue = l => (l.sets || 0) * (l.reps || 0);
+
+/* Volume reale: serie completate per ripetizioni effettivamente eseguite.
+   Se le ripetizioni reali non sono state annotate (registrazioni vecchie) si
+   ricade sul target, segnalandolo al chiamante. */
+function volValue(l) {
+  const reps = isFinite(l.repsDone) && l.repsDone > 0 ? l.repsDone : (l.reps || 0);
+  return (l.sets || 0) * reps;
+}
+
+/* Massimale stimato con la formula di Epley: carico x (1 + ripetizioni/30).
+   Serve a confrontare sedute con obiettivi diversi — 60 kg x 6 e 60 kg x 11
+   sono lo stesso carico ma non lo stesso risultato. Vale solo per gli esercizi
+   con un carico numerico; per le scale a gradini si usa il gradino stesso.
+   La formula perde precisione oltre le 12-15 ripetizioni, quindi l'app la
+   applica solo fino a 15. */
+function e1rm(l) {
+  const ex = exById(l.exId);
+  if (!ex || ex.load !== 'weight') return null;
+  const w = parseFloat(String(l.load || '').replace(',', '.'));
+  const r = isFinite(l.repsDone) && l.repsDone > 0 ? l.repsDone : l.reps;
+  if (!isFinite(w) || w <= 0 || !isFinite(r) || r <= 0 || r > 15) return null;
+  return w * (1 + r / 30);
+}
+
+/* Metrica di confronto preferita: massimale stimato se disponibile, altrimenti
+   il gradino della scala, altrimenti il volume. */
+function progressMetric(l) {
+  const e = e1rm(l);
+  if (e !== null) return { v: e, what: 'massimale stimato' };
+  const g = logValue(l);
+  if (g !== null) return { v: g, what: 'gradino' };
+  const vol = volValue(l);
+  return vol ? { v: vol, what: 'volume' } : null;
+}
 
 /* Confronta una registrazione con la precedente dello stesso esercizio. */
 function rateLog(cur, prev, deload) {
@@ -297,40 +614,42 @@ function rateLog(cur, prev, deload) {
   if (ex && ex.type === 'stretch') return { stars: 0, text: '' };
   if (!prev) return { stars: 0, text: 'Prima registrazione: da qui parte il confronto.' };
 
-  // le band hanno una scala a gradini: un colore in più è già la progressione
-  // prevista, due colori insieme sono un salto da segnalare
-  if (ex && ex.load === 'band') {
-    const ia = BANDS.indexOf(cur.load), ib = BANDS.indexOf(prev.load);
+  // scale a gradini (band e progressioni a corpo libero): un gradino in più è
+  // già la progressione prevista, due insieme sono un salto da segnalare
+  const steps = ex ? (ex.load === 'band' ? BANDS : levelsOf(ex)) : null;
+  if (steps) {
+    const ia = steps.indexOf(cur.load), ib = steps.indexOf(prev.load);
     if (ia >= 0 && ib >= 0) {
       const step = ia - ib;
+      const nome = ex.load === 'band' ? 'band' : 'livelli';
       if (step >= 2) return { stars: 3, warn: 'salto',
-        text: `Due band più dure in una volta sola: è un salto di carico importante.`,
-        advice: 'Torna al colore intermedio per una seduta e sali solo quando completi le ripetizioni con due di margine.' };
-      if (step === 1) return { stars: 5, text: 'Sei passato alla band successiva: progressione riuscita.' };
+        text: `Due ${nome} più difficili in una volta sola: è un salto di carico importante.`,
+        advice: 'Torna al gradino intermedio per una seduta e sali solo quando superi l\'obiettivo di due ripetizioni per due sedute.' };
+      if (step === 1) return { stars: 5, text: 'Sei passato al gradino successivo: progressione riuscita.' };
       if (step === 0) {
         const va = volValue(cur), vb = volValue(prev);
-        if (vb && va / vb > 1.02) return { stars: 4, text: 'Stessa band, più volume completato.' };
-        return { stars: 3, text: 'Stessa band della volta scorsa: consolidamento.' };
+        if (vb && va / vb > 1.02) return { stars: 4, text: `Stesso gradino, ${va - vb} ripetizioni in più completate.` };
+        if (vb && va / vb < 0.9) return { stars: 2, text: 'Stesso gradino, ma meno ripetizioni della volta scorsa.' };
+        return { stars: 3, text: 'Stesso gradino della volta scorsa: consolidamento.' };
       }
-      return { stars: 1, text: 'Sei sceso a una band più leggera rispetto alla volta scorsa.' };
+      return { stars: 1, text: 'Sei sceso a un gradino più facile rispetto alla volta scorsa.' };
     }
   }
 
-  const a = logValue(cur), b = logValue(prev);
-  let ratio, what;
-  if (a !== null && b !== null && b > 0) { ratio = a / b; what = 'carico'; }
-  else {
-    const va = volValue(cur), vb = volValue(prev);
-    if (!vb) return { stars: 0, text: 'Dati insufficienti per il confronto.' };
-    ratio = va / vb; what = 'volume';
-  }
+  const ma = progressMetric(cur), mb = progressMetric(prev);
+  if (!ma || !mb || !mb.v) return { stars: 0, text: 'Dati insufficienti per il confronto.' };
+  const ratio = ma.v / mb.v;
+  const what = ma.what === mb.what ? ma.what : 'risultato';
   const weeks = Math.max(0, Math.floor((cur.sIdx || 0) / 5) - Math.floor((prev.sIdx || 0) / 5));
   const expected = weeks > 0 ? 1 + 0.025 * weeks : 1;
   const pct = Math.round((ratio - 1) * 100);
 
-  if (ratio > 1 + SAFE_STEP) {
+  // il salto va misurato sul carico effettivo, non sul massimale stimato:
+  // aumentare le ripetizioni non è un rischio, aumentare il peso sì
+  const la = logValue(cur), lb = logValue(prev);
+  if (la !== null && lb && la / lb > 1 + SAFE_STEP) {
     return { stars: 3, warn: 'salto',
-      text: `Aumento del ${pct}% sul ${what}: oltre la fascia del 2-10% consigliata per singolo incremento.`,
+      text: `Carico aumentato del ${Math.round((la / lb - 1) * 100)}%: oltre la fascia del 2-10% consigliata per singolo incremento.`,
       advice: 'Resta su questo carico almeno una seduta e verifica che la tecnica regga: la progressione lenta è quella che dura.' };
   }
   if (deload && ratio > 1.02) {
@@ -338,11 +657,16 @@ function rateLog(cur, prev, deload) {
       text: `Settimana di scarico: hai aumentato del ${pct}% invece di ridurre.`,
       advice: 'Lo scarico serve al recupero di tendini e articolazioni: la settimana prossima riparti più forte.' };
   }
+  if (cur.rir === 0 && prev.rir === 0) {
+    return { stars: 3, warn: 'cedimento',
+      text: 'Seconda seduta di fila portata a zero ripetizioni di riserva su questo esercizio.',
+      advice: 'Lavorare sempre al limite accumula fatica senza aggiungere stimolo: tieni 1-2 ripetizioni di margine.' };
+  }
   if (ratio < 0.97) return { stars: 1, text: `Calo del ${Math.abs(pct)}% sul ${what} rispetto alla volta scorsa.` };
-  if (ratio < expected - 0.005) return { stars: 2, text: `Stabile: atteso circa +${Math.round((expected - 1) * 100)}%.` };
-  if (ratio <= expected + 0.02) return { stars: 3, text: `In linea con la progressione prevista (+${pct}%).` };
-  if (ratio <= 1 + SAFE_STEP / 2) return { stars: 4, text: `Sopra le attese: +${pct}% dove ne era previsto +${Math.round((expected - 1) * 100)}%.` };
-  return { stars: 5, text: `Progresso netto: +${pct}%, dentro la fascia di sicurezza.` };
+  if (ratio < expected - 0.005) return { stars: 2, text: `Stabile: atteso circa +${Math.round((expected - 1) * 100)}% sul ${what}.` };
+  if (ratio <= expected + 0.02) return { stars: 3, text: `In linea con la progressione prevista (+${pct}% sul ${what}).` };
+  if (ratio <= 1 + SAFE_STEP / 2) return { stars: 4, text: `Sopra le attese: +${pct}% sul ${what}, ne era previsto +${Math.round((expected - 1) * 100)}%.` };
+  return { stars: 5, text: `Progresso netto: +${pct}% sul ${what}, dentro la fascia di sicurezza.` };
 }
 
 const starsHtml = n => n ? `<span class="stars">${'★'.repeat(n)}<span class="off">${'★'.repeat(5 - n)}</span></span>` : '';
@@ -573,7 +897,29 @@ function estimateMinutes(items) {
     }
     sec += it.sets * (work + it.rest);
   });
-  return Math.round(sec / 60);
+  // fattore di calibrazione appreso dalle sedute reali (vedi calibratePace)
+  const f = (S && isFinite(S.paceFactor) && S.paceFactor > 0) ? S.paceFactor : 1;
+  return Math.round(sec * f / 60);
+}
+
+/* ---------------------------------------------------------------------------
+   CALIBRAZIONE DELLA DURATA
+   La stima parte da 3,5 secondi per ripetizione, un valore fisso che ignora i
+   tempi di transizione fra le macchine. A fine seduta si confrontano i minuti
+   stimati con quelli reali e si corregge il coefficiente con una media mobile
+   lenta, così il vincolo dei 35 minuti lavora su un numero vero.
+   Le sedute interrotte a metà e i valori anomali non entrano nella media.
+--------------------------------------------------------------------------- */
+function calibratePace(sess, realMinutes) {
+  if (!sess || !realMinutes || realMinutes < 5 || realMinutes > 120) return;
+  if (sess.kind === 'core') return;
+  const base = estimateMinutes(sess.items) / (S.paceFactor || 1);   // stima grezza
+  if (!base) return;
+  const observed = realMinutes / base;
+  if (observed < 0.5 || observed > 2.5) return;                     // valore anomalo
+  const prev = isFinite(S.paceFactor) && S.paceFactor > 0 ? S.paceFactor : 1;
+  S.paceFactor = Math.max(0.7, Math.min(1.8, prev * 0.8 + observed * 0.2));
+  planCache = null;
 }
 
 /* Vincolo dei 30 minuti: se la seduta è troppo lunga si riduce prima il volume
@@ -605,10 +951,14 @@ function go(view) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   $('#view-' + view).classList.add('active');
   document.querySelectorAll('.nav button').forEach(b => b.classList.toggle('active', b.dataset.go === view));
+  // la barra comandi fissa appartiene alla sola schermata della sessione
+  document.body.classList.toggle('in-session', view === 'session');
+  if (view !== 'session') $('#actionBar').classList.remove('on');
   window.scrollTo(0, 0);
   if (view === 'home') renderHome();
   if (view === 'history') renderHistory();
   if (view === 'settings') renderSettings();
+  if (view === 'catalog') renderCatalog();
 }
 
 function doseText(it) {
@@ -809,11 +1159,20 @@ function renderHome() {
        </div>` : '';
 
   // banner di ripresa se una sessione è rimasta aperta
+  // seduta in corso in memoria, oppure interrotta e salvata su disco
+  const saved = (!current || current.finished) ? resumableSession() : null;
   const resume = (current && !current.finished)
     ? `<div class="notice" style="margin-top:14px;display:flex;align-items:center;gap:12px">
          <span style="flex:1">Sessione in corso: ${esc(current.sess.label)}</span>
          <button class="btn" id="resumeBtn" style="width:auto;min-height:44px;font-size:17px">Riprendi</button>
-       </div>` : '';
+       </div>`
+    : saved
+    ? `<div class="notice" style="margin-top:14px;display:flex;align-items:center;gap:12px">
+         <span style="flex:1">Seduta lasciata a metà: ${esc(saved.label)}, esercizio ${saved.pos + 1} di ${saved.items.length}
+           (${new Date(saved.ts).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}).</span>
+         <button class="btn" id="restoreBtn" style="width:auto;min-height:44px;font-size:17px">Riprendi</button>
+       </div>
+       <button class="btn ghost" id="dropResume" style="margin-top:8px">Scarta la seduta interrotta</button>` : '';
 
   $('#view-home').innerHTML = `
     ${resume}
@@ -847,7 +1206,10 @@ function renderHome() {
     </div>
 
     <button class="btn ${(s.isStrength && !core) ? '' : 'teal'}" id="startBtn">${core ? 'Inizia il blocco core' : 'Inizia la sessione'}</button>
-    <button class="btn ghost" id="skipBtn" style="margin-top:10px">Salta a domani</button>
+    <div class="btn-row" style="margin-top:10px">
+      <button class="btn ghost" id="freeBtn">Seduta libera</button>
+      <button class="btn ghost" id="skipBtn">Salta a domani</button>
+    </div>
     <p class="small muted" style="margin-top:16px">Programma attivo: ${esc(p.name)} · ${esc(p.periodization)}.</p>
   `;
 
@@ -874,6 +1236,10 @@ function renderHome() {
     openSheet(exById(it.exId), it, { sess: s, after: () => renderHome() });
   });
   if ($('#resumeBtn')) $('#resumeBtn').onclick = () => { go('session'); renderSession(); };
+  if ($('#restoreBtn')) $('#restoreBtn').onclick = () => restoreSession(saved);
+  if ($('#dropResume')) $('#dropResume').onclick = () => confirmAction('Scartare la seduta interrotta?',
+    'Gli esercizi già conclusi restano nello storico; i dati non ancora registrati vengono persi.',
+    'Scarta', () => { clearResume(); renderHome(); });
   if ($('#nagExport')) $('#nagExport').onclick = exportData;
 
   const begin = kind => {
@@ -883,18 +1249,36 @@ function renderHome() {
     } else startSession(todaySession(kind));
   };
   $('#startBtn').onclick = () => begin(core ? 'core' : null);
+  $('#freeBtn').onclick = () => {
+    if (current && !current.finished) {
+      confirmAction('Sessione già in corso', 'Vuoi abbandonarla e iniziare una seduta libera? Gli esercizi già conclusi restano nello storico.',
+        'Inizia la seduta libera', openFreeSession);
+    } else openFreeSession();
+  };
   $('#skipBtn').onclick = () => confirmAction('Saltare la seduta di oggi?',
     'Passerai alla sessione successiva del programma senza registrare questa.',
     'Salta', () => { S.sessionIndex++; planCache = null; homeSel = 'session'; save(); renderHome(); });
 }
 
 /* ---------- sessione in corso ---------- */
+/* Testo di aiuto della scala RIR (ripetizioni in riserva). */
+const RIR_HINT = {
+  '-1': 'tocca un numero a fine serie',
+  0: 'al limite, nessuna in riserva',
+  1: 'una in riserva: intensità alta',
+  2: 'due in riserva: la fascia ideale',
+  3: 'tre o più: c\'era margine'
+};
+
 function startSession(sess) {
   current = { sess, pos: 0, setsDone: sess.items.map(() => 0), loads: sess.items.map(() => ''),
               feedback: sess.items.map(() => null), logRef: sess.items.map(() => null),
+              repsDone: sess.items.map(() => null), rir: sess.items.map(() => null),
               started: Date.now() };
   requestWakeLock();
   unlockAudio();
+  prewarmBells(sess.items);        // tracce audio pronte prima della prima serie
+  saveResume();
   go('session');
   renderSession();
 }
@@ -912,15 +1296,19 @@ function renderSession() {
   const setBtns = Array.from({ length: it.sets }, (_, i) =>
     `<button data-set="${i}" class="${i < c.setsDone[c.pos] ? 'done' : ''}">${setLabel(it, i)}</button>`).join('');
 
-  let loadCtl = '';
-  if (ex.load === 'weight') {
+  // --- carico: numerico, band o gradino della progressione a corpo libero ---
+  const steps = ex.load === 'band' ? BANDS : levelsOf(ex);
+  const curLoad = c.loads[c.pos] || (sug && sug.value) || '';
+  let loadCtl;
+  if (steps) {
+    loadCtl = `<select id="loadIn" aria-label="Livello">${steps.map(b =>
+      `<option ${curLoad === b ? 'selected' : ''}>${esc(b)}</option>`).join('')}</select>`;
+  } else if (ex.load === 'weight') {
     loadCtl = `<input id="loadIn" type="number" inputmode="decimal" step="0.5" placeholder="kg"
-                 value="${esc(c.loads[c.pos] || (sug && sug.value) || '')}">`;
-  } else if (ex.load === 'band') {
-    loadCtl = `<select id="loadIn">${BANDS.map(b =>
-      `<option ${((c.loads[c.pos] || (sug && sug.value)) === b) ? 'selected' : ''}>${b}</option>`).join('')}</select>`;
+                 aria-label="Carico in chilogrammi" value="${esc(curLoad)}">`;
   } else {
-    loadCtl = `<input id="loadIn" type="text" placeholder="note (es. rip. eseguite)" value="${esc(c.loads[c.pos] || '')}">`;
+    loadCtl = `<input id="loadIn" type="text" placeholder="nota sul carico" aria-label="Carico"
+                 value="${esc(c.loads[c.pos] || '')}">`;
   }
 
   const nAlt = alternativesFor(it, s).length;
@@ -929,9 +1317,45 @@ function renderSession() {
   const timed = it.goal === 'stretch' || it.hold > 0 || ex.load === 'time';
   const hold = it.hold ? it.hold : (ex.load === 'time' ? 20 + it.reps : 30);
 
-  const lastTxt = sug && sug.last
-    ? `Ultima volta: <b>${esc(sug.last.load || '—')}</b> ${arrow(sug.last.feedback)} · ${new Date(sug.last.ts).toLocaleDateString('it-IT')} ${starsHtml(sug.last.stars)}`
-    : 'Prima volta con questo esercizio: parti conservativo e annota il carico.';
+  // --- ripetizioni davvero eseguite nell'ultima serie (proposta 1) ---
+  const repsVal = (c.repsDone[c.pos] === null || c.repsDone[c.pos] === undefined)
+    ? it.reps : c.repsDone[c.pos];
+  const repsCtl = timed ? '' : `
+    <div class="repsrow">
+      <span class="lab">Ripetizioni ultima serie</span>
+      <div class="stepper">
+        <button data-rep="-1" aria-label="Una ripetizione in meno">−</button>
+        <b class="num" id="repsVal">${repsVal}</b>
+        <button data-rep="1" aria-label="Una ripetizione in più">+</button>
+      </div>
+      <span class="small muted">obiettivo ${it.reps}</span>
+    </div>`;
+
+  // --- ripetizioni in riserva (proposta 3) ---
+  const rirVal = c.rir[c.pos];
+  const rirCtl = `
+    <div class="rirrow">
+      <span class="lab">Quante ne avresti fatte ancora?</span>
+      <div class="rirbtns" role="group" aria-label="Ripetizioni di riserva">
+        ${[0, 1, 2, 3].map(v => `<button data-rir="${v}" aria-pressed="${rirVal === v}">${v === 3 ? '3+' : v}</button>`).join('')}
+      </div>
+      <span class="small muted">${RIR_HINT[rirVal === undefined || rirVal === null ? -1 : rirVal]}</span>
+    </div>`;
+
+  // --- storico e suggerimento ---
+  let lastTxt;
+  if (sug && sug.last) {
+    const l = sug.last;
+    const det = [];
+    if (isFinite(l.repsDone)) det.push(`${l.sets}×${l.repsDone}`);
+    if (isFinite(l.rir)) det.push(`RIR ${l.rir}`);
+    const e = e1rm(l);
+    if (e) det.push(`max stimato ${e.toFixed(1)} kg`);
+    lastTxt = `Ultima volta: <b>${esc(l.load || '—')}</b>${det.length ? ' · ' + det.join(' · ') : ''} · ${new Date(l.ts).toLocaleDateString('it-IT')} ${starsHtml(l.stars)}`;
+    if (sug.reason) lastTxt += `<br><span class="small">${esc(sug.reason)}</span>`;
+  } else {
+    lastTxt = 'Prima volta con questo esercizio: parti prudente e annota carico e ripetizioni.';
+  }
 
   // avviso immediato se il carico digitato supera del 10% quello precedente
   let jump = '';
@@ -943,15 +1367,19 @@ function renderSession() {
     }
   }
 
+  const nota = S.exNotes[it.exId] || '';
+
   $('#view-session').innerHTML = `
     <div class="progress">${bars}</div>
     <div class="exercise">
-      <div class="fig-large">${figureFor(ex, 1)}</div>
+      <div class="fig-large">${figureA11y(ex, 1)}</div>
       <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin-top:14px">
         <div><h2>${esc(ex.name)}</h2>
           <div class="small muted">${esc(ex.group)} · ${esc(it.goalLabel)} · RPE ${esc(it.rpe)}</div></div>
         <div class="dose-big num">${doseText(it)}<br><small>rec. ${it.rest}s</small></div>
       </div>
+
+      ${nota ? `<div class="exnote" id="noteShow">📌 ${esc(nota)}</div>` : ''}
 
       <div class="setdots">${setBtns}</div>
 
@@ -963,38 +1391,59 @@ function renderSession() {
           <button data-fb="down" aria-pressed="${c.feedback[c.pos] === 'down'}" aria-label="Più difficile del previsto">↓</button>
         </div>
       </div>
+      ${repsCtl}
+      ${rirCtl}
       <p class="lasttime">${lastTxt}</p>
       ${jump}
 
-      <button class="btn ${timed ? 'teal' : ''}" id="doneSet" ${timerRunning() ? 'disabled' : ''} style="margin-top:16px">${timed ? 'Avvia ' + hold + ' secondi' + (it.perSide ? ' (' + (c.setsDone[c.pos] % 2 ? 'lato destro' : 'lato sinistro') + ')' : '') : 'Ho finito la serie'}</button>
-      ${timerRunning() ? `<p class="small muted" style="margin-top:8px">Timer in corso: il pulsante si riattiva allo scadere del recupero.</p>` : ''}
-      ${timed ? `<p class="small muted" style="margin-top:8px">Tre secondi di preparazione scanditi dalla campanella, poi parte il conteggio: mantieni la posizione fino al rintocco finale. Gli ultimi tre secondi sono scanditi da un rintocco ciascuno.${it.goal === 'stretch' ? ' Ogni serie è un lato solo: il pulsante ti dice quale.' : ''}</p>` : ''}
-      <div class="btn-row" style="margin-top:10px">
+      ${timerRunning() ? `<p class="small muted" style="margin-top:14px">Timer in corso: il pulsante si riattiva allo scadere del recupero.</p>` : ''}
+      ${timed ? `<p class="small muted" style="margin-top:14px">Tre secondi di preparazione scanditi dalla campanella, poi parte il conteggio: mantieni la posizione fino al rintocco finale.${it.goal === 'stretch' ? ' Ogni serie è un lato solo: il pulsante ti dice quale.' : ''}</p>` : ''}
+
+      <div class="btn-row" style="margin-top:14px">
         <button class="btn ghost" id="infoBtn">Scheda esercizio</button>
         <button class="btn ghost" id="swapBtn">Cambia esercizio${nAlt > 1 ? ` (${nAlt - 1})` : ''}</button>
       </div>
       <div class="btn-row" style="margin-top:10px">
-        <button class="btn ghost" id="postponeBtn" ${c.pos === s.items.length - 1 ? 'disabled' : ''}>Rimanda a dopo</button>
+        <button class="btn ghost" id="noteBtn">${nota ? 'Modifica nota' : 'Aggiungi nota'}</button>
         <button class="btn ghost" id="orderBtn" ${c.pos === s.items.length - 1 ? 'disabled' : ''}>Ordine esercizi</button>
       </div>
       <div class="btn-row" style="margin-top:10px">
+        <button class="btn ghost" id="postponeBtn" ${c.pos === s.items.length - 1 ? 'disabled' : ''}>Rimanda a dopo</button>
         <button class="btn ghost" id="prevBtn" ${c.pos === 0 ? 'disabled' : ''}>‹ Precedente</button>
-        <button class="btn ghost" id="nextBtn">${c.pos === s.items.length - 1 ? 'Chiudi sessione' : 'Prossimo esercizio'}</button>
       </div>
       <p class="small muted" style="margin-top:14px">${esc(it.source)}${it.note ? ' · ' + esc(it.note) : ''}</p>
-      <button class="btn ghost" id="abortBtn" style="margin-top:18px">Interrompi</button>
+      <button class="btn ghost" id="abortBtn" style="margin-top:14px">Interrompi</button>
     </div>`;
+
+  // --- barra dei comandi fissa in basso, nella zona del pollice (proposta 19) ---
+  $('#actionBar').innerHTML = `
+    <button class="btn ${timed ? 'teal' : ''}" id="doneSet" ${timerRunning() ? 'disabled' : ''}>${
+      timed ? 'Avvia ' + hold + ' s' + (it.perSide ? ' · ' + (c.setsDone[c.pos] % 2 ? 'Dx' : 'Sx') : '')
+            : 'Ho finito la serie'}</button>
+    <button class="btn secondary" id="nextBtn">${c.pos === s.items.length - 1 ? 'Chiudi' : 'Avanti ›'}</button>`;
+  $('#actionBar').classList.add('on');
 
   document.querySelectorAll('[data-set]').forEach(b => b.onclick = () => {
     const i = +b.dataset.set;
     c.setsDone[c.pos] = (c.setsDone[c.pos] === i + 1) ? i : i + 1;
-    renderSession();
+    saveResume(); renderSession();
   });
   document.querySelectorAll('[data-fb]').forEach(b => b.onclick = () => {
     c.feedback[c.pos] = c.feedback[c.pos] === b.dataset.fb ? null : b.dataset.fb;
-    captureLoad(); renderSession();
+    captureLoad(); saveResume(); renderSession();
   });
-  $('#loadIn').onchange = () => { captureLoad(); renderSession(); };
+  document.querySelectorAll('[data-rep]').forEach(b => b.onclick = () => {
+    const base = (c.repsDone[c.pos] === null || c.repsDone[c.pos] === undefined) ? it.reps : c.repsDone[c.pos];
+    c.repsDone[c.pos] = Math.max(0, Math.min(99, base + (+b.dataset.rep)));
+    captureLoad(); saveResume(); renderSession();
+  });
+  document.querySelectorAll('[data-rir]').forEach(b => b.onclick = () => {
+    const v = +b.dataset.rir;
+    c.rir[c.pos] = (c.rir[c.pos] === v) ? null : v;
+    captureLoad(); saveResume(); renderSession();
+  });
+  $('#loadIn').onchange = () => { captureLoad(); saveResume(); renderSession(); };
+
   // conclude una serie e avvia il recupero
   const closeSet = () => {
     captureLoad();
@@ -1004,6 +1453,7 @@ function renderSession() {
     const what = finished
       ? (c.pos === s.items.length - 1 ? 'Recupero finale' : `Poi: ${exById(s.items[c.pos + 1].exId).name}`)
       : `Serie ${c.setsDone[c.pos] + 1} di ${it.sets} · ${ex.name}`;
+    saveResume();
     renderSession();
     startTimer(rest, what, () => { if (finished) nextExercise(); }, 'rest');
   };
@@ -1011,19 +1461,23 @@ function renderSession() {
   $('#doneSet').onclick = () => {
     if (timerRunning()) return;                  // un timer è già in corso
     captureLoad();
-    if (timed) {
-      // cronometro della tenuta: al termine parte da solo il recupero
-      startTimer(hold, `Tenuta · ${ex.name}`, closeSet, 'work', 3);
-    } else closeSet();
+    if (timed) startTimer(hold, `Tenuta · ${ex.name}`, closeSet, 'work', 3);
+    else closeSet();
   };
   $('#infoBtn').onclick = () => openSheet(ex, it, { sess: s, after: () => renderSession() });
   $('#swapBtn').onclick = () => openExercisePicker(it, s, changed => {
-    if (changed) { c.setsDone[c.pos] = 0; c.loads[c.pos] = ''; c.feedback[c.pos] = null; }
-    renderSession();
+    if (changed) {
+      c.setsDone[c.pos] = 0; c.loads[c.pos] = ''; c.feedback[c.pos] = null;
+      c.repsDone[c.pos] = null; c.rir[c.pos] = null;
+    }
+    saveResume(); renderSession();
   });
-  $('#prevBtn').onclick = () => { captureLoad(); if (c.pos > 0) { c.pos--; renderSession(); } };
+  $('#noteBtn').onclick = () => editNote(it.exId, () => renderSession());
+  if ($('#noteShow')) $('#noteShow').onclick = () => editNote(it.exId, () => renderSession());
   $('#postponeBtn').onclick = () => { captureLoad(); timerCb = null; postponeCurrent(); };
   $('#orderBtn').onclick = () => { captureLoad(); openReorder(); };
+  $('#prevBtn').onclick = () => { captureLoad(); if (c.pos > 0) { c.pos--; saveResume(); renderSession(); } };
+
   // il timer di recupero accompagna al prossimo esercizio: passando avanti
   // continua a scorrere, si stacca solo l'azione automatica che aveva in coda
   const goNext = () => { timerCb = null; nextExercise(); };
@@ -1039,20 +1493,40 @@ function renderSession() {
   };
   $('#abortBtn').onclick = () => confirmAction('Interrompere la sessione?',
     'Gli esercizi già conclusi restano nello storico, il resto della seduta viene abbandonato.',
-    'Interrompi', () => { stopTimer(); releaseWakeLock(); current = null; go('home'); });
+    'Interrompi', () => { stopTimer(); releaseWakeLock(); current = null; clearResume(); go('home'); });
+}
+
+/* Nota personale per esercizio: regolazioni della macchina, accorgimenti,
+   sensazioni ricorrenti. Resta legata all'esercizio e ricompare ogni volta. */
+function editNote(exId, after) {
+  const ex = exById(exId), cur = S.exNotes[exId] || '';
+  openModal(`<h2>Nota su ${esc(ex.name)}</h2>
+    <p class="small muted">Resta salvata e ricompare ogni volta che incontri questo esercizio: regolazioni del sedile, presa, accorgimenti.</p>
+    <div class="field"><input id="noteIn" type="text" maxlength="120" placeholder="es. sedile al foro 4, presa stretta" value="${esc(cur)}"></div>
+    <button class="btn" id="noteOk">Salva</button>
+    ${cur ? `<button class="btn ghost" id="noteDel" style="margin-top:10px">Elimina la nota</button>` : ''}
+    <button class="btn ghost" id="noteNo" style="margin-top:10px">Annulla</button>`);
+  $('#noteOk').onclick = () => {
+    const v = ($('#noteIn').value || '').trim();
+    if (v) S.exNotes[exId] = v; else delete S.exNotes[exId];
+    save(); closeModal(after);
+  };
+  if ($('#noteDel')) $('#noteDel').onclick = () => { delete S.exNotes[exId]; save(); closeModal(after); };
+  $('#noteNo').onclick = () => closeModal();
 }
 
 /* Sposta un esercizio nella scaletta insieme ai dati già inseriti (serie fatte,
-   carico, feedback), così l'ordine può essere adattato al volo se una macchina
-   o un attrezzo è occupato. Si possono spostare solo gli esercizi non ancora
-   conclusi, cioè dalla posizione corrente in poi. */
+   carico, ripetizioni, RIR, feedback), così l'ordine può essere adattato al volo
+   se una macchina o un attrezzo è occupato. Si possono spostare solo gli
+   esercizi non ancora conclusi, cioè dalla posizione corrente in poi. */
 function moveItem(from, to) {
   const c = current, s = c.sess;
   if (from === to || from < c.pos || to < c.pos || to >= s.items.length) return;
-  [s.items, c.setsDone, c.loads, c.feedback, c.logRef].forEach(arr => {
+  [s.items, c.setsDone, c.loads, c.feedback, c.logRef, c.repsDone, c.rir].forEach(arr => {
     const v = arr.splice(from, 1)[0];
     arr.splice(to, 0, v);
   });
+  saveResume();
 }
 
 /* Rimanda l'esercizio corrente in fondo alla seduta. */
@@ -1096,6 +1570,53 @@ function captureLoad() {
   const el = $('#loadIn');
   if (el && current) current.loads[current.pos] = el.value;
 }
+
+/* ---------------------------------------------------------------------------
+   RIPRESA DI UNA SEDUTA INTERROTTA
+   La sessione in corso viene salvata a ogni modifica, non solo tenuta in
+   memoria: se iOS chiude l'app per liberare memoria — cosa normale mentre
+   ascolti musica e usi altre app in palestra — al riavvio ritrovi esercizio
+   corrente, serie completate, carichi, ripetizioni e RIR già inseriti.
+--------------------------------------------------------------------------- */
+const RESUME_MAX_H = 6;          // oltre sei ore la seduta è considerata chiusa
+
+function saveResume() {
+  if (!current || current.finished) return;
+  const c = current;
+  S.resume = {
+    ts: Date.now(), started: c.started, pos: c.pos,
+    kind: c.sess.kind, idx: c.sess.idx,
+    items: c.sess.items,                      // la seduta può essere stata riordinata
+    label: c.sess.label, type: c.sess.type,
+    setsDone: c.setsDone, loads: c.loads, feedback: c.feedback,
+    repsDone: c.repsDone, rir: c.rir, logRef: c.logRef
+  };
+  save();
+}
+function clearResume() { S.resume = null; save(); }
+
+/* Ricostruisce la sessione dallo stato salvato, se è ancora recente. */
+function resumableSession() {
+  const r = S.resume;
+  if (!r || !r.items || !r.items.length) return null;
+  if ((Date.now() - r.ts) > RESUME_MAX_H * 3600 * 1000) return null;
+  if (r.items.some(it => !exById(it.exId))) return null;
+  return r;
+}
+function restoreSession(r) {
+  const meta = sessionMeta(r.idx);
+  const sess = Object.assign({}, meta, {
+    label: r.label, type: r.type, kind: r.kind, items: r.items,
+    minutes: estimateMinutes(r.items)
+  });
+  current = { sess, pos: r.pos, setsDone: r.setsDone, loads: r.loads,
+              feedback: r.feedback, logRef: r.logRef,
+              repsDone: r.repsDone || r.items.map(() => null),
+              rir: r.rir || r.items.map(() => null),
+              started: r.started };
+  requestWakeLock(); unlockAudio();
+  go('session'); renderSession();
+}
 const arrow = f => f === 'up' ? '<span class="trend-up">↑</span>' : f === 'down' ? '<span class="trend-down">↓</span>' : '–';
 
 function nextExercise() {
@@ -1104,9 +1625,15 @@ function nextExercise() {
   // registra l'esercizio appena concluso (o aggiorna il record, se ci si era
   // tornati sopra con "Esercizio precedente": niente doppioni nello storico)
   const it = s.items[c.pos];
+  const rd = c.repsDone[c.pos];
   const entry = { ts: Date.now(), sid: c.started, sIdx: s.idx, exId: it.exId, name: exById(it.exId).name,
                   setup: S.setup, load: c.loads[c.pos] || '', feedback: c.feedback[c.pos] || 'same',
-                  sets: c.setsDone[c.pos], reps: it.reps, goal: it.goal, week: s.weekInCycle };
+                  sets: c.setsDone[c.pos],
+                  repsTarget: it.reps,                                   // obiettivo previsto
+                  repsDone: (rd === null || rd === undefined) ? it.reps : rd,  // eseguite davvero
+                  rir: (c.rir[c.pos] === null || c.rir[c.pos] === undefined) ? null : c.rir[c.pos],
+                  reps: it.reps,                                         // compatibilità storico
+                  goal: it.goal, week: s.weekInCycle };
   // valutazione automatica rispetto alla registrazione precedente dello stesso esercizio
   const ref0 = c.logRef[c.pos];
   const prev = S.logs.filter((g, gi) => g.exId === it.exId && gi !== ref0).pop() || null;
@@ -1116,7 +1643,7 @@ function nextExercise() {
   if (ref !== null && S.logs[ref]) S.logs[ref] = entry;
   else { c.logRef[c.pos] = S.logs.length; S.logs.push(entry); }
   save();
-  if (c.pos < s.items.length - 1) { c.pos++; renderSession(); }
+  if (c.pos < s.items.length - 1) { c.pos++; saveResume(); renderSession(); }
   else { c.finished = true; endSession(); }
 }
 
@@ -1136,10 +1663,13 @@ function endSession() {
     S.sessionLog.push({ ts: Date.now(), sid: sid, idx: s.idx,
       label: s.label, kind: s.kind, minutes: mins,
       note: withNote ? ($('#sNote').value || '') : '' });
-    if (s.kind !== 'core') S.sessionIndex++;
+    if (s.kind !== 'core' && s.kind !== 'free') S.sessionIndex++;
     planCache = null; homeSel = 'session';
-    const weekDone = (s.kind !== 'core' && S.sessionIndex % 5 === 0) ? S.sessionIndex / 5 : 0;
+    const weekDone = (s.kind !== 'core' && s.kind !== 'free' && S.sessionIndex % 5 === 0) ? S.sessionIndex / 5 : 0;
     if (weekDone) S.lastRecap = weekDone;
+    calibratePace(s, mins);            // la stima dei tempi impara dalla realtà
+    clearResume();                     // la seduta è chiusa: niente da riprendere
+    if (weekDone) takeSnapshot(weekDone);
     save();
 
     // statistiche della seduta appena chiusa, per il pop up di complimenti
@@ -1198,20 +1728,30 @@ function openSheet(ex, it, ctx) {
     <h2>${esc(ex.name)}</h2>
     <div class="small muted">${esc(ex.group)} · ${esc(ex.equipment.join(', ') || 'corpo libero')}</div>
     <div class="frames">
-      <div>${figureFor(ex, 0)}<div class="small muted" style="text-align:center">posizione iniziale</div></div>
-      <div>${figureFor(ex, 1)}<div class="small muted" style="text-align:center">posizione finale</div></div>
+      <div>${figureA11y(ex, 0)}<div class="small muted" style="text-align:center">posizione iniziale</div></div>
+      <div>${figureA11y(ex, 1)}<div class="small muted" style="text-align:center">posizione finale</div></div>
     </div>
     ${it ? `<p class="small muted">Oggi: ${doseText(it)}, recupero ${it.rest}s, RPE ${esc(it.rpe)}. ${esc(it.source)}</p>` : ''}
     ${(() => {
       const sug = suggestLoad(ex), last = sug && sug.last;
-      if (!last) return `<div class="notice" style="margin-top:10px">Nessuna registrazione precedente per questo esercizio: parti prudente e annota il carico.</div>`;
+      if (!last) return `<div class="notice" style="margin-top:10px">Nessuna registrazione precedente per questo esercizio: parti prudente e annota carico e ripetizioni.</div>`;
+      const det = [];
+      if (isFinite(last.repsDone)) det.push(`${last.sets}×${last.repsDone} rip`);
+      if (isFinite(last.rir) && last.rir !== null) det.push(`RIR ${last.rir}`);
+      const em = e1rm(last);
+      if (em) det.push(`max stimato ${em.toFixed(1)} kg`);
       return `<div class="notice" style="margin-top:10px">
-        <b>Ultima volta</b> (${new Date(last.ts).toLocaleDateString('it-IT')}): ${esc(last.load || '—')} ${arrow(last.feedback)} ${starsHtml(last.stars)}
+        <b>Ultima volta</b> (${new Date(last.ts).toLocaleDateString('it-IT')}): ${esc(last.load || '—')}${det.length ? ' · ' + det.join(' · ') : ''} ${arrow(last.feedback)} ${starsHtml(last.stars)}
         ${last.rateText ? `<div class="small" style="opacity:.85">${esc(last.rateText)}</div>` : ''}
         ${sug.value ? `<div style="margin-top:6px"><b>Suggerito oggi:</b> ${esc(sug.value)}</div>` : ''}
+        ${sug.reason ? `<div class="small" style="opacity:.85">${esc(sug.reason)}</div>` : ''}
       </div>`;
     })()}
+    ${S.exNotes[ex.id] ? `<div class="exnote" style="cursor:default">📌 ${esc(S.exNotes[ex.id])}</div>` : ''}
     <div class="block"><h3>Esecuzione</h3><ol>${ex.steps.map(s => `<li>${esc(s)}</li>`).join('')}</ol></div>
+    ${ex.levels ? `<div class="block"><h3>Progressione</h3>
+      <p class="small muted">Gradini dal più facile al più difficile: si sale quando superi l'obiettivo di due ripetizioni per due sedute.</p>
+      <ol>${ex.levels.map(l => `<li>${esc(l)}</li>`).join('')}</ol></div>` : ''}
     <div class="block"><h3>Muscoli coinvolti</h3>
       <div class="tags">${ex.primary.map(m => `<span data-muscle="${esc(m)}">${esc(m)} ›</span>`).join('')}
       ${ex.secondary.map(m => `<span data-muscle="${esc(m)}">${esc(m)} (secondario) ›</span>`).join('')}</div>
@@ -1255,11 +1795,15 @@ function renderHistory() {
 
   const rows = keys.map(k => {
     const logs = byEx[k], last = logs[logs.length - 1];
-    const nums = logs.map(l => parseFloat(l.load)).filter(n => isFinite(n));
+    // la linea segue il massimale stimato: così migliorare le ripetizioni a
+    // parità di carico si vede, mentre prima il grafico restava piatto
+    const nums = logs.map(l => { const m = progressMetric(l); return m ? m.v : NaN; })
+                     .filter(n => isFinite(n));
+    const e = e1rm(last);
     return `<li data-ex="${k}">
       <div class="spark">${sparkline(nums)}</div>
       <div class="nm" style="flex:1"><b>${esc(last.name)}</b>
-        <div class="small muted">${logs.length} sedute · ultima ${new Date(last.ts).toLocaleDateString('it-IT')}</div></div>
+        <div class="small muted">${logs.length} sedute · ultima ${new Date(last.ts).toLocaleDateString('it-IT')}${e ? ' · max stimato ' + e.toFixed(1) + ' kg' : ''}</div></div>
       <div class="val">${esc(last.load || '—')} ${arrow(last.feedback)}<br>${starsHtml(last.stars)}</div></li>`;
   }).join('');
 
@@ -1273,10 +1817,19 @@ function renderHistory() {
   const wks = weeksWithData().slice(0, 4).map(w =>
     `<button class="btn ghost" data-week="${w}" style="margin-top:8px">Settimana ${w} · ${weekReport(w).sessions} sedute</button>`).join('');
 
+  const curWeek = Math.floor(S.sessionIndex / 5) + 1;
+  const vol = volumeHtml(curWeek);
+
   $('#view-history').innerHTML = `
+    ${vol ? `<div class="card"><h2>Volume della settimana ${curWeek}</h2>
+      <p class="small muted">Serie completate per gruppo muscolare. La tacca chiara segna le 10 serie settimanali,
+      volume oltre il quale la letteratura mostra i risultati migliori sull'ipertrofia; sotto le 5 la barra diventa rossa.</p>
+      <div style="margin-top:10px">${vol}</div></div>` : ''}
     ${wks ? `<div class="card"><h2>Riepilogo settimanale</h2>
       <p class="small muted">Traguardi migliori e punti a cui fare attenzione, dalla valutazione automatica dei progressi.</p>${wks}</div>` : ''}
-    <div class="card"><h2>Carichi per esercizio</h2><ul class="hist">${rows}</ul></div>
+    <div class="card"><h2>Carichi per esercizio</h2>
+      <p class="small muted">La linea segue il massimale stimato, non il solo peso: migliorare le ripetizioni a parità di carico si vede.</p>
+      <ul class="hist">${rows}</ul></div>
     ${sess ? `<div class="card"><h2>Ultime sedute</h2><ul class="hist">${sess}</ul></div>` : ''}`;
 
   document.querySelectorAll('[data-ex]').forEach(li => li.onclick = () => detailFor(li.dataset.ex, byEx[li.dataset.ex]));
@@ -1334,6 +1887,46 @@ function weeksWithData() {
   return Array.from(set).sort((a, b) => b - a);
 }
 
+/* ---------------------------------------------------------------------------
+   VOLUME SETTIMANALE PER GRUPPO MUSCOLARE
+   Conta le serie effettivamente completate su ciascun gruppo muscolare
+   primario. La meta-analisi di riferimento mostra un effetto crescente col
+   volume: meno di 5 serie settimanali +5,4%, da 5 a 9 +6,6%, 10 o più +9,8%.
+   Da qui le due soglie usate nelle barre: 5 (minimo) e 10 (obiettivo).
+   Fonte: Schoenfeld, Ogborn, Krieger (2017), Journal of Sports Sciences.
+--------------------------------------------------------------------------- */
+const VOL_MIN = 5, VOL_TARGET = 10;
+
+function weeklyVolume(weekAbs) {
+  const logs = S.logs.filter(l => l.sIdx != null && Math.floor(l.sIdx / 5) + 1 === weekAbs);
+  const map = {};
+  logs.forEach(l => {
+    const ex = exById(l.exId);
+    if (!ex || ex.type === 'stretch') return;
+    const sets = l.sets || 0;
+    if (!sets) return;
+    // gli unilaterali contano metà serie per lato: il gruppo riceve comunque
+    // il lavoro di tutte le serie, quindi si conta la serie una volta sola
+    (ex.primary || []).forEach(m => { map[m] = (map[m] || 0) + sets; });
+  });
+  return Object.keys(map).map(m => ({ muscle: m, sets: map[m] }))
+                         .sort((a, b) => b.sets - a.sets);
+}
+
+function volumeHtml(weekAbs) {
+  const rows = weeklyVolume(weekAbs);
+  if (!rows.length) return '';
+  const max = Math.max(VOL_TARGET + 2, rows[0].sets);
+  return rows.map(r => {
+    const cls = r.sets < VOL_MIN ? 'low' : (r.sets >= VOL_TARGET ? 'good' : '');
+    return `<div class="volrow">
+      <span class="nm">${esc(r.muscle)}</span>
+      <span class="volbar"><i class="${cls}" style="width:${Math.min(100, r.sets / max * 100)}%"></i>
+        <span class="voltarget" style="left:${VOL_TARGET / max * 100}%"></span></span>
+      <span class="val">${r.sets}</span></div>`;
+  }).join('');
+}
+
 function openWeekReport(weekAbs) {
   const r = weekReport(weekAbs);
   if (!r.logs.length) {
@@ -1356,14 +1949,23 @@ function openWeekReport(weekAbs) {
     : r.avg >= 2 ? 'Settimana di mantenimento: nessun passo indietro, e va benissimo così.'
     : 'Settimana in calo: capita, spesso dipende da sonno o stress. Riparti dal carico dell\'ultima seduta riuscita.';
 
+  // volume per gruppo muscolare della settimana appena chiusa
+  const vol = volumeHtml(weekAbs);
+  const low = weeklyVolume(weekAbs).filter(v => v.sets < VOL_MIN).map(v => v.muscle);
+
   openModal(`<h2>Riepilogo settimana ${weekAbs}</h2>
     <p class="small muted">${r.sessions} sedute completate · ${r.logs.length} esercizi registrati · media ${r.avg.toFixed(1)} stelle</p>
     <div style="margin:10px 0">${starsHtml(Math.round(r.avg))}</div>
     <p class="small">${tone}</p>
     ${medals ? `<div class="block" style="margin-top:16px"><h3 style="font-size:16px;color:var(--muted)">Migliori traguardi</h3>${medals}</div>` : ''}
-    ${(cautions || fatigue) ? `<div class="block warnblock" style="margin-top:16px"><h3>Da tenere d'occhio</h3><ul>${cautions}${fatigue}</ul></div>`
-      : '<p class="small muted" style="margin-top:14px">Nessun incremento fuori scala: progressione regolare.</p>'}
-    <button class="btn" id="wrOk" style="margin-top:18px">Chiudi</button>`);
+    ${vol ? `<div class="block" style="margin-top:16px"><h3 style="font-size:16px;color:var(--muted)">Serie per gruppo muscolare</h3>${vol}</div>` : ''}
+    ${(cautions || fatigue || low.length) ? `<div class="block warnblock" style="margin-top:16px"><h3>Da tenere d'occhio</h3><ul>${cautions}${fatigue}${
+        low.length ? `<li>Volume basso su ${esc(low.join(', '))}: sotto le 5 serie settimanali lo stimolo di crescita è limitato.</li>` : ''}</ul></div>`
+      : '<p class="small muted" style="margin-top:14px">Nessun incremento fuori scala e volume adeguato su tutti i gruppi.</p>'}
+    ${S.autoBackup ? `<button class="btn" id="wrBackup" style="margin-top:18px">Salva il backup della settimana</button>
+      <button class="btn ghost" id="wrOk" style="margin-top:10px">Chiudi</button>`
+      : `<button class="btn" id="wrOk" style="margin-top:18px">Chiudi</button>`}`);
+  if ($('#wrBackup')) $('#wrBackup').onclick = () => { exportData(); closeModal(); };
   $('#wrOk').onclick = closeModal;
 }
 
@@ -1376,11 +1978,18 @@ function sparkline(vals) {
 
 function detailFor(exId, logs) {
   const ex = exById(exId);
-  const rows = logs.slice().reverse().map(l =>
-    `<li><div class="nm" style="flex:1"><b>${esc(l.load || '—')}</b>
-      <div class="small muted">${new Date(l.ts).toLocaleDateString('it-IT')} · ${l.sets}×${l.reps} · ${l.setup === 'gym' ? 'palestra' : 'casa'}</div>
+  const rows = logs.slice().reverse().map(l => {
+    const r = isFinite(l.repsDone) ? l.repsDone : l.reps;
+    const e = e1rm(l);
+    const extra = [`${l.sets}×${r}`];
+    if (isFinite(l.rir) && l.rir !== null) extra.push(`RIR ${l.rir}`);
+    if (e) extra.push(`max ${e.toFixed(1)} kg`);
+    extra.push(l.setup === 'gym' ? 'palestra' : 'casa');
+    return `<li><div class="nm" style="flex:1"><b>${esc(l.load || '—')}</b>
+      <div class="small muted">${new Date(l.ts).toLocaleDateString('it-IT')} · ${extra.join(' · ')}</div>
       ${l.rateText ? `<div class="small muted">${esc(l.rateText)}</div>` : ''}</div>
-      <div class="val">${arrow(l.feedback)}<br>${starsHtml(l.stars)}</div></li>`).join('');
+      <div class="val">${arrow(l.feedback)}<br>${starsHtml(l.stars)}</div></li>`;
+  }).join('');
   openModal(`<h2>${esc(ex.name)}</h2>
     <div style="height:110px;margin:10px 0">${bigChart(logs)}</div>
     <ul class="hist">${rows}</ul>
@@ -1394,16 +2003,146 @@ function detailFor(exId, logs) {
       save(); renderHistory();
     });
 }
+/* Grafico del dettaglio: due linee quando è possibile, il massimale stimato
+   (piena) e il carico usato (tratteggiata), così si distingue un progresso di
+   forza da un semplice aumento di peso. */
 function bigChart(logs) {
-  const vals = logs.map(l => parseFloat(l.load)).filter(n => isFinite(n));
-  if (vals.length < 2) return `<p class="small muted">Servono almeno due sedute con carico annotato per il grafico.</p>`;
-  const min = Math.min(...vals), max = Math.max(...vals), r = (max - min) || 1;
-  const pts = vals.map((v, i) => `${6 + i * (288 / (vals.length - 1))},${96 - ((v - min) / r) * 80}`).join(' ');
-  return `<svg viewBox="0 0 300 110" style="width:100%;height:100%">
+  const met = logs.map(l => { const m = progressMetric(l); return m ? m.v : NaN; });
+  const raw = logs.map(l => { const v = logValue(l); return v === null ? NaN : v; });
+  const vals = met.filter(n => isFinite(n));
+  if (vals.length < 2) return `<p class="small muted">Servono almeno due sedute registrate per il grafico.</p>`;
+  const all = vals.concat(raw.filter(n => isFinite(n)));
+  const min = Math.min(...all), max = Math.max(...all), r = (max - min) || 1;
+  const X = i => 6 + i * (288 / (logs.length - 1 || 1));
+  const Y = v => 96 - ((v - min) / r) * 80;
+  const line = (arr, color, dash) => {
+    const pts = arr.map((v, i) => isFinite(v) ? `${X(i)},${Y(v)}` : null).filter(Boolean).join(' ');
+    return pts ? `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="${dash ? 2 : 3}"
+      stroke-linejoin="round" ${dash ? 'stroke-dasharray="5 4" opacity=".65"' : ''}/>` : '';
+  };
+  const showRaw = raw.some((v, i) => isFinite(v) && isFinite(met[i]) && Math.abs(v - met[i]) > 0.01);
+  return `<svg viewBox="0 0 300 110" style="width:100%;height:100%" role="img"
+      aria-label="Andamento del massimale stimato su ${vals.length} sedute">
     <line x1="6" y1="100" x2="294" y2="100" stroke="#2B3B4E" stroke-width="1.5"/>
-    <polyline points="${pts}" fill="none" stroke="#F5A524" stroke-width="3" stroke-linejoin="round"/>
-    <text x="6" y="14" fill="#93A7BC" font-size="11">${max}</text>
-    <text x="6" y="96" fill="#93A7BC" font-size="11">${min}</text></svg>`;
+    ${showRaw ? line(raw, '#93A7BC', true) : ''}
+    ${line(met, '#F5A524', false)}
+    <text x="6" y="14" fill="#93A7BC" font-size="11">${max.toFixed(1)}</text>
+    <text x="6" y="96" fill="#93A7BC" font-size="11">${min.toFixed(1)}</text>
+    ${showRaw ? '<text x="200" y="14" fill="#93A7BC" font-size="9">— max stimato · -- carico</text>' : ''}</svg>`;
+}
+
+/* ---------------------------------------------------------------------------
+   CATALOGO ESERCIZI
+   109 esercizi che prima si potevano incontrare solo dentro una seduta. Qui
+   sono cercabili per nome, gruppo muscolare e attrezzatura, con la scheda
+   completa a un tocco: utile anche in palestra, quando una macchina è occupata
+   e serve capire cosa si sa fare al suo posto.
+--------------------------------------------------------------------------- */
+let catQuery = '', catFilter = 'tutti', catSetupOnly = true;
+
+function catalogGroups() {
+  const g = new Set(DB.exercises.map(e => e.group));
+  return ['tutti'].concat(Array.from(g).sort((a, b) => a.localeCompare(b)));
+}
+
+function catalogList() {
+  const q = catQuery.trim().toLowerCase();
+  return DB.exercises.filter(e => {
+    if (catSetupOnly && !e.setup.includes(S.setup)) return false;
+    if (catFilter !== 'tutti' && e.group !== catFilter) return false;
+    if (!q) return true;
+    const hay = [e.name, e.group, (e.equipment || []).join(' '),
+                 (e.primary || []).join(' '), (e.secondary || []).join(' ')].join(' ').toLowerCase();
+    return q.split(/\s+/).every(w => hay.indexOf(w) >= 0);
+  }).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function renderCatalog() {
+  $('#topTitle').textContent = 'Esercizi';
+  const list = catalogList();
+  $('#topChip').textContent = `${list.length} di ${DB.exercises.length}`;
+  $('#topChip').className = 'chip';
+
+  const chips = catalogGroups().map(g =>
+    `<button data-cat="${esc(g)}" aria-pressed="${catFilter === g}">${g === 'tutti' ? 'Tutti' : esc(g)}</button>`).join('');
+
+  const rows = list.map(ex => {
+    const last = lastEntry(ex.id);
+    return `<li data-catex="${ex.id}">
+      <div class="fig">${figureFor(ex, 1, { ground: false })}</div>
+      <div class="nm"><b>${esc(ex.name)}</b>
+        <div class="small muted">${esc(ex.group)} · ${esc((ex.equipment || []).join(', ') || 'corpo libero')}</div>
+        ${last ? `<div class="why">ultima volta ${esc(last.load || '—')} · ${new Date(last.ts).toLocaleDateString('it-IT')}</div>` : ''}</div>
+      <div class="chev">›</div></li>`;
+  }).join('');
+
+  $('#view-catalog').innerHTML = `
+    <input class="search" id="catSearch" type="search" placeholder="Cerca per nome, muscolo o attrezzo"
+           aria-label="Cerca un esercizio" value="${esc(catQuery)}">
+    <div class="filters">${chips}</div>
+    <div class="switch" style="border:0;padding-top:0">
+      <span class="small muted">Solo esercizi disponibili ${S.setup === 'gym' ? 'in palestra' : 'a casa'}</span>
+      <input type="checkbox" id="catSetup" ${catSetupOnly ? 'checked' : ''}></div>
+    <div class="card"><ul class="picker">${rows || '<li><span class="small muted">Nessun esercizio corrisponde alla ricerca.</span></li>'}</ul></div>`;
+
+  const inp = $('#catSearch');
+  inp.oninput = () => {
+    catQuery = inp.value;
+    const pos = inp.selectionStart;
+    renderCatalog();
+    const el = $('#catSearch'); el.focus(); try { el.setSelectionRange(pos, pos); } catch (e) {}
+  };
+  document.querySelectorAll('[data-cat]').forEach(b => b.onclick = () => { catFilter = b.dataset.cat; renderCatalog(); });
+  $('#catSetup').onchange = e => { catSetupOnly = e.target.checked; renderCatalog(); };
+  document.querySelectorAll('[data-catex]').forEach(li => li.onclick = () => openSheet(exById(li.dataset.catex), null, null));
+}
+
+/* ---------------------------------------------------------------------------
+   SEDUTA LIBERA
+   Allenamento fuori programma: si scelgono gli esercizi al momento, il timer e
+   la registrazione dei carichi funzionano come sempre, ma la settimana del
+   programma non avanza. Serve a non perdere i dati di una sessione improvvisata.
+--------------------------------------------------------------------------- */
+function buildFreeSession(exIds) {
+  const meta = sessionMeta(S.sessionIndex);
+  const items = exIds.map(id => {
+    const ex = exById(id);
+    const goalKey = ex.type === 'stretch' ? 'stretch' : (ex.type === 'core' ? 'core' : 'hypertrophy');
+    return Object.assign({ exId: id, note: 'Seduta libera', goalKey,
+      alt: { patterns: [ex.pattern], types: [ex.type] } }, dose(goalKey, meta.profile, ex));
+  });
+  return Object.assign({}, meta, {
+    label: 'Seduta libera', type: 'free', kind: 'free', items,
+    minutes: estimateMinutes(items), trimmed: false
+  });
+}
+
+function openFreeSession() {
+  let picked = [];
+  const draw = () => {
+    const list = catalogList().slice(0, 60);
+    const rows = list.map(ex => `<li class="${picked.indexOf(ex.id) >= 0 ? 'cur' : ''}" data-freeex="${ex.id}">
+      <div class="fig">${figureFor(ex, 1, { ground: false })}</div>
+      <div class="nm"><b>${esc(ex.name)}</b>
+        <div class="small muted">${esc(ex.group)} · ${esc((ex.equipment || []).join(', ') || 'corpo libero')}</div></div>
+      <button class="pick">${picked.indexOf(ex.id) >= 0 ? '✓ scelto' : 'Aggiungi'}</button></li>`).join('');
+    openModal(`<h2>Seduta libera</h2>
+      <p class="small muted">Scegli gli esercizi che vuoi fare adesso. Timer e registrazione funzionano normalmente, ma la settimana del programma non avanza.</p>
+      <input class="search" id="freeSearch" type="search" placeholder="Cerca un esercizio" value="${esc(catQuery)}">
+      <ul class="picker">${rows}</ul>
+      <button class="btn" id="freeGo" ${picked.length ? '' : 'disabled'}>Inizia con ${picked.length} eserciz${picked.length === 1 ? 'io' : 'i'}</button>
+      <button class="btn ghost" id="freeNo" style="margin-top:10px">Annulla</button>`);
+    const fi = $('#freeSearch');
+    fi.oninput = () => { catQuery = fi.value; draw(); setTimeout(() => { const e2 = $('#freeSearch'); if (e2) e2.focus(); }, 10); };
+    document.querySelectorAll('[data-freeex]').forEach(li => li.onclick = () => {
+      const id = li.dataset.freeex, i = picked.indexOf(id);
+      if (i >= 0) picked.splice(i, 1); else picked.push(id);
+      draw();
+    });
+    $('#freeGo').onclick = () => { if (picked.length) closeModal(() => startSession(buildFreeSession(picked))); };
+    $('#freeNo').onclick = () => closeModal();
+  };
+  draw();
 }
 
 /* ---------- programma e impostazioni ---------- */
@@ -1446,13 +2185,28 @@ function renderSettings() {
     <div class="card">
       <h2>Dati</h2>
       <p class="small muted">${S.lastExport ? 'Ultimo salvataggio: ' + new Date(S.lastExport).toLocaleDateString('it-IT') : 'Non hai ancora salvato un backup.'} ${S.logs.length} esercizi e ${S.sessionLog.length} sedute registrate su questo telefono.</p>
-      <div class="btn-row">
+      <p class="small muted">Archiviazione: ${idbReady ? 'database locale' : 'memoria del browser'} ·
+        ${storagePersisted === true ? 'protetta dalle pulizie automatiche'
+          : storagePersisted === false ? 'non protetta: il sistema ha negato la richiesta'
+          : 'protezione non disponibile su questo browser'}.</p>
+      <div class="switch"><span>Istantanea automatica a fine settimana</span>
+        <input type="checkbox" id="backupChk" ${S.autoBackup ? 'checked' : ''}></div>
+      <div class="btn-row" style="margin-top:12px">
         <button class="btn ghost" id="exportBtn">Esporta JSON</button>
+        <button class="btn ghost" id="csvBtn">Esporta CSV</button>
+      </div>
+      <div class="btn-row" style="margin-top:10px">
         <button class="btn ghost" id="importBtn">Importa backup</button>
+        <button class="btn ghost" id="resetBtn">Azzera tutto</button>
       </div>
       <input type="file" id="importFile" accept="application/json,.json" style="display:none">
-      <button class="btn ghost" id="resetBtn" style="margin-top:10px">Azzera tutto</button>
-      <div class="notice" style="margin-top:12px">Su iPhone, se rimuovi l'icona dell'app dalla schermata Home, iOS cancella anche i dati salvati al suo interno. Esporta un backup prima di rimuovere o reinstallare l'app, così puoi ripristinarlo con "Importa backup".</div>
+      ${(S.snapshots || []).length ? `<div style="margin-top:14px">
+        <h3 style="font-size:15px;color:var(--muted);font-family:var(--sans)">Istantanee conservate</h3>
+        ${S.snapshots.slice().reverse().map((sn, i) => {
+          const realIdx = S.snapshots.length - 1 - i;
+          return `<button class="btn ghost" data-snap="${realIdx}" style="margin-top:8px">Fine settimana ${sn.week} · ${sn.logs} esercizi · ${new Date(sn.ts).toLocaleDateString('it-IT')}</button>`;
+        }).join('')}</div>` : ''}
+      <div class="notice" style="margin-top:12px">Su iPhone, se rimuovi l'icona dell'app dalla schermata Home, iOS cancella anche i dati salvati al suo interno. Le istantanee vivono nella stessa memoria: per essere al sicuro serve un backup esportato fuori dall'app, che il riepilogo di fine settimana ti propone da solo.</div>
     </div>
 
     <div class="card flat">
@@ -1467,6 +2221,11 @@ function renderSettings() {
   $('#shoulderChk').onchange = e => { S.shoulderCare = e.target.checked; planCache = null; save(); };
   $('#soundChk').onchange = e => { S.sound = e.target.checked; save(); if (e.target.checked) testBells(); };
   $('#testSound').onclick = testBells;
+  $('#backupChk').onchange = e => { S.autoBackup = e.target.checked; save(); };
+  $('#csvBtn').onclick = () => dangerAction('Esportare i dati in CSV?',
+    `Verrà creato un foglio con ${S.logs.length} righe, una per esercizio registrato, apribile in Numbers o Excel. Il file finisce nei Download del telefono: chiunque vi acceda può leggerlo.`,
+    'Esporta il CSV', exportCsv);
+  document.querySelectorAll('[data-snap]').forEach(b => b.onclick = () => restoreSnapshot(+b.dataset.snap));
   $('#exportBtn').onclick = () => dangerAction('Esportare i tuoi dati?',
     `Verrà creato un file con ${S.logs.length} esercizi registrati, ${S.sessionLog.length} sedute e le tue impostazioni. Il file finisce nei Download del telefono: chiunque vi acceda può leggerlo.`,
     'Esporta il backup', exportData);
@@ -1481,14 +2240,91 @@ function renderSettings() {
   $('#wlStatus').textContent = ('wakeLock' in navigator) ? 'attivo durante le sessioni' : 'non supportato su questo browser';
 }
 
-function exportData() {
-  S.lastExport = Date.now(); save();
-  const blob = new Blob([JSON.stringify(S, null, 2)], { type: 'application/json' });
+/* Scarica un file, oppure lo passa al foglio di condivisione di iOS quando
+   disponibile: da lì può finire su iCloud Drive o in una mail a sé stessi. */
+async function deliverFile(name, text, mime) {
+  const blob = new Blob([text], { type: mime });
+  try {
+    const file = new File([blob], name, { type: mime });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: name });
+      return true;
+    }
+  } catch (e) { /* condivisione annullata: si ricade sul download */ }
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `palestra50-${new Date().toISOString().slice(0, 10)}.json`;
+  a.download = name;
   a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  return true;
+}
+
+function exportData() {
+  S.lastExport = Date.now(); save();
+  deliverFile(`palestra50-${new Date().toISOString().slice(0, 10)}.json`,
+              JSON.stringify(S, null, 2), 'application/json');
   renderSettings();
+}
+
+/* Esportazione in CSV: una riga per esercizio registrato, apribile in Numbers
+   o Excel. Serve ad avere dati di cui si può fare qualcosa fuori dall'app. */
+function exportCsv() {
+  const q = v => {
+    const t = String(v === null || v === undefined ? '' : v);
+    return /[";\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+  };
+  const head = ['data', 'ora', 'settimana', 'esercizio', 'gruppo', 'attrezzatura',
+                'carico', 'serie', 'rip_obiettivo', 'rip_eseguite', 'rir',
+                'max_stimato_kg', 'stelle', 'obiettivo', 'nota_valutazione'];
+  const rows = S.logs.map(l => {
+    const ex = exById(l.exId), d = new Date(l.ts), e = e1rm(l);
+    return [
+      d.toLocaleDateString('it-IT'), d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
+      l.sIdx != null ? Math.floor(l.sIdx / 5) + 1 : '',
+      l.name, ex ? ex.group : '', l.setup === 'gym' ? 'palestra' : 'casa',
+      l.load, l.sets, l.repsTarget != null ? l.repsTarget : l.reps,
+      l.repsDone != null ? l.repsDone : '', l.rir != null ? l.rir : '',
+      e ? e.toFixed(1) : '', l.stars || '', l.goal || '', l.rateText || ''
+    ].map(q).join(';');
+  });
+  const csv = '﻿' + [head.join(';')].concat(rows).join('\n');   // BOM per Excel
+  deliverFile(`palestra50-${new Date().toISOString().slice(0, 10)}.csv`, csv, 'text/csv');
+}
+
+/* ---------------------------------------------------------------------------
+   BACKUP AUTOMATICO
+   A settimana conclusa l'app conserva un'istantanea dei dati (le ultime tre) e
+   propone il salvataggio esterno nel momento in cui hai già in mano il
+   telefono, cioè con il riepilogo aperto. Un backup che non dipende dalla
+   memoria dell'utente è l'unica difesa reale contro la perdita dei dati.
+--------------------------------------------------------------------------- */
+function takeSnapshot(weekAbs) {
+  if (!S.autoBackup) return;
+  const snap = {
+    ts: Date.now(), week: weekAbs, logs: S.logs.length, sessions: S.sessionLog.length,
+    data: JSON.stringify(Object.assign({}, S, { snapshots: [], resume: null }))
+  };
+  S.snapshots = (S.snapshots || []).filter(x => x.week !== weekAbs);
+  S.snapshots.push(snap);
+  while (S.snapshots.length > 3) S.snapshots.shift();   // solo le ultime tre
+  save();
+}
+
+function restoreSnapshot(i) {
+  const snap = S.snapshots[i];
+  if (!snap) return;
+  dangerAction('Ripristinare questa istantanea?',
+    `Tornerai ai dati di fine settimana ${snap.week} (${snap.logs} esercizi, ${snap.sessions} sedute). ` +
+    'Quanto registrato dopo quella data andrà perso.',
+    'Ripristina', () => {
+      try {
+        const data = JSON.parse(snap.data);
+        const keep = S.snapshots;
+        S = Object.assign({}, DEFAULT_STATE, data);
+        S.snapshots = keep;
+        planCache = null; save(); go('home');
+      } catch (e) {}
+    });
 }
 
 /* Importa un backup esportato in precedenza: sostituisce i dati correnti dopo
@@ -1570,11 +2406,67 @@ function renderTock(dv, total, atSec, high) {
   }
 }
 
-/* Costruisce la traccia di un timer: silenzio + rintocchi ai secondi giusti.
-   marks = elenco di [secondo, acuto?]. */
+/* ---------------------------------------------------------------------------
+   COSTRUZIONE DELLA TRACCIA — fuori dal thread principale
+   Generare il WAV campione per campione costa: circa 1,4 MB per un recupero di
+   90 secondi. Farlo nel thread principale bloccava l'interfaccia proprio nel
+   momento in cui si preme "Ho finito la serie". Qui il lavoro va in un Web
+   Worker creato al volo (nessun file aggiuntivo da pubblicare) e i formati
+   ricorrenti vengono tenuti in memoria e riutilizzati: dopo la prima serie la
+   traccia è già pronta. Se i Worker non sono disponibili si costruisce come
+   prima, in modo sincrono.
+--------------------------------------------------------------------------- */
+const BELL_CACHE_MAX = 6;
+let bellCache = [], bellWorker = null;
+
+/* Corpo del worker: stesso identico algoritmo, eseguito altrove. */
+function bellWorkerSource() {
+  return `
+const SR=${BELL_SR}, LOW=${BELL_LOW}, HIGH=${BELL_HIGH};
+function build(lead,dur){
+  const tail=1.3, total=Math.ceil((lead+dur+tail)*SR);
+  const bytes=new Uint8Array(44+total*2), dv=new DataView(bytes.buffer);
+  const wr=(o,t)=>{for(let i=0;i<t.length;i++)bytes[o+i]=t.charCodeAt(i);};
+  wr(0,'RIFF');dv.setUint32(4,36+total*2,true);wr(8,'WAVEfmt ');
+  dv.setUint32(16,16,true);dv.setUint16(20,1,true);dv.setUint16(22,1,true);
+  dv.setUint32(24,SR,true);dv.setUint32(28,SR*2,true);
+  dv.setUint16(32,2,true);dv.setUint16(34,16,true);
+  wr(36,'data');dv.setUint32(40,total*2,true);
+  const marks=[];
+  for(let k=3;k>=1;k--) if(lead>=k) marks.push([lead-k,false]);
+  if(lead>0) marks.push([lead,true]);
+  for(let k=3;k>=1;k--) if(dur>=k) marks.push([lead+dur-k,false]);
+  marks.push([lead+dur,true]);
+  marks.forEach(m=>{
+    const f=m[1]?HIGH:LOW, d=m[1]?1.1:0.55, dec=m[1]?4.2:7;
+    const i0=Math.round(m[0]*SR); if(i0<0) return;
+    const n=Math.min(Math.round(d*SR), total-i0);
+    for(let i=0;i<n;i++){
+      const t=i/SR, at=Math.min(1,t/0.005);
+      dv.setInt16(44+(i0+i)*2, Math.sin(2*Math.PI*f*t)*at*Math.exp(-t*dec)*0.97*32767, true);
+    }
+  });
+  return bytes;
+}
+self.onmessage = e => {
+  const {lead,dur,id} = e.data;
+  const bytes = build(lead,dur);
+  self.postMessage({id, buf: bytes.buffer}, [bytes.buffer]);
+};`;
+}
+
+function getBellWorker() {
+  if (bellWorker !== null) return bellWorker;
+  try {
+    const url = URL.createObjectURL(new Blob([bellWorkerSource()], { type: 'text/javascript' }));
+    bellWorker = new Worker(url);
+  } catch (e) { bellWorker = false; }
+  return bellWorker;
+}
+
+/* Versione sincrona, usata come ricaduta. */
 function bellTrackFor(leadSec, durSec) {
-  const tail = 1.3, totalSec = leadSec + durSec + tail;
-  const total = Math.ceil(totalSec * BELL_SR);
+  const tail = 1.3, total = Math.ceil((leadSec + durSec + tail) * BELL_SR);
   const { bytes, dv } = wavBuffer(total);
   const marks = [];
   for (let k = 3; k >= 1; k--) if (leadSec >= k) marks.push([leadSec - k, false]);
@@ -1585,10 +2477,65 @@ function bellTrackFor(leadSec, durSec) {
   return new Blob([bytes], { type: 'audio/wav' });
 }
 
+const bellKey = (l, d) => `${Math.round(l)}|${Math.round(d)}`;
+function cachedTrack(l, d) {
+  const k = bellKey(l, d);
+  const hit = bellCache.find(x => x.k === k);
+  return hit ? hit.url : null;
+}
+function cacheTrack(l, d, url) {
+  const k = bellKey(l, d);
+  if (bellCache.some(x => x.k === k)) { URL.revokeObjectURL(url); return; }
+  bellCache.push({ k, url });
+  while (bellCache.length > BELL_CACHE_MAX) {
+    const old = bellCache.shift();
+    try { URL.revokeObjectURL(old.url); } catch (e) {}
+  }
+}
+
+/* Restituisce l'URL della traccia, dal riuso o costruendola. */
+function trackUrl(lead, dur, cb) {
+  const hit = cachedTrack(lead, dur);
+  if (hit) return cb(hit, true);
+  const w = getBellWorker();
+  if (w) {
+    const id = Math.random().toString(36).slice(2);
+    const onMsg = e => {
+      if (e.data.id !== id) return;
+      w.removeEventListener('message', onMsg);
+      const url = URL.createObjectURL(new Blob([new Uint8Array(e.data.buf)], { type: 'audio/wav' }));
+      cacheTrack(lead, dur, url);
+      cb(url, false);
+    };
+    w.addEventListener('message', onMsg);
+    w.postMessage({ lead, dur, id });
+    return;
+  }
+  const url = URL.createObjectURL(bellTrackFor(lead, dur));
+  cacheTrack(lead, dur, url);
+  cb(url, false);
+}
+
+/* Prepara in anticipo le durate che ricorrono nella seduta, così il primo
+   avvio non paga nemmeno lui l'attesa. */
+function prewarmBells(items) {
+  const set = new Set();
+  (items || []).forEach(it => {
+    set.add(bellKey(0, it.rest));
+    if (it.hold) set.add(bellKey(3, it.hold));
+  });
+  Array.from(set).slice(0, BELL_CACHE_MAX).forEach(k => {
+    const [l, d] = k.split('|').map(Number);
+    trackUrl(l, d, () => {});
+  });
+}
+
+let bellPlayToken = 0;
+
 function stopBells() {
+  bellPlayToken++;
   if (bellTrack) { try { bellTrack.pause(); } catch (e) {} }
-  if (bellUrl) { try { URL.revokeObjectURL(bellUrl); } catch (e) {} }
-  bellTrack = null; bellUrl = null;
+  bellTrack = null;               // gli URL restano in cache per il riuso
 }
 
 /* Avvia la traccia. offset = secondi già trascorsi (per riallineare al rientro
@@ -1596,20 +2543,21 @@ function stopBells() {
 function playBells(leadSec, durSec, offset) {
   stopBells();
   if (S && S.sound === false) return;
-  try {
-    setAudioSession();
-    bellUrl = URL.createObjectURL(bellTrackFor(leadSec, durSec));
-    bellTrack = new Audio(bellUrl);
-    bellTrack.preload = 'auto';
-    bellTrack.volume = 1;
-    if (offset > 0) {
-      const seek = () => { try { bellTrack.currentTime = offset; } catch (e) {} };
+  const token = bellPlayToken;
+  setAudioSession();
+  trackUrl(leadSec, durSec, url => {
+    if (token !== bellPlayToken) return;          // nel frattempo il timer è cambiato
+    try {
+      bellTrack = new Audio(url);
+      bellTrack.preload = 'auto';
+      bellTrack.volume = 1;
+      const seek = () => { try { if (offset > 0) bellTrack.currentTime = offset; } catch (e) {} };
       bellTrack.addEventListener('loadedmetadata', seek, { once: true });
       seek();
-    }
-    const p = bellTrack.play();
-    if (p && p.catch) p.catch(() => {});
-  } catch (e) {}
+      const p = bellTrack.play();
+      if (p && p.catch) p.catch(() => {});
+    } catch (e) {}
+  });
 }
 
 /* Riallinea la traccia al contatore: usata al rientro in primo piano. */
@@ -1806,6 +2754,61 @@ function disclaimer() {
   $('#okDisc').onclick = () => { S.disclaimerOk = true; save(); closeModal(); };
 }
 
+/* ---------------------------------------------------------------------------
+   AGGIORNAMENTO DELL'APP
+   Il service worker nuovo non si attiva da solo: quando è pronto l'app mostra
+   un avviso, e l'aggiornamento viene applicato quando l'utente lo sceglie —
+   mai a metà seduta. Prima bastava dimenticare di cambiare il numero di cache
+   perché l'iPhone continuasse a servire la versione vecchia.
+--------------------------------------------------------------------------- */
+function showUpdateBanner(reg) {
+  if ($('#updBar')) return;
+  const bar = document.createElement('div');
+  bar.className = 'updbar';
+  bar.id = 'updBar';
+  bar.innerHTML = `<span>Aggiornamento pronto</span>
+    <button class="pick" id="updNow">Applica</button>
+    <button class="mini-skip" id="updLater" aria-label="Più tardi">✕</button>`;
+  document.body.appendChild(bar);
+  requestAnimationFrame(() => bar.classList.add('on'));
+  $('#updNow').onclick = () => {
+    if (current && !current.finished) {
+      confirmAction('Applicare ora l\'aggiornamento?',
+        'La seduta in corso è già salvata e la ritroverai al riavvio, ma l\'app si ricaricherà.',
+        'Applica', () => applyUpdate(reg));
+    } else applyUpdate(reg);
+  };
+  $('#updLater').onclick = () => bar.remove();
+}
+function applyUpdate(reg) {
+  try {
+    saveResume();
+    if (reg.waiting) reg.waiting.postMessage('skipWaiting');
+    setTimeout(() => location.reload(), 400);
+  } catch (e) { location.reload(); }
+}
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.register('sw.js').then(reg => {
+    if (reg.waiting) showUpdateBanner(reg);
+    reg.addEventListener('updatefound', () => {
+      const w = reg.installing;
+      if (!w) return;
+      w.addEventListener('statechange', () => {
+        if (w.state === 'installed' && navigator.serviceWorker.controller) showUpdateBanner(reg);
+      });
+    });
+    // un controllo all'apertura e uno ogni ora: l'aggiornamento non dipende
+    // più dal ricordarsi di chiudere l'app dal multitasking
+    reg.update().catch(() => {});
+    setInterval(() => reg.update().catch(() => {}), 3600 * 1000);
+  }).catch(() => {});
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (reloaded) return; reloaded = true; location.reload();
+  });
+}
+
 (async function boot() {
   load();
   try { await loadData(); }
@@ -1813,9 +2816,13 @@ function disclaimer() {
     document.body.innerHTML = '<p style="padding:24px">Impossibile caricare i dati degli esercizi. Apri l\'app da un server web (o dalla schermata Home dopo l\'installazione), non da file locale.</p>';
     return;
   }
+  await initStore();               // archivio dei risultati (IndexedDB)
+  requestPersistence();            // chiede di non cancellare i dati
+  validateData();                  // controllo di coerenza dei file JSON
   migrateToMacro();
   migrateNames();
   resetCalfLogs();
+  migrateLogFields();
   go('home');
   // l'intro si anima per 3 secondi e resta sull'ultimo fotogramma: sparisce solo
   // quando l'utente tocca lo schermo, e solo dopo compare l'avvertenza
@@ -1832,5 +2839,5 @@ function disclaimer() {
   const qEl = document.getElementById('splashQuote');
   if (qEl) qEl.textContent = pickQuote();
   if (splash) splash.onclick = afterSplash; else afterSplash();
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  registerServiceWorker();
 })();

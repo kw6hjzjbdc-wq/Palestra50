@@ -385,7 +385,13 @@
    "safety": [
     "Sulla panca orizzontale l'escursione è maggiore rispetto alla versione a 45°: controlla la discesa e fermati all'allineamento in risalita."
    ],
-   "source": "ACSM – rinforzo della muscolatura estensoria del tronco"
+   "source": "ACSM – rinforzo della muscolatura estensoria del tronco",
+   "levels": [
+    "Braccia lungo i fianchi",
+    "Mani al petto",
+    "Mani dietro la nuca",
+    "Mani dietro la nuca con tenuta di 2 s"
+   ]
   },
   {
    "id": "g_goodmorning",
@@ -643,7 +649,15 @@
    "safety": [
     "Se serve, appoggia le mani su un rialzo per ridurre il carico mantenendo la tecnica."
    ],
-   "source": "ACSM – esercizio a corpo libero, resistenza muscolare"
+   "source": "ACSM – esercizio a corpo libero, resistenza muscolare",
+   "levels": [
+    "Mani su rialzo alto",
+    "Mani su panca",
+    "Ginocchia a terra",
+    "Completi a terra",
+    "Tempo lento 3-1-3",
+    "Presa stretta"
+   ]
   },
   {
    "id": "g_lat",
@@ -1368,7 +1382,13 @@
    "safety": [
     "Ginocchio: il tempo lento aumenta la difficoltà senza aggiungere carico sulla rotula."
    ],
-   "source": "NSCA – tempo under tension in assenza di sovraccarico"
+   "source": "NSCA – tempo under tension in assenza di sovraccarico",
+   "levels": [
+    "Con appoggio alla sedia",
+    "A corpo libero",
+    "Tempo lento 3-1-3",
+    "Tempo lento con pausa di 2 s in basso"
+   ]
   },
   {
    "id": "h_squatband",
@@ -1454,7 +1474,13 @@
    "safety": [
     "Ginocchio: la versione inversa riduce la forza di frenata sulla rotula rispetto all'affondo in avanti."
    ],
-   "source": "NSCA – lavoro unilaterale a basso impatto"
+   "source": "NSCA – lavoro unilaterale a basso impatto",
+   "levels": [
+    "Con appoggio alla parete",
+    "Senza appoggio",
+    "Con pausa di 2 s in basso",
+    "Piede anteriore su rialzo"
+   ]
   },
   {
    "id": "h_splithome",
@@ -1625,7 +1651,13 @@
     "Rinforzo unilaterale utile per correggere asimmetrie che sovraccaricano un ginocchio."
    ],
    "source": "NSCA – progressione unilaterale",
-   "perSide": true
+   "perSide": true,
+   "levels": [
+    "Piede d'appoggio piatto",
+    "Gamba libera distesa",
+    "Tallone su rialzo",
+    "Con pausa di 2 s in alto"
+   ]
   },
   {
    "id": "h_rdlband",
@@ -1797,7 +1829,13 @@
    "safety": [
     "Assicurati che l'appoggio dei piedi sia stabile prima di iniziare."
    ],
-   "source": "NSCA – progressione del piegamento"
+   "source": "NSCA – progressione del piegamento",
+   "levels": [
+    "Piedi a terra",
+    "Piedi su gradino",
+    "Piedi su sedia",
+    "Piedi su sedia, tempo lento"
+   ]
   },
   {
    "id": "h_pushupband",
@@ -1925,7 +1963,13 @@
    "safety": [
     "Polso: se fastidioso, appoggia i pugni o usa impugnature."
    ],
-   "source": "NSCA – variante per tricipiti"
+   "source": "NSCA – variante per tricipiti",
+   "levels": [
+    "Ginocchia a terra",
+    "Mani su rialzo",
+    "Completi a terra",
+    "Tempo lento 3-1-3"
+   ]
   },
   {
    "id": "h_flydb",
@@ -2138,7 +2182,13 @@
    "safety": [
     "Schiena: ampiezza ridotta e controllo, senza slanci."
    ],
-   "source": "ACSM – rinforzo estensori del tronco"
+   "source": "ACSM – rinforzo estensori del tronco",
+   "levels": [
+    "Solo braccia",
+    "Solo gambe",
+    "Braccia e gambe",
+    "Braccia e gambe con tenuta di 3 s"
+   ]
   },
   {
    "id": "h_pullapart",
@@ -2554,7 +2604,13 @@
     "Spalla: fermati a 90° e usa una sedia che non scivoli."
    ],
    "source": "ACSM – esercizio a corpo libero per tricipiti",
-   "shoulderRisk": true
+   "shoulderRisk": true,
+   "levels": [
+    "Piedi vicini, ginocchia piegate",
+    "Gambe semidistese",
+    "Gambe distese",
+    "Gambe distese su rialzo"
+   ]
   },
   {
    "id": "h_frenchband",
@@ -2637,7 +2693,13 @@
     "Caviglie forti stabilizzano il ginocchio nei movimenti quotidiani."
    ],
    "source": "NSCA – resistenza muscolare polpaccio",
-   "perSide": true
+   "perSide": true,
+   "levels": [
+    "A due piedi",
+    "A due piedi su gradino",
+    "Monopodalico a terra",
+    "Monopodalico su gradino"
+   ]
   },
   {
    "id": "h_calfband",
@@ -2810,7 +2872,13 @@
    "safety": [
     "Schiena: riduci l'ampiezza fino a mantenere il contatto lombare."
    ],
-   "source": "ACSM – controllo lombo-pelvico"
+   "source": "ACSM – controllo lombo-pelvico",
+   "levels": [
+    "Solo braccia",
+    "Solo gambe",
+    "Braccio e gamba opposti",
+    "Braccio e gamba con gambe distese"
+   ]
   },
   {
    "id": "c_hollow",
@@ -2897,7 +2965,13 @@
    "safety": [
     "Schiena: esercizio avanzato, parti con escursioni brevi (30-40 cm) e aumenta gradualmente."
    ],
-   "source": "NSCA – progressione anti-estensione avanzata"
+   "source": "NSCA – progressione anti-estensione avanzata",
+   "levels": [
+    "Escursione 30 cm",
+    "Escursione 50 cm",
+    "Escursione 70 cm",
+    "Escursione completa in ginocchio"
+   ]
   },
   {
    "id": "c_reversecrunch",
@@ -2939,7 +3013,13 @@
    "safety": [
     "Movimento breve e controllato: l'obiettivo è la contrazione, non l'ampiezza."
    ],
-   "source": "ACSM – flessione lombo-pelvica controllata"
+   "source": "ACSM – flessione lombo-pelvica controllata",
+   "levels": [
+    "Ginocchia piegate",
+    "Ginocchia a 90° senza slancio",
+    "Gambe semidistese",
+    "Gambe distese"
+   ]
   },
   {
    "id": "c_mountain",
@@ -4231,7 +4311,12 @@
    "safety": [
     "Spalla: è il gesto che insegna la prima fase della trazione, quella che quasi tutti saltano; va fatto prima del lavoro pesante."
    ],
-   "source": "Progressione trazioni – attivazione scapolare (controllo della fase iniziale)"
+   "source": "Progressione trazioni – attivazione scapolare (controllo della fase iniziale)",
+   "levels": [
+    "Piedi appoggiati",
+    "In sospensione completa",
+    "In sospensione con tenuta di 2 s"
+   ]
   },
   {
    "id": "g_deadhang",
@@ -4320,7 +4405,13 @@
    "safety": [
     "Spalla: presa neutra o prona a larghezza spalle, mai larghissima. Fermati quando la discesa scende sotto i 3 secondi: è il segnale che la serie è finita."
    ],
-   "source": "Evidenza JSCR: il lavoro eccentrico trasferisce alla trazione libera più dell'assistenza elastica"
+   "source": "Evidenza JSCR: il lavoro eccentrico trasferisce alla trazione libera più dell'assistenza elastica",
+   "levels": [
+    "Discesa 3 s",
+    "Discesa 5 s",
+    "Discesa 8 s",
+    "Discesa 8 s con pausa a metà"
+   ]
   },
   {
    "id": "g_isohold",
@@ -4498,7 +4589,14 @@
    "safety": [
     "Spalla: la presa neutra o prona a larghezza spalle è la meno critica per lo spazio subacromiale; la presa larghissima è quella più a rischio. Ferma la serie quando la tecnica si sporca, non al cedimento."
    ],
-   "source": "Presa a larghezza spalle: minor rischio di conflitto subacromiale fra le varianti studiate"
+   "source": "Presa a larghezza spalle: minor rischio di conflitto subacromiale fra le varianti studiate",
+   "levels": [
+    "Assistita con band",
+    "Mezza escursione",
+    "Completa",
+    "Completa con tenuta di 2 s in alto",
+    "Completa con tempo lento"
+   ]
   },
   {
    "id": "g_invrow",
@@ -4543,7 +4641,13 @@
    "safety": [
     "Alza la barra per rendere l'esercizio più facile, abbassala per renderlo più duro: è la progressione più graduale verso la trazione."
    ],
-   "source": "Progressione trazioni – trazione orizzontale come base di forza"
+   "source": "Progressione trazioni – trazione orizzontale come base di forza",
+   "levels": [
+    "Barra all'altezza dell'anca",
+    "Barra a metà coscia",
+    "Barra all'altezza del ginocchio",
+    "Piedi su rialzo"
+   ]
   },
   {
    "id": "h_scapband",

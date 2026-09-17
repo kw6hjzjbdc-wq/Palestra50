@@ -10,13 +10,14 @@ Settimana tipo: 5 sedute, tre di potenziamento (1, 3, 5) e due di mobilità (2, 
 
 | File | Ruolo |
 |---|---|
-| `index.html` | Shell dell'interfaccia: quattro viste, timer a tutto schermo, scheda esercizio, modale |
+| `index.html` | Shell dell'interfaccia: cinque viste, timer a tutto schermo, scheda esercizio, barra comandi, modale |
 | `styles.css` | Tema scuro ad alto contrasto, tap target da 58 px, safe area iPhone |
-| `app.js` | Stato, motore di periodizzazione, generazione sessioni, timer, storico |
-| `exercises.json` | Database esercizi (89 voci): muscoli, attrezzatura, istruzioni, errori, sicurezza, fonte |
+| `app.js` | Stato, motore di periodizzazione, generazione sessioni, progressione dei carichi, timer, storico |
+| `exercises.json` | Database esercizi (109 voci): muscoli, attrezzatura, istruzioni, errori, sicurezza, progressioni, fonte |
 | `programs.json` | Programmi, template di seduta e parametri per obiettivo (serie/rip/recuperi) |
 | `poses.json` | Libreria di pose stilizzate usata per generare le illustrazioni SVG |
-| `sw.js`, `manifest.webmanifest`, `icon-*.png` | Installazione e funzionamento offline |
+| `quotes.json` | Frasi motivazionali dell'intro (123, in tre lingue) |
+| `sw.js`, `manifest.webmanifest`, `icon-*.png`, `splash-*.png` | Installazione, schermate di avvio e funzionamento offline |
 
 **Perché niente framework.** L'app deve partire in un secondo con il telefono in mano tra una serie e l'altra e funzionare senza rete. HTML, CSS e JavaScript nativi, nessuna build, nessuna dipendenza: il codice che leggi è quello che gira sul telefono.
 
@@ -140,9 +141,21 @@ Il passaggio da una schermata all'altra avviene con una breve dissolvenza in sal
 
 Completate le cinque sedute, l'app apre un riepilogo con le sedute svolte, la media delle stelle, i tre migliori traguardi della settimana e l'elenco di ciò a cui fare attenzione. Resta richiamabile in qualsiasi momento dalla scheda **Progressi → Riepilogo settimanale**, per le ultime quattro settimane con dati.
 
-### Gestione dei carichi
+### Che cosa registra l'app, e come decide il carico
 
-A fine esercizio si registrano carico e feedback (↑ più facile del previsto, – invariato, ↓ più difficile). Alla seduta successiva l'app mostra "Ultima volta: 12 kg ↑" e propone il carico aggiornato: +5% dopo un ↑, −7% dopo un ↓, invariato dopo un –, arrotondato a 0,5 kg sotto i 10 kg e a 1 kg sopra. Per gli esercizi con elastico la stessa logica cambia colore della band (azzurra → gialla → rossa → viola). Tutto è in `localStorage`, con esportazione JSON dalla scheda Programma.
+A ogni esercizio si annotano quattro cose, tutte con un tocco: il **carico**, le **ripetizioni davvero eseguite** nell'ultima serie (precompilate con l'obiettivo, si correggono con − e +), le **ripetizioni in riserva** (quante ne avresti fatte ancora: 0, 1, 2, 3+) e il feedback a frecce. Le ripetizioni reali sono la base di tutto il resto: senza di esse il carico suggerito, il punteggio a stelle e i grafici lavorerebbero su un numero mai inserito.
+
+Il carico della volta dopo segue la **regola 2-for-2**: sale solo se nelle ultime *due* sedute dello stesso esercizio hai completato almeno *due* ripetizioni oltre l'obiettivo. L'incremento è di un passo reale — 0,5 kg sotto i 10 kg, 1 kg sui piccoli gruppi, 2,5 kg sui grandi — arrotondato per eccesso e comunque entro il 10%. Chiudere una serie a zero ripetizioni di riserva blocca l'aumento senza far scendere il carico; solo un "troppo difficile" esplicito lo riduce del 7% circa.
+
+Per elastici ed esercizi a corpo libero la scala è a gradini: le quattro band (azzurra → gialla → rossa → viola) e, per 17 esercizi a corpo libero, una **progressione dichiarata** — per i piegamenti: mani su rialzo alto → mani su panca → ginocchia a terra → completi → tempo lento → presa stretta. Si sale di un gradino con la stessa regola dei pesi, quindi anche il lavoro senza carico diventa misurabile.
+
+### Massimale stimato
+
+Il confronto fra sedute usa il massimale stimato con la formula di Epley — carico × (1 + ripetizioni/30), applicata fino a 15 ripetizioni dove resta attendibile. È ciò che permette di dire che 60 kg × 11 (82 kg stimati) è un progresso rispetto a 60 kg × 6 (72 kg stimati), cosa che guardando il solo peso non si vedrebbe. Nel grafico del dettaglio la linea piena è il massimale stimato, quella tratteggiata il carico usato. Il controllo sugli incrementi troppo bruschi resta invece ancorato al peso reale: aumentare le ripetizioni non è un rischio, aumentare il peso sì.
+
+### Volume settimanale
+
+La scheda Progressi mostra le serie completate per gruppo muscolare nella settimana in corso, con una tacca a 10 serie e la barra rossa sotto le 5. Le soglie vengono dalla meta-analisi dose-risposta: meno di 5 serie settimanali per gruppo danno +5,4%, da 5 a 9 +6,6%, 10 o più +9,8%. Lo stesso riquadro compare nel riepilogo di fine settimana, che segnala esplicitamente i gruppi rimasti sotto le 5 serie.
 
 ---
 
@@ -181,6 +194,14 @@ I file devono restare tutti allo stesso livello: la struttura è piatta apposta,
 ### Alternativa più rapida ma temporanea
 Su `app.netlify.com/drop`, dopo aver fatto l'accesso, puoi caricare direttamente il file **`palestra50.zip`** dal selettore file: Netlify lo scompatta e ti dà subito un indirizzo `https://...netlify.app`. È comodo per provare l'app in due minuti, ma senza account collegato quei siti sono provvisori: per l'uso quotidiano resta meglio GitHub Pages.
 
+### Seduta interrotta
+
+Se l'app viene chiusa da iOS a metà allenamento — cosa normale mentre ascolti musica e usi altre app in palestra — al riavvio la schermata Oggi propone *Riprendi*, con esercizio corrente, serie completate, carichi, ripetizioni e RIR già inseriti. La proposta resta valida per sei ore, poi la seduta è considerata chiusa. Si può anche scartare esplicitamente: gli esercizi già conclusi restano comunque nello storico.
+
+### Accessibilità
+
+Lo zoom non è più bloccato (era una violazione del criterio WCAG 1.4.4). Il contatore del timer è annunciato dalla sintesi vocale, utile anche a chi tiene il telefono in tasca con gli auricolari. Le illustrazioni degli esercizi hanno una descrizione testuale generata dai dati della scheda, quindi non sono più invisibili a uno screen reader. Tutte le animazioni rispettano "Riduci movimento" di iOS.
+
 ### Sostituire l'icona sulla schermata Home
 
 iOS fotografa l'icona al momento dell'installazione e non la aggiorna da sola: dopo aver cambiato le icone nel repository bisogna reinstallare la scorciatoia, e reinstallare significa **perdere i dati salvati** (vedi il riquadro sopra). Prima di procedere:
@@ -192,7 +213,7 @@ iOS fotografa l'icona al momento dell'installazione e non la aggiorna da sola: d
 4. Se ricompare l'icona vecchia, in Safari apri Impostazioni → Safari → Cancella dati siti web e cronologia oppure ricarica la pagina due volte, poi ripeti il punto 3.
 
 ### Aggiornare l'app in seguito
-Carica i file modificati nello stesso repository (**Add file → Upload files** sovrascrive quelli con lo stesso nome) e cambia il numero di versione in `sw.js` (`palestra50-v1` → `palestra50-v2`), altrimenti l'iPhone continua a usare la copia in cache. Poi apri l'app, chiudila dal multitasking e riaprila.
+Carica i file modificati nello stesso repository (**Add file → Upload files** sovrascrive quelli con lo stesso nome) e cambia il numero di versione in `sw.js` (`palestra50-v19` → `palestra50-v20`). Da questa versione non serve altro: l'app controlla la presenza di aggiornamenti all'apertura e ogni ora, e quando ne trova uno mostra in basso l'avviso **"Aggiornamento pronto"**. Lo applichi quando vuoi tu — se sei a metà seduta l'app te lo dice e la seduta viene salvata prima di ricaricare. Il service worker usa network-first sui file dell'applicazione, quindi la versione nuova arriva da sola appena c'è rete, e cache-first su icone e immagini, che non cambiano.
 
 ### Se qualcosa non va
 - **Schermata bianca o messaggio sui dati non caricati**: manca qualche file nel repository, oppure i file sono finiti dentro una sottocartella. Devono stare nella radice, accanto a `index.html`.
@@ -223,6 +244,9 @@ All'apertura scorre un'intro di tre secondi: l'anello del marchio si disegna, le
 - Chiusura e interruzione della sessione chiedono sempre conferma, così non si esce per errore. Se esci dalla vista della sessione, in Oggi compare il banner **Riprendi**.
 - **Scheda esercizio**: si apre sempre dall'alto e riporta, oltre a esecuzione passo-passo, muscoli, errori e figure, anche **l'ultima registrazione** dello stesso esercizio (data, carico, freccia e stelle) e il **carico suggerito per oggi**. È raggiungibile anche dalla pagina *Ordine degli esercizi*, toccando il nome di un esercizio.
 - A fine seduta puoi annotare una nota libera (sensazioni, ginocchio, carichi). Salvando, un **pop up di complimenti** celebra la seduta conclusa: cerchio che si disegna, spunta, scintille, minuti, esercizi e media delle stelle, con una riga di commento che cambia in base a com'è andata. Se era la quinta seduta della settimana, alla chiusura lascia il posto al riepilogo settimanale.
+- **Esercizi**: nuova scheda con tutti i 109 esercizi del database, cercabili per nome, muscolo o attrezzo e filtrabili per gruppo. Ogni voce apre la scheda completa e mostra l'ultimo carico registrato. Serve anche in palestra, quando una macchina è occupata e vuoi capire cosa sai fare al suo posto.
+- **Seduta libera**: dalla schermata Oggi, per allenarsi fuori programma. Scegli gli esercizi al momento, timer e registrazione funzionano come sempre, ma la settimana del programma non avanza.
+- **Note personali**: ogni esercizio può avere una nota che resta nel tempo e ricompare ogni volta ("sedile al foro 4", "presa stretta", "il ginocchio tira se scendo troppo").
 - **Progressi**: toccando un esercizio si apre il suo grafico con l'elenco delle registrazioni e, in fondo, *Cancella lo storico di questo esercizio*, utile quando si cambia attrezzo e i vecchi carichi non sono più confrontabili. Andamento del carico per esercizio e riepilogo delle ultime dieci sedute. Toccando una seduta si apre il suo **riepilogo completo**: data e ora, durata, nota, e l'elenco degli esercizi svolti con serie, ripetizioni, carico e feedback.
 - **Programma**: cambio di programma (3, 4 o 6 settimane), attrezzatura predefinita, priorità ginocchio, esclusione degli esercizi critici per la spalla, obiettivo trazioni, spostamento avanti/indietro nella settimana, esportazione e azzeramento dati.
 
@@ -255,13 +279,19 @@ All'apertura scorre un'intro di tre secondi: l'anello del marchio si disegna, le
 
 Poiché nessuna di queste opzioni è il collegamento automatico richiesto, l'inserimento manuale dei battiti è stato tolto: la scheda di fine sessione registra ora durata e una nota libera. L'intensità reale si legge direttamente sull'orologio o nell'app Garmin Connect, dove la seduta è già registrata. Se in futuro vuoi l'import del `.tcx`, il punto di innesto è `endSession()` in `app.js` e il campo da aggiungere ai record di `sessionLog`.
 
-**Persistenza dei dati — leggi con attenzione.** Tutti i dati (carichi, storico, settimana del ciclo) vivono solo su questo iPhone, in `localStorage`: non c'è alcun salvataggio su server. Su iOS questo tipo di memoria può sparire in tre casi:
+**Persistenza dei dati — leggi con attenzione.** Tutti i dati vivono solo su questo iPhone: non c'è alcun salvataggio su server. Dalla versione 4.0 i record di allenamento stanno in **IndexedDB**, che non ha il limite di pochi megabyte di `localStorage` e non obbliga a riscrivere l'intero stato a ogni serie registrata; impostazioni e programma restano in `localStorage`. All'avvio l'app chiede al sistema di **non cancellare i dati** durante le pulizie automatiche (`navigator.storage.persist()`) e mostra l'esito nella scheda Dati. Restano però i rischi seguenti. Su iOS questo tipo di memoria può sparire in tre casi:
 
 1. **Rimuovi l'icona dalla schermata Home** ("Rimuovi app"): iOS cancella insieme all'icona anche i dati che l'app aveva salvato. È la causa più comune di perdita dati, ed è quello che succede tipicamente quando si reinstalla l'app per aggiornare l'icona.
 2. **Il sito non viene aperto per una settimana** (limite ITP di Safari): capita raramente se usi l'app regolarmente, ma è un rischio reale nei periodi di pausa.
 3. **Cancelli manualmente i dati dei siti** da Impostazioni → Safari → Cancella dati siti web.
 
-Per questo la scheda **Programma → Dati** mostra da quanto non fai un backup e propone **Esporta JSON**; se sono passati più di 7 giorni dall'ultimo salvataggio, anche la schermata Oggi lo ricorda con un avviso. Il pulsante **Importa backup** carica di nuovo un file esportato in precedenza, per i casi in cui i dati sul telefono vadano persi. Regola pratica: esporta un backup **prima** di rimuovere l'app dalla Home per qualsiasi motivo (aggiornare l'icona compreso) — è l'unico modo per non perdere lo storico in quel passaggio. Per volumi di dati maggiori il passo successivo naturale è IndexedDB, con la stessa struttura di record già usata nei log.
+Le difese sono tre, in ordine di forza:
+
+1. **Backup esportato fuori dall'app.** A settimana conclusa il riepilogo propone da solo *Salva il backup della settimana*: il file passa dal foglio di condivisione di iOS, quindi può finire su iCloud Drive o in una mail a sé stessi con due tocchi. È l'unica difesa che sopravvive alla rimozione dell'icona. Il pulsante **Importa backup** lo ricarica.
+2. **Istantanee automatiche.** L'app conserva le ultime tre istantanee di fine settimana, ripristinabili dalla scheda Dati. Vivono però nella stessa memoria dell'app: proteggono da un errore, non dalla disinstallazione.
+3. **Esportazione CSV**, per avere i dati in un foglio apribile in Numbers o Excel: una riga per esercizio con data, carico, serie, ripetizioni obiettivo ed eseguite, RIR, massimale stimato e stelle.
+
+Regola pratica invariata: esporta un backup **prima** di rimuovere l'app dalla Home per qualsiasi motivo, aggiornare l'icona compreso.
 
 **Suggerimento di carico.** Si basa solo su ciò che annoti: alla prima seduta non c'è proposta ed è giusto partire prudenti. L'app non calcola l'1RM e non lo stima da carichi submassimali: per la fascia d'età e l'obiettivo, la regolazione per sensazione con RPE è più sicura di un test massimale.
 
@@ -294,11 +324,23 @@ Aggiungi un oggetto in `exercises.json`:
 }
 ```
 
-`type`: `strength`, `core`, `stretch`. `load`: `weight`, `band`, `bodyweight`, `time`. `frames`: due nomi presenti in `poses.json`. `implement`: `barbell`, `barbellBack`, `dumbbells`, `dumbbell1`, `goblet`, `machine`, `cable`, `wheel`, `bandVertical`, `bandTop`, `bandFront`, `bandBack`, `bandFeet`, `bandFoot`, `bandKnees`, `bandAnkle`, `bandShoulder`, `bandSide`, oppure `null`.
+`type`: `strength`, `core`, `stretch`. `load`: `weight`, `band`, `bodyweight`, `time`. `frames`: due nomi presenti in `poses.json`. Campo facoltativo `levels`: un elenco ordinato di gradini dal più facile al più difficile, che rende misurabile un esercizio a corpo libero. All'avvio un **validatore** controlla campi obbligatori, identificativi duplicati, pose inesistenti o identiche, attrezzi non riconosciuti e pose condivise da troppi gruppi muscolari diversi — il segnale del riciclo sbagliato che aveva prodotto tre illustrazioni non pertinenti. Gli errori compaiono nella console del browser. `implement`: `barbell`, `barbellBack`, `dumbbells`, `dumbbell1`, `goblet`, `machine`, `cable`, `wheel`, `bandVertical`, `bandTop`, `bandFront`, `bandBack`, `bandFeet`, `bandFoot`, `bandKnees`, `bandAnkle`, `bandShoulder`, `bandSide`, oppure `null`.
 
 Per un nuovo programma aggiungi una voce in `programs.json` con `cycleWeeks`, tre `strengthDays` e due `stretchDays`: la logica di periodizzazione e di rotazione si adatta da sola.
 
 ---
+
+## Fonti della logica di allenamento
+
+- **NSCA**, *Essentials of Strength Training and Conditioning* — schemi serie/ripetizioni/recupero per obiettivo; regola 2-for-2 per la progressione del carico (due ripetizioni oltre l'obiettivo nell'ultima serie per due sedute consecutive, poi incremento del 2,5–10%); ordine degli esercizi con il movimento obiettivo per primo.
+- **ACSM**, *Guidelines for Exercise Testing and Prescription* — frequenza, intensità e volume per adulti; incremento del carico del 2–10% al raggiungimento del target.
+- **ACE** — linee guida di stretching statico e mobilità dinamica.
+- **OMS** — raccomandazioni di attività fisica per adulti 45-64 anni.
+- **Zourdos M. et al. (2016)**, *Application of the Repetitions in Reserve-Based RPE Scale for Resistance Training*, Strength and Conditioning Journal — scala delle ripetizioni in riserva; validità confermata anche negli adulti anziani (*Experimental Gerontology*, 2025).
+- **Schoenfeld B., Ogborn D., Krieger J. (2017)**, *Dose-response relationship between weekly resistance training volume and increases in muscle mass*, Journal of Sports Sciences — meno di 5 serie settimanali per gruppo +5,4%, 5–9 serie +6,6%, 10 o più +9,8%.
+- **Epley (1985)** — formula del massimale stimato usata nei confronti fra sedute.
+- **Journal of Strength and Conditioning Research** — confronto fra assistenza elastica, macchina a contrappeso e lavoro eccentrico nella progressione verso le trazioni.
+- **W3C**, *WCAG 2.2*, criterio 1.4.4 Resize Text — niente blocco dello zoom.
 
 ## Avvertenza
 
