@@ -73,7 +73,7 @@ Dopo la generazione, `fitToTime()` stima la durata (lavoro + recuperi, allungame
 
 Dentro ogni fase si lavora a blocchi di quattro settimane, con la quarta di scarico (volume ridotto e circa −15% di carico), e la rotazione degli esercizi cambia a ogni blocco. La home mostra fase in corso, settimana nella fase, settimana assoluta e quante ne mancano alla data obiettivo.
 
-**Corsa e aerobica** non compaiono come sedute: restano nel fine settimana, in autonomia. La home mostra però un suggerimento facoltativo, diverso per fase — una sola uscita facile nella fase di forza per non interferire con il recupero, una o due nelle fasi di volume, due nella fase di densità.
+**Corsa e aerobica** non compaiono da nessuna parte nell'app: restano nel fine settimana, gestite in autonomia.
 
 **Cambiando programma non si perde nulla**: storico dei carichi, valutazioni a stelle, riepiloghi e backup sono indipendenti dal programma attivo, e gli altri programmi (3, 4 e 6 settimane) restano disponibili in Programma.
 
@@ -193,6 +193,15 @@ I file devono restare tutti allo stesso livello: la struttura è piatta apposta,
 
 ### Alternativa più rapida ma temporanea
 Su `app.netlify.com/drop`, dopo aver fatto l'accesso, puoi caricare direttamente il file **`palestra50.zip`** dal selettore file: Netlify lo scompatta e ti dà subito un indirizzo `https://...netlify.app`. È comodo per provare l'app in due minuti, ma senza account collegato quei siti sono provvisori: per l'uso quotidiano resta meglio GitHub Pages.
+
+### Se la posizione nel programma non corrisponde
+
+Può capitare che l'indice della prossima seduta si disallinei da ciò che hai davvero svolto, tipicamente dopo un "Salta a domani" o qualche prova. La scheda **Programma → Dove sei nel programma** mostra la posizione corrente e offre due modi per correggerla:
+
+- **Imposta questa posizione**: scegli settimana e sessione dai due menu e confermi. L'app dice quale seduta diventerà la prossima prima di applicare.
+- **Ricalcola dalle sedute registrate**: conta le sedute di programma presenti nello storico e allinea l'indice a quel numero. I blocchi core e le sedute libere non contano, perché non fanno avanzare il programma.
+
+In entrambi i casi lo storico dei carichi, le valutazioni e i backup restano invariati: cambia solo il segnaposto.
 
 ### Seduta interrotta
 

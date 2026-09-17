@@ -115,7 +115,6 @@
       "endurance"
      ],
      "aim": "Preparare tendini, articolazioni e tecnica prima di alzare i carichi.",
-     "aerobic": "Fine settimana: una corsa facile di 30-40 minuti, conversazione possibile.",
      "stretchEmphasis": 0
     },
     {
@@ -127,7 +126,6 @@
       "hypertrophy"
      ],
      "aim": "Accumulo di volume nella fascia 8-12 ripetizioni: è qui che si costruisce il grosso della massa muscolare.",
-     "aerobic": "Fine settimana: una corsa facile, al massimo due, mai il giorno prima della seduta di gambe.",
      "stretchEmphasis": 0
     },
     {
@@ -139,7 +137,6 @@
       "strength"
      ],
      "aim": "Alzare il tetto di carico con 4-6 ripetizioni: più forza oggi significa poter usare pesi più alti nella fase di volume successiva, quindi più stimolo per l'ipertrofia.",
-     "aerobic": "Fine settimana: una sola uscita facile, per non interferire con il recupero nervoso.",
      "stretchEmphasis": 1
     },
     {
@@ -151,7 +148,6 @@
       "endurance"
      ],
      "aim": "Secondo blocco di volume, ora con i carichi più alti guadagnati nella fase di forza: è la fase in cui il volume muscolare diventa visibile.",
-     "aerobic": "Fine settimana: una o due corse facili, utili per il controllo del grasso addominale.",
      "stretchEmphasis": 0
     },
     {
@@ -163,7 +159,6 @@
       "hypertrophy"
      ],
      "aim": "Blocco misto: si mantiene la forza e si continua a stimolare la crescita, riducendo il rischio di stallo.",
-     "aerobic": "Fine settimana: una corsa facile più un'uscita lunga a ritmo blando, se le gambe rispondono bene.",
      "stretchEmphasis": 1
     },
     {
@@ -175,7 +170,6 @@
       "endurance"
      ],
      "aim": "Recuperi più brevi e più lavoro sul core: si mantiene la massa costruita e si lavora sulla definizione, che è ciò che rende visibile il muscolo.",
-     "aerobic": "Fine settimana: due uscite, una facile e una un po' più mossa.",
      "stretchEmphasis": 2
     },
     {
@@ -187,7 +181,6 @@
       "hypertrophy"
      ],
      "aim": "Settimana finale leggera: volume ridotto, mobilità curata, arrivi al 30 maggio scarico e in forma.",
-     "aerobic": "Fine settimana: una corsa breve e rilassata.",
      "stretchEmphasis": 2,
      "deload": true
     }

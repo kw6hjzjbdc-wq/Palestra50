@@ -496,16 +496,6 @@ h1,h2{letter-spacing:.005em}
 .tags span{cursor:pointer}
 .tags span:active{opacity:.6}
 
-/* suggerimento aerobico del fine settimana */
-.weekend{
-  display:flex;align-items:center;gap:12px;margin-top:10px;padding:10px;
-  border:1px dashed var(--line);border-radius:12px;background:rgba(79,195,161,.05);
-}
-.weekend .wknum{
-  width:34px;height:34px;flex:0 0 34px;border-radius:10px;display:grid;place-items:center;
-  font-family:var(--cond);font-size:18px;color:var(--teal);background:rgba(255,255,255,.04);
-  border:1px solid var(--line);
-}
 
 /* ---------- conferma per le operazioni sull'archivio dati ---------- */
 .modal.danger-modal .box,

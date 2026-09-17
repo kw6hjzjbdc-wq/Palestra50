@@ -1190,7 +1190,6 @@ function renderHome() {
       ${s.phase ? `<p class="small muted" style="margin:6px 0 0">Settimana ${s.phase.weekInPhase} di ${s.phase.ph.weeks} della fase, ${s.weekAbs} di ${totalWeeks(p)} del programma${weeksLeftText(p, s.weekAbs)}. ${esc(s.phase.ph.aim)}</p>` : ''}
       <ul class="week">${week}</ul>
       <p class="small muted" style="margin-top:10px">Tocca la seduta che vuoi fare adesso: quella prevista oggi prenderà il suo posto più avanti nella settimana.</p>
-      ${s.phase && s.phase.ph.aerobic ? `<div class="weekend"><span class="wknum core">~</span><div class="nm"><b>Fine settimana, facoltativo</b><div class="small muted">${esc(s.phase.ph.aerobic)}</div></div></div>` : ''}
     </div>
 
     <div class="card">
@@ -1882,6 +1881,14 @@ function weekReport(weekAbs) {
   return { weekAbs, logs, sessions, rated, avg, best, warns, hard };
 }
 
+/* Quante sedute di programma risultano davvero completate: è il valore che
+   l'indice dovrebbe avere. Blocchi core e sedute libere non fanno avanzare il
+   programma, quindi non contano. Serve a rimettere in pari la posizione quando
+   una seduta è stata saltata senza registrarla. */
+function countProgramSessions() {
+  return S.sessionLog.filter(x => x.kind !== 'core' && x.kind !== 'free').length;
+}
+
 function weeksWithData() {
   const set = new Set(S.logs.filter(l => l.sIdx != null).map(l => Math.floor(l.sIdx / 5) + 1));
   return Array.from(set).sort((a, b) => b - a);
@@ -2158,8 +2165,25 @@ function renderSettings() {
         <select id="progSel">${PROG.programs.map(x =>
           `<option value="${x.id}" ${x.id === S.programId ? 'selected' : ''}>${esc(x.name)} · ${x.cycleWeeks} settimane</option>`).join('')}</select></div>
       <p class="small muted">${esc(p.summary)}</p>
-      <p class="small muted">Periodizzazione: ${esc(p.periodization)}. Sei alla sessione ${meta.pos} di 5 della settimana ${meta.weekInCycle}${meta.phase ? ' (fase ' + esc(meta.phase.ph.name) + ')' : ''}.</p>
+      <p class="small muted">Periodizzazione: ${esc(p.periodization)}.</p>
       <p class="small muted">Per scegliere quale seduta svolgere o cambiarne l'ordine, usa il calendario della settimana nella schermata Oggi.</p>
+    </div>
+
+    <div class="card">
+      <h2>Dove sei nel programma</h2>
+      <p class="small muted">Prossima seduta prevista: <b>sessione ${meta.pos} di 5 della settimana ${meta.weekAbs}</b>${meta.phase ? ' · fase ' + esc(meta.phase.ph.name) : ''}.
+        Sedute di programma registrate finora: ${countProgramSessions()}.</p>
+      <div class="btn-row" style="margin-top:12px">
+        <div class="field" style="flex:1;margin:0"><label>Settimana</label>
+          <select id="posWeek">${Array.from({ length: Math.max(12, meta.weekAbs + 4) }, (_, i) => i + 1).map(w =>
+            `<option value="${w}" ${w === meta.weekAbs ? 'selected' : ''}>Settimana ${w}</option>`).join('')}</select></div>
+        <div class="field" style="flex:1;margin:0"><label>Sessione</label>
+          <select id="posDay">${[1, 2, 3, 4, 5].map(d =>
+            `<option value="${d}" ${d === meta.pos ? 'selected' : ''}>Sessione ${d} · ${sessionMeta((meta.weekAbs - 1) * 5 + d - 1).isStrength ? 'potenziamento' : 'mobilità'}</option>`).join('')}</select></div>
+      </div>
+      <button class="btn ghost" id="posSet" style="margin-top:10px">Imposta questa posizione</button>
+      <button class="btn ghost" id="posAuto" style="margin-top:10px">Ricalcola dalle sedute registrate</button>
+      <p class="small muted" style="margin-top:8px">Serve quando l'indice non corrisponde più a ciò che hai davvero svolto, per esempio dopo aver saltato una seduta senza registrarla. Lo storico dei carichi non viene toccato.</p>
     </div>
 
     <div class="card">
@@ -2214,6 +2238,22 @@ function renderSettings() {
       <p class="small muted">Questa app propone programmi generici costruiti sulle linee guida ACSM, NSCA, ACE e OMS per adulti sani. Non sostituisce una valutazione medica. Prima di iniziare, e in particolare per la sensibilità al ginocchio, consulta un medico o un fisioterapista. Interrompi subito in caso di dolore acuto, vertigini o dolore toracico.</p>
     </div>`;
 
+  $('#posSet').onclick = () => {
+    const w = +$('#posWeek').value, d = +$('#posDay').value;
+    const idx = (w - 1) * 5 + (d - 1);
+    const alt = buildSession(idx);
+    confirmAction('Spostare la posizione nel programma?',
+      `La prossima seduta diventerà "${alt.label}", sessione ${d} di 5 della settimana ${w}. Lo storico dei carichi e le valutazioni restano invariati.`,
+      'Imposta', () => { S.sessionIndex = idx; planCache = null; homeSel = 'session'; save(); renderSettings(); });
+  };
+  $('#posAuto').onclick = () => {
+    const n = countProgramSessions();
+    const alt = buildSession(n);
+    confirmAction('Ricalcolare la posizione?',
+      `Risultano ${n} sedute di programma registrate, quindi la prossima sarebbe "${alt.label}", ` +
+      `sessione ${(n % 5) + 1} di 5 della settimana ${Math.floor(n / 5) + 1}. Blocchi core e sedute libere non contano.`,
+      'Allinea alla cronologia', () => { S.sessionIndex = n; planCache = null; homeSel = 'session'; save(); renderSettings(); });
+  };
   $('#progSel').onchange = e => { S.programId = e.target.value; save(); renderSettings(); };
   $('#setupSel').onchange = e => { S.setup = e.target.value; save(); };
   $('#kneeChk').onchange = e => { S.kneeCare = e.target.checked; save(); };
