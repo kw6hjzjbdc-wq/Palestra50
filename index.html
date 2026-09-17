@@ -25,7 +25,7 @@
 <!-- Intro di apertura: si anima per 3 secondi e resta sull'ultimo fotogramma
      finché l'utente non tocca lo schermo -->
 <div class="splash" id="splash">
-  <div class="ver num">4.1 1709</div>
+  <div class="ver num">4.2 1709</div>
   <svg class="logo" viewBox="0 0 120 120">
     <defs>
       <linearGradient id="logoGrad" x1="0" y1="0" x2="1" y2="1">
@@ -120,12 +120,16 @@
     <button class="btn secondary" id="timerMin">Riduci</button>
     <button class="btn" id="timerSkip">Riprendi ora</button>
   </div>
+  <div class="actions">
+    <button class="btn ghost" id="timerStop">Ferma il timer</button>
+  </div>
 </div>
 
 <!-- Timer miniaturizzato: resta visibile mentre si usa il resto dell'app -->
 <div class="mini" id="miniTimer" role="status" aria-live="polite">
   <button id="miniExpand"><span class="num" id="miniCount">0:00</span><span class="small" id="miniWhat"></span></button>
   <button class="mini-skip" id="miniSkip">Salta</button>
+  <button class="mini-skip" id="miniStop" aria-label="Ferma il timer">✕</button>
 </div>
 
 <!-- Scheda informativa esercizio -->

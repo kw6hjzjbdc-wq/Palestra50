@@ -1415,17 +1415,36 @@ function renderSession() {
     </div>`;
 
   // --- barra dei comandi fissa in basso, nella zona del pollice (proposta 19) ---
+  // il pulsante dice sempre quale serie sta per chiudere: nessuna ambiguità su
+  // quante ne restano, e si vede subito se il conteggio si è disallineato
+  const nDone = c.setsDone[c.pos], nNext = Math.min(nDone + 1, it.sets);
+  const allDone = nDone >= it.sets;
+  const sideTag = it.perSide ? ' · ' + (nDone % 2 ? 'Dx' : 'Sx') : '';
+  const doneLabel = allDone
+    ? 'Concludi l\'esercizio'
+    : (timed ? `Avvia ${hold} s · serie ${nNext} di ${it.sets}${sideTag}`
+             : `Ho finito la serie ${nNext} di ${it.sets}${sideTag}`);
+
   $('#actionBar').innerHTML = `
-    <button class="btn ${timed ? 'teal' : ''}" id="doneSet" ${timerRunning() ? 'disabled' : ''}>${
-      timed ? 'Avvia ' + hold + ' s' + (it.perSide ? ' · ' + (c.setsDone[c.pos] % 2 ? 'Dx' : 'Sx') : '')
-            : 'Ho finito la serie'}</button>
+    <button class="btn ${timed && !allDone ? 'teal' : ''}" id="doneSet" ${timerRunning() ? 'disabled' : ''}>${doneLabel}</button>
     <button class="btn secondary" id="nextBtn">${c.pos === s.items.length - 1 ? 'Chiudi' : 'Avanti ›'}</button>`;
   $('#actionBar').classList.add('on');
 
+  // I pallini servono a CORREGGERE il conteggio, non ad avanzarlo: toccarne uno
+  // già spento non conclude la serie, la marca soltanto. Portare il conteggio
+  // al massimo con un tocco chiede conferma, perché equivale a dichiarare
+  // l'esercizio finito e prima era il modo più facile per perdere una serie.
   document.querySelectorAll('[data-set]').forEach(b => b.onclick = () => {
     const i = +b.dataset.set;
-    c.setsDone[c.pos] = (c.setsDone[c.pos] === i + 1) ? i : i + 1;
-    saveResume(); renderSession();
+    const now = c.setsDone[c.pos];
+    const val = (now === i + 1) ? i : i + 1;
+    const apply = () => { c.setsDone[c.pos] = val; saveResume(); renderSession(); };
+    if (val >= it.sets && now < it.sets) {
+      confirmAction('Segnare tutte le serie come fatte?',
+        `Stai marcando ${it.sets} serie su ${it.sets} di ${ex.name}: l'esercizio risulterà concluso. ` +
+        'Per svolgere normalmente le serie usa il pulsante in basso.',
+        'Sì, sono tutte fatte', apply);
+    } else apply();
   });
   document.querySelectorAll('[data-fb]').forEach(b => b.onclick = () => {
     c.feedback[c.pos] = c.feedback[c.pos] === b.dataset.fb ? null : b.dataset.fb;
@@ -1443,24 +1462,42 @@ function renderSession() {
   });
   $('#loadIn').onchange = () => { captureLoad(); saveResume(); renderSession(); };
 
-  // conclude una serie e avvia il recupero
+  /* Conclude la serie in corso e avvia il recupero.
+     Il conteggio avanza solo qui, di una serie per volta, e l'esercizio si
+     considera concluso soltanto se è stata questa pressione a completarlo:
+     prima il controllo guardava il totale, così un pallino toccato per sbaglio
+     poteva far saltare l'ultima serie. */
   const closeSet = () => {
     captureLoad();
-    if (c.setsDone[c.pos] < it.sets) c.setsDone[c.pos]++;
-    const finished = c.setsDone[c.pos] >= it.sets;
+    const before = c.setsDone[c.pos];
+    if (before < it.sets) c.setsDone[c.pos] = before + 1;
+    const done = c.setsDone[c.pos];
+    const finished = done >= it.sets;
     const rest = finished ? Math.max(it.rest, 45) : it.rest;
     const what = finished
       ? (c.pos === s.items.length - 1 ? 'Recupero finale' : `Poi: ${exById(s.items[c.pos + 1].exId).name}`)
-      : `Serie ${c.setsDone[c.pos] + 1} di ${it.sets} · ${ex.name}`;
+      : `Serie ${done + 1} di ${it.sets} · ${ex.name}`;
     saveResume();
     renderSession();
-    startTimer(rest, what, () => { if (finished) nextExercise(); }, 'rest');
+    // il passaggio all'esercizio successivo è legato alla posizione di adesso:
+    // se nel frattempo ti sposti su un altro esercizio, il timer non registra
+    // quello sbagliato
+    const atPos = c.pos, atSid = c.started;
+    startTimer(rest, what, () => {
+      if (!finished) return false;
+      if (!current || current.finished) return false;
+      if (current.started !== atSid || current.pos !== atPos) return false;
+      nextExercise();
+      return true;                               // la vista è già stata ridisegnata
+    }, 'rest');
   };
 
   $('#doneSet').onclick = () => {
     if (timerRunning()) return;                  // un timer è già in corso
     captureLoad();
-    if (timed) startTimer(hold, `Tenuta · ${ex.name}`, closeSet, 'work', 3);
+    // con tutte le serie già segnate non c'è una tenuta da cronometrare:
+    // il pulsante chiude e basta
+    if (timed && !allDone) startTimer(hold, `Tenuta · ${ex.name}`, () => { closeSet(); return true; }, 'work', 3);
     else closeSet();
   };
   $('#infoBtn').onclick = () => openSheet(ex, it, { sess: s, after: () => renderSession() });
@@ -2666,8 +2703,14 @@ function tick() {
   if (!prep && left <= 0) {
     const cb = timerCb;
     stopTimer();
-    if (cb) cb();
-    else if (current) renderSession();          // riabilita il pulsante di avvio
+    // il callback può decidere di avanzare; in ogni caso la schermata va
+    // ridisegnata, altrimenti il pulsante di avvio resta disabilitato e
+    // l'unico modo per sbloccarlo sarebbe toccare i pallini delle serie,
+    // che falserebbero il conteggio
+    let advanced = false;
+    if (cb) advanced = cb() === true;
+    if (!advanced && current && !current.finished) renderSession();
+    notifyTimerEnd();
   }
 }
 
@@ -2698,10 +2741,47 @@ function expandTimer() {
     $('#timer').classList.add('on');             // il pannello si riapre ingrandendosi
   }, 180);
 }
-function skipTimer() { const cb = timerCb; stopTimer(); if (cb) cb(); }
+/* "Riprendi ora": chiude il recupero in anticipo ed esegue ciò che il timer
+   aveva in coda (per esempio il passaggio all'esercizio successivo). */
+function skipTimer() {
+  const cb = timerCb;
+  stopTimer();
+  let advanced = false;
+  if (cb) advanced = cb() === true;
+  if (!advanced && current && !current.finished) renderSession();
+}
+
+/* Se il recupero finisce mentre stai consultando un'altra schermata, una
+   barretta lo segnala e riporta alla seduta con un tocco: senza, il pulsante
+   per la serie successiva resterebbe fuori vista. */
+function notifyTimerEnd() {
+  if (!current || current.finished) return;
+  if (document.querySelector('#view-session').classList.contains('active')) return;
+  if ($('#endBar')) return;
+  const bar = document.createElement('div');
+  bar.className = 'updbar'; bar.id = 'endBar';
+  bar.innerHTML = `<span>Recupero finito</span>
+    <button class="pick" id="endGo">Torna alla seduta</button>
+    <button class="mini-skip" id="endNo" aria-label="Chiudi">✕</button>`;
+  document.body.appendChild(bar);
+  requestAnimationFrame(() => bar.classList.add('on'));
+  $('#endGo').onclick = () => { bar.remove(); go('session'); renderSession(); };
+  $('#endNo').onclick = () => bar.remove();
+  setTimeout(() => { const b = $('#endBar'); if (b) b.remove(); }, 20000);
+}
+
+/* "Ferma": annulla il timer senza eseguire nulla. La serie resta come l'hai
+   lasciata e nessun esercizio viene concluso: serve quando il timer è partito
+   per sbaglio o l'allenamento si interrompe. */
+function cancelTimer() {
+  stopTimer();
+  if (current && !current.finished) renderSession();
+}
 
 $('#timerSkip').onclick = skipTimer;
+$('#timerStop').onclick = cancelTimer;
 $('#miniSkip').onclick = skipTimer;
+$('#miniStop').onclick = cancelTimer;
 $('#timerMin').onclick = minimizeTimer;
 $('#miniExpand').onclick = expandTimer;
 $('#timerPlus').onclick = () => {
