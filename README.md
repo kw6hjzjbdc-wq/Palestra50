@@ -130,6 +130,8 @@ Per gli esercizi con elastico la scala è a gradini: passare alla band successiv
 
 **Segnalazione degli incrementi troppo rapidi.** La fascia di riferimento è il 2-10% per singolo incremento (raccomandazione ACSM: aumentare il carico del 2-10% quando si completano una o due ripetizioni oltre l'obiettivo). Oltre il 10% l'app avvisa già mentre digiti il carico, e la registrazione resta marcata nel riepilogo settimanale. Vengono segnalati anche gli aumenti in settimana di scarico, che ne annullano la funzione, e la presenza di tre o più esercizi marcati come più difficili del previsto nella stessa settimana, indizio di recupero insufficiente.
 
+Le tre azioni della scheda **Dati** (esportazione, importazione, azzeramento) passano da una conferma rossa che indica quanti esercizi e quante sedute sono coinvolti: nessuna parte per un tocco involontario.
+
 ### Animazioni
 
 Il passaggio da una schermata all'altra avviene con una breve dissolvenza in salita, titolo compreso. Tutti i pop up hanno un'animazione di apertura (velo in dissolvenza, riquadro che sale e si ingrandisce) e una di chiusura speculare; le schede esercizio scorrono dal basso e rientrano verso il basso. Il timer si riduce e si riapre con la stessa logica di scala. Tutto rispetta l'impostazione di sistema per il movimento ridotto.

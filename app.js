@@ -134,6 +134,14 @@ function implementSvg(kind, p) {
     case 'grips':        return `<line x1="${h[0]}" y1="${h[1] - 6}" x2="${h[0]}" y2="${h[1] + 6}" class="imp" stroke-width="4" stroke-linecap="round"/>` +
                                 `<line x1="${h2[0]}" y1="${h2[1] - 6}" x2="${h2[0]}" y2="${h2[1] + 6}" class="imp" stroke-width="3" stroke-linecap="round"/>`;
     case 'cable':        return `<line x1="112" y1="6" x2="112" y2="100" class="imp" stroke-width="3"/>` + band(112, Math.min(h[1], 30));
+    // sbarra per trazioni: barra orizzontale appena sopra le mani
+    case 'bar':          return `<line x1="${h[0] - 30}" y1="${h[1] - 4}" x2="${h[0] + 26}" y2="${h[1] - 4}" class="imp" stroke-width="3.6" stroke-linecap="round"/>`;
+    // sbarra con elastico agganciato che scende fino al piede
+    case 'barBand':      return `<line x1="${h[0] - 30}" y1="${h[1] - 4}" x2="${h[0] + 26}" y2="${h[1] - 4}" class="imp" stroke-width="3.6" stroke-linecap="round"/>` +
+                                `<path d="M ${h[0] - 10} ${h[1] - 4} L ${(p.toe || p.ankle)[0]} ${(p.toe || p.ankle)[1]}" class="band" stroke-width="2.6" stroke-dasharray="4 3" fill="none"/>`;
+    // macchina assistita: sbarra più pedana d'appoggio per le ginocchia
+    case 'pullbar':      return `<line x1="${h[0] - 30}" y1="${h[1] - 4}" x2="${h[0] + 26}" y2="${h[1] - 4}" class="imp" stroke-width="3.6" stroke-linecap="round"/>` +
+                                `<rect x="${p.ankle[0] - 14}" y="${p.ankle[1] + 2}" width="30" height="6" rx="3" class="impf"/>`;
     case 'bandVertical': return band(a[0], 99);
     case 'bandShoulder': return `<path d="M ${n[0]} ${n[1] + 3} L ${a[0]} 99" class="band" stroke-width="2.6" stroke-dasharray="4 3" fill="none"/>`;
     case 'bandTop':      return band(112, 6) + `<circle cx="112" cy="6" r="2.6" class="impf"/>`;
@@ -1411,11 +1419,8 @@ function renderSettings() {
         <select id="progSel">${PROG.programs.map(x =>
           `<option value="${x.id}" ${x.id === S.programId ? 'selected' : ''}>${esc(x.name)} · ${x.cycleWeeks} settimane</option>`).join('')}</select></div>
       <p class="small muted">${esc(p.summary)}</p>
-      <p class="small muted">Periodizzazione: ${esc(p.periodization)}. Sei alla sessione ${meta.dayInWeek} della settimana ${meta.weekInCycle} (mesociclo ${meta.mesocycle}).</p>
-      <div class="btn-row" style="margin-top:12px">
-        <button class="btn ghost" id="prevSess">Sessione precedente</button>
-        <button class="btn ghost" id="nextSess">Sessione successiva</button>
-      </div>
+      <p class="small muted">Periodizzazione: ${esc(p.periodization)}. Sei alla sessione ${meta.pos} di 5 della settimana ${meta.weekInCycle}${meta.phase ? ' (fase ' + esc(meta.phase.ph.name) + ')' : ''}.</p>
+      <p class="small muted">Per scegliere quale seduta svolgere o cambiarne l'ordine, usa il calendario della settimana nella schermata Oggi.</p>
     </div>
 
     <div class="card">
@@ -1462,18 +1467,17 @@ function renderSettings() {
   $('#shoulderChk').onchange = e => { S.shoulderCare = e.target.checked; planCache = null; save(); };
   $('#soundChk').onchange = e => { S.sound = e.target.checked; save(); if (e.target.checked) testBells(); };
   $('#testSound').onclick = testBells;
-  $('#prevSess').onclick = () => { S.sessionIndex = Math.max(0, S.sessionIndex - 1); save(); renderSettings(); };
-  $('#nextSess').onclick = () => { S.sessionIndex++; save(); renderSettings(); };
-  $('#exportBtn').onclick = exportData;
-  $('#importBtn').onclick = () => $('#importFile').click();
+  $('#exportBtn').onclick = () => dangerAction('Esportare i tuoi dati?',
+    `Verrà creato un file con ${S.logs.length} esercizi registrati, ${S.sessionLog.length} sedute e le tue impostazioni. Il file finisce nei Download del telefono: chiunque vi acceda può leggerlo.`,
+    'Esporta il backup', exportData);
+  $('#importBtn').onclick = () => dangerAction('Importare un backup?',
+    `Il file scelto sostituirà i dati ora presenti sul telefono: ${S.logs.length} esercizi registrati e ${S.sessionLog.length} sedute andranno persi. Se ti servono ancora, esporta prima un backup.`,
+    'Scegli il file da importare', () => $('#importFile').click());
   $('#importFile').onchange = e => { if (e.target.files[0]) importData(e.target.files[0]); e.target.value = ''; };
-  $('#resetBtn').onclick = () => {
-    openModal(`<h2>Azzerare i dati?</h2><p class="small muted">Verranno cancellati storico carichi, sedute e impostazioni. L'operazione non è reversibile.</p>
-      <button class="btn" id="yesReset">Sì, azzera</button>
-      <button class="btn ghost" id="noReset" style="margin-top:10px">Annulla</button>`);
-    $('#yesReset').onclick = () => { localStorage.removeItem(KEY); load(); closeModal(); go('home'); };
-    $('#noReset').onclick = closeModal;
-  };
+  $('#resetBtn').onclick = () => dangerAction('Azzerare tutto?',
+    `Verranno cancellati ${S.logs.length} esercizi registrati, ${S.sessionLog.length} sedute, le valutazioni e le impostazioni. L'operazione non è reversibile e nessun dato è conservato altrove.`,
+    'Azzera definitivamente',
+    () => { localStorage.removeItem(KEY); load(); planCache = null; go('home'); });
   $('#wlStatus').textContent = ('wakeLock' in navigator) ? 'attivo durante le sessioni' : 'non supportato su questo browser';
 }
 
@@ -1746,6 +1750,23 @@ function confirmAction(title, text, okLabel, onOk) {
     <button class="btn ghost" id="cfNo" style="margin-top:10px">Annulla</button>`);
   $('#cfOk').onclick = () => { closeModal(); onOk(); };
   $('#cfNo').onclick = closeModal;
+}
+
+/* Conferma "rossa" per le operazioni che toccano l'archivio dei dati
+   (esportazione, ripristino, azzeramento): riquadro bordato di rosso, titolo
+   di allerta e pulsante di conferma rosso, così l'azione non parte mai per un
+   tocco involontario. */
+function dangerAction(title, text, okLabel, onOk) {
+  openModal(`<div class="danger">
+    <div class="danger-head"><span class="danger-ico">!</span><h2>${esc(title)}</h2></div>
+    <p class="small">${esc(text)}</p>
+    <button class="btn btn-danger" id="dgOk" style="margin-top:16px">${esc(okLabel)}</button>
+    <button class="btn ghost" id="dgNo" style="margin-top:10px">Annulla</button>
+  </div>`);
+  $('#modal').classList.add('danger-modal');     // fallback per i browser senza :has()
+  const close = then => { $('#modal').classList.remove('danger-modal'); closeModal(then); };
+  $('#dgOk').onclick = () => close(() => onOk());
+  $('#dgNo').onclick = () => close();
 }
 
 function openModal(html) {

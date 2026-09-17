@@ -506,3 +506,26 @@ h1,h2{letter-spacing:.005em}
   font-family:var(--cond);font-size:18px;color:var(--teal);background:rgba(255,255,255,.04);
   border:1px solid var(--line);
 }
+
+/* ---------- conferma per le operazioni sull'archivio dati ---------- */
+.modal.danger-modal .box,
+.modal .box:has(.danger){
+  border-color:var(--alert);
+  box-shadow:0 0 0 1px rgba(232,101,79,.35), 0 18px 44px rgba(0,0,0,.5);
+  background:linear-gradient(180deg,#2A1A17 0%,#1B1311 100%);
+}
+.danger-head{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.danger-head h2{color:#FF6B4F;font-size:22px}
+.danger-ico{
+  width:32px;height:32px;flex:0 0 32px;border-radius:50%;display:grid;place-items:center;
+  background:#FF3B1F;color:#fff;font-family:var(--cond);font-size:21px;font-weight:700;
+  box-shadow:0 0 0 4px rgba(255,59,31,.2);
+  animation:dangerPulse 1.8s ease-in-out infinite;
+}
+.danger p{color:#F6D2C9}
+.btn-danger{
+  background:linear-gradient(180deg,#FF5233 0%,#D62B10 100%);color:#fff;
+  box-shadow:0 8px 22px rgba(214,43,16,.36);
+}
+@keyframes dangerPulse{0%,100%{box-shadow:0 0 0 4px rgba(255,59,31,.2)}50%{box-shadow:0 0 0 9px rgba(255,59,31,.05)}}
+@media (prefers-reduced-motion:reduce){.danger-ico{animation:none}}

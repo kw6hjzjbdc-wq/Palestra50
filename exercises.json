@@ -4006,10 +4006,10 @@
    ],
    "art": {
     "frames": [
-     "latStart",
-     "latEnd"
+     "assistLow",
+     "assistHigh"
     ],
-    "implement": "machine"
+    "implement": "pullbar"
    },
    "steps": [
     "Impugna le maniglie parallele con i palmi affacciati, ginocchia sulla pedana di assistenza.",
@@ -4214,10 +4214,10 @@
    ],
    "art": {
     "frames": [
-     "latStart",
-     "latEnd"
+     "hangLow",
+     "hangScap"
     ],
-    "implement": null
+    "implement": "bar"
    },
    "steps": [
     "Appeso a braccia tese, presa neutra o prona a larghezza spalle, corpo fermo.",
@@ -4258,10 +4258,10 @@
    ],
    "art": {
     "frames": [
-     "latStart",
-     "latStart"
+     "hangLow",
+     "hangLow"
     ],
-    "implement": null
+    "implement": "bar"
    },
    "steps": [
     "Presa neutra o prona a larghezza spalle, pollice chiuso attorno alla sbarra.",
@@ -4303,10 +4303,10 @@
    ],
    "art": {
     "frames": [
-     "latEnd",
-     "latStart"
+     "hangHigh",
+     "hangLow"
     ],
-    "implement": null
+    "implement": "bar"
    },
    "steps": [
     "Sali con l'aiuto di un rialzo o di un piccolo salto fino ad avere il mento sopra la sbarra.",
@@ -4348,10 +4348,10 @@
    ],
    "art": {
     "frames": [
-     "latEnd",
-     "latEnd"
+     "hangHigh",
+     "hangHigh"
     ],
-    "implement": null
+    "implement": "bar"
    },
    "steps": [
     "Portati in cima con un rialzo, mento sopra la sbarra e petto verso l'alto.",
@@ -4393,10 +4393,10 @@
    ],
    "art": {
     "frames": [
-     "latStart",
-     "latEnd"
+     "hangLow",
+     "hangHigh"
     ],
-    "implement": "bandTop"
+    "implement": "barBand"
    },
    "steps": [
     "Aggancia la band alla sbarra e appoggia un piede o un ginocchio nel cappio inferiore.",
@@ -4436,10 +4436,10 @@
    ],
    "art": {
     "frames": [
-     "latStart",
-     "latEnd"
+     "assistLow",
+     "assistHigh"
     ],
-    "implement": "machine"
+    "implement": "pullbar"
    },
    "steps": [
     "Imposta il contrappeso, impugna le maniglie parallele, ginocchia sulla pedana.",
@@ -4481,10 +4481,10 @@
    ],
    "art": {
     "frames": [
-     "latStart",
-     "latEnd"
+     "hangLow",
+     "hangHigh"
     ],
-    "implement": null
+    "implement": "bar"
    },
    "steps": [
     "Presa neutra o prona a larghezza spalle, partenza da braccia tese e spalle attive.",
