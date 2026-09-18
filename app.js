@@ -455,6 +455,33 @@ function setLabel(it, i) {
    Riferimenti: NSCA, regola 2-for-2; ACSM, incremento del 2-10%.
 --------------------------------------------------------------------------- */
 const SMALL_GROUPS = ['Braccia', 'Spalle', 'Polpacci', 'Core'];
+
+/* ---------------------------------------------------------------------------
+   ESERCIZI AD ASSISTENZA
+   In alcuni esercizi il numero che annoti non è un sovraccarico ma un aiuto:
+   il contrappeso della macchina per le trazioni assistite, o l'elastico che
+   solleva parte del peso corporeo. Lì il progresso va nella direzione opposta,
+   cioè verso meno assistenza, e anche la band più dura è quella che aiuta di
+   più. Tutta la logica dei carichi passa da qui, così il verso resta coerente
+   in suggerimenti, valutazioni, grafici e avvisi.
+--------------------------------------------------------------------------- */
+const isAssist = ex => !!(ex && ex.assist);
+
+/* Passo minimo realmente disponibile sull'attrezzo: 5 kg sul pacco pesi delle
+   macchine assistite, 0,5 kg sui carichi leggeri, 1 kg sui piccoli gruppi
+   (manubri), 2,5 kg sui grandi (dischi da 1,25 per lato). Serve anche a non
+   segnalare come "salto" un incremento che è semplicemente il più piccolo
+   possibile su quell'attrezzo: su una macchina da 5 kg in 5 kg, passare da 40
+   a 35 è un passo obbligato, non un'imprudenza. */
+function minStepFor(ex, n) {
+  if (isAssist(ex)) return 5;
+  if (!isFinite(n) || n < 10) return 0.5;
+  return SMALL_GROUPS.includes(ex.group) ? 1 : 2.5;
+}
+/* +1 = si progredisce aumentando il numero, -1 = riducendolo */
+const progressDir = ex => isAssist(ex) ? -1 : 1;
+/* Parola giusta da mostrare: "carico" oppure "assistenza". */
+const loadWord = ex => isAssist(ex) ? 'assistenza' : 'carico';
 function lastEntry(exId) {
   for (let i = S.logs.length - 1; i >= 0; i--) if (S.logs[i].exId === exId) return S.logs[i];
   return null;
@@ -486,15 +513,24 @@ function suggestLoad(ex) {
 
   // --- scale a gradini: band ed esercizi a corpo libero con progressione ---
   const steps = ex.load === 'band' ? BANDS : levelsOf(ex);
+  const dir = progressDir(ex);          // -1 sugli esercizi ad assistenza
   if (steps) {
     let i = steps.indexOf(last.load);
     if (i < 0) i = 0;
-    if (twoForTwo && !tooHard && !atLimit && i < steps.length - 1) {
-      i++; info.reason = 'Regola 2-for-2 soddisfatta: passa al gradino successivo.';
-    } else if (tooHard && i > 0) {
-      i--; info.reason = 'L\'ultima volta è stata troppo impegnativa: torna al gradino precedente.';
+    const canAdvance = dir > 0 ? i < steps.length - 1 : i > 0;
+    const canEase    = dir > 0 ? i > 0 : i < steps.length - 1;
+    if (twoForTwo && !tooHard && !atLimit && canAdvance) {
+      i += dir;
+      info.reason = isAssist(ex)
+        ? 'Regola 2-for-2 soddisfatta: riduci l\'assistenza passando alla band più leggera.'
+        : 'Regola 2-for-2 soddisfatta: passa al gradino successivo.';
+    } else if (tooHard && canEase) {
+      i -= dir;
+      info.reason = isAssist(ex)
+        ? 'L\'ultima volta è stata troppo impegnativa: aumenta l\'assistenza di un gradino.'
+        : 'L\'ultima volta è stata troppo impegnativa: torna al gradino precedente.';
     } else if (atLimit) {
-      info.reason = 'L\'ultima serie è finita al limite: consolida questo gradino prima di salire.';
+      info.reason = 'L\'ultima serie è finita al limite: consolida questo gradino prima di procedere.';
     } else {
       info.reason = twoForTwo ? 'Consolida su questo gradino.'
                               : 'Resta qui finché non superi l\'obiettivo di 2 ripetizioni per due sedute.';
@@ -507,30 +543,45 @@ function suggestLoad(ex) {
   if (!isFinite(n) || n <= 0) return Object.assign(info, { value: null });
 
   const small = SMALL_GROUPS.includes(ex.group);
-  // passo minimo realmente disponibile in palestra: 0,5 kg sui carichi leggeri,
-  // 1 kg sui piccoli gruppi (manubri), 2,5 kg sui grandi (dischi da 1,25 per lato)
-  const step = n < 10 ? 0.5 : (small ? 1 : 2.5);
+  const step = minStepFor(ex, n);
+  const pct = small && !isAssist(ex) ? 0.025 : 0.05;
   let val = n;
 
   if (tooHard) {
-    val = Math.max(step, Math.floor(n * 0.93 / step) * step);
-    info.reason = 'L\'ultima volta è stata troppo impegnativa: scendi di circa il 7%.';
+    // "troppo difficile": meno carico, oppure PIÙ assistenza
+    const t = isAssist(ex) ? n * 1.07 : n * 0.93;
+    val = isAssist(ex) ? Math.ceil(t / step) * step : Math.max(step, Math.floor(t / step) * step);
+    if (isAssist(ex) && val <= n) val = n + step;
+    info.reason = isAssist(ex)
+      ? 'L\'ultima volta è stata troppo impegnativa: aumenta l\'assistenza di un passo.'
+      : 'L\'ultima volta è stata troppo impegnativa: scendi di circa il 7%.';
   } else if (atLimit) {
-    info.reason = 'L\'ultima serie è finita al limite: consolida questo carico prima di salire.';
+    info.reason = `L\'ultima serie è finita al limite: consolida questa ${loadWord(ex)} prima di procedere.`;
   } else if (twoForTwo) {
-    // si sale di un passo intero, arrotondando per eccesso: arrotondare per
-    // difetto annullerebbe l'incremento sui carichi bassi. Il risultato resta
-    // comunque dentro il tetto del 10%.
-    const target = n * (small ? 1.025 : 1.05);
-    val = Math.ceil(target / step) * step;
-    if (val <= n) val = n + step;
-    const cap = Math.floor(n * (1 + SAFE_STEP) / step) * step;
-    if (cap > n && val > cap) val = cap;
-    info.reason = `Regola 2-for-2 soddisfatta nelle ultime due sedute: +${(val - n).toFixed(1).replace('.0', '')} kg (${Math.round((val / n - 1) * 100)}%).`;
+    if (isAssist(ex)) {
+      // progredire = togliere aiuto, di un passo intero del pacco pesi
+      val = Math.floor(n * (1 - pct) / step) * step;
+      if (val >= n) val = n - step;
+      const floorCap = Math.ceil(n * (1 - SAFE_STEP) / step) * step;   // non oltre -10%
+      if (floorCap < n && val < floorCap) val = floorCap;
+      if (val < 0) val = 0;
+      info.reason = val <= 0
+        ? 'Regola 2-for-2 soddisfatta: sei pronto a provare senza assistenza.'
+        : `Regola 2-for-2 soddisfatta nelle ultime due sedute: assistenza ridotta di ${(n - val).toFixed(1).replace('.0', '')} kg.`;
+    } else {
+      // si sale di un passo intero, arrotondando per eccesso: arrotondare per
+      // difetto annullerebbe l'incremento sui carichi bassi. Il risultato resta
+      // comunque dentro il tetto del 10%.
+      val = Math.ceil(n * (1 + pct) / step) * step;
+      if (val <= n) val = n + step;
+      const cap = Math.floor(n * (1 + SAFE_STEP) / step) * step;
+      if (cap > n && val > cap) val = cap;
+      info.reason = `Regola 2-for-2 soddisfatta nelle ultime due sedute: +${(val - n).toFixed(1).replace('.0', '')} kg (${Math.round((val / n - 1) * 100)}%).`;
+    }
   } else {
     info.reason = recent.length < 2
-      ? 'Serve una seconda seduta sopra l\'obiettivo prima di aumentare.'
-      : 'Mantieni il carico: l\'obiettivo non è stato superato di 2 ripetizioni per due sedute.';
+      ? 'Serve una seconda seduta sopra l\'obiettivo prima di procedere.'
+      : `Mantieni ${isAssist(ex) ? 'questa assistenza' : 'il carico'}: l\'obiettivo non è stato superato di 2 ripetizioni per due sedute.`;
   }
   return Object.assign(info, { value: String(val % 1 === 0 ? val : val.toFixed(1)) });
 }
@@ -570,7 +621,22 @@ function logValue(l) {
   const steps = ex.load === 'band' ? BANDS : levelsOf(ex);
   if (steps) { const i = steps.indexOf(l.load); return i >= 0 ? i + 1 : null; }
   const n = parseFloat(String(l.load || '').replace(',', '.'));
-  return (isFinite(n) && n > 0) ? n : null;
+  return (isFinite(n) && n >= 0) ? n : null;
+}
+
+/* Valore "di merito": cresce sempre quando migliori, anche dove il numero
+   annotato è un aiuto. Sugli esercizi ad assistenza il gradino viene ribaltato
+   e i chilogrammi diventano il complemento rispetto all'assistenza iniziale,
+   così un contrappeso che scende da 40 a 35 kg risulta un progresso e non un calo. */
+const ASSIST_BASE = 80;          // riferimento fisso per rendere confrontabili le sedute
+function meritValue(l) {
+  const ex = exById(l.exId);
+  const v = logValue(l);
+  if (v === null || !ex) return v;
+  if (!isAssist(ex)) return v;
+  const steps = ex.load === 'band' ? BANDS : levelsOf(ex);
+  if (steps) return steps.length + 1 - v;       // band più leggera = più merito
+  return Math.max(1, ASSIST_BASE - v);          // meno assistenza = più merito
 }
 
 /* Volume reale: serie completate per ripetizioni effettivamente eseguite.
@@ -590,6 +656,9 @@ function volValue(l) {
 function e1rm(l) {
   const ex = exById(l.exId);
   if (!ex || ex.load !== 'weight') return null;
+  // sugli esercizi assistiti il numero è un aiuto, non un carico sollevato:
+  // il massimale stimato non avrebbe significato
+  if (isAssist(ex)) return null;
   const w = parseFloat(String(l.load || '').replace(',', '.'));
   const r = isFinite(l.repsDone) && l.repsDone > 0 ? l.repsDone : l.reps;
   if (!isFinite(w) || w <= 0 || !isFinite(r) || r <= 0 || r > 15) return null;
@@ -601,8 +670,9 @@ function e1rm(l) {
 function progressMetric(l) {
   const e = e1rm(l);
   if (e !== null) return { v: e, what: 'massimale stimato' };
-  const g = logValue(l);
-  if (g !== null) return { v: g, what: 'gradino' };
+  const ex = exById(l.exId);
+  const g = meritValue(l);
+  if (g !== null) return { v: g, what: isAssist(ex) ? 'assistenza' : 'gradino' };
   const vol = volValue(l);
   return vol ? { v: vol, what: 'volume' } : null;
 }
@@ -620,7 +690,8 @@ function rateLog(cur, prev, deload) {
   if (steps) {
     const ia = steps.indexOf(cur.load), ib = steps.indexOf(prev.load);
     if (ia >= 0 && ib >= 0) {
-      const step = ia - ib;
+      // sugli esercizi assistiti il verso è invertito: scendere di band è un progresso
+      const step = (ia - ib) * progressDir(ex);
       const nome = ex.load === 'band' ? 'band' : 'livelli';
       if (step >= 2) return { stars: 3, warn: 'salto',
         text: `Due ${nome} più difficili in una volta sola: è un salto di carico importante.`,
@@ -645,12 +716,24 @@ function rateLog(cur, prev, deload) {
   const pct = Math.round((ratio - 1) * 100);
 
   // il salto va misurato sul carico effettivo, non sul massimale stimato:
-  // aumentare le ripetizioni non è un rischio, aumentare il peso sì
+  // aumentare le ripetizioni non è un rischio, aumentare il peso sì.
+  // Sugli esercizi assistiti il salto è una riduzione troppo brusca dell'aiuto.
   const la = logValue(cur), lb = logValue(prev);
-  if (la !== null && lb && la / lb > 1 + SAFE_STEP) {
-    return { stars: 3, warn: 'salto',
-      text: `Carico aumentato del ${Math.round((la / lb - 1) * 100)}%: oltre la fascia del 2-10% consigliata per singolo incremento.`,
-      advice: 'Resta su questo carico almeno una seduta e verifica che la tecnica regga: la progressione lenta è quella che dura.' };
+  if (la !== null && lb) {
+    const jump = isAssist(ex) ? (lb - la) / lb : (la - lb) / lb;
+    // oltre il 10%, ma solo se la variazione supera anche il passo minimo
+    // dell'attrezzo: altrimenti si segnalerebbe come imprudente proprio
+    // l'incremento più piccolo che quella macchina consente
+    const minStep = minStepFor(ex, lb);
+    if (jump > SAFE_STEP && Math.abs(la - lb) > minStep + 0.001) {
+      return { stars: 3, warn: 'salto',
+        text: isAssist(ex)
+          ? `Assistenza ridotta del ${Math.round(jump * 100)}% in una volta: oltre la fascia del 2-10% consigliata per singolo passo.`
+          : `Carico aumentato del ${Math.round(jump * 100)}%: oltre la fascia del 2-10% consigliata per singolo incremento.`,
+        advice: isAssist(ex)
+          ? 'Togli l\'aiuto un pacco alla volta: scendere troppo in fretta fa perdere le ultime ripetizioni pulite.'
+          : 'Resta su questo carico almeno una seduta e verifica che la tecnica regga: la progressione lenta è quella che dura.' };
+    }
   }
   if (deload && ratio > 1.02) {
     return { stars: 3, warn: 'scarico',
@@ -662,12 +745,16 @@ function rateLog(cur, prev, deload) {
       text: 'Seconda seduta di fila portata a zero ripetizioni di riserva su questo esercizio.',
       advice: 'Lavorare sempre al limite accumula fatica senza aggiungere stimolo: tieni 1-2 ripetizioni di margine.' };
   }
-  if (ratio < 0.97) return { stars: 1, text: `Calo del ${Math.abs(pct)}% sul ${what} rispetto alla volta scorsa.` };
-  if (ratio < expected - 0.005) return { stars: 2, text: `Stabile: atteso circa +${Math.round((expected - 1) * 100)}% sul ${what}.` };
-  if (ratio <= expected + 0.02) return { stars: 3, text: `In linea con la progressione prevista (+${pct}% sul ${what}).` };
-  if (ratio <= 1 + SAFE_STEP / 2) return { stars: 4, text: `Sopra le attese: +${pct}% sul ${what}, ne era previsto +${Math.round((expected - 1) * 100)}%.` };
-  return { stars: 5, text: `Progresso netto: +${pct}% sul ${what}, dentro la fascia di sicurezza.` };
+  if (ratio < 0.97) return { stars: 1, text: `Calo del ${Math.abs(pct)}% ${suRif(what)} rispetto alla volta scorsa.` };
+  if (ratio < expected - 0.005) return { stars: 2, text: `Stabile: atteso circa +${Math.round((expected - 1) * 100)}% ${suRif(what)}.` };
+  if (ratio <= expected + 0.02) return { stars: 3, text: `In linea con la progressione prevista (+${pct}% ${suRif(what)}).` };
+  if (ratio <= 1 + SAFE_STEP / 2) return { stars: 4, text: `Sopra le attese: +${pct}% ${suRif(what)}, ne era previsto +${Math.round((expected - 1) * 100)}%.` };
+  return { stars: 5, text: `Progresso netto: +${pct}% ${suRif(what)}, dentro la fascia di sicurezza.` };
 }
+
+/* Preposizione corretta davanti al nome della metrica ("sul volume", ma
+   "sull'assistenza"): l'elisione va gestita, altrimenti si legge "sul assistenza". */
+const suRif = w => /^[aeiou]/i.test(w) ? `sull'${w}` : `sul ${w}`;
 
 const starsHtml = n => n ? `<span class="stars">${'★'.repeat(n)}<span class="off">${'★'.repeat(5 - n)}</span></span>` : '';
 
@@ -1303,8 +1390,10 @@ function renderSession() {
     loadCtl = `<select id="loadIn" aria-label="Livello">${steps.map(b =>
       `<option ${curLoad === b ? 'selected' : ''}>${esc(b)}</option>`).join('')}</select>`;
   } else if (ex.load === 'weight') {
-    loadCtl = `<input id="loadIn" type="number" inputmode="decimal" step="0.5" placeholder="kg"
-                 aria-label="Carico in chilogrammi" value="${esc(curLoad)}">`;
+    loadCtl = `<input id="loadIn" type="number" inputmode="decimal" step="${isAssist(ex) ? 5 : 0.5}"
+                 placeholder="${isAssist(ex) ? 'kg di aiuto' : 'kg'}"
+                 aria-label="${isAssist(ex) ? 'Assistenza in chilogrammi' : 'Carico in chilogrammi'}"
+                 value="${esc(curLoad)}">`;
   } else {
     loadCtl = `<input id="loadIn" type="text" placeholder="nota sul carico" aria-label="Carico"
                  value="${esc(c.loads[c.pos] || '')}">`;
@@ -1356,13 +1445,20 @@ function renderSession() {
     lastTxt = 'Prima volta con questo esercizio: parti prudente e annota carico e ripetizioni.';
   }
 
-  // avviso immediato se il carico digitato supera del 10% quello precedente
+  // avviso immediato se il passo rispetto alla volta scorsa è troppo ampio
+  // (più carico, oppure meno assistenza di quanto sia prudente)
   let jump = '';
   if (sug && sug.last) {
     const prevV = logValue(sug.last);
     const nowV = logValue({ exId: it.exId, load: c.loads[c.pos] });
-    if (prevV && nowV && nowV / prevV > 1 + SAFE_STEP) {
-      jump = `<div class="warnbox">Stai salendo del ${Math.round((nowV / prevV - 1) * 100)}% rispetto alla volta scorsa. Le linee guida suggeriscono incrementi del 2-10% per volta: valuta un passo più piccolo, soprattutto se la tecnica peggiora nelle ultime ripetizioni.</div>`;
+    if (prevV && nowV !== null) {
+      const d = isAssist(ex) ? (prevV - nowV) / prevV : (nowV - prevV) / prevV;
+      // un solo passo dell'attrezzo non è mai un salto, qualunque percentuale sia
+      if (d > SAFE_STEP && Math.abs(nowV - prevV) > minStepFor(ex, prevV) + 0.001) {
+        jump = isAssist(ex)
+          ? `<div class="warnbox">Stai togliendo il ${Math.round(d * 100)}% dell'assistenza rispetto alla volta scorsa. Meglio un pacco pesi alla volta: le linee guida indicano passi del 2-10%, e qui il rischio è perdere le ultime ripetizioni pulite.</div>`
+          : `<div class="warnbox">Stai salendo del ${Math.round(d * 100)}% rispetto alla volta scorsa. Le linee guida suggeriscono incrementi del 2-10% per volta: valuta un passo più piccolo, soprattutto se la tecnica peggiora nelle ultime ripetizioni.</div>`;
+      }
     }
   }
 
@@ -1382,10 +1478,11 @@ function renderSession() {
 
       <div class="setdots">${setBtns}</div>
 
+      ${isAssist(ex) ? `<div class="assistnote">Il numero è <b>l'aiuto</b>, non il peso sollevato: più è basso, più sei forte. Progredire significa ridurlo.</div>` : ''}
       <div class="loadrow">
         ${loadCtl}
         <div class="feedback">
-          <button data-fb="up"   aria-pressed="${c.feedback[c.pos] === 'up'}" aria-label="Più facile del previsto">↑</button>
+          <button data-fb="up"   aria-pressed="${c.feedback[c.pos] === 'up'}" aria-label="Più facile del previsto${isAssist(ex) ? ': la prossima volta meno assistenza' : ''}">↑</button>
           <button data-fb="same" aria-pressed="${c.feedback[c.pos] === 'same'}" aria-label="Invariato">–</button>
           <button data-fb="down" aria-pressed="${c.feedback[c.pos] === 'down'}" aria-label="Più difficile del previsto">↓</button>
         </div>
@@ -1770,7 +1867,7 @@ function openSheet(ex, it, ctx) {
     ${it ? `<p class="small muted">Oggi: ${doseText(it)}, recupero ${it.rest}s, RPE ${esc(it.rpe)}. ${esc(it.source)}</p>` : ''}
     ${(() => {
       const sug = suggestLoad(ex), last = sug && sug.last;
-      if (!last) return `<div class="notice" style="margin-top:10px">Nessuna registrazione precedente per questo esercizio: parti prudente e annota carico e ripetizioni.</div>`;
+      if (!last) return `<div class="notice" style="margin-top:10px">Nessuna registrazione precedente per questo esercizio: parti prudente e annota ${loadWord(ex)} e ripetizioni.</div>`;
       const det = [];
       if (isFinite(last.repsDone)) det.push(`${last.sets}×${last.repsDone} rip`);
       if (isFinite(last.rir) && last.rir !== null) det.push(`RIR ${last.rir}`);
@@ -1779,10 +1876,11 @@ function openSheet(ex, it, ctx) {
       return `<div class="notice" style="margin-top:10px">
         <b>Ultima volta</b> (${new Date(last.ts).toLocaleDateString('it-IT')}): ${esc(last.load || '—')}${det.length ? ' · ' + det.join(' · ') : ''} ${arrow(last.feedback)} ${starsHtml(last.stars)}
         ${last.rateText ? `<div class="small" style="opacity:.85">${esc(last.rateText)}</div>` : ''}
-        ${sug.value ? `<div style="margin-top:6px"><b>Suggerito oggi:</b> ${esc(sug.value)}</div>` : ''}
+        ${sug.value ? `<div style="margin-top:6px"><b>${isAssist(ex) ? 'Assistenza suggerita oggi' : 'Suggerito oggi'}:</b> ${esc(sug.value)}</div>` : ''}
         ${sug.reason ? `<div class="small" style="opacity:.85">${esc(sug.reason)}</div>` : ''}
       </div>`;
     })()}
+    ${ex.assistNote ? `<div class="assistnote">${esc(ex.assistNote)}</div>` : ''}
     ${S.exNotes[ex.id] ? `<div class="exnote" style="cursor:default">📌 ${esc(S.exNotes[ex.id])}</div>` : ''}
     <div class="block"><h3>Esecuzione</h3><ol>${ex.steps.map(s => `<li>${esc(s)}</li>`).join('')}</ol></div>
     ${ex.levels ? `<div class="block"><h3>Progressione</h3>
@@ -1840,7 +1938,7 @@ function renderHistory() {
       <div class="spark">${sparkline(nums)}</div>
       <div class="nm" style="flex:1"><b>${esc(last.name)}</b>
         <div class="small muted">${logs.length} sedute · ultima ${new Date(last.ts).toLocaleDateString('it-IT')}${e ? ' · max stimato ' + e.toFixed(1) + ' kg' : ''}</div></div>
-      <div class="val">${esc(last.load || '—')} ${arrow(last.feedback)}<br>${starsHtml(last.stars)}</div></li>`;
+      <div class="val">${esc(last.load || '—')}${isAssist(exById(k)) ? ' <span class="small muted">aiuto</span>' : ''} ${arrow(last.feedback)}<br>${starsHtml(last.stars)}</div></li>`;
   }).join('');
 
   const sess = S.sessionLog.map((x, i) => [x, i]).slice(-10).reverse().map(pair => {

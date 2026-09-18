@@ -149,6 +149,22 @@ Il carico della volta dopo segue la **regola 2-for-2**: sale solo se nelle ultim
 
 Per elastici ed esercizi a corpo libero la scala è a gradini: le quattro band (azzurra → gialla → rossa → viola) e, per 17 esercizi a corpo libero, una **progressione dichiarata** — per i piegamenti: mani su rialzo alto → mani su panca → ginocchia a terra → completi → tempo lento → presa stretta. Si sale di un gradino con la stessa regola dei pesi, quindi anche il lavoro senza carico diventa misurabile.
 
+### Esercizi in cui il numero è un aiuto, non un carico
+
+Su trazioni alla macchina assistita, trazioni assistite e trazioni con band, quello che annoti non è un peso sollevato ma l'**aiuto** che ricevi: più è alto, più l'esercizio è facile. Questi esercizi sono marcati `assist` nel database e tutta la logica dei carichi ne tiene conto, invertendo il verso:
+
+- la regola 2-for-2 **riduce** l'assistenza invece di aumentare il carico, di un pacco pesi alla volta (5 kg);
+- un "troppo difficile" la **aumenta**;
+- con la band, progredire significa passare alla band più **leggera**, perché quella più dura solleva più peso corporeo;
+- nel punteggio a stelle scendere da 40 a 35 kg di aiuto vale cinque stelle, salire a 45 ne vale una;
+- il massimale stimato non viene calcolato, perché non avrebbe significato;
+- l'avviso sugli incrementi bruschi diventa un avviso sulle riduzioni troppo rapide dell'aiuto;
+- arrivati a zero, l'app lo dice: "sei pronto a provare senza assistenza".
+
+Nella schermata della seduta e nella scheda, il campo è etichettato come assistenza con una nota che lo spiega.
+
+**Nota sul passo minimo.** L'allarme "incremento oltre il 10%" scatta solo se la variazione supera *anche* il passo minimo realmente disponibile su quell'attrezzo (5 kg sul pacco pesi, 2,5 kg con i dischi, 1 kg con i manubri, 0,5 kg sui carichi leggeri). Senza questa condizione l'app segnalava come imprudente proprio l'incremento più piccolo possibile — per esempio da 20 a 22,5 kg, che è +12,5% ma anche l'unico passo che i dischi consentono, e che l'app stessa suggeriva.
+
 ### Massimale stimato
 
 Il confronto fra sedute usa il massimale stimato con la formula di Epley — carico × (1 + ripetizioni/30), applicata fino a 15 ripetizioni dove resta attendibile. È ciò che permette di dire che 60 kg × 11 (82 kg stimati) è un progresso rispetto a 60 kg × 6 (72 kg stimati), cosa che guardando il solo peso non si vedrebbe. Nel grafico del dettaglio la linea piena è il massimale stimato, quella tratteggiata il carico usato. Il controllo sugli incrementi troppo bruschi resta invece ancorato al peso reale: aumentare le ripetizioni non è un rischio, aumentare il peso sì.
@@ -222,7 +238,7 @@ iOS fotografa l'icona al momento dell'installazione e non la aggiorna da sola: d
 4. Se ricompare l'icona vecchia, in Safari apri Impostazioni → Safari → Cancella dati siti web e cronologia oppure ricarica la pagina due volte, poi ripeti il punto 3.
 
 ### Aggiornare l'app in seguito
-Carica i file modificati nello stesso repository (**Add file → Upload files** sovrascrive quelli con lo stesso nome) e cambia il numero di versione in `sw.js` (`palestra50-v19` → `palestra50-v20`). Da questa versione non serve altro: l'app controlla la presenza di aggiornamenti all'apertura e ogni ora, e quando ne trova uno mostra in basso l'avviso **"Aggiornamento pronto"**. Lo applichi quando vuoi tu — se sei a metà seduta l'app te lo dice e la seduta viene salvata prima di ricaricare. Il service worker usa network-first sui file dell'applicazione, quindi la versione nuova arriva da sola appena c'è rete, e cache-first su icone e immagini, che non cambiano.
+Carica i file modificati nello stesso repository (**Add file → Upload files** sovrascrive quelli con lo stesso nome). Versione nell'intro e numero di cache si aggiornano con un solo comando, `./version.sh 4.4`, che scrive la data di oggi e incrementa la cache: erano tre punti da toccare a mano e bastava dimenticarne uno perché l'iPhone continuasse a servire la versione vecchia. Da questa versione non serve altro: l'app controlla la presenza di aggiornamenti all'apertura e ogni ora, e quando ne trova uno mostra in basso l'avviso **"Aggiornamento pronto"**. Lo applichi quando vuoi tu — se sei a metà seduta l'app te lo dice e la seduta viene salvata prima di ricaricare. Il service worker usa network-first sui file dell'applicazione, quindi la versione nuova arriva da sola appena c'è rete, e cache-first su icone e immagini, che non cambiano.
 
 ### Se qualcosa non va
 - **Schermata bianca o messaggio sui dati non caricati**: manca qualche file nel repository, oppure i file sono finiti dentro una sottocartella. Devono stare nella radice, accanto a `index.html`.

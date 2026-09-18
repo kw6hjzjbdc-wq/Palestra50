@@ -4103,7 +4103,9 @@
    "safety": [
     "Spalla: la presa parallela evita la posizione di massima rotazione interna, la più critica in caso di conflitto subacromiale."
    ],
-   "source": "NSCA – trazione verticale progressiva"
+   "source": "NSCA – trazione verticale progressiva",
+   "assist": true,
+   "assistNote": "Contrappeso o elastico di assistenza: più alto, più aiuto. Progredire significa ridurlo."
   },
   {
    "id": "h_neutralpress",
@@ -4501,7 +4503,9 @@
    "safety": [
     "La band aiuta molto in basso e poco in alto: serve per accumulare volume, non come lavoro principale. Cambia band (viola → rossa → gialla → azzurra) ogni volta che superi le ripetizioni previste con facilità."
    ],
-   "source": "Evidenza EMG: l'assistenza elastica riproduce il pattern della trazione libera meglio della macchina"
+   "source": "Evidenza EMG: l'assistenza elastica riproduce il pattern della trazione libera meglio della macchina",
+   "assist": true,
+   "assistNote": "La band aiuta: più è dura, più solleva il tuo peso. Progredire significa passare a una band più leggera."
   },
   {
    "id": "g_pullmachine",
@@ -4544,7 +4548,9 @@
    "safety": [
     "Utile per il volume con tecnica pulita, ma il carico costante rende il lavoro meno simile alla trazione libera rispetto alla band: alternalo, non usarlo da solo."
    ],
-   "source": "Evidenza: il contrappeso costante riduce la richiesta di stabilizzazione rispetto alla sospensione libera"
+   "source": "Evidenza: il contrappeso costante riduce la richiesta di stabilizzazione rispetto alla sospensione libera",
+   "assist": true,
+   "assistNote": "Contrappeso della macchina: più alto, più aiuto. Progredire significa ridurlo."
   },
   {
    "id": "g_pullup",

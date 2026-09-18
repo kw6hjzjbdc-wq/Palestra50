@@ -602,3 +602,9 @@ body.in-session .updbar{bottom:calc(88px + env(safe-area-inset-bottom))}
 
 /* comando di arresto nella barretta del timer ridotto */
 .mini #miniStop{flex:0 0 auto;padding:10px 12px;color:var(--alert);border-color:var(--line)}
+
+/* nota sugli esercizi in cui il numero annotato è un aiuto, non un carico */
+.assistnote{
+  margin-top:12px;padding:10px 12px;border-radius:12px;font-size:14px;
+  background:rgba(79,195,161,.08);border:1px solid #1d4d40;color:#bfe9dc;
+}
