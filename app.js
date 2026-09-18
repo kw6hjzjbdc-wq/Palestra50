@@ -36,6 +36,7 @@ const DEFAULT_STATE = {
   shoulderCare: true,      // esclude gli esercizi critici per il conflitto subacromiale
   pullupGoal: true,        // blocco trazioni in apertura delle sedute di forza
   perms: {},               // ordine delle 5 sedute all'interno di ciascuna settimana
+  mobilityWeeks: [],       // settimane in cui si fa solo mobilità (il programma slitta)
   sound: true,             // campanella del timer
   disclaimerOk: false,
   logs: [],                // storico per esercizio
@@ -178,6 +179,31 @@ function migrateLogFields() {
     if (l.rir === undefined) { l.rir = null; touched = true; }
   });
   if (touched) save();
+}
+
+/* ---------------------------------------------------------------------------
+   PROPOSTA UNA TANTUM: settimana di sola mobilità
+   L'utente ha annunciato una settimana senza sala pesi, ma l'impostazione vive
+   nei dati sul telefono e va confermata da lui: qui l'app lo chiede una volta
+   sola, lasciandogli scegliere se la pausa è questa settimana o la prossima.
+--------------------------------------------------------------------------- */
+function askMobilityWeek() {
+  if (S.mobAsked) return;
+  S.mobAsked = true; save();
+  const meta = sessionMeta(S.sessionIndex);
+  const q = meta.weekAbs, n = meta.weekAbs + 1;
+  openModal(`<h2>Una settimana di sola mobilità?</h2>
+    <p class="small muted">Hai detto che per una settimana potrai fare solo mobilità e stretching.
+      Dimmi quale: tutte e cinque le sedute diventeranno di allungamento e il programma di forza
+      <b>slitterà in avanti</b>, riprendendo da dove è rimasto. Nessuna settimana di lavoro va persa.</p>
+    <p class="small muted">Sei alla sessione ${meta.pos} di 5 della settimana ${q}.</p>
+    <button class="btn" id="mbNext" style="margin-top:12px">La prossima · settimana ${n}</button>
+    <button class="btn ghost" id="mbThis" style="margin-top:10px">Quella in corso · settimana ${q}</button>
+    <button class="btn ghost" id="mbNo" style="margin-top:10px">Per ora no</button>`);
+  const set = w => { S.mobilityWeeks = [w]; planCache = null; save(); closeModal(() => { go('home'); }); };
+  $('#mbNext').onclick = () => set(n);
+  $('#mbThis').onclick = () => set(q);
+  $('#mbNo').onclick = () => closeModal();
 }
 
 function migrateNames() {
@@ -467,13 +493,94 @@ const SMALL_GROUPS = ['Braccia', 'Spalle', 'Polpacci', 'Core'];
 --------------------------------------------------------------------------- */
 const isAssist = ex => !!(ex && ex.assist);
 
-/* Passo minimo realmente disponibile sull'attrezzo: 5 kg sul pacco pesi delle
-   macchine assistite, 0,5 kg sui carichi leggeri, 1 kg sui piccoli gruppi
-   (manubri), 2,5 kg sui grandi (dischi da 1,25 per lato). Serve anche a non
-   segnalare come "salto" un incremento che è semplicemente il più piccolo
-   possibile su quell'attrezzo: su una macchina da 5 kg in 5 kg, passare da 40
-   a 35 è un passo obbligato, non un'imprudenza. */
+/* ---------------------------------------------------------------------------
+   CARICHI REALMENTE DISPONIBILI IN PALESTRA
+   Suggerire "22,7 kg" è inutile se quel peso non si può comporre. Qui sono
+   descritte le scale effettive degli attrezzi, e ogni suggerimento viene
+   portato sul valore più vicino che esiste davvero:
+
+   · bilanciere — barra da 10 kg, dischi da 2, 5, 10 e 20 kg montati a coppie:
+     i totali componibili sono 10, 14, 18 e poi tutti i pari (12 e 16
+     richiederebbero 1 e 3 kg per lato, che non ci sono);
+   · manubri — rastrelliera da 2 a 40 kg; il numero annotato è il peso del
+     SINGOLO manubrio, anche quando se ne usano due;
+   · macchine, cavi e lat machine — pacco pesi da 10 a 120 kg a passi di 2,5;
+   · casa — manubri da 1 e 2 kg, usabili anche in coppia.
+
+   Da queste scale discende anche il passo minimo: serve a non segnalare come
+   "salto" un incremento che è semplicemente il più piccolo possibile su quel
+   ferro. Passare da 20 a 22 kg col bilanciere è +10%, ma è anche l'unico
+   scalino disponibile.
+--------------------------------------------------------------------------- */
+function barbellScale() {
+  // barra 10 kg + coppie di dischi da 2/5/10/20
+  const disks = [2, 5, 10, 20];
+  let sums = new Set([0]);
+  for (let k = 0; k < 8; k++) {
+    const next = new Set(sums);
+    sums.forEach(v => disks.forEach(d => { if (v + d <= 95) next.add(v + d); }));
+    sums = next;
+  }
+  return Array.from(sums).map(v => 10 + 2 * v).filter(v => v <= 200).sort((a, b) => a - b);
+}
+const RACKS = {
+  barbell:  barbellScale(),
+  dumbbell: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 40],
+  machine:  Array.from({ length: 45 }, (_, i) => 10 + i * 2.5),      // 10 → 120
+  home:     [1, 2, 3, 4]                                             // 1+2 kg, anche in coppia
+};
+const rackOf = ex => (ex && RACKS[ex.rack]) ? RACKS[ex.rack] : null;
+
+/* Riga di spiegazione della scala, mostrata sotto il selettore del carico. */
+function rackNote(ex) {
+  if (!ex || ex.load !== 'weight') return '';
+  switch (ex.rack) {
+    case 'barbell':  return 'Bilanciere da 10 kg con dischi da 2, 5, 10 e 20 kg a coppie: 12 e 16 kg non sono componibili.';
+    case 'dumbbell': return 'Peso del singolo manubrio, dalla rastrelliera da 2 a 40 kg.';
+    case 'machine':  return 'Pacco pesi da 10 a 120 kg, a scalini di 2,5 kg.';
+    case 'home':     return 'Manubri da 1 e 2 kg, anche in coppia.';
+    default: return '';
+  }
+}
+
+/* Porta un valore sulla scala dell'attrezzo.
+   dir  +1 = non scendere sotto il valore chiesto, -1 = non salire sopra,
+        0 = semplicemente il più vicino.
+   Se il valore cade fuori scala si resta agli estremi. */
+function snapLoad(ex, v, dir) {
+  const scale = rackOf(ex);
+  if (!scale || !isFinite(v)) return v;
+  if (v <= scale[0]) return scale[0];
+  if (v >= scale[scale.length - 1]) return scale[scale.length - 1];
+  if (dir > 0) { for (const x of scale) if (x >= v - 0.001) return x; return scale[scale.length - 1]; }
+  if (dir < 0) { for (let i = scale.length - 1; i >= 0; i--) if (scale[i] <= v + 0.001) return scale[i]; return scale[0]; }
+  let best = scale[0];
+  scale.forEach(x => { if (Math.abs(x - v) < Math.abs(best - v)) best = x; });
+  return best;
+}
+
+/* Valore successivo o precedente sulla scala, a partire da uno esistente. */
+function stepOnScale(ex, v, dir) {
+  const scale = rackOf(ex);
+  if (!scale) return v + dir * (isAssist(ex) ? 5 : 1);
+  const snapped = snapLoad(ex, v, 0);
+  const i = scale.indexOf(snapped);
+  if (i < 0) return snapLoad(ex, v + dir, dir);
+  const j = Math.max(0, Math.min(scale.length - 1, i + dir));
+  return scale[j];
+}
+
+/* Passo minimo realmente disponibile attorno a un certo carico. */
 function minStepFor(ex, n) {
+  const scale = rackOf(ex);
+  if (scale) {
+    const snapped = snapLoad(ex, n, 0);
+    const i = scale.indexOf(snapped);
+    const prev = i > 0 ? snapped - scale[i - 1] : Infinity;
+    const next = i < scale.length - 1 ? scale[i + 1] - snapped : Infinity;
+    const st = Math.min(prev, next);
+    return isFinite(st) ? st : 2.5;
+  }
   if (isAssist(ex)) return 5;
   if (!isFinite(n) || n < 10) return 0.5;
   return SMALL_GROUPS.includes(ex.group) ? 1 : 2.5;
@@ -543,47 +650,62 @@ function suggestLoad(ex) {
   if (!isFinite(n) || n <= 0) return Object.assign(info, { value: null });
 
   const small = SMALL_GROUPS.includes(ex.group);
-  const step = minStepFor(ex, n);
   const pct = small && !isAssist(ex) ? 0.025 : 0.05;
-  let val = n;
+  const scale = rackOf(ex);
+  const base = snapLoad(ex, n, 0);           // il carico di partenza, sulla scala reale
+  const atTop = scale && base >= scale[scale.length - 1];
+  const atBottom = scale && base <= scale[0];
+  let val = base;
+
+  /* Cerca il valore successivo nella direzione voluta: prima quello che
+     rispetta la percentuale, ma mai meno di uno scalino reale dell'attrezzo
+     e mai più del tetto del 10% (salvo che lo scalino minimo lo superi). */
+  const move = (up, ratio) => {
+    const target = base * ratio;
+    let v = snapLoad(ex, target, up ? 1 : -1);
+    if (up && v <= base) v = stepOnScale(ex, base, 1);
+    if (!up && v >= base) v = stepOnScale(ex, base, -1);
+    const capped = snapLoad(ex, base * (up ? 1 + SAFE_STEP : 1 - SAFE_STEP), up ? -1 : 1);
+    const oneStep = stepOnScale(ex, base, up ? 1 : -1);
+    if (up && v > capped && capped > base) v = capped;
+    if (!up && v < capped && capped < base) v = capped;
+    // uno scalino è sempre ammesso, anche se in percentuale sfora
+    if (up && v <= base) v = oneStep;
+    if (!up && v >= base) v = oneStep;
+    return v;
+  };
+
+  const kg = x => String(Math.round(x * 10) / 10).replace('.', ',');
 
   if (tooHard) {
     // "troppo difficile": meno carico, oppure PIÙ assistenza
-    const t = isAssist(ex) ? n * 1.07 : n * 0.93;
-    val = isAssist(ex) ? Math.ceil(t / step) * step : Math.max(step, Math.floor(t / step) * step);
-    if (isAssist(ex) && val <= n) val = n + step;
+    val = isAssist(ex) ? move(true, 1.07) : move(false, 0.93);
     info.reason = isAssist(ex)
-      ? 'L\'ultima volta è stata troppo impegnativa: aumenta l\'assistenza di un passo.'
-      : 'L\'ultima volta è stata troppo impegnativa: scendi di circa il 7%.';
+      ? `L'ultima volta è stata troppo impegnativa: assistenza a ${kg(val)} kg.`
+      : `L'ultima volta è stata troppo impegnativa: scendi a ${kg(val)} kg.`;
   } else if (atLimit) {
-    info.reason = `L\'ultima serie è finita al limite: consolida questa ${loadWord(ex)} prima di procedere.`;
+    info.reason = `L'ultima serie è finita al limite: consolida questa ${loadWord(ex)} prima di procedere.`;
   } else if (twoForTwo) {
     if (isAssist(ex)) {
-      // progredire = togliere aiuto, di un passo intero del pacco pesi
-      val = Math.floor(n * (1 - pct) / step) * step;
-      if (val >= n) val = n - step;
-      const floorCap = Math.ceil(n * (1 - SAFE_STEP) / step) * step;   // non oltre -10%
-      if (floorCap < n && val < floorCap) val = floorCap;
-      if (val < 0) val = 0;
+      val = atBottom ? 0 : move(false, 1 - pct);
+      if (val <= (scale ? scale[0] : 0) && base <= (scale ? scale[0] : 0)) val = 0;
       info.reason = val <= 0
         ? 'Regola 2-for-2 soddisfatta: sei pronto a provare senza assistenza.'
-        : `Regola 2-for-2 soddisfatta nelle ultime due sedute: assistenza ridotta di ${(n - val).toFixed(1).replace('.0', '')} kg.`;
+        : `Regola 2-for-2 soddisfatta: assistenza ridotta a ${kg(val)} kg, uno scalino del pacco pesi.`;
+    } else if (atTop) {
+      info.reason = 'Sei al carico più alto disponibile su questo attrezzo: aumenta le ripetizioni o passa a una variante più difficile.';
     } else {
-      // si sale di un passo intero, arrotondando per eccesso: arrotondare per
-      // difetto annullerebbe l'incremento sui carichi bassi. Il risultato resta
-      // comunque dentro il tetto del 10%.
-      val = Math.ceil(n * (1 + pct) / step) * step;
-      if (val <= n) val = n + step;
-      const cap = Math.floor(n * (1 + SAFE_STEP) / step) * step;
-      if (cap > n && val > cap) val = cap;
-      info.reason = `Regola 2-for-2 soddisfatta nelle ultime due sedute: +${(val - n).toFixed(1).replace('.0', '')} kg (${Math.round((val / n - 1) * 100)}%).`;
+      val = move(true, 1 + pct);
+      const d = val - base;
+      info.reason = `Regola 2-for-2 soddisfatta nelle ultime due sedute: ${kg(val)} kg, ` +
+                    `+${kg(d)} kg (${Math.round((val / base - 1) * 100)}%), il primo scalino utile su questo attrezzo.`;
     }
   } else {
     info.reason = recent.length < 2
       ? 'Serve una seconda seduta sopra l\'obiettivo prima di procedere.'
-      : `Mantieni ${isAssist(ex) ? 'questa assistenza' : 'il carico'}: l\'obiettivo non è stato superato di 2 ripetizioni per due sedute.`;
+      : `Mantieni ${isAssist(ex) ? 'questa assistenza' : 'il carico'}: l'obiettivo non è stato superato di 2 ripetizioni per due sedute.`;
   }
-  return Object.assign(info, { value: String(val % 1 === 0 ? val : val.toFixed(1)) });
+  return Object.assign(info, { value: String(val % 1 === 0 ? val : val.toFixed(1)), scale });
 }
 
 /* Frase dell'intro: si pesca a caso fra quelle non ancora uscite nelle ultime
@@ -796,12 +918,32 @@ function phaseOf(p, weekAbs) {
 }
 const totalWeeks = p => (p.phases ? p.phases.reduce((a, f) => a + f.weeks, 0) : 0);
 
+/* ---------------------------------------------------------------------------
+   SETTIMANE DI SOLA MOBILITÀ
+   Capita di non poter andare in sala pesi per una settimana: viaggio, impegni,
+   un fastidio da lasciar passare. In quel caso tutte e cinque le sedute
+   diventano mobilità e stretching, e — cosa che conta di più — il macrociclo
+   NON perde una settimana di lavoro: semplicemente slitta in avanti, perché
+   nel conteggio delle settimane di fase quelle di sola mobilità non contano.
+   Il programma di forza riprende esattamente da dove era rimasto.
+--------------------------------------------------------------------------- */
+const isMobilityWeek = w => Array.isArray(S.mobilityWeeks) && S.mobilityWeeks.indexOf(w) >= 0;
+
+/* Settimane di forza effettivamente svolte fino a quella indicata (inclusa):
+   è l'indice con cui si legge la fase del macrociclo. */
+function trainingWeekOf(weekAbs) {
+  const skipped = (S.mobilityWeeks || []).filter(w => w <= weekAbs && w !== weekAbs).length;
+  return Math.max(1, weekAbs - skipped);
+}
+
 function sessionMeta(idx) {
   const p = program();
   const weekAbs = Math.floor(idx / 5) + 1;
   const dayInWeek = weekPerm(weekAbs)[idx % 5];
-  const isStrength = DAYS_STRENGTH.includes(dayInWeek);
-  const ph = phaseOf(p, weekAbs);
+  const mobWeek = isMobilityWeek(weekAbs);
+  // in una settimana di sola mobilità nessuna seduta è di potenziamento
+  const isStrength = !mobWeek && DAYS_STRENGTH.includes(dayInWeek);
+  const ph = phaseOf(p, trainingWeekOf(weekAbs));
 
   let weekInCycle, mesocycle, cycleLen, profile;
   if (ph) {
@@ -810,14 +952,20 @@ function sessionMeta(idx) {
     mesocycle = ph.index * 3 + Math.floor((ph.weekInPhase - 1) / 4) + 1;
     profile = weekProfile(weekInCycle, cycleLen);
   } else {
+    const tw = trainingWeekOf(weekAbs);
     cycleLen = p.cycleWeeks;
-    weekInCycle = ((weekAbs - 1) % cycleLen) + 1;
-    mesocycle = Math.floor((weekAbs - 1) / cycleLen) + 1;
+    weekInCycle = ((tw - 1) % cycleLen) + 1;
+    mesocycle = Math.floor((tw - 1) / cycleLen) + 1;
     profile = weekProfile(weekInCycle, cycleLen);
   }
+  // le cinque sedute di una settimana di mobilità alternano i due schemi,
+  // con la rotazione che cambia posizione per non ripetere gli stessi esercizi
+  const tmplIdx = isStrength
+    ? DAYS_STRENGTH.indexOf(dayInWeek)
+    : (mobWeek ? ((idx % 5) % 2) : DAYS_STRETCH.indexOf(dayInWeek));
   return { idx, dayInWeek, pos: (idx % 5) + 1, weekAbs, weekInCycle, cycleLen, mesocycle, isStrength,
-           phase: ph, tmplIdx: isStrength ? DAYS_STRENGTH.indexOf(dayInWeek) : DAYS_STRETCH.indexOf(dayInWeek),
-           profile, program: p };
+           mobilityWeek: mobWeek, trainingWeek: trainingWeekOf(weekAbs),
+           phase: ph, tmplIdx, profile, program: p };
 }
 
 /* Filtri di sicurezza applicati a ogni pool di esercizi.
@@ -930,7 +1078,10 @@ function buildStretch(meta) {
                                         && tmpl.staticGroups.includes(e.group));
   dyn.sort((a, b) => a.id.localeCompare(b.id));
   stat.sort((a, b) => a.id.localeCompare(b.id));
-  const rot = (meta.mesocycle - 1) * 2 + meta.tmplIdx + (meta.weekInCycle - 1);
+  let rot = (meta.mesocycle - 1) * 2 + meta.tmplIdx + (meta.weekInCycle - 1);
+  // in una settimana di sola mobilità le sedute sono cinque: la rotazione
+  // scorre a ogni seduta, così non si ripetono gli stessi allungamenti
+  if (meta.mobilityWeek) rot += (meta.idx % 5) * 2;
   for (let i = 0; i < tmpl.dynamic; i++) {
     const ex = pickFrom(dyn, rot + i, used);
     if (ex) items.push({ exId: ex.id, note: 'Riscaldamento', goalKey: 'mobility',
@@ -943,7 +1094,8 @@ function buildStretch(meta) {
                          alt: { patterns: ['static'], types: ['stretch'], groups: tmpl.staticGroups.slice() },
                          ...dose('stretch', meta.profile, ex) });
   }
-  return { label: tmpl.label, type: 'stretch', items };
+  const label = meta.mobilityWeek ? `${tmpl.label} · seduta ${meta.pos} di 5` : tmpl.label;
+  return { label, type: 'stretch', items };
 }
 
 function buildCore(meta) {
@@ -1271,10 +1423,13 @@ function renderHome() {
 
     <div class="card">
       <div class="kicker" style="font-family:var(--cond);letter-spacing:.06em;text-transform:uppercase;font-size:13px;color:var(--muted)">
-        ${s.phase ? `Fase ${s.phase.index + 1} di ${p.phases.length} · ${esc(s.phase.ph.name)}`
-                  : `Settimana ${s.weekInCycle} di ${p.cycleWeeks} · ${esc(p.name)}`}</div>
+        ${s.mobilityWeek ? 'Settimana di sola mobilità'
+          : s.phase ? `Fase ${s.phase.index + 1} di ${p.phases.length} · ${esc(s.phase.ph.name)}`
+                    : `Settimana ${s.weekInCycle} di ${p.cycleWeeks} · ${esc(p.name)}`}</div>
       <h2 style="margin-top:2px">La tua settimana</h2>
-      ${s.phase ? `<p class="small muted" style="margin:6px 0 0">Settimana ${s.phase.weekInPhase} di ${s.phase.ph.weeks} della fase, ${s.weekAbs} di ${totalWeeks(p)} del programma${weeksLeftText(p, s.weekAbs)}. ${esc(s.phase.ph.aim)}</p>` : ''}
+      ${s.mobilityWeek
+        ? `<p class="small muted" style="margin:6px 0 0">Tutte e cinque le sedute sono di mobilità e stretching. Il programma di forza riprende la settimana ${s.weekAbs + 1} da dove era rimasto: nessuna settimana di lavoro va persa.</p>`
+        : s.phase ? `<p class="small muted" style="margin:6px 0 0">Settimana ${s.phase.weekInPhase} di ${s.phase.ph.weeks} della fase, ${s.trainingWeek} di ${totalWeeks(p)} del programma${weeksLeftText(p, s.trainingWeek)}. ${esc(s.phase.ph.aim)}</p>` : ''}
       <ul class="week">${week}</ul>
       <p class="small muted" style="margin-top:10px">Tocca la seduta che vuoi fare adesso: quella prevista oggi prenderà il suo posto più avanti nella settimana.</p>
     </div>
@@ -1390,10 +1545,17 @@ function renderSession() {
     loadCtl = `<select id="loadIn" aria-label="Livello">${steps.map(b =>
       `<option ${curLoad === b ? 'selected' : ''}>${esc(b)}</option>`).join('')}</select>`;
   } else if (ex.load === 'weight') {
-    loadCtl = `<input id="loadIn" type="number" inputmode="decimal" step="${isAssist(ex) ? 5 : 0.5}"
-                 placeholder="${isAssist(ex) ? 'kg di aiuto' : 'kg'}"
-                 aria-label="${isAssist(ex) ? 'Assistenza in chilogrammi' : 'Carico in chilogrammi'}"
-                 value="${esc(curLoad)}">`;
+    // fra i carichi che l'attrezzo permette davvero: niente valori impossibili
+    const scale = rackOf(ex);
+    if (scale) {
+      const cur = curLoad === '' ? '' : String(snapLoad(ex, parseFloat(String(curLoad).replace(',', '.')), 0));
+      const opts = scale.map(v => `<option value="${v}" ${String(v) === cur ? 'selected' : ''}>${String(v).replace('.', ',')} kg</option>`).join('');
+      loadCtl = `<select id="loadIn" aria-label="${isAssist(ex) ? 'Assistenza in chilogrammi' : 'Carico in chilogrammi'}">
+        <option value="" ${cur === '' ? 'selected' : ''}>— ${isAssist(ex) ? 'aiuto' : 'carico'} —</option>${opts}</select>`;
+    } else {
+      loadCtl = `<input id="loadIn" type="number" inputmode="decimal" step="0.5" placeholder="kg"
+                   aria-label="Carico in chilogrammi" value="${esc(curLoad)}">`;
+    }
   } else {
     loadCtl = `<input id="loadIn" type="text" placeholder="nota sul carico" aria-label="Carico"
                  value="${esc(c.loads[c.pos] || '')}">`;
@@ -1479,6 +1641,7 @@ function renderSession() {
       <div class="setdots">${setBtns}</div>
 
       ${isAssist(ex) ? `<div class="assistnote">Il numero è <b>l'aiuto</b>, non il peso sollevato: più è basso, più sei forte. Progredire significa ridurlo.</div>` : ''}
+      ${rackNote(ex) ? `<p class="small muted" style="margin-top:10px">${esc(rackNote(ex))}</p>` : ''}
       <div class="loadrow">
         ${loadCtl}
         <div class="feedback">
@@ -1881,6 +2044,7 @@ function openSheet(ex, it, ctx) {
       </div>`;
     })()}
     ${ex.assistNote ? `<div class="assistnote">${esc(ex.assistNote)}</div>` : ''}
+    ${rackNote(ex) ? `<p class="small muted">${esc(rackNote(ex))}</p>` : ''}
     ${S.exNotes[ex.id] ? `<div class="exnote" style="cursor:default">📌 ${esc(S.exNotes[ex.id])}</div>` : ''}
     <div class="block"><h3>Esecuzione</h3><ol>${ex.steps.map(s => `<li>${esc(s)}</li>`).join('')}</ol></div>
     ${ex.levels ? `<div class="block"><h3>Progressione</h3>
@@ -2318,6 +2482,21 @@ function renderSettings() {
       </div>
       <button class="btn ghost" id="posSet" style="margin-top:10px">Imposta questa posizione</button>
       <button class="btn ghost" id="posAuto" style="margin-top:10px">Ricalcola dalle sedute registrate</button>
+    </div>
+
+    <div class="card">
+      <h2>Settimane di sola mobilità</h2>
+      <p class="small muted">Quando non puoi andare in sala pesi, tutte e cinque le sedute della settimana diventano mobilità e stretching.
+        Il programma di forza non perde nulla: <b>slitta in avanti</b>, e riprende esattamente da dove era rimasto.</p>
+      ${(S.mobilityWeeks || []).length
+        ? `<p class="small">Impostate: ${S.mobilityWeeks.slice().sort((a, b) => a - b).map(w => 'settimana ' + w).join(', ')}.</p>`
+        : '<p class="small muted">Nessuna settimana impostata.</p>'}
+      <div class="btn-row" style="margin-top:12px">
+        <button class="btn ghost" id="mobNext">Solo mobilità la prossima settimana</button>
+        <button class="btn ghost" id="mobThis">…questa settimana</button>
+      </div>
+      ${(S.mobilityWeeks || []).length
+        ? `<button class="btn ghost" id="mobClear" style="margin-top:10px">Annulla tutte</button>` : ''}
       <p class="small muted" style="margin-top:8px">Serve quando l'indice non corrisponde più a ciò che hai davvero svolto, per esempio dopo aver saltato una seduta senza registrarla. Lo storico dei carichi non viene toccato.</p>
     </div>
 
@@ -2373,6 +2552,32 @@ function renderSettings() {
       <p class="small muted">Questa app propone programmi generici costruiti sulle linee guida ACSM, NSCA, ACE e OMS per adulti sani. Non sostituisce una valutazione medica. Prima di iniziare, e in particolare per la sensibilità al ginocchio, consulta un medico o un fisioterapista. Interrompi subito in caso di dolore acuto, vertigini o dolore toracico.</p>
     </div>`;
 
+  const setMobWeek = w => {
+    const list = (S.mobilityWeeks || []).slice();
+    const i = list.indexOf(w);
+    if (i >= 0) { list.splice(i, 1); }
+    else list.push(w);
+    S.mobilityWeeks = list; planCache = null; save(); renderSettings();
+  };
+  $('#mobNext').onclick = () => {
+    const w = meta.weekAbs + 1;
+    confirmAction(isMobilityWeek(w) ? 'Ripristinare la settimana normale?' : 'Solo mobilità la prossima settimana?',
+      isMobilityWeek(w)
+        ? `La settimana ${w} tornerà a prevedere tre sedute di potenziamento e due di mobilità.`
+        : `Nella settimana ${w} tutte e cinque le sedute saranno di mobilità e stretching. Il programma di forza slitta di una settimana: non perdi nulla.`,
+      isMobilityWeek(w) ? 'Ripristina' : 'Imposta', () => setMobWeek(w));
+  };
+  $('#mobThis').onclick = () => {
+    const w = meta.weekAbs;
+    confirmAction(isMobilityWeek(w) ? 'Ripristinare la settimana normale?' : 'Solo mobilità questa settimana?',
+      isMobilityWeek(w)
+        ? `La settimana ${w} tornerà a prevedere tre sedute di potenziamento e due di mobilità.`
+        : `Nella settimana ${w} tutte e cinque le sedute saranno di mobilità e stretching. Il programma di forza slitta di una settimana: non perdi nulla.`,
+      isMobilityWeek(w) ? 'Ripristina' : 'Imposta', () => setMobWeek(w));
+  };
+  if ($('#mobClear')) $('#mobClear').onclick = () => confirmAction('Annullare tutte le settimane di sola mobilità?',
+    'Le settimane interessate torneranno a prevedere tre sedute di potenziamento e due di mobilità.',
+    'Annulla tutte', () => { S.mobilityWeeks = []; planCache = null; save(); renderSettings(); });
   $('#posSet').onclick = () => {
     const w = +$('#posWeek').value, d = +$('#posDay').value;
     const idx = (w - 1) * 5 + (d - 1);
@@ -3046,12 +3251,13 @@ function registerServiceWorker() {
   // quando l'utente tocca lo schermo, e solo dopo compare l'avvertenza
   const splash = document.getElementById('splash');
   const afterSplash = () => {
-    if (!splash || splash.dataset.done) { if (!S.disclaimerOk) disclaimer(); return; }
+    const poi = () => { if (!S.disclaimerOk) disclaimer(); else askMobilityWeek(); };
+    if (!splash || splash.dataset.done) { poi(); return; }
     splash.dataset.done = '1';
     splash.classList.add('hide');
     setTimeout(() => {
       if (splash.parentNode) splash.parentNode.removeChild(splash);
-      if (!S.disclaimerOk) disclaimer();
+      poi();
     }, 420);
   };
   const qEl = document.getElementById('splashQuote');

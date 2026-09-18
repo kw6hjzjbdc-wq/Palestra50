@@ -163,6 +163,19 @@ Su trazioni alla macchina assistita, trazioni assistite e trazioni con band, que
 
 Nella schermata della seduta e nella scheda, il campo è etichettato come assistenza con una nota che lo spiega.
 
+### Carichi realmente disponibili in palestra
+
+Suggerire "22,7 kg" è inutile se quel peso non si può comporre. Ogni esercizio con carico è associato al suo attrezzo e il suggerimento cade sempre su un valore che esiste davvero; nella seduta il campo è un menu dei carichi possibili, non un numero libero.
+
+| Attrezzo | Scala |
+|---|---|
+| Bilanciere | Barra da 10 kg con dischi da 2, 5, 10 e 20 kg a coppie: 10, 14, 18, 20, 22, 24… I totali da 12 e 16 kg non sono componibili, perché richiederebbero 1 e 3 kg per lato |
+| Manubri | Rastrelliera da 2 a 40 kg (senza il 38). Il numero annotato è il peso del **singolo** manubrio, anche quando se ne usano due |
+| Macchine, cavi, lat machine | Pacco pesi da 10 a 120 kg, a scalini di 2,5 kg |
+| Casa | Manubri da 1 e 2 kg, anche in coppia: 1, 2, 3, 4 kg |
+
+Quando la regola 2-for-2 chiede un aumento, l'app cerca il primo scalino utile nella direzione giusta: dal bilanciere a 20 kg propone 22, dai manubri a 8 kg propone 10, dalla macchina a 50 kg propone 52,5. Al carico massimo dell'attrezzo lo dice e suggerisce di aumentare le ripetizioni o cambiare variante.
+
 **Nota sul passo minimo.** L'allarme "incremento oltre il 10%" scatta solo se la variazione supera *anche* il passo minimo realmente disponibile su quell'attrezzo (5 kg sul pacco pesi, 2,5 kg con i dischi, 1 kg con i manubri, 0,5 kg sui carichi leggeri). Senza questa condizione l'app segnalava come imprudente proprio l'incremento più piccolo possibile — per esempio da 20 a 22,5 kg, che è +12,5% ma anche l'unico passo che i dischi consentono, e che l'app stessa suggeriva.
 
 ### Massimale stimato
@@ -209,6 +222,12 @@ I file devono restare tutti allo stesso livello: la struttura è piatta apposta,
 
 ### Alternativa più rapida ma temporanea
 Su `app.netlify.com/drop`, dopo aver fatto l'accesso, puoi caricare direttamente il file **`palestra50.zip`** dal selettore file: Netlify lo scompatta e ti dà subito un indirizzo `https://...netlify.app`. È comodo per provare l'app in due minuti, ma senza account collegato quei siti sono provvisori: per l'uso quotidiano resta meglio GitHub Pages.
+
+### Settimane di sola mobilità
+
+Quando non puoi andare in sala pesi per una settimana — viaggio, impegni, un fastidio da lasciar passare — la scheda **Programma → Settimane di sola mobilità** permette di dichiararlo per la settimana in corso o per la prossima. Tutte e cinque le sedute diventano di mobilità e stretching, con schemi e rotazioni diversi fra loro per non ripetere gli stessi allungamenti.
+
+Il punto che conta: **il programma di forza non perde nulla, slitta**. Nel conteggio delle settimane di fase quelle di sola mobilità non vengono contate, quindi se ti fermi alla settimana 2 di una fase, alla ripresa riparti dalla settimana 2, non dalla 3. Il macrociclo si allunga di una settimana invece di saltarne un pezzo.
 
 ### Se la posizione nel programma non corrisponde
 

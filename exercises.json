@@ -43,7 +43,8 @@
    "safety": [
     "Ginocchio: fermati a 90° e mantieni le rotule in linea con le punte dei piedi; se senti dolore anteriore, riduci l'escursione."
    ],
-   "source": "NSCA – ipertrofia arti inferiori"
+   "source": "NSCA – ipertrofia arti inferiori",
+   "rack": "machine"
   },
   {
    "id": "g_gobletsquat",
@@ -87,7 +88,8 @@
    "safety": [
     "Ginocchio: scendi solo fino a dove mantieni il controllo, il carico frontale aiuta a tenere il busto eretto e scarica la rotula."
    ],
-   "source": "NSCA – ipertrofia, schema multiarticolare"
+   "source": "NSCA – ipertrofia, schema multiarticolare",
+   "rack": "dumbbell"
   },
   {
    "id": "g_legext",
@@ -127,7 +129,8 @@
    "safety": [
     "Ginocchio: rinforzo utile per la stabilità della rotula solo se resti nel range indolore; carichi moderati, alte ripetizioni."
    ],
-   "source": "ACSM – rinforzo mirato in presenza di sensibilità femoro-rotulea"
+   "source": "ACSM – rinforzo mirato in presenza di sensibilità femoro-rotulea",
+   "rack": "machine"
   },
   {
    "id": "g_bulgarian",
@@ -172,7 +175,8 @@
     "Ginocchio: allunga il passo e inclina leggermente il busto avanti per spostare il lavoro su glutei e femorali."
    ],
    "source": "NSCA – lavoro unilaterale per equilibrio e stabilità",
-   "perSide": true
+   "perSide": true,
+   "rack": "dumbbell"
   },
   {
    "id": "g_lunge",
@@ -215,7 +219,8 @@
    "safety": [
     "Ginocchio: se compare fastidio, sostituisci con affondo inverso, meno impattante sulla rotula."
    ],
-   "source": "NSCA – pattern di affondo, ipertrofia"
+   "source": "NSCA – pattern di affondo, ipertrofia",
+   "rack": "dumbbell"
   },
   {
    "id": "g_rdl",
@@ -258,7 +263,8 @@
    "safety": [
     "Schiena: mantieni il bilanciere a contatto con la gamba, l'escursione la decide la tensione sui femorali, non il pavimento."
    ],
-   "source": "NSCA – schema di hip hinge, forza e ipertrofia"
+   "source": "NSCA – schema di hip hinge, forza e ipertrofia",
+   "rack": "barbell"
   },
   {
    "id": "g_legcurl",
@@ -299,7 +305,8 @@
    "safety": [
     "Ginocchio: femorali forti stabilizzano l'articolazione e bilanciano il lavoro del quadricipite."
    ],
-   "source": "NSCA – ipertrofia, isolamento femorali"
+   "source": "NSCA – ipertrofia, isolamento femorali",
+   "rack": "machine"
   },
   {
    "id": "g_hipthrust",
@@ -343,7 +350,8 @@
    "safety": [
     "Mantieni il mento leggermente raccolto e le costole basse per non caricare la lombare."
    ],
-   "source": "NSCA – estensione d'anca, ipertrofia glutei"
+   "source": "NSCA – estensione d'anca, ipertrofia glutei",
+   "rack": "barbell"
   },
   {
    "id": "g_backext",
@@ -434,7 +442,8 @@
    "safety": [
     "Inizia con il solo bilanciere: la tecnica qui conta più del carico."
    ],
-   "source": "NSCA – hip hinge, forza"
+   "source": "NSCA – hip hinge, forza",
+   "rack": "barbell"
   },
   {
    "id": "g_benchdb",
@@ -477,7 +486,8 @@
    "safety": [
     "Spalla: non scendere oltre il punto in cui i gomiti superano nettamente la linea del busto."
    ],
-   "source": "NSCA – spinta orizzontale, ipertrofia"
+   "source": "NSCA – spinta orizzontale, ipertrofia",
+   "rack": "dumbbell"
   },
   {
    "id": "g_benchincline",
@@ -521,7 +531,8 @@
     "Usa i fermi o un assistente quando lavori vicino al cedimento."
    ],
    "source": "NSCA – forza/ipertrofia parte superiore",
-   "shoulderRisk": true
+   "shoulderRisk": true,
+   "rack": "barbell"
   },
   {
    "id": "g_chestpress",
@@ -563,7 +574,8 @@
    "safety": [
     "Ottimo per lavorare vicino al cedimento in sicurezza, senza necessità di assistenza."
    ],
-   "source": "ACSM – macchine guidate per adulti over 50"
+   "source": "ACSM – macchine guidate per adulti over 50",
+   "rack": "machine"
   },
   {
    "id": "g_cablefly",
@@ -605,7 +617,8 @@
     "Spalla: l'apertura si ferma dove il petto è teso ma la spalla resta comoda."
    ],
    "source": "NSCA – isolamento, ipertrofia",
-   "shoulderRisk": true
+   "shoulderRisk": true,
+   "rack": "machine"
   },
   {
    "id": "g_pushup",
@@ -700,7 +713,8 @@
     "Il movimento parte dalle scapole, non dalle mani: così si protegge la spalla."
    ],
    "source": "NSCA – trazione verticale, ipertrofia",
-   "shoulderRisk": true
+   "shoulderRisk": true,
+   "rack": "machine"
   },
   {
    "id": "g_rowdb",
@@ -745,7 +759,8 @@
     "Schiena: mantieni il collo in linea, sguardo verso il pavimento."
    ],
    "source": "NSCA – trazione orizzontale, ipertrofia",
-   "perSide": true
+   "perSide": true,
+   "rack": "dumbbell"
   },
   {
    "id": "g_rowbar",
@@ -788,7 +803,8 @@
    "safety": [
     "Schiena: se la posizione stanca la lombare, sostituisci con il rematore appoggiato al petto."
    ],
-   "source": "NSCA – forza multiarticolare dorso"
+   "source": "NSCA – forza multiarticolare dorso",
+   "rack": "barbell"
   },
   {
    "id": "g_pulley",
@@ -831,7 +847,8 @@
    "safety": [
     "Ottimo per la postura: contrasta l'anteposizione delle spalle."
    ],
-   "source": "ACSM – rinforzo posturale"
+   "source": "ACSM – rinforzo posturale",
+   "rack": "machine"
   },
   {
    "id": "g_facepull",
@@ -874,7 +891,8 @@
    "safety": [
     "Spalla: esercizio di prevenzione, meglio carichi bassi e 12-15 ripetizioni."
    ],
-   "source": "NSCA – salute della spalla, resistenza muscolare"
+   "source": "NSCA – salute della spalla, resistenza muscolare",
+   "rack": "machine"
   },
   {
    "id": "g_shoulderpress",
@@ -918,7 +936,8 @@
     "Se la spalla è sensibile, usa presa neutra (palmi affacciati)."
    ],
    "source": "NSCA – spinta verticale, ipertrofia",
-   "shoulderRisk": true
+   "shoulderRisk": true,
+   "rack": "dumbbell"
   },
   {
    "id": "g_lateral",
@@ -959,7 +978,8 @@
    "safety": [
     "Carichi leggeri e alte ripetizioni: qui il peso eccessivo peggiora solo la tecnica."
    ],
-   "source": "NSCA – isolamento deltoide, ipertrofia"
+   "source": "NSCA – isolamento deltoide, ipertrofia",
+   "rack": "dumbbell"
   },
   {
    "id": "g_reverseflygym",
@@ -1002,7 +1022,8 @@
    "safety": [
     "Utile per compensare il lavoro di spinta e migliorare la postura."
    ],
-   "source": "ACSM – equilibrio muscolare spinta/trazione"
+   "source": "ACSM – equilibrio muscolare spinta/trazione",
+   "rack": "dumbbell"
   },
   {
    "id": "g_militarypress",
@@ -1046,7 +1067,8 @@
     "Schiena: glutei e addome contratti per tutta la serie."
    ],
    "source": "NSCA – forza spinta verticale",
-   "shoulderRisk": true
+   "shoulderRisk": true,
+   "rack": "barbell"
   },
   {
    "id": "g_curldb",
@@ -1088,7 +1110,8 @@
    "safety": [
     "Gomito: non estendere di scatto in fondo alla discesa."
    ],
-   "source": "NSCA – isolamento, ipertrofia"
+   "source": "NSCA – isolamento, ipertrofia",
+   "rack": "dumbbell"
   },
   {
    "id": "g_curlez",
@@ -1129,7 +1152,8 @@
    "safety": [
     "La barra EZ riduce lo stress su polso e gomito rispetto alla barra dritta."
    ],
-   "source": "NSCA – ipertrofia braccia"
+   "source": "NSCA – ipertrofia braccia",
+   "rack": "barbell"
   },
   {
    "id": "g_hammer",
@@ -1171,7 +1195,8 @@
    "safety": [
     "Presa neutra: comoda per i gomiti sensibili."
    ],
-   "source": "NSCA – ipertrofia braccia"
+   "source": "NSCA – ipertrofia braccia",
+   "rack": "dumbbell"
   },
   {
    "id": "g_pushdown",
@@ -1213,7 +1238,8 @@
    "safety": [
     "Gomito: evita blocchi bruschi in estensione completa."
    ],
-   "source": "NSCA – isolamento tricipite"
+   "source": "NSCA – isolamento tricipite",
+   "rack": "machine"
   },
   {
    "id": "g_frenchpress",
@@ -1256,7 +1282,8 @@
     "Spalla e gomito: scendi solo fino a dove il movimento resta indolore."
    ],
    "source": "NSCA – ipertrofia tricipite",
-   "shoulderRisk": true
+   "shoulderRisk": true,
+   "rack": "dumbbell"
   },
   {
    "id": "g_calfstanding",
@@ -1298,7 +1325,8 @@
    "safety": [
     "Polpacci forti migliorano la stabilità di caviglia e ginocchio."
    ],
-   "source": "NSCA – resistenza muscolare polpaccio"
+   "source": "NSCA – resistenza muscolare polpaccio",
+   "rack": "machine"
   },
   {
    "id": "g_calfseated",
@@ -1340,7 +1368,8 @@
    "safety": [
     "Con ginocchio esteso il lavoro si concentra sul gastrocnemio: polpacci forti stabilizzano caviglia e ginocchio."
    ],
-   "source": "NSCA – ipertrofia polpaccio alla macchina"
+   "source": "NSCA – ipertrofia polpaccio alla macchina",
+   "rack": "machine"
   },
   {
    "id": "h_squattempo",
@@ -1524,7 +1553,8 @@
     "Ginocchio: mantieni la tibia anteriore il più possibile verticale."
    ],
    "source": "NSCA – unilaterale, resistenza muscolare",
-   "perSide": true
+   "perSide": true,
+   "rack": "home"
   },
   {
    "id": "h_wallsit",
@@ -2011,7 +2041,8 @@
    "safety": [
     "Con carichi leggeri lavora ad alte ripetizioni (15-20) e tempo lento."
    ],
-   "source": "ACSM – resistenza muscolare con carichi leggeri"
+   "source": "ACSM – resistenza muscolare con carichi leggeri",
+   "rack": "home"
   },
   {
    "id": "h_rowband",
@@ -2313,7 +2344,8 @@
    "safety": [
     "Con 1-2 kg lavora a 15-20 ripetizioni con tempo lento e pause brevi."
    ],
-   "source": "ACSM – carichi leggeri ad alte ripetizioni"
+   "source": "ACSM – carichi leggeri ad alte ripetizioni",
+   "rack": "home"
   },
   {
    "id": "h_lateralband",
@@ -3932,7 +3964,8 @@
    "safety": [
     "Spalla: la presa neutra e i gomiti avanti mantengono l'omero in rotazione esterna, riducendo l'attrito sul sovraspinato e sul capo lungo del bicipite."
    ],
-   "source": "NSCA – spinta verticale in versione a basso stress articolare"
+   "source": "NSCA – spinta verticale in versione a basso stress articolare",
+   "rack": "dumbbell"
   },
   {
    "id": "g_inclineneutral",
@@ -3975,7 +4008,8 @@
    "safety": [
     "Spalla: rispetto al bilanciere, i manubri a presa neutra lasciano libera la rotazione dell'omero e limitano lo stress sul capo lungo del bicipite."
    ],
-   "source": "NSCA – spinta orizzontale, variante articolarmente conservativa"
+   "source": "NSCA – spinta orizzontale, variante articolarmente conservativa",
+   "rack": "dumbbell"
   },
   {
    "id": "g_scaption",
@@ -4017,7 +4051,8 @@
    "safety": [
     "Spalla: il piano scapolare con i pollici in su è la traiettoria più tollerata in caso di conflitto subacromiale; carichi leggeri e 12-15 ripetizioni."
    ],
-   "source": "ACSM – rinforzo della cuffia dei rotatori"
+   "source": "ACSM – rinforzo della cuffia dei rotatori",
+   "rack": "dumbbell"
   },
   {
    "id": "g_latneutral",
@@ -4060,7 +4095,8 @@
    "safety": [
     "Spalla: la presa neutra e i gomiti vicini riducono la rotazione interna dell'omero rispetto alla presa larga prona."
    ],
-   "source": "NSCA – trazione verticale a presa neutra"
+   "source": "NSCA – trazione verticale a presa neutra",
+   "rack": "machine"
   },
   {
    "id": "g_pullassist",
@@ -4105,7 +4141,8 @@
    ],
    "source": "NSCA – trazione verticale progressiva",
    "assist": true,
-   "assistNote": "Contrappeso o elastico di assistenza: più alto, più aiuto. Progredire significa ridurlo."
+   "assistNote": "Contrappeso o elastico di assistenza: più alto, più aiuto. Progredire significa ridurlo.",
+   "rack": "machine"
   },
   {
    "id": "h_neutralpress",
@@ -4147,7 +4184,8 @@
    "safety": [
     "Spalla: presa neutra e gomiti avanti; con 1-2 kg lavora a 15-20 ripetizioni lente."
    ],
-   "source": "ACSM – carichi leggeri ad alte ripetizioni"
+   "source": "ACSM – carichi leggeri ad alte ripetizioni",
+   "rack": "home"
   },
   {
    "id": "h_scaption",
@@ -4189,7 +4227,8 @@
    "safety": [
     "Spalla: traiettoria di elezione quando c'è sospetto di conflitto subacromiale."
    ],
-   "source": "ACE – rinforzo della spalla a basso impatto"
+   "source": "ACE – rinforzo della spalla a basso impatto",
+   "rack": "home"
   },
   {
    "id": "h_skullcrusher",
@@ -4229,7 +4268,8 @@
    "safety": [
     "Spalla: la posizione a terra con braccia a 90° evita l'estensione sopra la testa, meglio tollerata in caso di conflitto subacromiale."
    ],
-   "source": "NSCA – isolamento tricipite, variante conservativa"
+   "source": "NSCA – isolamento tricipite, variante conservativa",
+   "rack": "home"
   },
   {
    "id": "g_machinepress",
@@ -4270,7 +4310,8 @@
    "safety": [
     "Spalla: le impugnature parallele mantengono l'omero in rotazione neutra e la guida della macchina evita compensi quando l'esercizio si fa impegnativo."
    ],
-   "source": "ACSM – macchine guidate per adulti over 50"
+   "source": "ACSM – macchine guidate per adulti over 50",
+   "rack": "machine"
   },
   {
    "id": "g_scappull",
@@ -4550,7 +4591,8 @@
    ],
    "source": "Evidenza: il contrappeso costante riduce la richiesta di stabilizzazione rispetto alla sospensione libera",
    "assist": true,
-   "assistNote": "Contrappeso della macchina: più alto, più aiuto. Progredire significa ridurlo."
+   "assistNote": "Contrappeso della macchina: più alto, più aiuto. Progredire significa ridurlo.",
+   "rack": "machine"
   },
   {
    "id": "g_pullup",
