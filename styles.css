@@ -578,12 +578,13 @@ body.in-session .nav{display:none}          /* durante la seduta comanda la barr
 }
 .filters button[aria-pressed="true"]{background:var(--amber);color:#151007;border-color:var(--amber)}
 .volrow{display:flex;align-items:center;gap:10px;padding:7px 0}
-.volrow .nm{flex:0 0 40%;font-size:14px}
+.volrow .nm{flex:0 0 34%;font-size:14px}
 .volbar{flex:1;height:9px;border-radius:5px;background:rgba(255,255,255,.07);position:relative;overflow:hidden}
 .volbar i{position:absolute;left:0;top:0;bottom:0;border-radius:5px;background:var(--amber)}
 .volbar i.low{background:var(--alert)}
 .volbar i.good{background:var(--teal)}
-.volrow .val{flex:0 0 46px;text-align:right;font-family:var(--cond);font-size:16px}
+.volrow .val{flex:0 0 64px;text-align:right;font-family:var(--cond);font-size:16px;white-space:nowrap}
+.volrow .val small{font-size:13px}
 .voltarget{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--text);opacity:.5}
 
 /* avviso di aggiornamento disponibile */
@@ -608,3 +609,8 @@ body.in-session .updbar{bottom:calc(88px + env(safe-area-inset-bottom))}
   margin-top:12px;padding:10px 12px;border-radius:12px;font-size:14px;
   background:rgba(79,195,161,.08);border:1px solid #1d4d40;color:#bfe9dc;
 }
+
+/* timer ridotto durante la seduta: sopra la barra dei comandi, e la pagina
+   si allunga quanto basta perché non copra i pulsanti in fondo */
+body.in-session .mini{bottom:calc(88px + env(safe-area-inset-bottom))}
+body.in-session.mini-on #view-session{padding-bottom:176px}

@@ -447,6 +447,19 @@ function weekProfile(week, cycleWeeks) {
   };
 }
 
+/* Nota della settimana per le sedute di mobilità e stretching.
+   Qui non c'è carico da aumentare: la progressione si misura in ampiezza del
+   movimento raggiunta senza dolore, e in controllo. Linee guida ACE:
+   tensione moderata, mai dolore, respirazione regolare. */
+function mobilityNote(profile, mobWeek) {
+  if (mobWeek) return 'Settimana di sola mobilità: cinque sedute di allungamento, nessun carico. ' +
+                      'Cerca ampiezza con calma, sempre sotto la soglia del dolore.';
+  if (profile.label === 'Scarico') return 'Settimana leggera anche per la mobilità: movimenti morbidi, meno serie, nessuna forzatura.';
+  if (profile.label === 'Adattamento') return 'Allunga senza forzare: tensione moderata, mai dolore, respiro lento e regolare.';
+  if (profile.label === 'Picco') return 'Una serie in più per gruppo: mantieni la stessa tensione moderata, cambia solo la durata complessiva.';
+  return 'Cerca un po\' più di ampiezza rispetto alla settimana scorsa, a parità di comfort: il progresso qui è il movimento, non il carico.';
+}
+
 /* Dose (serie, ripetizioni, recupero) per un obiettivo e una settimana.
    Gli esercizi unilaterali (un lato alla volta) ricevono sempre un numero PARI
    di serie, così destra e sinistra lavorano lo stesso numero di volte. */
@@ -1439,7 +1452,8 @@ function renderHome() {
         <div>
           <div class="kicker">${core ? 'Blocco core facoltativo' : `Sessione ${s.pos} di 5 · ${s.isStrength ? 'potenziamento' : 'mobilità'}`}</div>
           <h2>${esc(s.label)}</h2>
-          <p class="small muted" style="margin:6px 0 0">${core ? 'Blocco breve da aggiungere quando hai tempo: non avanza la settimana del programma.' : esc(s.profile.note)} Durata stimata ${s.minutes} minuti.${s.trimmed ? ' Volume adattato per restare nei 30 minuti.' : ''}</p>
+          <p class="small muted" style="margin:6px 0 0">${core ? 'Blocco breve da aggiungere quando hai tempo: non avanza la settimana del programma.'
+                 : esc(s.isStrength ? s.profile.note : mobilityNote(s.profile, s.mobilityWeek))} Durata stimata ${s.minutes} minuti.${s.trimmed ? ' Volume adattato per restare nei 30 minuti.' : ''}</p>
         </div>
       </div>
       <ul class="plan">${rows}</ul>
@@ -1562,15 +1576,17 @@ function renderSession() {
   }
 
   const nAlt = alternativesFor(it, s).length;
+  // mobilità e allungamenti: nessun carico da annotare, niente frecce né RIR
+  const noLoad = ex.type === 'stretch';
 
   // esercizi a tempo: stretching statico, plank, wall sit, tenute isometriche
-  const timed = it.goal === 'stretch' || it.hold > 0 || ex.load === 'time';
-  const hold = it.hold ? it.hold : (ex.load === 'time' ? 20 + it.reps : 30);
+  const timed = isTimedItem(it, ex);
+  const hold = holdOf(it, ex);
 
   // --- ripetizioni davvero eseguite nell'ultima serie (proposta 1) ---
   const repsVal = (c.repsDone[c.pos] === null || c.repsDone[c.pos] === undefined)
     ? it.reps : c.repsDone[c.pos];
-  const repsCtl = timed ? '' : `
+  const repsCtl = (timed || ex.type === 'stretch') ? '' : `
     <div class="repsrow">
       <span class="lab">Ripetizioni ultima serie</span>
       <div class="stepper">
@@ -1640,6 +1656,7 @@ function renderSession() {
 
       <div class="setdots">${setBtns}</div>
 
+      ${noLoad ? '' : `
       ${isAssist(ex) ? `<div class="assistnote">Il numero è <b>l'aiuto</b>, non il peso sollevato: più è basso, più sei forte. Progredire significa ridurlo.</div>` : ''}
       ${rackNote(ex) ? `<p class="small muted" style="margin-top:10px">${esc(rackNote(ex))}</p>` : ''}
       <div class="loadrow">
@@ -1653,10 +1670,15 @@ function renderSession() {
       ${repsCtl}
       ${rirCtl}
       <p class="lasttime">${lastTxt}</p>
-      ${jump}
+      ${jump}`}
 
-      ${timerRunning() ? `<p class="small muted" style="margin-top:14px">Timer in corso: il pulsante si riattiva allo scadere del recupero.</p>` : ''}
-      ${timed ? `<p class="small muted" style="margin-top:14px">Tre secondi di preparazione scanditi dalla campanella, poi parte il conteggio: mantieni la posizione fino al rintocco finale.${it.goal === 'stretch' ? ' Ogni serie è un lato solo: il pulsante ti dice quale.' : ''}</p>` : ''}
+      ${timerRunning() && !chainHasWork() ? `<p class="small muted" style="margin-top:14px">Recupero in corso: il pulsante si riattiva allo scadere. Intanto puoi aprire la scheda dell'esercizio; «Salta» sulla barretta lo chiude in anticipo.</p>` : ''}
+      ${chainHasWork() ? `<p class="small muted" style="margin-top:14px">Sequenza in corso: il timer avanza da solo fra tenute e pause e conta le serie.</p>` : ''}
+      ${timed && !chainHasWork() && c.setsDone[c.pos] < it.sets ? `<p class="small muted" style="margin-top:14px">${
+        it.sets - c.setsDone[c.pos] > 1
+          ? `Un solo tocco avvia tutta la sequenza: 3 secondi di preparazione, poi ${it.sets - c.setsDone[c.pos]} tenute da ${hold} secondi con ${it.rest} secondi di pausa fra una e l'altra${c.pos < s.items.length - 1 ? ', infine il recupero prima dell\'esercizio successivo' : ''}. Il timer avanza da solo: rintocchi nei 3 secondi prima di ogni tenuta, un colpo acuto quando la tenuta finisce.`
+          : `3 secondi di preparazione, poi una tenuta da ${hold} secondi. Rintocchi nei 3 secondi prima dell'inizio, un colpo acuto alla fine.`
+        }${it.perSide ? ' Le tenute alternano sinistra e destra.' : ''}</p>` : ''}
 
       <div class="btn-row" style="margin-top:14px">
         <button class="btn ghost" id="infoBtn">Scheda esercizio</button>
@@ -1720,36 +1742,63 @@ function renderSession() {
     c.rir[c.pos] = (c.rir[c.pos] === v) ? null : v;
     captureLoad(); saveResume(); renderSession();
   });
-  $('#loadIn').onchange = () => { captureLoad(); saveResume(); renderSession(); };
+  if ($('#loadIn')) $('#loadIn').onchange = () => { captureLoad(); saveResume(); renderSession(); };
 
   /* Conclude la serie in corso e avvia il recupero.
      Il conteggio avanza solo qui, di una serie per volta, e l'esercizio si
      considera concluso soltanto se è stata questa pressione a completarlo:
      prima il controllo guardava il totale, così un pallino toccato per sbaglio
      poteva far saltare l'ultima serie. */
+  /* Conclude la serie in corso. Fra una serie e l'altra parte il recupero a
+     schermo intero; con l'ultima serie l'esercizio viene registrato SUBITO e
+     compare la schermata del successivo, mentre il recupero conclusivo scorre
+     nella barretta in basso: intanto puoi aprire la scheda e ripassarla. */
   const closeSet = () => {
     captureLoad();
     const before = c.setsDone[c.pos];
     if (before < it.sets) c.setsDone[c.pos] = before + 1;
     const done = c.setsDone[c.pos];
-    const finished = done >= it.sets;
-    const rest = finished ? Math.max(it.rest, 45) : it.rest;
-    const what = finished
-      ? (c.pos === s.items.length - 1 ? 'Recupero finale' : `Poi: ${exById(s.items[c.pos + 1].exId).name}`)
-      : `Serie ${done + 1} di ${it.sets} · ${ex.name}`;
     saveResume();
+    if (done >= it.sets) { concludeExercise(); return; }
     renderSession();
-    // il passaggio all'esercizio successivo è legato alla posizione di adesso:
-    // se nel frattempo ti sposti su un altro esercizio, il timer non registra
-    // quello sbagliato
-    const atPos = c.pos, atSid = c.started;
-    startTimer(rest, what, () => {
-      if (!finished) return false;
-      if (!current || current.finished) return false;
-      if (current.started !== atSid || current.pos !== atPos) return false;
-      nextExercise();
-      return true;                               // la vista è già stata ridisegnata
-    }, 'rest');
+    startTimer(it.rest, `Serie ${done + 1} di ${it.sets}${it.perSide ? ' · ' + (done % 2 ? 'Dx' : 'Sx') : ''} · ${ex.name}`, null, 'rest');
+  };
+
+  /* Esercizi a tempo: un solo tocco avvia l'intera sequenza
+     preparazione → tenuta → pausa → tenuta … → recupero conclusivo.
+     Ogni tenuta completata conta una serie; le azioni sono legate a questo
+     esercizio in questa posizione, così uno spostamento non fa contare le
+     tenute sull'esercizio sbagliato. */
+  const runHolds = () => {
+    const atPos = c.pos, atSid = c.started, atIt = it, atEx = it.exId;
+    const valid = () => current && !current.finished && current.started === atSid &&
+      current.pos === atPos && current.sess.items[atPos] === atIt && atIt.exId === atEx;
+    const last = c.pos === s.items.length - 1;
+    const nextName = last ? '' : exById(s.items[c.pos + 1].exId).name;
+    const side = k => it.perSide ? ' · ' + (k % 2 ? 'Dx' : 'Sx') : '';
+    const defs = holdChainDefs(it, ex, c.setsDone[c.pos], last);
+    defs.forEach((d, i) => {
+      if (d.kind === 'work') {
+        d.what = `Tenuta ${d.set + 1} di ${it.sets}${side(d.set)} · ${ex.name}`;
+        d.onEnd = () => {
+          if (!valid()) return false;
+          c.setsDone[c.pos] = Math.min(it.sets, c.setsDone[c.pos] + 1);
+          saveResume();
+          if (c.setsDone[c.pos] >= it.sets) { concludeExercise(true); return true; }
+          renderSession();
+          return true;
+        };
+      } else if (d.kind === 'rest' && d.final) {
+        d.what = `Recupero · poi ${nextName}`;
+        d.onStart = () => minimizeTimer();       // lascia vedere il prossimo esercizio
+      } else if (d.kind === 'rest') {
+        const nx = defs[i + 1];
+        d.what = `Pausa · poi tenuta ${nx.set + 1} di ${it.sets}${side(nx.set)}`;
+      }
+    });
+    defs[0].what = defs[1].what;                 // la preparazione annuncia la prima tenuta
+    runChain(defs);
+    renderSession();
   };
 
   $('#doneSet').onclick = () => {
@@ -1757,12 +1806,13 @@ function renderSession() {
     captureLoad();
     // con tutte le serie già segnate non c'è una tenuta da cronometrare:
     // il pulsante chiude e basta
-    if (timed && !allDone) startTimer(hold, `Tenuta · ${ex.name}`, () => { closeSet(); return true; }, 'work', 3);
+    if (timed && !allDone) runHolds();
     else closeSet();
   };
   $('#infoBtn').onclick = () => openSheet(ex, it, { sess: s, after: () => renderSession() });
   $('#swapBtn').onclick = () => openExercisePicker(it, s, changed => {
     if (changed) {
+      if (chainHasWork()) stopTimer();          // le tenute in corso erano dell'esercizio sostituito
       c.setsDone[c.pos] = 0; c.loads[c.pos] = ''; c.feedback[c.pos] = null;
       c.repsDone[c.pos] = null; c.rir[c.pos] = null;
     }
@@ -1770,13 +1820,13 @@ function renderSession() {
   });
   $('#noteBtn').onclick = () => editNote(it.exId, () => renderSession());
   if ($('#noteShow')) $('#noteShow').onclick = () => editNote(it.exId, () => renderSession());
-  $('#postponeBtn').onclick = () => { captureLoad(); timerCb = null; postponeCurrent(); };
+  $('#postponeBtn').onclick = () => { captureLoad(); releaseTimerForMove(); postponeCurrent(); };
   $('#orderBtn').onclick = () => { captureLoad(); openReorder(); };
-  $('#prevBtn').onclick = () => { captureLoad(); if (c.pos > 0) { c.pos--; saveResume(); renderSession(); } };
+  $('#prevBtn').onclick = () => { captureLoad(); if (c.pos > 0) { releaseTimerForMove(); c.pos--; saveResume(); renderSession(); } };
 
   // il timer di recupero accompagna al prossimo esercizio: passando avanti
   // continua a scorrere, si stacca solo l'azione automatica che aveva in coda
-  const goNext = () => { timerCb = null; nextExercise(); };
+  const goNext = () => { releaseTimerForMove(); nextExercise(); };
   $('#nextBtn').onclick = () => {
     captureLoad();
     if (c.pos === s.items.length - 1) {
@@ -1818,6 +1868,8 @@ function editNote(exId, after) {
 function moveItem(from, to) {
   const c = current, s = c.sess;
   if (from === to || from < c.pos || to < c.pos || to >= s.items.length) return;
+  // l'esercizio in corso cambia posto: una sequenza di tenute aperta si ferma
+  if (from === c.pos || to === c.pos) releaseTimerForMove();
   [s.items, c.setsDone, c.loads, c.feedback, c.logRef, c.repsDone, c.rir].forEach(arr => {
     const v = arr.splice(from, 1)[0];
     arr.splice(to, 0, v);
@@ -1914,6 +1966,25 @@ function restoreSession(r) {
   go('session'); renderSession();
 }
 const arrow = f => f === 'up' ? '<span class="trend-up">↑</span>' : f === 'down' ? '<span class="trend-down">↓</span>' : '–';
+
+/* Chiude l'esercizio corrente appena completata l'ultima serie: lo registra,
+   mostra il successivo e avvia il recupero conclusivo nella barretta in basso.
+   inChain = true quando il recupero fa già parte della sequenza di tenute in
+   corso (lì non va avviato un secondo timer). Sull'ultimo esercizio nessun
+   recupero: si passa direttamente al riepilogo della seduta. */
+function concludeExercise(inChain) {
+  const c = current, s = c.sess;
+  const it = s.items[c.pos], ex = exById(it.exId);
+  const last = c.pos >= s.items.length - 1;
+  if (!inChain) stopTimer();
+  nextExercise();
+  if (last || !current || current.finished) return;
+  if (!inChain) {
+    const nx = exById(s.items[c.pos].exId);
+    startTimer(finalRestOf(it, ex), `Recupero · poi ${nx.name}`, null, 'rest', 0, { mini: true });
+    renderSession();                             // il pulsante resta in attesa del recupero
+  }
+}
 
 function nextExercise() {
   const c = current, s = c.sess;
@@ -2116,13 +2187,17 @@ function renderHistory() {
     `<button class="btn ghost" data-week="${w}" style="margin-top:8px">Settimana ${w} · ${weekReport(w).sessions} sedute</button>`).join('');
 
   const curWeek = Math.floor(S.sessionIndex / 5) + 1;
-  const vol = volumeHtml(curWeek);
+  const volAna = volumeAnalysis(curWeek);
+  const vol = volumeHtml(curWeek, volAna);
 
   $('#view-history').innerHTML = `
     ${vol ? `<div class="card"><h2>Volume della settimana ${curWeek}</h2>
-      <p class="small muted">Serie completate per gruppo muscolare. La tacca chiara segna le 10 serie settimanali,
-      volume oltre il quale la letteratura mostra i risultati migliori sull'ipertrofia; sotto le 5 la barra diventa rossa.</p>
-      <div style="margin-top:10px">${vol}</div></div>` : ''}
+      <p class="small muted">Serie fatte / previste dal programma, per gruppo muscolare. Una serie conta 1 per i muscoli
+      che la eseguono e ½ per quelli che collaborano (i tricipiti nella panca, i bicipiti nelle trazioni).
+      La tacca chiara segna le 10 serie settimanali, volume oltre il quale la letteratura mostra i risultati migliori
+      sull'ipertrofia; sotto le 5 la barra diventa rossa.</p>
+      <div style="margin-top:10px">${vol}</div>
+      ${volAna.advice.length ? `<ul class="small" style="margin-top:12px;padding-left:18px">${volAna.advice.map(t => `<li style="margin-top:6px">${esc(t)}</li>`).join('')}</ul>` : ''}</div>` : ''}
     ${wks ? `<div class="card"><h2>Riepilogo settimanale</h2>
       <p class="small muted">Traguardi migliori e punti a cui fare attenzione, dalla valutazione automatica dei progressi.</p>${wks}</div>` : ''}
     <div class="card"><h2>Carichi per esercizio</h2>
@@ -2195,41 +2270,143 @@ function weeksWithData() {
 
 /* ---------------------------------------------------------------------------
    VOLUME SETTIMANALE PER GRUPPO MUSCOLARE
-   Conta le serie effettivamente completate su ciascun gruppo muscolare
-   primario. La meta-analisi di riferimento mostra un effetto crescente col
-   volume: meno di 5 serie settimanali +5,4%, da 5 a 9 +6,6%, 10 o più +9,8%.
-   Da qui le due soglie usate nelle barre: 5 (minimo) e 10 (obiettivo).
-   Fonte: Schoenfeld, Ogborn, Krieger (2017), Journal of Sports Sciences.
+   Riferimento: Schoenfeld, Ogborn, Krieger (2017), Journal of Sports
+   Sciences — meno di 5 serie settimanali per muscolo +5,4% di crescita, da 5 a
+   9 +6,6%, 10 o più +9,8%. Da qui le soglie 5 (minimo) e 10 (obiettivo).
+
+   Come si conta, perché il numero sia confrontabile con quelle soglie:
+   · per GRUPPO, non per singolo muscolo anatomico: "Bicipiti", "Brachiale" e
+     "Brachioradiale" sono tutti Braccia, e una serie di curl vale una serie,
+     non tre;
+   · serie DIRETTE = 1 (il gruppo è motore principale dell'esercizio),
+     serie INDIRETTE = 0,5 (il gruppo collabora: i tricipiti nella spinta, i
+     bicipiti nella trazione) — è la convenzione più usata nella pratica;
+   · negli esercizi monolaterali le serie registrate sono di entrambi i lati,
+     quindi ogni lato riceve la metà;
+   · mobilità e allungamenti non contano: non sono lavoro di ipertrofia.
+   Il valore della settimana si confronta anche con quello PREVISTO dal
+   programma per la stessa settimana: così il messaggio distingue fra "hai
+   saltato qualcosa" e "è il programma a prevedere poco", che richiedono
+   provvedimenti diversi.
 --------------------------------------------------------------------------- */
 const VOL_MIN = 5, VOL_TARGET = 10;
 
-function weeklyVolume(weekAbs) {
-  const logs = S.logs.filter(l => l.sIdx != null && Math.floor(l.sIdx / 5) + 1 === weekAbs);
-  const map = {};
-  logs.forEach(l => {
-    const ex = exById(l.exId);
-    if (!ex || ex.type === 'stretch') return;
-    const sets = l.sets || 0;
-    if (!sets) return;
-    // gli unilaterali contano metà serie per lato: il gruppo riceve comunque
-    // il lavoro di tutte le serie, quindi si conta la serie una volta sola
-    (ex.primary || []).forEach(m => { map[m] = (map[m] || 0) + sets; });
-  });
-  return Object.keys(map).map(m => ({ muscle: m, sets: map[m] }))
-                         .sort((a, b) => b.sets - a.sets);
+const VOL_GROUPS = ['Petto', 'Dorso', 'Spalle', 'Braccia', 'Quadricipiti', 'Glutei e femorali', 'Polpacci', 'Core'];
+function muscleGroup(m) {
+  const t = String(m).toLowerCase();
+  if (/pettorale|^petto|torace/.test(t)) return 'Petto';
+  if (/dorsal|romboid|trapezio|elevatore della scapola/.test(t)) return 'Dorso';
+  if (/deltoid|spall|cuffia|sovraspinato/.test(t)) return 'Spalle';
+  if (/bicipit|brachial|brachioradial|tricipit|anconeo|avambracci|presa/.test(t)) return 'Braccia';
+  if (/quadricipit|vasto|retto femorale/.test(t)) return 'Quadricipiti';
+  if (/glute|femoral|erettori|adduttori/.test(t)) return 'Glutei e femorali';
+  if (/gastrocnemio|soleo|polpacc/.test(t)) return 'Polpacci';
+  if (/core|addom|retto dell|obliqu|trasverso|quadrato dei lombi|flessor|ileopsoas/.test(t)) return 'Core';
+  return null;                    // articolazioni e stabilizzatori: nessun gruppo
 }
 
-function volumeHtml(weekAbs) {
-  const rows = weeklyVolume(weekAbs);
-  if (!rows.length) return '';
-  const max = Math.max(VOL_TARGET + 2, rows[0].sets);
-  return rows.map(r => {
+/* Serie effettive per gruppo di un esercizio con "sets" serie registrate. */
+function groupSetsOf(ex, sets) {
+  const out = {};
+  if (!ex || ex.type === 'stretch' || !sets) return out;
+  const n = ex.perSide ? sets / 2 : sets;
+  (ex.primary || []).forEach(m => { const g = muscleGroup(m); if (g) out[g] = n; });
+  (ex.secondary || []).forEach(m => { const g = muscleGroup(m); if (g && out[g] === undefined) out[g] = n * 0.5; });
+  return out;
+}
+const addInto = (acc, part) => Object.keys(part).forEach(g => { acc[g] = (acc[g] || 0) + part[g]; });
+
+function weekLogs(weekAbs) {
+  return S.logs.filter(l => l.sIdx != null && Math.floor(l.sIdx / 5) + 1 === weekAbs);
+}
+
+/* Serie effettivamente completate nella settimana. */
+function weeklyVolume(weekAbs) {
+  const acc = {};
+  weekLogs(weekAbs).forEach(l => addInto(acc, groupSetsOf(exById(l.exId), l.sets || 0)));
+  return acc;
+}
+
+/* Serie previste dal programma per la stessa settimana (sedute generate con
+   le impostazioni attuali: è una stima, ma fedele a quello che l'app propone). */
+function plannedVolume(weekAbs) {
+  const acc = {};
+  let strength = 0;
+  for (let k = 0; k < 5; k++) {
+    const idx = (weekAbs - 1) * 5 + k;
+    let sess;
+    try { sess = buildSession(idx); } catch (e) { continue; }
+    if (sess.type === 'stretch') continue;
+    strength++;
+    sess.items.forEach(it => addInto(acc, groupSetsOf(exById(it.exId), it.sets)));
+  }
+  return { acc, strength };
+}
+
+const fmtSets = v => (Math.round(v * 2) / 2).toString().replace('.', ',');
+
+/* Analisi della settimana: righe per le barre e indicazioni pratiche. */
+function volumeAnalysis(weekAbs) {
+  const meta = sessionMeta((weekAbs - 1) * 5);
+  const done = weeklyVolume(weekAbs);
+  const plan = plannedVolume(weekAbs);
+  const logs = weekLogs(weekAbs);
+  const strengthDone = new Set(logs.filter(l => {
+    const ex = exById(l.exId); return ex && ex.type !== 'stretch';
+  }).map(l => l.sid)).size;
+  const rows = VOL_GROUPS.filter(g => done[g] || plan.acc[g])
+    .map(g => ({ group: g, sets: done[g] || 0, planned: plan.acc[g] || 0 }));
+
+  const curWeek = Math.floor(S.sessionIndex / 5) + 1;
+  const inProgress = weekAbs === curWeek;
+  const deload = meta.profile && meta.profile.label === 'Scarico';
+  const low = rows.filter(r => r.sets < VOL_MIN);
+  const advice = [];
+
+  if (meta.mobilityWeek) {
+    advice.push('Settimana di sola mobilità: nessun lavoro di forza previsto, il volume non si valuta. Si riparte dalla settimana successiva.');
+    return { rows: [], advice, low: [], meta };
+  }
+  if (!low.length) return { rows, advice, low, meta };
+
+  const missing = Math.max(0, plan.strength - strengthDone);
+  if (missing > 0) {
+    advice.push(inProgress
+      ? `Settimana ancora in corso: ${missing === 1 ? 'manca 1 seduta' : `mancano ${missing} sedute`} di forza su ${plan.strength}. Le barre si allungano man mano; per ora nessun provvedimento.`
+      : `${strengthDone === 1 ? 'È stata svolta 1 seduta' : `Sono state svolte ${strengthDone} sedute`} di forza su ${plan.strength}: il volume basso dipende soprattutto da questo. Provvedimento: nella prossima settimana cerca di completarle tutte; se capita spesso, riduci la durata delle sedute nelle impostazioni invece di saltarle.`);
+  }
+  if (deload) {
+    advice.push('È una settimana di scarico: il volume ridotto è voluto e serve a recuperare. Nessun provvedimento.');
+  }
+  if (!deload && !(inProgress && missing > 0)) {
+    // gruppi rimasti sotto per serie saltate o esercizi chiusi prima del previsto
+    const short = low.filter(r => r.planned >= VOL_MIN && r.sets < r.planned - 0.9);
+    if (short.length && !missing) {
+      advice.push(`${short.map(r => r.group).join(', ')}: il programma prevedeva più serie di quelle registrate (${short.map(r => `${fmtSets(r.sets)} su ${fmtSets(r.planned)}`).join(', ')}). Provvedimento: controlla nello storico gli esercizi chiusi in anticipo o sostituiti con uno che lavora altri muscoli.`);
+    }
+    // gruppi che il programma stesso tiene bassi
+    const byDesign = low.filter(r => r.planned < VOL_MIN);
+    const core = byDesign.find(r => r.group === 'Core');
+    if (core) advice.push('Core: il programma gli dedica poche serie dirette perché lavora già come stabilizzatore in squat, stacchi e trazioni. Se vuoi di più, in Home scegli il blocco core facoltativo (circa 14 minuti), una o due volte a settimana dopo una seduta di mobilità.');
+    const small = byDesign.filter(r => r.group === 'Braccia' || r.group === 'Polpacci');
+    if (small.length) advice.push(`${small.map(r => r.group).join(' e ')}: ${small.length > 1 ? 'ricevono' : 'riceve'} soprattutto lavoro indiretto (${small.map(r => r.group === 'Braccia' ? 'trazioni e spinte per le braccia' : 'squat e affondi per i polpacci').join(', ')}). Va bene così per il tuo obiettivo; se vuoi insistere, aggiungi 2-3 serie di un esercizio specifico con una seduta libera dal catalogo.`);
+    const big = byDesign.filter(r => !['Core', 'Braccia', 'Polpacci'].includes(r.group));
+    if (big.length) advice.push(`${big.map(r => r.group).join(', ')}: in questa fase (${meta.phase ? meta.phase.ph.name : 'programma'}) il programma distribuisce il volume su altri gruppi e li riprende nelle settimane successive. Nessun provvedimento, a meno che non si ripeta per più settimane di fila.`);
+  }
+  return { rows, advice, low, meta };
+}
+
+function volumeHtml(weekAbs, ana) {
+  const a = ana || volumeAnalysis(weekAbs);
+  if (!a.rows.length || !a.rows.some(r => r.sets > 0)) return '';
+  const max = Math.max(VOL_TARGET + 2, ...a.rows.map(r => Math.max(r.sets, r.planned)));
+  return a.rows.map(r => {
     const cls = r.sets < VOL_MIN ? 'low' : (r.sets >= VOL_TARGET ? 'good' : '');
     return `<div class="volrow">
-      <span class="nm">${esc(r.muscle)}</span>
+      <span class="nm">${esc(r.group)}</span>
       <span class="volbar"><i class="${cls}" style="width:${Math.min(100, r.sets / max * 100)}%"></i>
         <span class="voltarget" style="left:${VOL_TARGET / max * 100}%"></span></span>
-      <span class="val">${r.sets}</span></div>`;
+      <span class="val">${fmtSets(r.sets)}<small class="muted"> / ${fmtSets(r.planned)}</small></span></div>`;
   }).join('');
 }
 
@@ -2255,18 +2432,19 @@ function openWeekReport(weekAbs) {
     : r.avg >= 2 ? 'Settimana di mantenimento: nessun passo indietro, e va benissimo così.'
     : 'Settimana in calo: capita, spesso dipende da sonno o stress. Riparti dal carico dell\'ultima seduta riuscita.';
 
-  // volume per gruppo muscolare della settimana appena chiusa
-  const vol = volumeHtml(weekAbs);
-  const low = weeklyVolume(weekAbs).filter(v => v.sets < VOL_MIN).map(v => v.muscle);
+  // volume per gruppo muscolare, con indicazioni pratiche se qualcosa è sotto soglia
+  const ana = volumeAnalysis(weekAbs);
+  const vol = volumeHtml(weekAbs, ana);
+  const volAdvice = ana.advice.map(t => `<li>${esc(t)}</li>`).join('');
 
   openModal(`<h2>Riepilogo settimana ${weekAbs}</h2>
     <p class="small muted">${r.sessions} sedute completate · ${r.logs.length} esercizi registrati · media ${r.avg.toFixed(1)} stelle</p>
     <div style="margin:10px 0">${starsHtml(Math.round(r.avg))}</div>
     <p class="small">${tone}</p>
     ${medals ? `<div class="block" style="margin-top:16px"><h3 style="font-size:16px;color:var(--muted)">Migliori traguardi</h3>${medals}</div>` : ''}
-    ${vol ? `<div class="block" style="margin-top:16px"><h3 style="font-size:16px;color:var(--muted)">Serie per gruppo muscolare</h3>${vol}</div>` : ''}
-    ${(cautions || fatigue || low.length) ? `<div class="block warnblock" style="margin-top:16px"><h3>Da tenere d'occhio</h3><ul>${cautions}${fatigue}${
-        low.length ? `<li>Volume basso su ${esc(low.join(', '))}: sotto le 5 serie settimanali lo stimolo di crescita è limitato.</li>` : ''}</ul></div>`
+    ${vol ? `<div class="block" style="margin-top:16px"><h3 style="font-size:16px;color:var(--muted)">Serie per gruppo muscolare</h3>
+      <p class="small muted">Serie fatte / previste dal programma. Diretta = 1, indiretta = ½. Tacca a 10: volume ottimale; barra rossa sotto 5.</p>${vol}</div>` : ''}
+    ${(cautions || fatigue || volAdvice) ? `<div class="block warnblock" style="margin-top:16px"><h3>Da tenere d'occhio</h3><ul>${cautions}${fatigue}${volAdvice}</ul></div>`
       : '<p class="small muted" style="margin-top:14px">Nessun incremento fuori scala e volume adeguato su tutti i gruppi.</p>'}
     ${S.autoBackup ? `<button class="btn" id="wrBackup" style="margin-top:18px">Salva il backup della settimana</button>
       <button class="btn ghost" id="wrOk" style="margin-top:10px">Chiudi</button>`
@@ -2796,15 +2974,53 @@ function renderTock(dv, total, atSec, high) {
    traccia è già pronta. Se i Worker non sono disponibili si costruisce come
    prima, in modo sincrono.
 --------------------------------------------------------------------------- */
-const BELL_CACHE_MAX = 6;
+const BELL_CACHE_MAX = 10;
 let bellCache = [], bellWorker = null;
 
-/* Corpo del worker: stesso identico algoritmo, eseguito altrove. */
+/* ---------------------------------------------------------------------------
+   DOVE CADONO I RINTOCCHI
+   Il timer è una catena di segmenti: preparazione, tenuta, pausa, tenuta, …,
+   recupero conclusivo. La campanella suona:
+     · nei 3 secondi che precedono l'inizio di ogni tenuta (fine della
+       preparazione o della pausa fra una tenuta e l'altra), con il colpo
+       acuto di "via";
+     · negli ultimi 3 secondi di ogni recupero, con il colpo acuto finale;
+     · con un solo colpo acuto alla fine di ogni tenuta: "puoi rilasciare".
+   I rintocchi troppo vicini a un colpo appena suonato vengono omessi, così una
+   pausa brevissima non produce mai campane sovrapposte.
+--------------------------------------------------------------------------- */
+function marksOf(segs) {
+  const raw = [];
+  segs.forEach(s => {
+    if (s.kind === 'work') { raw.push([s.end, true]); return; }
+    for (let k = 3; k >= 1; k--) if (s.end - k >= s.start - 0.001) raw.push([s.end - k, false]);
+    raw.push([s.end, true]);
+  });
+  raw.sort((a, b) => a[0] - b[0] || (b[1] - a[1]));
+  const out = [];
+  raw.forEach(m => {
+    if (m[0] < 0) return;
+    const p = out[out.length - 1];
+    if (p && Math.abs(p[0] - m[0]) < 0.01) { if (m[1]) p[1] = true; return; }
+    if (p && p[1] && m[0] - p[0] < 0.9 && !m[1]) return;      // dentro la coda del colpo acuto
+    out.push([Math.round(m[0] * 100) / 100, m[1]]);
+  });
+  return out;
+}
+
+/* Segmenti in secondi relativi, a partire da durate [{kind, dur}]. */
+function relSegs(defs) {
+  let t = 0;
+  return defs.map(d => { const s = { kind: d.kind, start: t, end: t + d.dur }; t = s.end; return s; });
+}
+const specOf = segs => ({ marks: marksOf(segs), total: segs.length ? segs[segs.length - 1].end : 0 });
+
+/* Corpo del worker: costruisce il WAV con i rintocchi nei punti indicati. */
 function bellWorkerSource() {
   return `
 const SR=${BELL_SR}, LOW=${BELL_LOW}, HIGH=${BELL_HIGH};
-function build(lead,dur){
-  const tail=1.3, total=Math.ceil((lead+dur+tail)*SR);
+function build(marks,len){
+  const total=Math.ceil((len+1.3)*SR);
   const bytes=new Uint8Array(44+total*2), dv=new DataView(bytes.buffer);
   const wr=(o,t)=>{for(let i=0;i<t.length;i++)bytes[o+i]=t.charCodeAt(i);};
   wr(0,'RIFF');dv.setUint32(4,36+total*2,true);wr(8,'WAVEfmt ');
@@ -2812,11 +3028,6 @@ function build(lead,dur){
   dv.setUint32(24,SR,true);dv.setUint32(28,SR*2,true);
   dv.setUint16(32,2,true);dv.setUint16(34,16,true);
   wr(36,'data');dv.setUint32(40,total*2,true);
-  const marks=[];
-  for(let k=3;k>=1;k--) if(lead>=k) marks.push([lead-k,false]);
-  if(lead>0) marks.push([lead,true]);
-  for(let k=3;k>=1;k--) if(dur>=k) marks.push([lead+dur-k,false]);
-  marks.push([lead+dur,true]);
   marks.forEach(m=>{
     const f=m[1]?HIGH:LOW, d=m[1]?1.1:0.55, dec=m[1]?4.2:7;
     const i0=Math.round(m[0]*SR); if(i0<0) return;
@@ -2829,8 +3040,8 @@ function build(lead,dur){
   return bytes;
 }
 self.onmessage = e => {
-  const {lead,dur,id} = e.data;
-  const bytes = build(lead,dur);
+  const {marks,total,id} = e.data;
+  const bytes = build(marks,total);
   self.postMessage({id, buf: bytes.buffer}, [bytes.buffer]);
 };`;
 }
@@ -2845,26 +3056,21 @@ function getBellWorker() {
 }
 
 /* Versione sincrona, usata come ricaduta. */
-function bellTrackFor(leadSec, durSec) {
-  const tail = 1.3, total = Math.ceil((leadSec + durSec + tail) * BELL_SR);
+function bellTrackFor(spec) {
+  const total = Math.ceil((spec.total + 1.3) * BELL_SR);
   const { bytes, dv } = wavBuffer(total);
-  const marks = [];
-  for (let k = 3; k >= 1; k--) if (leadSec >= k) marks.push([leadSec - k, false]);
-  if (leadSec > 0) marks.push([leadSec, true]);              // via!
-  for (let k = 3; k >= 1; k--) if (durSec >= k) marks.push([leadSec + durSec - k, false]);
-  marks.push([leadSec + durSec, true]);                      // fine
-  marks.forEach(m => renderTock(dv, total, m[0], m[1]));
+  spec.marks.forEach(m => renderTock(dv, total, m[0], m[1]));
   return new Blob([bytes], { type: 'audio/wav' });
 }
 
-const bellKey = (l, d) => `${Math.round(l)}|${Math.round(d)}`;
-function cachedTrack(l, d) {
-  const k = bellKey(l, d);
+const bellKey = spec => `${Math.round(spec.total * 100)}|` + spec.marks.map(m => m[0] + (m[1] ? 'h' : '')).join(',');
+function cachedTrack(spec) {
+  const k = bellKey(spec);
   const hit = bellCache.find(x => x.k === k);
   return hit ? hit.url : null;
 }
-function cacheTrack(l, d, url) {
-  const k = bellKey(l, d);
+function cacheTrack(spec, url) {
+  const k = bellKey(spec);
   if (bellCache.some(x => x.k === k)) { URL.revokeObjectURL(url); return; }
   bellCache.push({ k, url });
   while (bellCache.length > BELL_CACHE_MAX) {
@@ -2874,8 +3080,8 @@ function cacheTrack(l, d, url) {
 }
 
 /* Restituisce l'URL della traccia, dal riuso o costruendola. */
-function trackUrl(lead, dur, cb) {
-  const hit = cachedTrack(lead, dur);
+function trackUrl(spec, cb) {
+  const hit = cachedTrack(spec);
   if (hit) return cb(hit, true);
   const w = getBellWorker();
   if (w) {
@@ -2884,30 +3090,34 @@ function trackUrl(lead, dur, cb) {
       if (e.data.id !== id) return;
       w.removeEventListener('message', onMsg);
       const url = URL.createObjectURL(new Blob([new Uint8Array(e.data.buf)], { type: 'audio/wav' }));
-      cacheTrack(lead, dur, url);
+      cacheTrack(spec, url);
       cb(url, false);
     };
     w.addEventListener('message', onMsg);
-    w.postMessage({ lead, dur, id });
+    w.postMessage({ marks: spec.marks, total: spec.total, id });
     return;
   }
-  const url = URL.createObjectURL(bellTrackFor(lead, dur));
-  cacheTrack(lead, dur, url);
+  const url = URL.createObjectURL(bellTrackFor(spec));
+  cacheTrack(spec, url);
   cb(url, false);
 }
 
-/* Prepara in anticipo le durate che ricorrono nella seduta, così il primo
-   avvio non paga nemmeno lui l'attesa. */
+/* Le sequenze che ricorrono nella seduta, preparate in anticipo: dopo la
+   prima serie nessun avvio paga più l'attesa della costruzione. */
 function prewarmBells(items) {
-  const set = new Set();
-  (items || []).forEach(it => {
-    set.add(bellKey(0, it.rest));
-    if (it.hold) set.add(bellKey(3, it.hold));
+  const specs = new Map();
+  const add = defs => { const sp = specOf(relSegs(defs)); specs.set(bellKey(sp), sp); };
+  (items || []).forEach((it, i) => {
+    const ex = exById(it.exId);
+    if (!ex) return;
+    const last = i === items.length - 1;
+    if (isTimedItem(it, ex)) add(holdChainDefs(it, ex, 0, last));
+    else {
+      add([{ kind: 'rest', dur: it.rest }]);
+      if (!last) add([{ kind: 'rest', dur: finalRestOf(it, ex) }]);
+    }
   });
-  Array.from(set).slice(0, BELL_CACHE_MAX).forEach(k => {
-    const [l, d] = k.split('|').map(Number);
-    trackUrl(l, d, () => {});
-  });
+  Array.from(specs.values()).slice(0, BELL_CACHE_MAX).forEach(sp => trackUrl(sp, () => {}));
 }
 
 let bellPlayToken = 0;
@@ -2919,13 +3129,13 @@ function stopBells() {
 }
 
 /* Avvia la traccia. offset = secondi già trascorsi (per riallineare al rientro
-   in primo piano o dopo un +/- 15 s). */
-function playBells(leadSec, durSec, offset) {
+   in primo piano). */
+function playBells(spec, offset) {
   stopBells();
   if (S && S.sound === false) return;
   const token = bellPlayToken;
   setAudioSession();
-  trackUrl(leadSec, durSec, url => {
+  trackUrl(spec, url => {
     if (token !== bellPlayToken) return;          // nel frattempo il timer è cambiato
     try {
       bellTrack = new Audio(url);
@@ -2949,109 +3159,210 @@ function resyncBells(elapsed) {
   } catch (e) {}
 }
 
-/* Prova della campanella dalle impostazioni: tre rintocchi e colpo finale. */
+/* Prova della campanella dalle impostazioni: tre rintocchi e colpo di via. */
 function testBells() {
-  playBells(4, 0.001, 0);
+  playBells(specOf(relSegs([{ kind: 'prep', dur: 4 }])), 0);
 }
 
 /* Sblocco dell'audio al primo tocco dell'utente, richiesto da Safari. */
 function unlockAudio() { setAudioSession(); }
 
-/* --- TIMER ------------------------------------------------------------------
-   Un solo timer per tutta l'app, con due modalità:
-     'rest' → recupero tra serie o tra esercizi
-     'work' → tenuta a tempo (stretching statico, plank, wall sit)
-   Può essere ridotto a icona: continua a girare e resta visibile mentre si
-   naviga nel resto dell'app.
------------------------------------------------------------------------------ */
-let timerEnd = 0, timerStart = 0, timerTotal = 0, timerCb = null, timerMode = 'rest', timerT0 = 0;
+/* --- ESERCIZI A TEMPO -------------------------------------------------------
+   Regole comuni a schermata, catena del timer e preparazione delle tracce.
+--------------------------------------------------------------------------- */
+const isTimedItem = (it, ex) => it.goal === 'stretch' || it.hold > 0 || ex.load === 'time';
+const holdOf = (it, ex) => it.hold ? it.hold : (ex.load === 'time' ? 20 + it.reps : 30);
+/* recupero che chiude l'esercizio: un po' più lungo di quello fra le serie,
+   il tempo di preparare l'attrezzo o la posizione successiva */
+const finalRestOf = (it, ex) => Math.max(it.rest, ex.type === 'stretch' ? 30 : 45);
 
-/* lead = secondi di preparazione prima che parta il conteggio vero e proprio. */
-function startTimer(seconds, what, cb, mode, lead) {
+/* Catena delle tenute da "from" serie già fatte: preparazione di 3 s, poi
+   tenuta / pausa / tenuta … e, se non è l'ultimo esercizio, il recupero
+   conclusivo. */
+function holdChainDefs(it, ex, from, isLast) {
+  const hold = holdOf(it, ex), n = Math.max(0, it.sets - from);
+  const defs = [{ kind: 'prep', dur: 3 }];
+  for (let k = 0; k < n; k++) {
+    defs.push({ kind: 'work', dur: hold, set: from + k });
+    if (k < n - 1) defs.push({ kind: 'rest', dur: it.rest });
+  }
+  if (!isLast) defs.push({ kind: 'rest', dur: finalRestOf(it, ex), final: true });
+  return defs;
+}
+
+/* --- TIMER ------------------------------------------------------------------
+   Un solo timer per tutta l'app, organizzato come CATENA DI SEGMENTI:
+     'prep' → 3 secondi per mettersi in posizione
+     'work' → tenuta a tempo (stretching statico, plank, wall sit)
+     'rest' → pausa fra serie o recupero che chiude l'esercizio
+   Il timer passa da un segmento all'altro da solo; ogni segmento può eseguire
+   un'azione all'inizio (onStart) e alla fine (onEnd). Il tempo è calcolato
+   sull'orologio, non sul numero di tick: se iOS sospende la pagina, al rientro
+   i segmenti scaduti vengono chiusi nell'ordine giusto.
+   Può essere ridotto a barretta: continua a girare mentre si naviga.
+----------------------------------------------------------------------------- */
+let chain = null;
+
+function runChain(defs, opts) {
   stopTimer();
-  timerMode = mode || 'rest';
-  const wait = (lead || 0) * 1000;
-  timerT0 = Date.now();
-  timerStart = timerT0 + wait;
-  timerEnd = timerStart + seconds * 1000;
-  timerTotal = seconds; timerCb = cb || null;
-  $('#timerWhat').textContent = (wait ? 'Preparati · ' : '') + (what || '');
-  $('#miniWhat').textContent = what || '';
-  $('#timer').classList.add('on');
-  $('#timer').classList.toggle('work', timerMode === 'work');
-  $('#miniTimer').classList.toggle('work', timerMode === 'work');
-  $('#miniTimer').classList.remove('on');
+  const t0 = Date.now();
+  let t = t0;
+  const segs = defs.map(d => {
+    const s = Object.assign({}, d, { start: t, end: t + d.dur * 1000 });
+    t = s.end; return s;
+  });
+  chain = { segs, idx: 0, audioT0: t0 };
+  const mini = opts && opts.mini;
+  $('#timer').classList.toggle('on', !mini);
+  $('#miniTimer').classList.toggle('on', !!mini);
+  document.body.classList.toggle('mini-on', !!mini);
   unlockAudio();
-  playBells(lead || 0, seconds, 0);               // traccia unica con i rintocchi già dentro
-  if (wait) setTimeout(() => { if (timerHandle) $('#timerWhat').textContent = what || ''; }, wait);
-  tick();
+  playBells(specOf(relSegs(defs)), 0);           // una sola traccia per tutta la catena
+  enterSeg();
   timerHandle = setInterval(tick, 100);
+  tick();
+}
+
+/* Compatibilità: timer semplice, eventualmente preceduto da una preparazione. */
+function startTimer(seconds, what, cb, mode, lead, opts) {
+  const defs = [];
+  if (lead) defs.push({ kind: 'prep', dur: lead, what });
+  defs.push({ kind: mode || 'rest', dur: seconds, what, onEnd: cb || null });
+  runChain(defs, opts);
+}
+
+/* Ricostruisce la traccia dal momento attuale, dopo uno spostamento dei tempi. */
+function restartBells() {
+  if (!chain) return;
+  const now = Date.now();
+  chain.audioT0 = now;
+  const segs = chain.segs.slice(chain.idx).map(s => ({
+    kind: s.kind, start: (s.start - now) / 1000, end: (s.end - now) / 1000 }));
+  playBells(specOf(segs), 0);
+}
+
+function enterSeg() {
+  const seg = chain.segs[chain.idx];
+  const next = chain.segs[chain.idx + 1];
+  const what = seg.what || '';
+  $('#timerWhat').textContent = (seg.kind === 'prep' ? 'Preparati · ' : '') + what;
+  $('#miniWhat').textContent = what;
+  const work = seg.kind === 'work';
+  $('#timer').classList.toggle('work', work);
+  $('#miniTimer').classList.toggle('work', work);
+  $('#timerSkip').textContent = seg.kind === 'prep' ? 'Parti ora'
+    : work ? 'Termina la tenuta'
+    : (next ? 'Accorcia la pausa' : 'Riprendi ora');
+  if (seg.onStart) seg.onStart();
 }
 
 function tick() {
+  if (!chain) return;
   const now = Date.now();
-  const prep = timerStart > now;
-  const left = prep ? Math.ceil((timerStart - now) / 1000)
-                    : Math.max(0, Math.ceil((timerEnd - now) / 1000));
+  let redrawn = false;
+  // chiude in ordine tutti i segmenti scaduti (anche più d'uno, al rientro)
+  while (chain && chain.idx < chain.segs.length && now >= chain.segs[chain.idx].end) {
+    const ch = chain, seg = ch.segs[ch.idx++];
+    if (seg.onEnd && seg.onEnd() === true) redrawn = true;
+    if (chain !== ch) return;                    // il callback ha fermato o sostituito il timer
+    if (ch.idx < ch.segs.length) enterSeg();
+  }
+  if (!chain) return;
+  if (chain.idx >= chain.segs.length) {
+    stopTimer();
+    // in ogni caso la schermata va ridisegnata, altrimenti il pulsante di avvio
+    // resterebbe disabilitato
+    if (!redrawn && current && !current.finished) renderSession();
+    notifyTimerEnd();
+    return;
+  }
+  const seg = chain.segs[chain.idx];
+  const prep = seg.kind === 'prep';
+  const dur = Math.max(1, (seg.end - seg.start) / 1000);
+  const left = Math.max(0, Math.ceil((seg.end - now) / 1000));
   // in preparazione si mostra solo la cifra che scorre: resta centrata nel cerchio
-  const txt = prep ? String(left)
-                   : `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+  const txt = prep ? String(left) : `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
   $('#timerCount').textContent = txt;
   $('#miniCount').textContent = txt;
-  $('#ringFill').setAttribute('stroke-dashoffset',
-    String(prep ? 0 : 283 * (1 - left / timerTotal)));
+  $('#ringFill').setAttribute('stroke-dashoffset', String(prep ? 0 : 283 * (1 - Math.min(1, left / dur))));
   $('#timer').classList.toggle('prep', prep);
   $('#miniTimer').classList.toggle('prep', prep);
-  $('#timer').classList.toggle('warn', !prep && left <= 3 && timerMode === 'rest');
-  if (!prep && left <= 0) {
-    const cb = timerCb;
-    stopTimer();
-    // il callback può decidere di avanzare; in ogni caso la schermata va
-    // ridisegnata, altrimenti il pulsante di avvio resta disabilitato e
-    // l'unico modo per sbloccarlo sarebbe toccare i pallini delle serie,
-    // che falserebbero il conteggio
-    let advanced = false;
-    if (cb) advanced = cb() === true;
-    if (!advanced && current && !current.finished) renderSession();
-    notifyTimerEnd();
-  }
+  $('#timer').classList.toggle('warn', seg.kind === 'rest' && left <= 3);
 }
 
 function stopTimer() {
   if (timerHandle) clearInterval(timerHandle);
-  timerHandle = null; timerCb = null;
+  timerHandle = null; chain = null;
   stopBells();
-  $('#timer').classList.remove('on', 'warn', 'prep');
-  $('#miniTimer').classList.remove('on', 'prep');
+  $('#timer').classList.remove('on', 'warn', 'prep', 'work');
+  $('#miniTimer').classList.remove('on', 'prep', 'work');
+  document.body.classList.remove('mini-on');
 }
-const timerRunning = () => !!timerHandle;
+const timerRunning = () => !!chain;
+
+/* Restano tenute da fare nella catena in corso? */
+const chainHasWork = () => !!chain && chain.segs.slice(chain.idx).some(s => s.kind !== 'rest');
+
+/* Stacca le azioni in coda: il tempo continua a scorrere ma non tocca più
+   la seduta (serve quando ci si sposta su un altro esercizio). */
+function detachTimer() {
+  if (!chain) return;
+  chain.segs.forEach((s, i) => { if (i >= chain.idx) { s.onEnd = null; s.onStart = null; } });
+}
+
+/* Prima di cambiare esercizio: una sequenza di tenute ancora aperta si ferma
+   (non avrebbe senso cronometrare l'esercizio che hai lasciato), un semplice
+   recupero invece continua a scorrere. */
+function releaseTimerForMove() {
+  if (chainHasWork()) stopTimer(); else detachTimer();
+}
+
+/* Sposta di delta ms la fine del segmento corrente e tutti i successivi. */
+function shiftChain(deltaMs) {
+  chain.segs.forEach((s, i) => {
+    if (i < chain.idx) return;
+    if (i > chain.idx) s.start += deltaMs;
+    s.end += deltaMs;
+  });
+}
+
 function minimizeTimer() {
-  if (!timerHandle) return;
+  if (!chain) return;
   const t = $('#timer');
+  if (!t.classList.contains('on')) return;
   t.classList.add('closing');                    // il pannello rimpicciolisce verso il basso
   setTimeout(() => {
     t.classList.remove('on', 'closing');
+    if (!chain) return;
     $('#miniTimer').classList.add('on');         // la barretta entra dal basso
-    if (current) renderSession();                // aggiorna lo stato del pulsante di avvio
+    document.body.classList.add('mini-on');
+    if (current && !current.finished) renderSession();   // aggiorna lo stato del pulsante di avvio
   }, 260);
 }
 function expandTimer() {
-  if (!timerHandle) return;
+  if (!chain) return;
   const m = $('#miniTimer');
   m.classList.add('closing');
   setTimeout(() => {
     m.classList.remove('on', 'closing');
-    $('#timer').classList.add('on');             // il pannello si riapre ingrandendosi
+    document.body.classList.remove('mini-on');
+    if (chain) $('#timer').classList.add('on');  // il pannello si riapre ingrandendosi
   }, 180);
 }
-/* "Riprendi ora": chiude il recupero in anticipo ed esegue ciò che il timer
-   aveva in coda (per esempio il passaggio all'esercizio successivo). */
+
+/* "Riprendi ora" / "Termina la tenuta" / "Accorcia la pausa":
+     · preparazione o tenuta → finiscono subito, la catena prosegue;
+     · pausa fra due tenute → scende a 3 secondi, così i rintocchi di
+       preavviso suonano comunque prima della tenuta successiva;
+     · recupero finale → finisce subito ed esegue ciò che aveva in coda. */
 function skipTimer() {
-  const cb = timerCb;
-  stopTimer();
-  let advanced = false;
-  if (cb) advanced = cb() === true;
-  if (!advanced && current && !current.finished) renderSession();
+  if (!chain) return;
+  const now = Date.now(), seg = chain.segs[chain.idx], next = chain.segs[chain.idx + 1];
+  let target = now;
+  if (seg.kind === 'rest' && next && next.kind === 'work' && seg.end - now > 3300) target = now + 3000;
+  shiftChain(target - seg.end);
+  restartBells();
+  tick();
 }
 
 /* Se il recupero finisce mentre stai consultando un'altra schermata, una
@@ -3073,9 +3384,9 @@ function notifyTimerEnd() {
   setTimeout(() => { const b = $('#endBar'); if (b) b.remove(); }, 20000);
 }
 
-/* "Ferma": annulla il timer senza eseguire nulla. La serie resta come l'hai
-   lasciata e nessun esercizio viene concluso: serve quando il timer è partito
-   per sbaglio o l'allenamento si interrompe. */
+/* "Ferma": annulla il timer senza eseguire nulla. Le tenute già concluse
+   restano contate, nessun esercizio viene chiuso: serve quando il timer è
+   partito per sbaglio o l'allenamento si interrompe. */
 function cancelTimer() {
   stopTimer();
   if (current && !current.finished) renderSession();
@@ -3088,14 +3399,14 @@ $('#miniStop').onclick = cancelTimer;
 $('#timerMin').onclick = minimizeTimer;
 $('#miniExpand').onclick = expandTimer;
 $('#timerPlus').onclick = () => {
-  timerEnd += 15000; timerTotal += 15;
-  playBells(0, Math.max(1, (timerEnd - Date.now()) / 1000), 0);
-  tick();
+  if (!chain || chain.segs[chain.idx].kind === 'prep') return;
+  shiftChain(15000); restartBells(); tick();
 };
 $('#timerMinus').onclick = () => {
-  timerEnd = Math.max(Date.now() + 1000, timerEnd - 15000);
-  playBells(0, Math.max(1, (timerEnd - Date.now()) / 1000), 0);
-  tick();
+  if (!chain || chain.segs[chain.idx].kind === 'prep') return;
+  const seg = chain.segs[chain.idx];
+  const newEnd = Math.max(Date.now() + 1000, seg.end - 15000);
+  shiftChain(newEnd - seg.end); restartBells(); tick();
 };
 
 async function requestWakeLock() {
@@ -3108,7 +3419,7 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
     if (current) requestWakeLock();
     // al rientro in primo piano si riallinea la traccia al contatore
-    if (timerHandle) { resyncBells((Date.now() - timerT0) / 1000); tick(); }
+    if (chain) { tick(); if (chain) resyncBells((Date.now() - chain.audioT0) / 1000); }
   }
 });
 
