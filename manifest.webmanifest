@@ -1,7 +1,7 @@
 {
   "name": "Palestra 50 — allenamento personalizzato",
   "short_name": "Palestra 50",
-  "description": "Programma di potenziamento e mobilità in 5 sedute settimanali, con timer di recupero, registrazione di carichi e ripetizioni, valutazione dei progressi e schede esercizio.",
+  "description": "Programma di forza, aerobico e mobilità in 6 sedute settimanali, con timer, registrazione di carichi e ripetizioni, valutazione dei progressi e schede esercizio.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

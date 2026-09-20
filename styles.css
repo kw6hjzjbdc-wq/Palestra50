@@ -614,3 +614,15 @@ body.in-session .updbar{bottom:calc(88px + env(safe-area-inset-bottom))}
    si allunga quanto basta perché non copra i pulsanti in fondo */
 body.in-session .mini{bottom:calc(88px + env(safe-area-inset-bottom))}
 body.in-session.mini-on #view-session{padding-bottom:176px}
+
+/* durata della seduta scelta in Home */
+.durrow{margin:14px 0 4px}
+.durrow .lab{display:block;font-size:14px;color:var(--muted);margin-bottom:8px}
+.seg.dur{margin:0}
+.seg.dur button{font-family:var(--cond);font-size:18px}
+
+/* sedute aerobiche (dalla 5.0) */
+:root{--coral:#EF8A5B}
+.week .wknum.cardio{color:var(--coral)}
+.chip.cardio{color:var(--coral);border-color:rgba(239,138,91,.45)}
+.session-head.cardio .kicker{color:var(--coral)}

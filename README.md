@@ -2,7 +2,7 @@
 
 PWA per allenamento in palestra e a casa, costruita su un profilo specifico: uomo di 50 anni, obiettivo tono e ipertrofia, riduzione del grasso addominale, rinforzo degli arti inferiori a protezione del ginocchio, mobilità mantenuta con stretching regolare.
 
-Settimana tipo: 5 sedute, tre di potenziamento (1, 3, 5) e due di mobilità (2, 4), circa 30 minuti l'una, più un blocco core facoltativo.
+Settimana tipo (dalla 5.0): **6 sedute** — forza A, aerobico a intervalli, forza B, aerobico a ritmo costante, forza C, mobilità (sempre l'ultima) — di durata scelta ogni giorno fra 35, 40, 45 e 50 minuti, più un blocco core facoltativo.
 
 ---
 
@@ -53,9 +53,45 @@ Ogni seduta di forza è un elenco di *slot*, ciascuno con uno o più schemi di m
 
 Le sedute di mobilità combinano 2-3 esercizi di mobilità dinamica in apertura e 5-6 allungamenti statici sui gruppi previsti dal template, con rotazione settimanale.
 
-### Vincolo dei 30 minuti
+### Settimana da 6 sedute (dalla 5.0)
 
-Dopo la generazione, `fitToTime()` stima la durata (lavoro + recuperi, allungamenti contati su entrambi i lati) e, se supera i 32 minuti, riduce prima le serie degli esercizi accessori e solo in ultima istanza toglie l'ultimo esercizio. Il primo esercizio, quello principale, non viene mai toccato. Quando la seduta è stata ridotta, la home lo segnala.
+| Giorno | Seduta | Perché lì |
+|---|---|---|
+| 1 | Forza A · gambe e spinta | a inizio settimana, a fresco |
+| 2 | Aerobico · intervalli | fra due sedute di forza: 48 ore fra un allenamento di pesi e l'altro |
+| 3 | Forza B · parte alta e unilaterale | |
+| 4 | Aerobico · ritmo costante | lavoro moderato, non affatica i muscoli che servono il giorno dopo |
+| 5 | Forza C · full body e core | |
+| 6 | Mobilità | **sempre l'ultima**: recupero prima della settimana successiva; non si può anticipare |
+
+Le tre sedute di forza mantengono il lavoro per le trazioni (tre volte a settimana) e tutti i gruppi muscolari lavorano almeno due volte (ACSM 2026). La mobilità è una sola seduta, ma ogni seduta aerobica si chiude con due allungamenti per anche e polpacci: la flessibilità viene allenata almeno 3 giorni a settimana, come indicato dall'ACSM. Le due sedute di mobilità alternano i due schemi di settimana in settimana.
+
+**Passaggio dalla 4.8.** Le settimane già iniziate con 5 sedute restano da 5 (storico e riepiloghi non cambiano); le 6 sedute partono dalla prima settimana nuova.
+
+**Sedute aerobiche.** Riscaldamento 5 minuti → parte centrale → defaticamento 3 minuti → due allungamenti. Le parti si susseguono da sole, senza toccare il telefono sulla macchina.
+- *Intervalli*: scatti a sforzo 8/10 con recupero attivo. Progressione con le settimane di allenamento: 30 s / 90 s (settimane 1-4) → 30/60 (fino alla 12) → 45/60 (fino alla 24) → 60/60. Massimo 12 scatti: il tempo che avanza diventa ritmo costante. In settimana di scarico gli scatti calano del 40%.
+- *Ritmo costante*: 15-45 minuti a sforzo 5-6/10, "riesci a parlare a frasi brevi".
+- *Attrezzi*: bici da spinning (sempre seduti, sella alta), cyclette orizzontale (la più delicata per la rotula), sacco da pugilato (piedi fermi, solo intervalli), vogatore, macchina a scalini. Con la **priorità al ginocchio** attiva vogatore e scalini non vengono proposti in automatico — l'attacco del vogatore e la salita sugli scalini caricano la rotula in flessione profonda — ma si scelgono con *Cambia esercizio* nei giorni buoni (vogatore con attacco accorciato, scalini solo a ritmo costante). A casa: colpi al sacco d'aria e camminata veloce in piano.
+
+**Minuti aerobici.** Progressi mostra i minuti della settimana nel conto dell'OMS (un minuto di scatto vale due moderati) rispetto al riferimento di 150; il riepilogo settimanale indica come arrivarci. Il finale metabolico nelle sedute di forza resta disponibile e, con due sedute aerobiche in settimana, ha riservati i suoi 10 minuti solo quando scegli 50 minuti (con 40-45 entra se avanza tempo).
+
+### Durata scelta ogni giorno (35, 40, 45, 50 minuti)
+
+In Home, dopo aver scelto la seduta (mobilità oppure forza A, B o C), si sceglie il **tempo a disposizione**. La scelta resta memorizzata finché non la cambi.
+
+**Come si stima la durata.** Lavoro + recuperi fra le serie + un **tempo di cambio** per ogni esercizio (75 s nella forza: spostarsi, regolare la macchina, preparare il carico; 15 s negli allungamenti; 60 s per salire sulla cyclette) + 2 minuti e mezzo di serie di avvicinamento sul primo esercizio. Fino alla 4.7 il cambio non era conteggiato: le sedute stimate in 35 minuti ne duravano 47-57. Il ritmo personale si impara dalle sedute reali, **separatamente per forza e mobilità**; all'aggiornamento viene ricavato una volta dallo storico già registrato.
+
+**Se il tempo è poco** (`fitToTime`), si taglia nell'ordine: sospensione alla sbarra → una serie del lavoro per le trazioni (non sotto 3) → serie dei complementari, dall'ultimo (non sotto 2) → trazioni fino a 2 serie → i due esercizi principali fino a 2 serie (ACSM 2026: 2-3 serie per esercizio) → l'ultimo complementare, lasciandone almeno quattro.
+
+**Se il tempo c'è** (`fillToTime`), si aggiunge nell'ordine: esercizi supplementari per i gruppi che restano indietro (polpacci, femorali, quadricipiti) → **finale metabolico** (con 50 minuti una decina di minuti sono riservati a lui) → **sospensione alla sbarra** in chiusura → una serie in più a petto e gambe, fino a 4. Nelle sedute di mobilità: altri allungamenti, poi tenute da 45 secondi (30-60 s è l'indicazione ACSM dopo i 50 anni), poi una tenuta in più.
+
+### Grasso addominale senza corsa, nuoto o ellittico
+
+Card **Grasso addominale** in Programma. Le evidenze più recenti (Chang et al. 2026, *Nutrition & Metabolism*, 61 studi randomizzati) indicano che il lavoro a intervalli (HIIT) è la modalità più efficace sul grasso viscerale già con circa 400 MET-min a settimana; anche i pesi lo riducono, con effetto minore. La leva principale resta comunque l'alimentazione: un deficit moderato, con circa 1,6 g di proteine per kg al giorno per conservare il muscolo (Morton et al. 2018, *BJSM*).
+
+Il **finale metabolico** entra nelle sedute di forza quando il tempo lo consente e si sceglie fra: cyclette a intervalli (predefinita: sella alta, resistenza moderata, cadenza alta), ergometro a braccia (nessun carico sul ginocchio), camminata in salita sul tapis roulant, colpi al sacco d'aria (anche a casa, piedi fermi). Lo schema è 30 s di scatto e 60 s a ritmo tranquillo, da 4 a 8 ripetizioni secondo il tempo rimasto; il timer alterna i due ritmi da solo. In settimana di scarico si accorcia.
+
+In Progressi la card **Girovita e peso** registra le misure ogni 2-4 settimane e mostra la variazione dalla prima.
 
 ### Macrociclo fino al 30 maggio 2027
 
@@ -71,15 +107,15 @@ Dopo la generazione, `fitToTime()` stima la durata (lavoro + recuperi, allungame
 | Densità e tono | 5 | ipertrofia · resistenza · resistenza | recuperi brevi e più core: il muscolo diventa visibile |
 | Rifinitura | 1 | volume ridotto | arrivare scarichi al 30 maggio |
 
-Dentro ogni fase si lavora a blocchi di quattro settimane, con la quarta di scarico (volume ridotto e circa −15% di carico), e la rotazione degli esercizi cambia a ogni blocco. La home mostra fase in corso, settimana nella fase, settimana assoluta e quante ne mancano alla data obiettivo.
+Dentro ogni fase si lavora a blocchi di quattro settimane, con la quarta di scarico (una serie e qualche ripetizione in meno a carichi invariati; il carico suggerito non sale in quella settimana), e la rotazione degli esercizi cambia a ogni blocco. La home mostra fase in corso, settimana nella fase, settimana assoluta e quante ne mancano alla data obiettivo.
 
-**Corsa e aerobica** non compaiono da nessuna parte nell'app: restano nel fine settimana, gestite in autonomia.
+**Corsa, nuoto ed ellittico** non compaiono: il ginocchio non li tollera. Il lavoro per il grasso addominale passa dal finale metabolico a basso impatto descritto sopra.
 
 **Cambiando programma non si perde nulla**: storico dei carichi, valutazioni a stelle, riepiloghi e backup sono indipendenti dal programma attivo, e gli altri programmi (3, 4 e 6 settimane) restano disponibili in Programma.
 
 ### Blocco trazioni alla sbarra
 
-Obiettivo attivabile da Programma (predefinito: attivo). Aggiunge due esercizi **in apertura** di ciascuna delle tre sedute di forza — quindi tre volte a settimana, sempre a fresco, secondo il principio NSCA di mettere per primo il movimento obiettivo — e il budget tempo delle sedute complete sale da 32 a 35 minuti (tetto 38).
+Obiettivo attivabile da Programma (predefinito: attivo). È un obiettivo **accessorio** rispetto a tono, ipertrofia, forza e mobilità: dalla 4.8 il lavoro principale per le trazioni (eccentriche, isometria o volume assistito) segue i due esercizi fondamentali del giorno, e la **sospensione alla sbarra** o l'attivazione scapolare chiudono la seduta solo se resta tempo. Nel giorno B la tirata del programma lascia il posto a un secondo esercizio di spinta, per riequilibrare petto e dorso.
 
 L'onda settimanale non è casuale, segue le evidenze sulla progressione:
 
@@ -102,7 +138,7 @@ L'attivazione è sospensione alla sbarra o trazioni scapolari: è la fase inizia
 
 ### Parametri e fonti
 
-Rielaborati (nessun testo riprodotto) da: ACSM *Guidelines for Exercise Testing and Prescription*, NSCA *Essentials of Strength Training and Conditioning*, linee guida ACE per stretching e mobilità, raccomandazioni OMS sull'attività fisica per adulti 45-64 anni (150 minuti settimanali di attività moderata più due sedute di rinforzo: le cinque sedute qui previste rientrano in quel volume).
+Rielaborati (nessun testo riprodotto) da: ACSM *Guidelines for Exercise Testing and Prescription*, NSCA *Essentials of Strength Training and Conditioning*, linee guida ACE per stretching e mobilità, raccomandazioni OMS sull'attività fisica per adulti 45-64 anni (150 minuti settimanali di attività moderata più due sedute di rinforzo: le sedute aerobiche e il finale metabolico servono a raggiungere quel volume).
 
 | Obiettivo | Serie | Ripetizioni | Recupero |
 |---|---|---|---|
@@ -139,7 +175,7 @@ Il passaggio da una schermata all'altra avviene con una breve dissolvenza in sal
 
 ### Riepilogo settimanale
 
-Completate le cinque sedute, l'app apre un riepilogo con le sedute svolte, la media delle stelle, i tre migliori traguardi della settimana e l'elenco di ciò a cui fare attenzione. Resta richiamabile in qualsiasi momento dalla scheda **Progressi → Riepilogo settimanale**, per le ultime quattro settimane con dati.
+Completate le sedute della settimana, l'app apre un riepilogo con le sedute svolte, la media delle stelle, i tre migliori traguardi della settimana e l'elenco di ciò a cui fare attenzione. Resta richiamabile in qualsiasi momento dalla scheda **Progressi → Riepilogo settimanale**, per le ultime quattro settimane con dati.
 
 ### Che cosa registra l'app, e come decide il carico
 
@@ -170,7 +206,7 @@ Suggerire "22,7 kg" è inutile se quel peso non si può comporre. Ogni esercizio
 | Attrezzo | Scala |
 |---|---|
 | Bilanciere | Barra da 10 kg con dischi da 2, 5, 10 e 20 kg a coppie: 10, 14, 18, 20, 22, 24… I totali da 12 e 16 kg non sono componibili, perché richiederebbero 1 e 3 kg per lato |
-| Manubri | Rastrelliera da 2 a 40 kg (senza il 38). Il numero annotato è il peso del **singolo** manubrio, anche quando se ne usano due |
+| Manubri | Rastrelliera da 2 a 40 kg, a passi di 2 kg. Il numero annotato è il peso del **singolo** manubrio, anche quando se ne usano due |
 | Macchine, cavi, lat machine | Pacco pesi da 10 a 120 kg, a scalini di 2,5 kg |
 | Casa | Manubri da 1 e 2 kg, anche in coppia: 1, 2, 3, 4 kg |
 
@@ -181,6 +217,12 @@ Quando la regola 2-for-2 chiede un aumento, l'app cerca il primo scalino utile n
 ### Massimale stimato
 
 Il confronto fra sedute usa il massimale stimato con la formula di Epley — carico × (1 + ripetizioni/30), applicata fino a 15 ripetizioni dove resta attendibile. È ciò che permette di dire che 60 kg × 11 (82 kg stimati) è un progresso rispetto a 60 kg × 6 (72 kg stimati), cosa che guardando il solo peso non si vedrebbe. Nel grafico del dettaglio la linea piena è il massimale stimato, quella tratteggiata il carico usato. Il controllo sugli incrementi troppo bruschi resta invece ancorato al peso reale: aumentare le ripetizioni non è un rischio, aumentare il peso sì.
+
+### Esercizio non registrato
+
+In Progressi, toccando una seduta dell'elenco, il pulsante **Aggiungi un esercizio non registrato** permette di rimettere nello storico un esercizio svolto ma non salvato (o andato perso): esercizio, serie, ripetizioni e carico. La registrazione viene agganciata a quella seduta, quindi conta nella settimana giusta, nel volume e nei suggerimenti di carico successivi. Le voci aggiunte a mano si possono eliminare con ✕; le altre no.
+
+Dalla 4.7 nessuna migrazione cancella più registrazioni: quella che nelle versioni precedenti azzerava una volta lo storico del calf alla macchina è stata disattivata.
 
 ### Volume settimanale
 
@@ -231,7 +273,7 @@ Su `app.netlify.com/drop`, dopo aver fatto l'accesso, puoi caricare direttamente
 
 ### Settimane di sola mobilità
 
-Quando non puoi andare in sala pesi per una settimana — viaggio, impegni, un fastidio da lasciar passare — la scheda **Programma → Settimane di sola mobilità** permette di dichiararlo per la settimana in corso o per la prossima. Tutte e cinque le sedute diventano di mobilità e stretching, con schemi e rotazioni diversi fra loro per non ripetere gli stessi allungamenti.
+Quando non puoi andare in sala pesi per una settimana — viaggio, impegni, un fastidio da lasciar passare — la scheda **Programma → Settimane di sola mobilità** permette di dichiararlo per la settimana in corso o per la prossima. Tutte le sedute diventano di mobilità e stretching, con schemi e rotazioni diversi fra loro per non ripetere gli stessi allungamenti.
 
 Il punto che conta: **il programma di forza non perde nulla, slitta**. Nel conteggio delle settimane di fase quelle di sola mobilità non vengono contate, quindi se ti fermi alla settimana 2 di una fase, alla ripresa riparti dalla settimana 2, non dalla 3. Il macrociclo si allunga di una settimana invece di saltarne un pezzo.
 
@@ -279,7 +321,7 @@ I tuoi dati (carichi, storico, settimana del ciclo) restano sul telefono, non su
 
 All'apertura scorre un'intro di tre secondi: l'anello del marchio si disegna, le tre barre della progressione salgono una dopo l'altra, compaiono nome, sottotitolo e una **frase motivazionale** in italiano, inglese o francese. Le frasi sono 123, originali e non attribuite, e l'app tiene in memoria le ultime cento mostrate: una frase non può quindi ripetersi prima di altre cento aperture. Si aggiungono o si modificano in `quotes.json`. Finita l'animazione l'intro resta ferma sull'ultimo fotogramma e sparisce **solo quando tocchi lo schermo** (in basso compare il suggerimento "Tocca per iniziare"). Rispetta l'impostazione di sistema per il movimento ridotto.
 
-- **Oggi**: scegli palestra o casa, poi il **calendario della settimana** mostra tutte e cinque le sedute previste più il blocco core facoltativo. L'etichetta *da programma* resta sempre attaccata alla seduta che il programma prevede come prossima, anche dopo uno scambio d'ordine; la seduta scelta per oggi è marcata a parte come *scelta per oggi*. Le sedute le già svolte restano barrate e non riapribili. Tocca la seduta che vuoi fare adesso — anche il blocco core — e sotto compare il suo elenco esercizi; poi premi *Inizia la sessione*. Scegliendo una seduta diversa da quella prevista, quella di oggi prende il suo posto più avanti nella settimana, quindi non si perde nulla.
+- **Oggi**: scegli palestra o casa, poi il **calendario della settimana** mostra tutte le sedute previste più il blocco core facoltativo. L'etichetta *da programma* resta sempre attaccata alla seduta che il programma prevede come prossima, anche dopo uno scambio d'ordine; la seduta scelta per oggi è marcata a parte come *scelta per oggi*. Le sedute le già svolte restano barrate e non riapribili. Tocca la seduta che vuoi fare adesso — anche il blocco core — e sotto compare il suo elenco esercizi; poi premi *Inizia la sessione*. Scegliendo una seduta diversa da quella prevista, quella di oggi prende il suo posto più avanti nella settimana, quindi non si perde nulla.
 - Nell'elenco della seduta, **tocca un esercizio** per aprirne subito la scheda illustrativa, senza dover iniziare l'allenamento.
 - Durante l'esercizio: segna le serie completate, scrivi il carico, dai il feedback con le tre frecce, premi **Ho finito la serie**: parte il timer di recupero, con un rintocco su ciascuno degli ultimi 3 secondi e colpo finale più acuto.
 - **Esercizi a tempo** (stretching statico, plank, wall sit): il pulsante diventa *Avvia 30 secondi* e fa partire il cronometro della tenuta, in verde. Prima del conteggio ci sono **3 secondi di preparazione**, scanditi da un rintocco ciascuno, mostrati come sola cifra al centro del cerchio; al termine parte da solo il recupero.
@@ -387,15 +429,21 @@ Per un nuovo programma aggiungi una voce in `programs.json` con `cycleWeeks`, tr
 
 ## Fonti della logica di allenamento
 
-- **NSCA**, *Essentials of Strength Training and Conditioning* — schemi serie/ripetizioni/recupero per obiettivo; regola 2-for-2 per la progressione del carico (due ripetizioni oltre l'obiettivo nell'ultima serie per due sedute consecutive, poi incremento del 2,5–10%); ordine degli esercizi con il movimento obiettivo per primo.
-- **ACSM**, *Guidelines for Exercise Testing and Prescription* — frequenza, intensità e volume per adulti; incremento del carico del 2–10% al raggiungimento del target.
-- **ACE** — linee guida di stretching statico e mobilità dinamica.
-- **OMS** — raccomandazioni di attività fisica per adulti 45-64 anni.
-- **Zourdos M. et al. (2016)**, *Application of the Repetitions in Reserve-Based RPE Scale for Resistance Training*, Strength and Conditioning Journal — scala delle ripetizioni in riserva; validità confermata anche negli adulti anziani (*Experimental Gerontology*, 2025).
-- **Schoenfeld B., Ogborn D., Krieger J. (2017)**, *Dose-response relationship between weekly resistance training volume and increases in muscle mass*, Journal of Sports Sciences — meno di 5 serie settimanali per gruppo +5,4%, 5–9 serie +6,6%, 10 o più +9,8%.
-- **Epley (1985)** — formula del massimale stimato usata nei confronti fra sedute.
-- **Journal of Strength and Conditioning Research** — confronto fra assistenza elastica, macchina a contrappeso e lavoro eccentrico nella progressione verso le trazioni.
-- **W3C**, *WCAG 2.2*, criterio 1.4.4 Resize Text — niente blocco dello zoom.
+Aggiornate a settembre 2026: dove una fonte più recente sostituisce una precedente, l'app segue la più recente.
+
+- **ACSM Position Stand 2026**, *Resistance Training Prescription for Muscle Function, Hypertrophy, and Physical Performance in Healthy Adults: An Overview of Reviews*, Medicine & Science in Sports & Exercise (137 revisioni sistematiche; sostituisce la posizione del 2009) — tutti i gruppi principali almeno 2 volte a settimana; ipertrofia con ~10 serie settimanali per gruppo; forza con carichi ≥80% 1RM per 2-3 serie per esercizio; lavoro vicino al cedimento (2-3 ripetizioni di riserva) senza raggiungerlo.
+- **Pelland et al. 2025**, *The Resistance Training Dose Response*, Sports Medicine — volume e crescita con rendimenti decrescenti; il conteggio "frazionario" (serie indirette = ½), usato nelle barre del volume, è il più predittivo.
+- **Singer et al. 2024**, *Give it a rest*, Frontiers in Sports and Active Living — recuperi oltre 60 s lievemente migliori per l'ipertrofia, nessun vantaggio oltre 90 s.
+- **Schoenfeld, Ogborn, Krieger 2017**, Journal of Sports Sciences — soglie 5 e 10 serie settimanali.
+- **Chang et al. 2026**, Nutrition & Metabolism — HIIT la modalità più efficace sul grasso viscerale (≈400 MET-min/settimana); anche i pesi lo riducono, con effetto minore.
+- **Morton et al. 2018**, British Journal of Sports Medicine — circa 1,6 g/kg/die di proteine per massimizzare i guadagni di massa magra con i pesi.
+- **NSCA**, *Essentials of Strength Training and Conditioning* — regola 2-for-2 (due ripetizioni oltre l'obiettivo per due sedute, poi incremento del 2,5–10%); ordine degli esercizi.
+- **ACSM** — flessibilità: tenute di 10-30 s, 30-60 s dopo i 50 anni, circa 60 s totali per muscolo, almeno 2-3 giorni a settimana.
+- **OMS 2020** — raccomandazioni di attività fisica per adulti.
+- **Zourdos et al. 2016**, Strength and Conditioning Journal — scala delle ripetizioni in riserva.
+- **Epley (1985)** — formula del massimale stimato.
+- **Journal of Strength and Conditioning Research** — assistenza elastica, macchina e lavoro eccentrico nella progressione verso le trazioni.
+- **W3C**, *WCAG 2.2*, criterio 1.4.4 — niente blocco dello zoom.
 
 ## Avvertenza
 

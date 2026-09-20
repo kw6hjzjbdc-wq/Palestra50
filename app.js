@@ -12,8 +12,6 @@
    ============================================================================ */
 
 const KEY = 'palestra50.v1';
-const DAYS_STRENGTH = [1, 3, 5];   // sessioni 1,3,5 = potenziamento
-const DAYS_STRETCH  = [2, 4];      // sessioni 2,4 = stretching/mobilità
 const BANDS = ['Azzurra (leggera)', 'Gialla (media)', 'Rossa (dura)', 'Viola (molto dura)'];
 
 let DB = { exercises: [] }, PROG = null, POSES = null, QUOTES = [];
@@ -34,7 +32,7 @@ const DEFAULT_STATE = {
   sessionIndex: 0,         // numero progressivo della prossima sessione da fare
   kneeCare: true,          // dà priorità agli esercizi a basso impatto sul ginocchio
   shoulderCare: true,      // esclude gli esercizi critici per il conflitto subacromiale
-  pullupGoal: true,        // blocco trazioni in apertura delle sedute di forza
+  pullupGoal: true,        // preparazione alle trazioni nelle sedute di forza (accessoria)
   perms: {},               // ordine delle 5 sedute all'interno di ciascuna settimana
   mobilityWeeks: [],       // settimane in cui si fa solo mobilità (il programma slitta)
   sound: true,             // campanella del timer
@@ -44,7 +42,10 @@ const DEFAULT_STATE = {
   lastExport: 0,            // timestamp dell'ultimo salvataggio JSON esportato
   quoteQueue: [],           // indici delle ultime 100 frasi mostrate all'avvio
   exNotes: {},              // nota personale per esercizio (regolazioni, accorgimenti)
-  paceFactor: 1,            // calibrazione della durata stimata sulle sedute reali
+  pace: { strength: 1, stretch: 1, cardio: 1 },   // ritmo personale appreso dalle sedute reali
+  durPref: 35,             // durata scelta in Home per la prossima seduta
+  finisher: 'a_spinning',  // finale metabolico a basso impatto per il ginocchio
+  measures: [],            // girovita e peso
   autoBackup: true,         // istantanea automatica a fine settimana
   snapshots: [],            // ultime 3 istantanee settimanali, ripristinabili
   resume: null,             // seduta interrotta, recuperabile dopo la chiusura dell'app
@@ -160,12 +161,13 @@ const RENAMED = {
    quindi vengono cancellati una volta sola per non falsare suggerimenti e
    valutazioni. Tutti gli altri esercizi restano intatti. */
 function resetCalfLogs() {
-  if (S.calfReset) return;
+  /* DISATTIVATA dalla 4.7. Nelle versioni precedenti cancellava una volta le
+     registrazioni del calf alla macchina: così è andata persa anche la serie
+     di calf della settimana 1. Una migrazione non deve mai cancellare
+     risultati; in più, ripristinando un backup senza il contrassegno
+     "calfReset" la cancellazione sarebbe ripartita. Ora non fa nulla: le
+     registrazioni restano tutte. */
   S.calfReset = true;
-  const before = S.logs.length;
-  S.logs = S.logs.filter(l => l.exId !== 'g_calfseated');
-  if (S.logs.length !== before) planCache = null;
-  save();
 }
 
 /* I record salvati prima della versione 4.0 non hanno ripetizioni eseguite né
@@ -194,9 +196,9 @@ function askMobilityWeek() {
   const q = meta.weekAbs, n = meta.weekAbs + 1;
   openModal(`<h2>Una settimana di sola mobilità?</h2>
     <p class="small muted">Hai detto che per una settimana potrai fare solo mobilità e stretching.
-      Dimmi quale: tutte e cinque le sedute diventeranno di allungamento e il programma di forza
+      Dimmi quale: tutte le sedute diventeranno di allungamento e il programma di forza
       <b>slitterà in avanti</b>, riprendendo da dove è rimasto. Nessuna settimana di lavoro va persa.</p>
-    <p class="small muted">Sei alla sessione ${meta.pos} di 5 della settimana ${q}.</p>
+    <p class="small muted">Sei alla sessione ${meta.pos} di ${meta.days} della settimana ${q}.</p>
     <button class="btn" id="mbNext" style="margin-top:12px">La prossima · settimana ${n}</button>
     <button class="btn ghost" id="mbThis" style="margin-top:10px">Quella in corso · settimana ${q}</button>
     <button class="btn ghost" id="mbNo" style="margin-top:10px">Per ora no</button>`);
@@ -250,9 +252,12 @@ async function loadData() {
     fetch('poses.json').then(r => r.json()),
     fetch('quotes.json').then(r => r.json()).catch(() => ({ quotes: [] }))
   ]);
-  DB = ex; PROG = pr; POSES = po; QUOTES = qu.quotes || [];
+  // gli esercizi "ritirati" (attrezzi non più disponibili) restano noti per
+  // leggere lo storico, ma non vengono più proposti né elencati
+  DB = { all: ex.exercises, exercises: ex.exercises.filter(e => !e.retired), version: ex.version };
+  PROG = pr; POSES = po; QUOTES = qu.quotes || [];
 }
-const exById = id => DB.exercises.find(e => e.id === id);
+const exById = id => (DB.all || DB.exercises).find(e => e.id === id);
 
 /* ---------------------------------------------------------------------------
    VALIDAZIONE DEI FILE DI DATI
@@ -428,9 +433,13 @@ const figureA11y = (ex, frameIdx, opts) =>
    (sovraccarico progressivo e periodizzazione lineare/ondulata).
 --------------------------------------------------------------------------- */
 function weekProfile(week, cycleWeeks) {
+  /* Nel programma il carico NON sale per calendario: sale con la regola
+     2-for-2 (NSCA) quando superi di 2 ripetizioni l'obiettivo per due sedute.
+     La settimana cambia serie e ripetizioni; i messaggi dicono esattamente
+     questo, senza promettere aumenti percentuali che l'app non applica. */
   if (week >= cycleWeeks) {
-    return { week, label: 'Scarico', setsDelta: -1, loadFactor: 0.85, repsBias: 0.5,
-             note: 'Settimana di scarico: volume ridotto per favorire il recupero.' };
+    return { week, label: 'Scarico', setsDelta: -1, repsBias: 0.5,
+             note: 'Settimana di scarico: stessi carichi, una serie e qualche ripetizione in meno per recuperare. Il carico suggerito resta fermo.' };
   }
   const builds = Math.max(1, cycleWeeks - 1);
   const t = builds > 1 ? (week - 1) / (builds - 1) : 0;      // 0 → 1 nel mesociclo
@@ -438,12 +447,11 @@ function weekProfile(week, cycleWeeks) {
     week,
     label: week === 1 ? 'Adattamento' : (week === builds ? 'Picco' : 'Costruzione'),
     setsDelta: week === builds ? 1 : 0,
-    loadFactor: 1 + 0.025 * (week - 1),                       // ~2,5% a settimana
     repsBias: 1 - t,                                          // ripetizioni alte → basse
     note: week === 1
-      ? 'Prima settimana del ciclo: prendi confidenza con i carichi, RPE 6-7.'
-      : (week === builds ? 'Settimana di picco: carichi più alti e una serie in più.'
-                         : 'Aumenta il carico del 2-3% rispetto alla settimana scorsa.')
+      ? 'Prima settimana del ciclo: prendi confidenza con i carichi, 3 ripetizioni di riserva.'
+      : (week === builds ? 'Settimana di picco: una serie in più e ripetizioni più basse. Il carico sale dove hai soddisfatto la regola 2-for-2.'
+                         : 'Ripetizioni un po\' più basse della settimana scorsa. Il carico sale solo dove hai superato l\'obiettivo di 2 ripetizioni per due sedute: il suggerimento lo indica esercizio per esercizio.')
   };
 }
 
@@ -452,7 +460,7 @@ function weekProfile(week, cycleWeeks) {
    movimento raggiunta senza dolore, e in controllo. Linee guida ACE:
    tensione moderata, mai dolore, respirazione regolare. */
 function mobilityNote(profile, mobWeek) {
-  if (mobWeek) return 'Settimana di sola mobilità: cinque sedute di allungamento, nessun carico. ' +
+  if (mobWeek) return 'Settimana di sola mobilità: tutte le sedute sono di allungamento, nessun carico. ' +
                       'Cerca ampiezza con calma, sempre sotto la soglia del dolore.';
   if (profile.label === 'Scarico') return 'Settimana leggera anche per la mobilità: movimenti morbidi, meno serie, nessuna forzatura.';
   if (profile.label === 'Adattamento') return 'Allunga senza forzare: tensione moderata, mai dolore, respiro lento e regolare.';
@@ -538,7 +546,7 @@ function barbellScale() {
 }
 const RACKS = {
   barbell:  barbellScale(),
-  dumbbell: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 40],
+  dumbbell: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40],
   machine:  Array.from({ length: 45 }, (_, i) => 10 + i * 2.5),      // 10 → 120
   home:     [1, 2, 3, 4]                                             // 1+2 kg, anche in coppia
 };
@@ -620,16 +628,28 @@ function beatTarget(l) {
 const levelsOf = ex => (ex && ex.levels) ? ex.levels : null;
 
 function suggestLoad(ex) {
+  // in settimana di scarico nessun aumento: si recupera a carico invariato
+  let deloadNow = false;
+  try { deloadNow = sessionMeta(S.sessionIndex).profile.label === 'Scarico'; } catch (e) {}
+  const r = suggestLoadCore(ex, deloadNow);
+  if (r && deloadNow && r.heldForDeload) {
+    r.reason = 'Settimana di scarico: il carico resta fermo. L\'aumento guadagnato con la regola 2-for-2 scatta la settimana prossima.';
+  }
+  return r;
+}
+function suggestLoadCore(ex, deloadNow) {
   const last = lastEntry(ex.id);
   if (!last) return null;
   const recent = lastEntries(ex.id, 2);
-  const twoForTwo = recent.length >= 2 && recent.every(beatTarget);
+  let twoForTwo = recent.length >= 2 && recent.every(beatTarget);
+  const heldForDeload = twoForTwo && deloadNow;
+  if (deloadNow) twoForTwo = false;
   // due condizioni distinte: arrivare al limite una volta (RIR 0) blocca
   // l'aumento ma non fa scendere il carico; solo un "troppo difficile"
   // esplicito lo riduce.
   const tooHard = last.feedback === 'down';
   const atLimit = last.rir === 0;
-  const info = { last, twoForTwo, reason: '' };
+  const info = { last, twoForTwo, reason: '', heldForDeload };
 
   // --- scale a gradini: band ed esercizi a corpo libero con progressione ---
   const steps = ex.load === 'band' ? BANDS : levelsOf(ex);
@@ -846,7 +866,7 @@ function rateLog(cur, prev, deload) {
   if (!ma || !mb || !mb.v) return { stars: 0, text: 'Dati insufficienti per il confronto.' };
   const ratio = ma.v / mb.v;
   const what = ma.what === mb.what ? ma.what : 'risultato';
-  const weeks = Math.max(0, Math.floor((cur.sIdx || 0) / 5) - Math.floor((prev.sIdx || 0) / 5));
+  const weeks = Math.max(0, weekOfIdx(cur.sIdx || 0) - weekOfIdx(prev.sIdx || 0));
   const expected = weeks > 0 ? 1 + 0.025 * weeks : 1;
   const pct = Math.round((ratio - 1) * 100);
 
@@ -902,11 +922,54 @@ const starsHtml = n => n ? `<span class="stars">${'★'.repeat(n)}<span class="o
 /* Ordine delle 5 sedute dentro una settimana. Di base è 1..5 (forza, mobilità,
    forza, mobilità, forza); scambiando due sedute la permutazione viene salvata,
    così la seduta rinviata resta in programma e non va persa. */
+/* ---------------------------------------------------------------------------
+   SETTIMANA DA 6 SEDUTE (dalla 5.0)
+   Fino alla 4.8 la settimana aveva 5 sedute; dalla 5.0 ne ha 6. Le settimane
+   già iniziate con il vecchio schema restano da 5, così indici, storico e
+   riepiloghi del passato non cambiano: S.week6From è l'indice della prima
+   seduta della prima settimana da 6. Tutto il codice passa da queste funzioni
+   invece di dividere per 5.
+--------------------------------------------------------------------------- */
+const OLD_WEEK = 5;
+const week6From = () => (S && isFinite(S.week6From)) ? S.week6From : 0;
+const week6No = () => Math.floor(week6From() / OLD_WEEK) + 1;
+function weekOfIdx(idx) {
+  const f = week6From();
+  if (idx < f) return Math.floor(idx / OLD_WEEK) + 1;
+  return week6No() + Math.floor((idx - f) / weekDays());
+}
+function weekStart(w) {
+  return w < week6No() ? (w - 1) * OLD_WEEK : week6From() + (w - week6No()) * weekDays();
+}
+const weekLen = w => w < week6No() ? OLD_WEEK : weekDays();
+const posOfIdx = idx => idx - weekStart(weekOfIdx(idx));
+const weekDays = () => (PROG && PROG.week && PROG.week.days) || 6;
+/* tipo di seduta per giorno: 'strength' | 'cardio' | 'stretch' */
+function dayPattern(w) {
+  if (weekLen(w) === OLD_WEEK) return ['strength', 'stretch', 'strength', 'stretch', 'strength'];
+  return (PROG.week && PROG.week.pattern) || ['strength', 'cardio', 'strength', 'cardio', 'strength', 'stretch'];
+}
+
+/* Una volta sola: la settimana in corso resta com'era, le 6 sedute partono
+   dalla prossima (o da subito, se la settimana non è ancora cominciata). */
+function migrateWeek6() {
+  if (isFinite(S.week6From)) return;
+  const i = S.sessionIndex || 0;
+  S.week6From = (i % OLD_WEEK === 0) ? i : i + (OLD_WEEK - i % OLD_WEEK);
+  planCache = null;
+  save();
+}
+
+/* Ordine delle sedute dentro una settimana. Di base segue lo schema; scambiando
+   due sedute la permutazione viene salvata, così la seduta rinviata resta in
+   programma e non va persa. */
 function weekPerm(week) {
-  return (S.perms && S.perms[week]) ? S.perms[week].slice() : [1, 2, 3, 4, 5];
+  const n = weekLen(week);
+  const p = (S.perms && S.perms[week]) ? S.perms[week].slice() : [];
+  return p.length === n ? p : Array.from({ length: n }, (_, i) => i + 1);
 }
 function swapDay(posA, posB) {
-  const week = Math.floor(S.sessionIndex / 5) + 1;
+  const week = weekOfIdx(S.sessionIndex);
   const perm = weekPerm(week);
   const t = perm[posA]; perm[posA] = perm[posB]; perm[posB] = t;
   S.perms = S.perms || {};
@@ -934,7 +997,7 @@ const totalWeeks = p => (p.phases ? p.phases.reduce((a, f) => a + f.weeks, 0) : 
 /* ---------------------------------------------------------------------------
    SETTIMANE DI SOLA MOBILITÀ
    Capita di non poter andare in sala pesi per una settimana: viaggio, impegni,
-   un fastidio da lasciar passare. In quel caso tutte e cinque le sedute
+   un fastidio da lasciar passare. In quel caso tutte le sedute
    diventano mobilità e stretching, e — cosa che conta di più — il macrociclo
    NON perde una settimana di lavoro: semplicemente slitta in avanti, perché
    nel conteggio delle settimane di fase quelle di sola mobilità non contano.
@@ -951,11 +1014,15 @@ function trainingWeekOf(weekAbs) {
 
 function sessionMeta(idx) {
   const p = program();
-  const weekAbs = Math.floor(idx / 5) + 1;
-  const dayInWeek = weekPerm(weekAbs)[idx % 5];
+  const weekAbs = weekOfIdx(idx);
+  const pos0 = posOfIdx(idx);
+  const dayInWeek = weekPerm(weekAbs)[pos0];
   const mobWeek = isMobilityWeek(weekAbs);
-  // in una settimana di sola mobilità nessuna seduta è di potenziamento
-  const isStrength = !mobWeek && DAYS_STRENGTH.includes(dayInWeek);
+  const pattern = dayPattern(weekAbs);
+  // in una settimana di sola mobilità nessuna seduta è di forza o aerobica
+  const dayType = mobWeek ? 'stretch' : pattern[dayInWeek - 1];
+  const isStrength = dayType === 'strength';
+  const isCardio = dayType === 'cardio';
   const ph = phaseOf(p, trainingWeekOf(weekAbs));
 
   let weekInCycle, mesocycle, cycleLen, profile;
@@ -971,12 +1038,17 @@ function sessionMeta(idx) {
     mesocycle = Math.floor((tw - 1) / cycleLen) + 1;
     profile = weekProfile(weekInCycle, cycleLen);
   }
-  // le cinque sedute di una settimana di mobilità alternano i due schemi,
-  // con la rotazione che cambia posizione per non ripetere gli stessi esercizi
-  const tmplIdx = isStrength
-    ? DAYS_STRENGTH.indexOf(dayInWeek)
-    : (mobWeek ? ((idx % 5) % 2) : DAYS_STRETCH.indexOf(dayInWeek));
-  return { idx, dayInWeek, pos: (idx % 5) + 1, weekAbs, weekInCycle, cycleLen, mesocycle, isStrength,
+  // indice del modello: A/B/C per la forza, intervalli/costante per
+  // l'aerobico; per la mobilità si alternano i due schemi (nella settimana da
+  // 6 ce n'è una sola, quindi si alterna di settimana in settimana)
+  const nth = t => pattern.slice(0, dayInWeek - 1).filter(x => x === t).length;
+  let tmplIdx;
+  if (isStrength) tmplIdx = nth('strength');
+  else if (isCardio) tmplIdx = nth('cardio');
+  else if (mobWeek) tmplIdx = pos0 % 2;
+  else tmplIdx = weekLen(weekAbs) === OLD_WEEK ? nth('stretch') : (weekAbs % 2);
+  return { idx, dayInWeek, pos: pos0 + 1, days: weekLen(weekAbs), weekAbs, weekInCycle, cycleLen, mesocycle,
+           isStrength, isCardio, dayType,
            mobilityWeek: mobWeek, trainingWeek: trainingWeekOf(weekAbs),
            phase: ph, tmplIdx, profile, program: p };
 }
@@ -1010,8 +1082,9 @@ function pickFrom(pool, rotation, used) {
 
 /* ---------------------------------------------------------------------------
    BLOCCO TRAZIONI
-   Tre sedute a settimana, sempre in apertura della seduta di forza (a fresco,
-   come vuole l'ordine degli esercizi NSCA: il movimento obiettivo per primo).
+   Tre sedute a settimana. Obiettivo accessorio: dalla 4.8 il lavoro principale
+   segue i due esercizi fondamentali del giorno, e l'attivazione (sospensione o
+   attivazione scapolare) chiude la seduta solo se resta tempo.
    L'onda settimanale segue le evidenze sulla progressione alla trazione:
      giorno A → eccentriche lente (il lavoro che trasferisce di più)
      giorno B → tenute isometriche nell'angolo in cui si cede
@@ -1045,45 +1118,116 @@ function buildPullBlock(meta, used) {
     const ex = pickFrom(pool, (meta.mesocycle - 1) + i, used);
     if (!ex) return;
     const goalKey = PULL_GOALS[ex.pullRole] || PULL_GOALS[role];
-    items.push({ exId: ex.id, note: 'Obiettivo trazioni', goalKey, block: 'pullup',
+    items.push({ exId: ex.id, note: 'Obiettivo trazioni', goalKey, block: 'pullup', role: role === 'activation' ? 'activation' : 'pull',
                  alt: { patterns: ['pullup'], types: ['strength'], roles: [role] },
                  ...dose(goalKey, meta.profile, ex) });
   });
   return items;
 }
 
-function buildStrength(meta) {
+function slotPool(patterns) {
+  // Il pool si costruisce pattern per pattern: così il filtro "ginocchio" non
+  // cancella un intero schema di movimento (es. gli affondi) lasciando in piedi
+  // solo un altro pattern dello stesso slot.
+  let pool = [];
+  patterns.forEach(pat => {
+    let sub = DB.exercises.filter(e => e.setup.includes(S.setup) &&
+      (e.type === 'strength' || e.type === 'core') && e.pattern === pat);
+    sub = applyCare(sub);
+    pool = pool.concat(sub.sort((a, b) => a.id.localeCompare(b.id)));
+  });
+  return pool;
+}
+
+/* Finale metabolico scelto in Programma (a casa si ripiega sull'unico
+   disponibile senza attrezzi). */
+/* i finali della 4.8 su attrezzi non disponibili portano al più vicino */
+const FINISHER_MAP = { f_bikehiit: 'a_spinning', f_armergo: 'a_recumbent', f_inclinewalk: 'a_recumbent' };
+function finisherExercise() {
+  const want = FINISHER_MAP[S.finisher] || S.finisher || 'a_spinning';
+  if (want === 'none') return null;
+  let ex = exById(want);
+  if (!ex || ex.retired || !ex.setup.includes(S.setup)) ex = DB.exercises.find(e => (e.cardioModes || []).includes('hiit') && e.setup.includes(S.setup));
+  return ex || null;
+}
+function finisherItem(meta, forceId) {
+  const ex = forceId ? exById(forceId) : finisherExercise();
+  if (!ex) return null;
+  const g = PROG.goals.finisher, iv = ex.interval || { sets: g.sets, work: g.hold, rest: g.rest };
+  // in settimana di scarico il finale si accorcia come il resto del volume
+  const sets = meta.profile.label === 'Scarico' ? Math.max(1, Math.ceil(iv.sets * 0.6)) : iv.sets;
+  return { exId: ex.id, note: 'Per il grasso addominale · se resta tempo', goalKey: 'finisher', role: 'finisher',
+           alt: { patterns: ['finisher'], types: ['strength'] },
+           goal: 'finisher', goalLabel: g.label, sets, reps: 1, perSide: false,
+           rest: iv.rest, hold: iv.work, rpe: g.rpe, source: g.source,
+           workLabel: iv.sets > 1 ? 'Scatto' : 'Lavoro', restLabel: 'Ritmo tranquillo' };
+}
+
+/* ---------------------------------------------------------------------------
+   SEDUTA DI FORZA
+   Ordine e priorità (dalla 4.8):
+     1. i due esercizi principali del giorno, a fresco;
+     2. il lavoro principale per le trazioni (eccentriche, isometria o volume
+        assistito): obiettivo accessorio, quindi dopo i fondamentali;
+     3. gli altri esercizi del giorno;
+     4. se resta tempo: esercizi supplementari per i gruppi che il programma
+        tende a lasciare indietro (polpacci, femorali, quadricipiti), il finale
+        metabolico e, per ultima, la sospensione alla sbarra.
+   La durata scelta in Home (35-50 minuti) decide quanto di tutto questo entra:
+   vedi fitToTime e fillToTime.
+--------------------------------------------------------------------------- */
+function buildStrength(meta, budget) {
   const tmpl = meta.program.strengthDays[meta.tmplIdx];
   const used = new Set(), items = [];
-  // il blocco trazioni apre la seduta e non viene mai tagliato dal budget tempo
-  buildPullBlock(meta, used).forEach(it => items.push(it));
+  const pull = buildPullBlock(meta, used);
+  const pullMain = pull.filter(it => it.role !== 'activation');
+  const pullTail = pull.filter(it => it.role === 'activation');
+  const dayGoal = (meta.phase && meta.phase.ph.goals && meta.phase.ph.goals[meta.tmplIdx]) || tmpl.goal;
+
+  const main = [];
   tmpl.slots.forEach((slot, i) => {
-    // Il pool si costruisce pattern per pattern: così il filtro "ginocchio" non
-    // cancella un intero schema di movimento (es. gli affondi) lasciando in piedi
-    // solo un altro pattern dello stesso slot.
-    let pool = [];
-    slot.patterns.forEach(pat => {
-      let sub = DB.exercises.filter(e => e.setup.includes(S.setup) &&
-        (e.type === 'strength' || e.type === 'core') && e.pattern === pat);
-      sub = applyCare(sub);
-      pool = pool.concat(sub.sort((a, b) => a.id.localeCompare(b.id)));
-    });
+    if (slot.skipIfPullBlock && pullMain.length) return;   // la tirata verticale c'è già
+    const pool = slotPool(slot.patterns);
     const rot = (meta.mesocycle - 1) * (meta.tmplIdx + 2) + i;   // rotazione per mesociclo
     const ex = pickFrom(pool, rot, used);
     if (!ex) return;
-    // nei programmi a fasi l'obiettivo del giorno lo decide la fase in corso
-    const dayGoal = (meta.phase && meta.phase.ph.goals && meta.phase.ph.goals[meta.tmplIdx]) || tmpl.goal;
     const goalKey = slot.goal || dayGoal;
-    items.push({ exId: ex.id, note: slot.note || '', goalKey,
-                 alt: { patterns: slot.patterns.slice(), types: ['strength', 'core'] },
-                 ...dose(goalKey, meta.profile, ex) });
+    main.push({ exId: ex.id, note: slot.note || '', goalKey, role: main.length < 2 ? 'key' : 'main',
+                alt: { patterns: slot.patterns.slice(), types: ['strength', 'core'] },
+                ...dose(goalKey, meta.profile, ex) });
   });
+  main.slice(0, 2).forEach(it => items.push(it));
+  pullMain.forEach(it => items.push(it));
+  main.slice(2).forEach(it => items.push(it));
+
+  // riserva per il tempo in più: supplementari, finale, sospensione
+  const extras = [];
+  (tmpl.extras || []).forEach((pats, i) => {
+    const pats2 = Array.isArray(pats) ? pats : [pats];
+    const ex = pickFrom(slotPool(pats2).filter(e => !used.has(e.id)), (meta.mesocycle - 1) + i, used);
+    if (!ex) return;
+    const goalKey = dayGoal === 'strength' ? 'hypertrophy' : dayGoal;   // i complementari restano a ripetizioni medie
+    const d = dose(goalKey, meta.profile, ex);
+    d.sets = Math.max(2, d.sets - 1);
+    if (d.perSide && d.sets % 2) d.sets++;
+    extras.push({ exId: ex.id, note: 'Supplementare · se resta tempo', goalKey, role: 'extra',
+                  alt: { patterns: pats2.slice(), types: ['strength'] }, ...d });
+  });
+  const fin = finisherItem(meta);
+  pullTail.forEach(it => { it.note = 'Trazioni · in chiusura, se resta tempo'; });
+
+  // a 50 minuti una decina di minuti restano riservati al finale
+  // metabolico: il resto della seduta si adatta al tempo che rimane
+  const reserve = (fin && budget >= 50) ? FINISHER_RESERVE : 0;
+  const trimmed = fitToTime(items, budget - reserve, pullTail);
+  fillToTime(items, budget, { extras, finisher: fin, tail: pullTail, reserve });
+
   const gLabel = meta.phase && PROG.goals[(meta.phase.ph.goals || [])[meta.tmplIdx]]
     ? PROG.goals[meta.phase.ph.goals[meta.tmplIdx]].label : '';
-  return { label: tmpl.label, type: 'strength', items, dayGoalLabel: gLabel };
+  return { label: tmpl.label, type: 'strength', items, dayGoalLabel: gLabel, trimmed };
 }
 
-function buildStretch(meta) {
+function buildStretch(meta, budget) {
   const tmpl = meta.program.stretchDays[meta.tmplIdx];
   const used = new Set(), items = [];
   const dyn = DB.exercises.filter(e => e.type === 'stretch' && e.pattern === 'mobility' && e.setup.includes(S.setup));
@@ -1092,9 +1236,9 @@ function buildStretch(meta) {
   dyn.sort((a, b) => a.id.localeCompare(b.id));
   stat.sort((a, b) => a.id.localeCompare(b.id));
   let rot = (meta.mesocycle - 1) * 2 + meta.tmplIdx + (meta.weekInCycle - 1);
-  // in una settimana di sola mobilità le sedute sono cinque: la rotazione
+  // in una settimana di sola mobilità tutte le sedute sono di allungamento: la rotazione
   // scorre a ogni seduta, così non si ripetono gli stessi allungamenti
-  if (meta.mobilityWeek) rot += (meta.idx % 5) * 2;
+  if (meta.mobilityWeek) rot += (meta.pos - 1) * 2;
   for (let i = 0; i < tmpl.dynamic; i++) {
     const ex = pickFrom(dyn, rot + i, used);
     if (ex) items.push({ exId: ex.id, note: 'Riscaldamento', goalKey: 'mobility',
@@ -1107,8 +1251,37 @@ function buildStretch(meta) {
                          alt: { patterns: ['static'], types: ['stretch'], groups: tmpl.staticGroups.slice() },
                          ...dose('stretch', meta.profile, ex) });
   }
-  const label = meta.mobilityWeek ? `${tmpl.label} · seduta ${meta.pos} di 5` : tmpl.label;
-  return { label, type: 'stretch', items };
+  const label = meta.mobilityWeek ? `${tmpl.label} · seduta ${meta.pos} di ${meta.days}` : tmpl.label;
+  const trimmed = fitToTime(items, budget || 35, []);
+  // tempo in più: altri allungamenti dello stesso schema, poi una tenuta in più
+  if (!trimmed) {
+    // oltre ai gruppi del giorno, qualunque allungamento statico non ancora usato
+    const anyStat = DB.exercises.filter(e => e.type === 'stretch' && e.pattern === 'static' && e.setup.includes(S.setup))
+      .sort((a, b) => a.id.localeCompare(b.id));
+    for (let i = tmpl.count; i < tmpl.count + 6; i++) {
+      let cand = stat.filter(e => !used.has(e.id));
+      if (!cand.length) cand = anyStat.filter(e => !used.has(e.id));
+      if (!cand.length) break;
+      const ex = cand[(rot + i) % cand.length];
+      const it = { exId: ex.id, note: 'Se resta tempo', goalKey: 'stretch',
+                   alt: { patterns: ['static'], types: ['stretch'], groups: tmpl.staticGroups.slice() },
+                   ...dose('stretch', meta.profile, ex) };
+      if (estimateMinutes(items.concat([it])) > (budget || 35)) break;
+      used.add(ex.id); items.push(it);
+    }
+    // tenute più lunghe: 30-60 secondi è l'indicazione per gli adulti dopo i 50
+    items.forEach(it => {
+      if (it.goal !== 'stretch' || it.hold >= 45) return;
+      const h = it.hold; it.hold = 45;
+      if (estimateMinutes(items) > (budget || 35)) it.hold = h;
+    });
+    items.forEach(it => {
+      if (it.goal !== 'stretch' || it.sets >= 4) return;
+      it.sets += it.perSide ? 2 : 1;
+      if (estimateMinutes(items) > (budget || 35)) it.sets -= it.perSide ? 2 : 1;
+    });
+  }
+  return { label, type: 'stretch', items, trimmed };
 }
 
 function buildCore(meta) {
@@ -1125,34 +1298,316 @@ function buildCore(meta) {
   return { label: cfg.label, type: 'core', items };
 }
 
-function buildSession(idx, kind) {
+/* ---------------------------------------------------------------------------
+   DURATA DELLE SEDUTE
+   La stima conta il lavoro, i recuperi FRA le serie e, per ogni esercizio, il
+   tempo di cambio: spostarsi, regolare la macchina, preparare il carico. Prima
+   del 4.8 il cambio non c'era, e le sedute stimate in 35 minuti ne duravano
+   47-57. Il primo esercizio di forza include anche le serie di avvicinamento.
+   Il ritmo personale si impara dalle sedute reali, separatamente per forza e
+   mobilità (i due tipi di seduta hanno tempi morti molto diversi).
+--------------------------------------------------------------------------- */
+const DURATIONS = [35, 40, 45, 50];
+const CHANGE_SEC = { strength: 75, stretch: 15, finisher: 60, warmup: 30, cardio: 10, cooldown: 10 };
+const CARDIO_ROLES = ['warmup', 'cardio', 'cooldown'];
+const WARMUP_SEC = 150;          // serie di avvicinamento sul primo esercizio di forza
+
+const sessionKindOf = items => items.some(it => CARDIO_ROLES.includes(it.role)) ? 'cardio'
+  : items.every(it => { const e = exById(it.exId); return e && e.type === 'stretch'; }) ? 'stretch' : 'strength';
+
+function workSecOf(it) {
+  if (it.goal === 'stretch' || it.hold) return it.hold || 30;
+  const ex = exById(it.exId);
+  return (ex && ex.load === 'time') ? 20 + it.reps : it.reps * 3.5;
+}
+function rawSeconds(items) {
+  const kind = sessionKindOf(items);
+  let sec = kind === 'strength' ? 60 + WARMUP_SEC : 60;   // l'aerobico ha il suo riscaldamento
+  items.forEach(it => {
+    const ex = exById(it.exId);
+    const change = CHANGE_SEC[it.role] !== undefined && it.role !== 'strength' ? CHANGE_SEC[it.role]
+                 : (ex && ex.type === 'stretch') ? CHANGE_SEC.stretch : CHANGE_SEC.strength;
+    sec += it.sets * workSecOf(it) + Math.max(0, it.sets - 1) * it.rest + change;
+  });
+  return sec;
+}
+function paceOf(kind) {
+  const p = S && S.pace && isFinite(S.pace[kind]) && S.pace[kind] > 0 ? S.pace[kind] : 1;
+  return p;
+}
+function estimateMinutes(items) {
+  if (!items.length) return 0;
+  return Math.round(rawSeconds(items) * paceOf(sessionKindOf(items)) / 60);
+}
+
+/* A fine seduta confronta la durata reale con la stima grezza e aggiorna il
+   ritmo del tipo di seduta (media mobile: pesa per un terzo l'ultima seduta,
+   così due o tre sedute bastano ad allinearsi). Le sedute interrotte o con
+   pause lunghe (fuori dall'intervallo 0,6-2) non vengono considerate. */
+function calibratePace(sess, realMinutes) {
+  if (!sess || !realMinutes || realMinutes < 5 || realMinutes > 150) return;
+  if (sess.kind === 'core' || sess.kind === 'free') return;
+  const raw = rawSeconds(sess.items) / 60;
+  if (!raw) return;
+  const observed = realMinutes / raw;
+  if (observed < 0.6 || observed > 2) return;
+  const kind = sessionKindOf(sess.items);
+  S.pace = Object.assign({ strength: 1, stretch: 1, cardio: 1 }, S.pace || {});
+  S.pace[kind] = Math.max(0.75, Math.min(1.6, S.pace[kind] * (2 / 3) + observed / 3));
+  planCache = null;
+}
+
+/* Una volta sola (4.8): ricava il ritmo dalle sedute già registrate, così la
+   prima stima è già realistica senza aspettare nuove sedute. */
+function seedPaceFromHistory() {
+  if (S.paceSeeded) return;
+  S.paceSeeded = true;
+  const acc = { strength: [], stretch: [], cardio: [] };
+  S.sessionLog.slice(-12).forEach(x => {
+    if (x.kind === 'core' || x.kind === 'free' || !x.minutes) return;
+    const logs = x.sid ? S.logs.filter(l => l.sid === x.sid) : logsOfSession(x);
+    if (logs.length < 3) return;
+    const items = logs.map(l => {
+      const g = PROG.goals[l.goal] || PROG.goals.hypertrophy;
+      const ex = exById(l.exId);
+      const timed = l.goal === 'stretch' || (ex && ex.load === 'time');
+      return { exId: l.exId, sets: l.sets || 0, reps: l.repsDone || l.reps || g.repsLow,
+               rest: g.rest, hold: timed ? (g.hold || (ex && ex.load === 'time' ? 20 + (l.reps || 10) : 30)) : 0, goal: l.goal };
+    }).filter(it => it.sets > 0 && exById(it.exId));
+    if (!items.length) return;
+    const obs = x.minutes / (rawSeconds(items) / 60);
+    if (obs >= 0.6 && obs <= 2) acc[sessionKindOf(items)].push(obs);
+  });
+  S.pace = { strength: 1, stretch: 1, cardio: 1 };
+  Object.keys(acc).forEach(k => {
+    const v = acc[k];
+    if (v.length) S.pace[k] = Math.max(0.75, Math.min(1.6, v.reduce((a, b) => a + b, 0) / v.length));
+  });
+  save();
+}
+
+/* Riduce la seduta finché sta nel tempo scelto. Ordine dei tagli, dal meno
+   al più importante per i tuoi obiettivi:
+     1. la sospensione alla sbarra in chiusura;
+     2. una serie del lavoro per le trazioni (non sotto 3);
+     3. una serie agli esercizi complementari, dall'ultimo (non sotto 2);
+     4. il lavoro per le trazioni fino a 2 serie;
+     5. i due esercizi principali fino a 2 serie (mai meno: ACSM 2026 indica
+        2-3 serie per esercizio per la forza);
+     6. l'ultimo esercizio complementare, lasciandone almeno quattro. */
+function fitToTime(items, maxMin, tail) {
+  let trimmed = false, guard = 0;
+  const minus = it => { it.sets -= it.perSide ? 2 : 1; trimmed = true; };
+  const over = () => estimateMinutes(items) > maxMin;
+  if (tail && tail.length && over()) { tail.length = 0; trimmed = true; }
+  while (over() && guard++ < 60) {
+    const pull = items.find(it => it.role === 'pull' && it.sets > 3);
+    if (pull) { minus(pull); continue; }
+    const acc = items.slice().reverse().find(it => (it.role === 'main' || !it.role) && it.sets > 2);
+    if (acc) { minus(acc); continue; }
+    const pull2 = items.find(it => it.role === 'pull' && it.sets > 2);
+    if (pull2) { minus(pull2); continue; }
+    const key = items.slice().reverse().find(it => it.role === 'key' && it.sets > 2);
+    if (key) { minus(key); continue; }
+    const last = items.map((it, i) => [it, i]).reverse().find(([it]) => it.role === 'main' || !it.role);
+    if (last && items.length > 4) { items.splice(last[1], 1); trimmed = true; continue; }
+    break;
+  }
+  return trimmed;
+}
+
+/* Con tempo in più (40-50 minuti) la seduta si allunga nell'ordine:
+     1. esercizi supplementari per i gruppi che restano sotto le 10 serie
+        settimanali (polpacci, femorali, quadricipiti);
+     2. una serie in più agli esercizi di petto e gambe (fino a 4);
+     3. il finale metabolico per il grasso addominale;
+     4. per ultima, la sospensione alla sbarra. */
+function fillToTime(items, maxMin, opt) {
+  const reserve = opt.reserve || 0;
+  const fitsIn = (extra, lim) => estimateMinutes(items.concat(extra)) <= lim;
+  // 1. supplementari per i gruppi in ritardo
+  (opt.extras || []).forEach(x => { if (fitsIn([x], maxMin - reserve)) items.push(x); });
+  // 2. finale metabolico, adattato al tempo che resta (almeno 4 scatti o 6 minuti)
+  const f = opt.finisher;
+  if (f) {
+    const room = maxMin * 60 / paceOf('strength') - rawSeconds(items) - CHANGE_SEC.finisher;
+    if (f.sets > 1) {
+      const n = Math.min(f.sets, Math.floor((room + f.rest) / (f.hold + f.rest)));
+      if (n >= 4) { f.sets = n; items.push(f); }
+    } else if (room >= 360) {
+      f.hold = Math.min(f.hold, Math.floor(room / 60) * 60);
+      items.push(f);
+    }
+  }
+  // 3. la sospensione alla sbarra, in chiusura
+  (opt.tail || []).forEach(x => { if (fitsIn([x], maxMin)) items.push(x); });
+  // 4. una serie in più a petto e gambe (fino a 4), senza toccare il finale
+  const growable = items.filter(it => (it.role === 'key' || it.role === 'main' || it.role === 'extra') && it.goal !== 'core' && (() => {
+    const g = muscleGroup(((exById(it.exId) || {}).primary || [])[0] || '');
+    return g === 'Petto' || g === 'Polpacci' || g === 'Quadricipiti' || g === 'Glutei e femorali';
+  })());
+  let again = true, guard = 0;
+  while (again && guard++ < 20) {
+    again = false;
+    for (const it of growable) {
+      if (it.sets >= 4) continue;
+      it.sets += it.perSide ? 2 : 1;
+      if (estimateMinutes(items) <= maxMin) again = true;
+      else it.sets -= it.perSide ? 2 : 1;
+    }
+  }
+  // gli esercizi di coda restano in fondo: finale e poi sospensione
+  const tail = items.filter(it => it.role === 'finisher' || it.role === 'activation');
+  const rest = items.filter(it => it.role !== 'finisher' && it.role !== 'activation');
+  tail.sort((a, b) => (a.role === 'finisher' ? 0 : 1) - (b.role === 'finisher' ? 0 : 1));
+  items.length = 0; rest.concat(tail).forEach(it => items.push(it));
+}
+const FINISHER_RESERVE = 10;     // minuti riservati al finale con 50 minuti a disposizione
+
+/* ---------------------------------------------------------------------------
+   SEDUTE AEROBICHE (dalla 5.0)
+   Due a settimana, fra le sedute di forza:
+     · INTERVALLI: scatti brevi e recuperi attivi. È la modalità più efficace
+       sul grasso viscerale (Chang et al. 2026, 61 studi randomizzati), già da
+       circa 400 MET-min a settimana.
+     · RITMO COSTANTE: lavoro moderato continuo, "riesci a parlare a frasi
+       brevi". Accumula i minuti raccomandati dall'OMS (150-300 a settimana di
+       attività moderata, o metà se vigorosa) senza aggiungere fatica.
+   Struttura: riscaldamento 5 min → parte centrale (adattata al tempo scelto)
+   → defaticamento 3 min → due allungamenti per anche e polpacci.
+   Attrezzi della palestra: bici da spinning, cyclette orizzontale, sacco da
+   pugilato, vogatore, macchina a scalini. Con la priorità al ginocchio attiva
+   vogatore e scalini non vengono proposti in automatico (flessione profonda
+   sotto carico), ma restano selezionabili con «Cambia esercizio».
+--------------------------------------------------------------------------- */
+function cardioPool(mode) {
+  let pool = DB.exercises.filter(e => (e.pattern === 'cardio' || e.pattern === 'finisher') &&
+    e.setup.includes(S.setup) && (e.cardioModes || []).includes(mode));
+  return applyCare(pool).sort((a, b) => a.id.localeCompare(b.id));
+}
+
+/* Progressione degli intervalli con le settimane di allenamento: si parte con
+   recuperi lunghi e si accorciano, poi si allunga lo scatto. */
+function hiitScheme(meta) {
+  const tw = meta.trainingWeek;
+  if (tw <= 4) return { work: 30, rest: 90 };
+  if (tw <= 12) return { work: 30, rest: 60 };
+  if (tw <= 24) return { work: 45, rest: 60 };
+  return { work: 60, rest: 60 };
+}
+
+function buildCardio(meta, budget) {
+  const tmpl = (PROG.cardioDays || [])[meta.tmplIdx] || { label: 'Aerobico', mode: 'steady' };
+  const mode = tmpl.mode;
+  const used = new Set();
+  let pool = cardioPool(mode);
+  if (!pool.length) pool = cardioPool(mode === 'hiit' ? 'steady' : 'hiit');
+  const ex = pickFrom(pool, (meta.weekAbs - 1) + meta.tmplIdx, used);
+  const items = [];
+  if (!ex) return { label: tmpl.label, type: 'cardio', items, mode };
+  const deload = meta.profile.label === 'Scarico';
+  const alt = { patterns: ['cardio', 'finisher'], types: ['strength'], modes: [mode] };
+  const timed = (role, goalKey, label, sets, hold, rest, note, extra) => Object.assign({
+    exId: ex.id, role, goal: goalKey, goalKey, goalLabel: label, sets, reps: 1, perSide: false,
+    hold, rest, rpe: '', source: ex.source, note, workLabel: label, restLabel: 'Ritmo tranquillo', alt
+  }, extra || {});
+
+  items.push(timed('warmup', 'cardioWarm', 'Riscaldamento', 1, 300, 0, 'Ritmo facile, 3-4 su 10'));
+  const cool = timed('cooldown', 'cardioCool', 'Defaticamento', 1, 180, 0, 'Ritmo facile, respiro che rallenta');
+  // due allungamenti per anche e polpacci: i distretti più sollecitati
+  const stretchPool = DB.exercises.filter(e => e.type === 'stretch' && e.pattern === 'static' &&
+    e.setup.includes(S.setup) && ['Anca', 'Polpacci', 'Catena posteriore', 'Quadricipiti'].includes(e.group))
+    .sort((a, b) => a.id.localeCompare(b.id));
+  const stretches = [];
+  for (let i = 0; i < 2; i++) {
+    const se = pickFrom(stretchPool, meta.weekAbs + i * 3, used);
+    if (!se) continue;
+    const d = dose('stretch', meta.profile, se);
+    d.sets = se.perSide ? 2 : 2;
+    stretches.push({ exId: se.id, note: 'Dopo l\'aerobico', goalKey: 'stretch',
+                     alt: { patterns: ['static'], types: ['stretch'] }, ...d });
+  }
+
+  // parte centrale: tutto il tempo che resta
+  const others = items.concat([cool], stretches);
+  const main = mode === 'hiit'
+    ? (() => {
+        const sch = hiitScheme(meta);
+        const g = PROG.goals.cardioHiit;
+        return timed('cardio', 'cardioHiit', 'Scatto', 4, sch.work, sch.rest,
+          tmpl.note || '', { rpe: g.rpe, source: g.source, goalLabel: g.label });
+      })()
+    : (() => {
+        const g = PROG.goals.cardioSteady;
+        return timed('cardio', 'cardioSteady', 'Ritmo costante', 1, 900, 0,
+          tmpl.note || '', { rpe: g.rpe, source: g.source, goalLabel: g.label });
+      })();
+  let tail = null;
+  const roomSec = budget * 60 / paceOf('cardio') - rawSeconds(others.concat([Object.assign({}, main, { sets: 0 })]));
+  if (mode === 'hiit' && (ex.interval || {}).sets !== 1) {
+    let n = Math.floor((roomSec + main.rest) / (main.hold + main.rest));
+    n = Math.max(4, Math.min(12, n));
+    if (deload) n = Math.max(4, Math.round(n * 0.6));
+    main.sets = n;
+    // il tetto di 12 scatti protegge articolazioni e recupero: il tempo che
+    // avanza diventa ritmo costante, che aggiunge minuti senza aggiungere fatica
+    const left = roomSec - (n * main.hold + (n - 1) * main.rest) - CHANGE_SEC.cardio;
+    if (left >= 300) {
+      const g = PROG.goals.cardioSteady;
+      tail = timed('cardio', 'cardioSteady', 'Ritmo costante', 1, Math.min(1200, Math.floor(left / 60) * 60), 0,
+        'Dopo gli scatti, ritmo moderato', { rpe: g.rpe, source: g.source, goalLabel: g.label });
+    }
+  } else {
+    // attrezzo senza intervalli (camminata, scalini) o giorno a ritmo costante
+    let sec = Math.floor(Math.max(600, roomSec) / 60) * 60;
+    sec = Math.min(2700, sec);
+    if (deload) sec = Math.max(600, Math.round(sec * 0.8 / 60) * 60);
+    main.goal = main.goalKey = 'cardioSteady'; main.workLabel = 'Ritmo costante';
+    main.goalLabel = PROG.goals.cardioSteady.label; main.rpe = PROG.goals.cardioSteady.rpe;
+    main.sets = 1; main.hold = sec; main.rest = 0;
+  }
+  items.push(main);
+  if (tail) items.push(tail);
+  items.push(cool);
+  stretches.forEach(it => items.push(it));
+  return { label: `${tmpl.label} · ${ex.name}`, type: 'cardio', items, mode };
+}
+
+/* Minuti aerobici della settimana, nel conto dell'OMS: un minuto vigoroso
+   (scatti, finale metabolico) vale due minuti moderati. Riscaldamento e
+   defaticamento non contano. */
+function aerobicMinutes(weekAbs) {
+  let mod = 0, vig = 0;
+  weekLogs(weekAbs).forEach(l => {
+    const ex = exById(l.exId);
+    if (!ex || (ex.pattern !== 'cardio' && ex.pattern !== 'finisher')) return;
+    if (l.goal === 'cardioWarm' || l.goal === 'cardioCool') return;
+    const sets = l.sets || 0, hold = l.hold || 0, rest = l.rest || 0;
+    if (!sets || !hold) return;
+    if (l.goal === 'cardioSteady' || sets === 1) mod += sets * hold / 60;
+    else { vig += sets * hold / 60; mod += Math.max(0, sets - 1) * rest / 60; }
+  });
+  return { mod: Math.round(mod), vig: Math.round(vig), eq: Math.round(mod + 2 * vig) };
+}
+
+/* Seduta completa per la posizione idx del programma. minutes = durata scelta
+   in Home (35, 40, 45 o 50); il blocco core facoltativo resta sui 14 minuti. */
+function buildSession(idx, kind, minutes) {
   const meta = sessionMeta(idx);
-  const body = kind === 'core' ? buildCore(meta) : (meta.isStrength ? buildStrength(meta) : buildStretch(meta));
-  // budget tempo: 35 minuti per le sedute complete (tetto operativo 38), 14 per il core
-  const pullCount = body.items.filter(it => it.block === 'pullup').length;
-  const trimmed = fitToTime(body.items, kind === 'core' ? 14 : 35, Math.max(1, pullCount));
-  const minutes = estimateMinutes(body.items);
-  return Object.assign({}, meta, body, { minutes, trimmed, kind: kind || (meta.isStrength ? 'strength' : 'stretch') });
+  const budget = kind === 'core' ? 14 : (minutes || S.durPref || 35);
+  let body;
+  if (kind === 'core') {
+    body = buildCore(meta);
+    body.trimmed = fitToTime(body.items, budget, []);
+  } else if (meta.isStrength) body = buildStrength(meta, budget);
+  else if (meta.isCardio) body = buildCardio(meta, budget);
+  else body = buildStretch(meta, budget);
+  const minutesEst = estimateMinutes(body.items);
+  return Object.assign({}, meta, body, { minutes: minutesEst, budget, kind: kind || meta.dayType });
 }
 
 /* Stima del tempo: lavoro + recuperi. Gli allungamenti statici si contano su
    entrambi i lati, gli esercizi a tempo usano la durata della tenuta. */
-function estimateMinutes(items) {
-  let sec = 120; // preparazione e transizioni iniziali
-  items.forEach(it => {
-    let work;
-    if (it.goal === 'stretch') work = it.hold;
-    else if (it.hold) work = it.hold;
-    else {
-      const ex = exById(it.exId);
-      work = (ex && ex.load === 'time') ? 20 + it.reps : it.reps * 3.5;
-    }
-    sec += it.sets * (work + it.rest);
-  });
-  // fattore di calibrazione appreso dalle sedute reali (vedi calibratePace)
-  const f = (S && isFinite(S.paceFactor) && S.paceFactor > 0) ? S.paceFactor : 1;
-  return Math.round(sec * f / 60);
-}
 
 /* ---------------------------------------------------------------------------
    CALIBRAZIONE DELLA DURATA
@@ -1162,33 +1617,7 @@ function estimateMinutes(items) {
    lenta, così il vincolo dei 35 minuti lavora su un numero vero.
    Le sedute interrotte a metà e i valori anomali non entrano nella media.
 --------------------------------------------------------------------------- */
-function calibratePace(sess, realMinutes) {
-  if (!sess || !realMinutes || realMinutes < 5 || realMinutes > 120) return;
-  if (sess.kind === 'core') return;
-  const base = estimateMinutes(sess.items) / (S.paceFactor || 1);   // stima grezza
-  if (!base) return;
-  const observed = realMinutes / base;
-  if (observed < 0.5 || observed > 2.5) return;                     // valore anomalo
-  const prev = isFinite(S.paceFactor) && S.paceFactor > 0 ? S.paceFactor : 1;
-  S.paceFactor = Math.max(0.7, Math.min(1.8, prev * 0.8 + observed * 0.2));
-  planCache = null;
-}
 
-/* Vincolo dei 30 minuti: se la seduta è troppo lunga si riduce prima il volume
-   degli esercizi accessori (mai il primo, che è il movimento principale) e solo
-   in ultima istanza si toglie l'ultimo esercizio. */
-function fitToTime(items, maxMin, protect) {
-  const keep = Math.max(1, protect || 1);       // esercizi intoccabili in apertura
-  let trimmed = false, guard = 0;
-  while (estimateMinutes(items) > maxMin && guard++ < 40) {
-    let i = -1;
-    for (let k = items.length - 1; k >= keep; k--) if (items[k].sets > 2) { i = k; break; }
-    if (i >= 0) { items[i].sets -= items[i].perSide ? 2 : 1; trimmed = true; continue; }
-    if (items.length > keep + 3) { items.pop(); trimmed = true; continue; }
-    break;
-  }
-  return trimmed;
-}
 
 /* ---------------------------------------------------------------------------
    6. VISTE
@@ -1214,6 +1643,7 @@ function go(view) {
 }
 
 function doseText(it) {
+  if (it.role === 'finisher' || CARDIO_ROLES.includes(it.role)) return it.sets > 1 ? `${it.sets}× ${it.hold}s / ${it.rest}s` : `${Math.round(it.hold / 60)} min`;
   const side = it.perSide ? ` (${it.sets / 2} per lato)` : '';
   if (it.goal === 'stretch') return `${it.sets}× ${it.hold}s${side}`;
   if (it.goal === 'mobility') return `${it.sets}× ${it.reps}${side}`;
@@ -1351,26 +1781,30 @@ function weeksLeftText(p, weekAbs) {
 }
 
 function todaySession(kind) {
-  const key = `${S.programId}|${S.setup}|${S.sessionIndex}|${kind || ''}`;
+  const key = `${S.programId}|${S.setup}|${S.sessionIndex}|${kind || ''}|${S.durPref || 35}|${S.finisher || ''}`;
   if (!planCache || planCache.key !== key) planCache = { key, sess: buildSession(S.sessionIndex, kind) };
   return planCache.sess;
 }
 
+const typeWord = x => x.dayType === 'strength' || (x.isStrength && !x.dayType) ? 'potenziamento' : x.dayType === 'cardio' ? 'aerobica' : 'mobilità';
+const typeClass = x => x.dayType === 'strength' || (x.isStrength && !x.dayType) ? 'strength' : x.dayType === 'cardio' ? 'cardio' : 'mobility';
+
 function renderHome() {
   const p = program();
-  const here = S.sessionIndex % 5;                 // posizione prevista dal programma
-  const weekStart = S.sessionIndex - here;
+  const here = posOfIdx(S.sessionIndex);          // posizione prevista dal programma
+  const wStart = S.sessionIndex - here;
+  const nDays = weekLen(weekOfIdx(S.sessionIndex));
   const core = homeSel === 'core';
   const s = todaySession(core ? 'core' : null);
 
   $('#topTitle').textContent = 'Oggi';
   $('#topChip').textContent = `Sett. ${s.weekInCycle}/${p.cycleWeeks} · ciclo ${s.mesocycle}`;
-  $('#topChip').className = 'chip ' + (s.isStrength && !core ? 'strength' : 'mobility');
+  $('#topChip').className = 'chip ' + (core ? 'mobility' : (s.dayType || 'mobility').replace('stretch', 'mobility'));
 
-  // --- calendario della settimana: le 5 sedute previste, più il blocco core ---
+  // --- calendario della settimana: le sedute previste, più il blocco core ---
   let week = '';
-  for (let q = 0; q < 5; q++) {
-    const alt = buildSession(weekStart + q);
+  for (let q = 0; q < nDays; q++) {
+    const alt = buildSession(wStart + q);
     // "da programma" resta attaccata alla seduta che il programma prevede come
     // prossima (il suo giorno di calendario), anche dopo uno scambio di ordine;
     // la posizione scelta per oggi è marcata a parte come "scelta per oggi".
@@ -1381,9 +1815,9 @@ function renderHome() {
                 : q === here ? '<span class="wkbadge alt">scelta per oggi</span>'
                 : '<span class="chev">›</span>';
     week += `<li class="wk ${state}${(!core && q === here) ? ' sel' : ''}" data-day="${q}">
-      <span class="wknum ${alt.isStrength ? 'strength' : 'mobility'}">${q + 1}</span>
+      <span class="wknum ${typeClass(alt)}">${q + 1}</span>
       <div class="nm"><b>${esc(alt.label)}</b>
-        <div class="small muted">${alt.isStrength ? 'potenziamento' : 'mobilità'} · ${alt.minutes} min${alt.items.some(i => i.block === 'pullup') ? ' · trazioni' : ''}</div></div>
+        <div class="small muted">${typeWord(alt)} · ${alt.minutes} min${alt.items.some(i => i.block === 'pullup') ? ' · trazioni' : ''}${(nDays === 6 && q === nDays - 1) ? ' · sempre l\'ultima' : ''}</div></div>
       ${badge}</li>`;
   }
   const coreS = buildSession(S.sessionIndex, 'core');
@@ -1441,21 +1875,30 @@ function renderHome() {
                     : `Settimana ${s.weekInCycle} di ${p.cycleWeeks} · ${esc(p.name)}`}</div>
       <h2 style="margin-top:2px">La tua settimana</h2>
       ${s.mobilityWeek
-        ? `<p class="small muted" style="margin:6px 0 0">Tutte e cinque le sedute sono di mobilità e stretching. Il programma di forza riprende la settimana ${s.weekAbs + 1} da dove era rimasto: nessuna settimana di lavoro va persa.</p>`
+        ? `<p class="small muted" style="margin:6px 0 0">Tutte le sedute sono di mobilità e stretching. Il programma di forza riprende la settimana ${s.weekAbs + 1} da dove era rimasto: nessuna settimana di lavoro va persa.</p>`
         : s.phase ? `<p class="small muted" style="margin:6px 0 0">Settimana ${s.phase.weekInPhase} di ${s.phase.ph.weeks} della fase, ${s.trainingWeek} di ${totalWeeks(p)} del programma${weeksLeftText(p, s.trainingWeek)}. ${esc(s.phase.ph.aim)}</p>` : ''}
       <ul class="week">${week}</ul>
       <p class="small muted" style="margin-top:10px">Tocca la seduta che vuoi fare adesso: quella prevista oggi prenderà il suo posto più avanti nella settimana.</p>
     </div>
 
     <div class="card">
-      <div class="session-head ${(s.isStrength && !core) ? '' : 'mobility'}">
+      <div class="session-head ${core ? 'mobility' : ({ strength: '', cardio: 'cardio' }[s.dayType] ?? 'mobility')}">
         <div>
-          <div class="kicker">${core ? 'Blocco core facoltativo' : `Sessione ${s.pos} di 5 · ${s.isStrength ? 'potenziamento' : 'mobilità'}`}</div>
+          <div class="kicker">${core ? 'Blocco core facoltativo' : `Sessione ${s.pos} di ${s.days} · ${typeWord(s)}`}</div>
           <h2>${esc(s.label)}</h2>
           <p class="small muted" style="margin:6px 0 0">${core ? 'Blocco breve da aggiungere quando hai tempo: non avanza la settimana del programma.'
-                 : esc(s.isStrength ? s.profile.note : mobilityNote(s.profile, s.mobilityWeek))} Durata stimata ${s.minutes} minuti.${s.trimmed ? ' Volume adattato per restare nei 30 minuti.' : ''}</p>
+                 : esc(s.isStrength ? s.profile.note : mobilityNote(s.profile, s.mobilityWeek))}</p>
         </div>
       </div>
+      ${core ? '' : `<div class="durrow">
+        <span class="lab">Tempo a disposizione oggi</span>
+        <div class="seg dur" role="group" aria-label="Durata della seduta">
+          ${DURATIONS.map(m => `<button data-dur="${m}" aria-pressed="${(S.durPref || 35) === m}">${m}′</button>`).join('')}
+        </div>
+        <p class="small muted" style="margin:6px 0 0">Durata stimata ${s.minutes} minuti, cambi fra gli esercizi compresi.${
+          s.trimmed ? ' Seduta ridotta per stare nel tempo scelto: con più minuti tornano serie ed esercizi.'
+          : (s.isStrength ? ' Con più minuti si aggiungono supplementari, finale metabolico e sospensione alla sbarra.' : ' Con più minuti si aggiungono allungamenti e tenute.')}</p>
+      </div>`}
       <ul class="plan">${rows}</ul>
       <p class="small muted" style="margin-top:10px">Tocca un esercizio per aprire la scheda con esecuzione, muscoli coinvolti ed errori da evitare.</p>
     </div>
@@ -1477,10 +1920,21 @@ function renderHome() {
   document.querySelectorAll('[data-day]').forEach(li => li.onclick = () => {
     const q = +li.dataset.day;
     if (q < here) return;                       // le sedute già svolte non si riaprono
+    // nella settimana da 6 la mobilità chiude sempre la settimana: non si anticipa
+    if (nDays === 6 && q === nDays - 1 && here !== q) {
+      openModal(`<h2>La mobilità chiude la settimana</h2>
+        <p class="small muted">Nel programma da sei sedute l'ultima è sempre di mobilità: arriva dopo le altre cinque, per recuperare prima della settimana successiva. Scegli fra le sedute ancora da fare.</p>
+        <button class="btn secondary" id="mobLastOk" style="margin-top:14px">Ho capito</button>`);
+      $('#mobLastOk').onclick = closeModal;
+      return;
+    }
     homeSel = 'session';
     if (q > here) swapDay(here, q);             // la scelta diventa la seduta di oggi
     planCache = null;
     renderHome();
+  });
+  document.querySelectorAll('[data-dur]').forEach(b => b.onclick = () => {
+    S.durPref = +b.dataset.dur; planCache = null; save(); renderHome();
   });
   const coreLi = document.querySelector('[data-core]');
   if (coreLi) coreLi.onclick = () => { homeSel = 'core'; planCache = null; renderHome(); };
@@ -1541,9 +1995,9 @@ function startSession(sess) {
 function renderSession() {
   const c = current, s = c.sess, it = s.items[c.pos], ex = exById(it.exId);
   const sug = suggestLoad(ex);
-  $('#topTitle').textContent = s.type === 'stretch' ? 'Mobilità' : 'Sessione';
+  $('#topTitle').textContent = s.type === 'stretch' ? 'Mobilità' : s.type === 'cardio' ? 'Aerobico' : 'Sessione';
   $('#topChip').textContent = `${c.pos + 1}/${s.items.length}`;
-  $('#topChip').className = 'chip ' + (s.type === 'stretch' ? 'mobility' : 'strength');
+  $('#topChip').className = 'chip ' + (s.type === 'stretch' ? 'mobility' : s.type === 'cardio' ? 'cardio' : 'strength');
 
   const bars = s.items.map((_, i) =>
     `<span class="${i < c.pos ? 'done' : (i === c.pos ? 'now' : '')}"></span>`).join('');
@@ -1577,7 +2031,7 @@ function renderSession() {
 
   const nAlt = alternativesFor(it, s).length;
   // mobilità e allungamenti: nessun carico da annotare, niente frecce né RIR
-  const noLoad = ex.type === 'stretch';
+  const noLoad = ex.type === 'stretch' || ex.pattern === 'finisher' || ex.pattern === 'cardio';
 
   // esercizi a tempo: stretching statico, plank, wall sit, tenute isometriche
   const timed = isTimedItem(it, ex);
@@ -1676,8 +2130,12 @@ function renderSession() {
       ${chainHasWork() ? `<p class="small muted" style="margin-top:14px">Sequenza in corso: il timer avanza da solo fra tenute e pause e conta le serie.</p>` : ''}
       ${timed && !chainHasWork() && c.setsDone[c.pos] < it.sets ? `<p class="small muted" style="margin-top:14px">${
         it.sets - c.setsDone[c.pos] > 1
-          ? `Un solo tocco avvia tutta la sequenza: 3 secondi di preparazione, poi ${it.sets - c.setsDone[c.pos]} tenute da ${hold} secondi con ${it.rest} secondi di pausa fra una e l'altra${c.pos < s.items.length - 1 ? ', infine il recupero prima dell\'esercizio successivo' : ''}. Il timer avanza da solo: rintocchi nei 3 secondi prima di ogni tenuta, un colpo acuto quando la tenuta finisce.`
-          : `3 secondi di preparazione, poi una tenuta da ${hold} secondi. Rintocchi nei 3 secondi prima dell'inizio, un colpo acuto alla fine.`
+          ? (it.role === 'finisher' || it.role === 'cardio')
+            ? `Un solo tocco avvia tutti gli intervalli: 3 secondi di preparazione, poi ${it.sets - c.setsDone[c.pos]} scatti da ${hold} secondi alternati a ${it.rest} secondi a ritmo tranquillo, senza fermarti. Rintocchi prima di ogni scatto, colpo acuto quando finisce.`
+            : `Un solo tocco avvia tutta la sequenza: 3 secondi di preparazione, poi ${it.sets - c.setsDone[c.pos]} tenute da ${hold} secondi con ${it.rest} secondi di pausa fra una e l'altra${c.pos < s.items.length - 1 ? ', infine il recupero prima dell\'esercizio successivo' : ''}. Il timer avanza da solo: rintocchi nei 3 secondi prima di ogni tenuta, un colpo acuto quando la tenuta finisce.`
+          : ['finisher', 'cardio', 'warmup', 'cooldown'].includes(it.role)
+            ? `3 secondi di preparazione, poi ${Math.round(hold / 60)} minuti continui. Rintocchi prima dell'inizio, un colpo acuto alla fine.${CARDIO_ROLES.includes(it.role) && c.pos < s.items.length - 1 && CARDIO_ROLES.includes(s.items[c.pos + 1].role) ? ' La parte successiva parte da sola.' : ''}`
+            : `3 secondi di preparazione, poi una tenuta da ${hold} secondi. Rintocchi nei 3 secondi prima dell'inizio, un colpo acuto alla fine.`
         }${it.perSide ? ' Le tenute alternano sinistra e destra.' : ''}</p>` : ''}
 
       <div class="btn-row" style="margin-top:14px">
@@ -1779,7 +2237,8 @@ function renderSession() {
     const defs = holdChainDefs(it, ex, c.setsDone[c.pos], last);
     defs.forEach((d, i) => {
       if (d.kind === 'work') {
-        d.what = `Tenuta ${d.set + 1} di ${it.sets}${side(d.set)} · ${ex.name}`;
+        d.what = it.sets === 1 ? `${it.workLabel || 'Tenuta'} · ${ex.name}`
+          : `${it.workLabel || 'Tenuta'} ${d.set + 1} di ${it.sets}${side(d.set)} · ${ex.name}`;
         d.onEnd = () => {
           if (!valid()) return false;
           c.setsDone[c.pos] = Math.min(it.sets, c.setsDone[c.pos] + 1);
@@ -1789,11 +2248,22 @@ function renderSession() {
           return true;
         };
       } else if (d.kind === 'rest' && d.final) {
-        d.what = `Recupero · poi ${nextName}`;
+        const nextIt = last ? null : s.items[c.pos + 1];
+        const flow = CARDIO_ROLES.includes(it.role) && nextIt && CARDIO_ROLES.includes(nextIt.role);
+        d.what = flow ? `Poi: ${(nextIt.workLabel || nextName)}` : `Recupero · poi ${nextName}`;
         d.onStart = () => minimizeTimer();       // lascia vedere il prossimo esercizio
+        // nell'aerobico riscaldamento, parte centrale e defaticamento si
+        // susseguono da soli: non serve toccare il telefono sulla macchina
+        if (flow) d.onEnd = () => {
+          setTimeout(() => {
+            if (!timerRunning() && current && !current.finished && current.started === atSid &&
+                current.pos === atPos + 1 && $('#doneSet')) $('#doneSet').onclick();
+          }, 50);
+          return false;
+        };
       } else if (d.kind === 'rest') {
         const nx = defs[i + 1];
-        d.what = `Pausa · poi tenuta ${nx.set + 1} di ${it.sets}${side(nx.set)}`;
+        d.what = `${it.restLabel || 'Pausa'} · poi ${(it.workLabel || 'tenuta').toLowerCase()} ${nx.set + 1} di ${it.sets}${side(nx.set)}`;
       }
     });
     defs[0].what = defs[1].what;                 // la preparazione annuncia la prima tenuta
@@ -2000,7 +2470,8 @@ function nextExercise() {
                   repsDone: (rd === null || rd === undefined) ? it.reps : rd,  // eseguite davvero
                   rir: (c.rir[c.pos] === null || c.rir[c.pos] === undefined) ? null : c.rir[c.pos],
                   reps: it.reps,                                         // compatibilità storico
-                  goal: it.goal, week: s.weekInCycle };
+                  goal: it.goal, week: s.weekInCycle,
+                  hold: it.hold || 0, rest: it.rest || 0 };           // per i minuti aerobici
   // valutazione automatica rispetto alla registrazione precedente dello stesso esercizio
   const ref0 = c.logRef[c.pos];
   const prev = S.logs.filter((g, gi) => g.exId === it.exId && gi !== ref0).pop() || null;
@@ -2032,7 +2503,7 @@ function endSession() {
       note: withNote ? ($('#sNote').value || '') : '' });
     if (s.kind !== 'core' && s.kind !== 'free') S.sessionIndex++;
     planCache = null; homeSel = 'session';
-    const weekDone = (s.kind !== 'core' && s.kind !== 'free' && S.sessionIndex % 5 === 0) ? S.sessionIndex / 5 : 0;
+    const weekDone = (s.kind !== 'core' && s.kind !== 'free' && posOfIdx(S.sessionIndex) === 0) ? weekOfIdx(S.sessionIndex) - 1 : 0;
     if (weekDone) S.lastRecap = weekDone;
     calibratePace(s, mins);            // la stima dei tempi impara dalla realtà
     clearResume();                     // la seduta è chiusa: niente da riprendere
@@ -2186,11 +2657,14 @@ function renderHistory() {
   const wks = weeksWithData().slice(0, 4).map(w =>
     `<button class="btn ghost" data-week="${w}" style="margin-top:8px">Settimana ${w} · ${weekReport(w).sessions} sedute</button>`).join('');
 
-  const curWeek = Math.floor(S.sessionIndex / 5) + 1;
+  const curWeek = weekOfIdx(S.sessionIndex);
   const volAna = volumeAnalysis(curWeek);
   const vol = volumeHtml(curWeek, volAna);
 
+  const aero = aerobicMinutes(curWeek);
   $('#view-history').innerHTML = `
+    ${measuresHtml()}
+    ${aerobicHtml(curWeek, aero)}
     ${vol ? `<div class="card"><h2>Volume della settimana ${curWeek}</h2>
       <p class="small muted">Serie fatte / previste dal programma, per gruppo muscolare. Una serie conta 1 per i muscoli
       che la eseguono e ½ per quelli che collaborano (i tricipiti nella panca, i bicipiti nelle trazioni).
@@ -2205,6 +2679,7 @@ function renderHistory() {
       <ul class="hist">${rows}</ul></div>
     ${sess ? `<div class="card"><h2>Ultime sedute</h2><ul class="hist">${sess}</ul></div>` : ''}`;
 
+  bindMeasures();
   document.querySelectorAll('[data-ex]').forEach(li => li.onclick = () => detailFor(li.dataset.ex, byEx[li.dataset.ex]));
   document.querySelectorAll('[data-sess]').forEach(li => li.onclick = () => openSessionDetail(+li.dataset.sess));
   document.querySelectorAll('[data-week]').forEach(b => b.onclick = () => openWeekReport(+b.dataset.week));
@@ -2223,19 +2698,146 @@ function logsOfSession(x) {
 }
 
 /* Riepilogo completo di una seduta già chiusa. */
+/* ---------------------------------------------------------------------------
+   GIROVITA E PESO
+   Il girovita è l'indicatore pratico del grasso addominale: misurato ogni 2-4
+   settimane, alla stessa ora, a livello dell'ombelico e a fine espirazione.
+   Il peso da solo inganna: con i pesi il muscolo cresce mentre il grasso cala.
+--------------------------------------------------------------------------- */
+/* Minuti aerobici della settimana contro il riferimento OMS (150 minuti
+   moderati, un minuto vigoroso ne vale due). */
+function aerobicHtml(weekAbs, a) {
+  a = a || aerobicMinutes(weekAbs);
+  const pct = Math.min(100, a.eq / 150 * 100);
+  return `<div class="card"><h2>Attività aerobica · settimana ${weekAbs}</h2>
+    <p class="small muted">Minuti equivalenti moderati: un minuto di scatto vale due minuti a ritmo costante (OMS 2020). Riferimento: almeno 150 a settimana; 300 danno benefici ulteriori, anche sul grasso addominale.</p>
+    <div class="volrow" style="margin-top:8px"><span class="nm">Settimana</span>
+      <span class="volbar"><i class="${a.eq >= 150 ? 'good' : (a.eq < 75 ? 'low' : '')}" style="width:${pct}%"></i></span>
+      <span class="val">${a.eq}<small class="muted"> / 150</small></span></div>
+    <p class="small muted" style="margin-top:6px">${a.vig} min di scatti · ${a.mod} min a ritmo moderato. Contano le sedute aerobiche e il finale metabolico; riscaldamento e defaticamento no.</p>
+  </div>`;
+}
+
+function measuresHtml() {
+  const m = (S.measures || []).slice().sort((a, b) => a.ts - b.ts);
+  const first = m[0], last = m[m.length - 1];
+  const fmt = v => (v === null || v === undefined || !isFinite(v)) ? '—' : String(Math.round(v * 10) / 10).replace('.', ',');
+  const delta = (k, unit) => {
+    const a = m.find(x => isFinite(x[k])), b = m.slice().reverse().find(x => isFinite(x[k]));
+    if (!a || !b || a === b) return '';
+    const d = b[k] - a[k];
+    return `<span class="${d < 0 ? 'trend-up' : d > 0 ? 'trend-down' : ''}">${d > 0 ? '+' : ''}${fmt(d)} ${unit}</span> dal ${new Date(a.ts).toLocaleDateString('it-IT')}`;
+  };
+  const rows = m.slice(-6).reverse().map(x => `<li><div class="nm" style="flex:1">${new Date(x.ts).toLocaleDateString('it-IT')}</div>
+      <div class="val">${fmt(x.waist)} cm · ${fmt(x.weight)} kg</div></li>`).join('');
+  const due = !last || (Date.now() - last.ts) > 14 * 86400000;
+  return `<div class="card"><h2>Girovita e peso</h2>
+    <p class="small muted">Misura il girovita all'altezza dell'ombelico, a fine espirazione, al mattino, ogni 2-4 settimane: è l'indicatore più diretto del grasso addominale. Il peso da solo inganna, perché il muscolo che costruisci pesa.</p>
+    ${m.length > 1 ? `<p class="small" style="margin-top:8px">Girovita: ${delta('waist', 'cm') || '—'}<br>Peso: ${delta('weight', 'kg') || '—'}</p>` : ''}
+    ${due ? `<div class="btn-row" style="margin-top:10px;align-items:center">
+      <input id="msWaist" type="number" inputmode="decimal" step="0.5" placeholder="girovita cm" aria-label="Girovita in centimetri">
+      <input id="msWeight" type="number" inputmode="decimal" step="0.1" placeholder="peso kg" aria-label="Peso in chilogrammi">
+    </div>
+    <button class="btn secondary" id="msSave" style="margin-top:10px">Registra la misura di oggi</button>`
+    : `<p class="small muted" style="margin-top:8px">Prossima misura consigliata dal ${new Date(last.ts + 14 * 86400000).toLocaleDateString('it-IT')}.</p>`}
+    ${rows ? `<ul class="hist" style="margin-top:10px">${rows}</ul>` : ''}
+    ${!due ? `<button class="btn ghost" id="msEarly" style="margin-top:8px">Registra comunque una misura</button>` : ''}
+  </div>`;
+}
+function bindMeasures() {
+  if ($('#msSave')) $('#msSave').onclick = () => {
+    const w = parseFloat(String($('#msWaist').value).replace(',', '.'));
+    const k = parseFloat(String($('#msWeight').value).replace(',', '.'));
+    if (!(w > 40 && w < 200) && !(k > 30 && k < 250)) return;
+    S.measures = (S.measures || []).concat([{ ts: Date.now(), waist: (w > 40 && w < 200) ? w : null, weight: (k > 30 && k < 250) ? k : null }]);
+    save(); renderHistory();
+  };
+  if ($('#msEarly')) $('#msEarly').onclick = () => {
+    const last = (S.measures || []).slice().sort((a, b) => a.ts - b.ts).pop();
+    if (last) last.ts -= 15 * 86400000;           // riapre il modulo senza toccare i valori
+    renderHistory();
+    if (last) last.ts += 15 * 86400000;
+  };
+}
+
 function openSessionDetail(i) {
   const x = S.sessionLog[i], logs = logsOfSession(x);
   const d = new Date(x.ts);
   const rows = logs.map(l => `<li>
       <div class="nm" style="flex:1"><b>${esc(l.name)}</b>
         <div class="small muted">${l.sets}×${l.reps} · ${l.goal === 'stretch' ? 'allungamento' : esc(l.goal)}</div></div>
-      <div class="val">${esc(l.load || '—')} ${arrow(l.feedback)}</div></li>`).join('');
+      <div class="val">${esc(l.load || '—')} ${arrow(l.feedback)}</div>
+      ${l.manual ? `<button class="mini-skip" data-dellog="${S.logs.indexOf(l)}" aria-label="Elimina la registrazione aggiunta a mano">✕</button>` : ''}</li>`).join('');
   openModal(`<h2>${esc(x.label)}</h2>
     <p class="small muted">${d.toLocaleDateString('it-IT')} alle ${d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })} · ${x.minutes} minuti · ${logs.length} esercizi${x.kind === 'core' ? ' · blocco core' : ''}</p>
     ${x.note ? `<div class="notice" style="margin-bottom:10px">${esc(x.note)}</div>` : ''}
     <ul class="hist">${rows || '<li><span class="small muted">Nessun esercizio registrato per questa seduta.</span></li>'}</ul>
-    <button class="btn secondary" id="closeModal2" style="margin-top:16px">Chiudi</button>`);
+    <button class="btn ghost" id="addMissing" style="margin-top:16px">Aggiungi un esercizio non registrato</button>
+    <button class="btn secondary" id="closeModal2" style="margin-top:10px">Chiudi</button>`);
   $('#closeModal2').onclick = closeModal;
+  $('#addMissing').onclick = () => closeModal(() => addMissingLog(i));
+  document.querySelectorAll('[data-dellog]').forEach(b => b.onclick = () => {
+    const l = S.logs[+b.dataset.dellog];
+    if (current && !current.finished) return;   // durante una seduta gli indici devono restare fermi
+    confirmAction('Eliminare questa registrazione?', `${l.name} · ${l.sets}×${l.reps} · ${l.load || '—'}. Era stata aggiunta a mano.`,
+      'Elimina', () => { S.logs.splice(+b.dataset.dellog, 1); planCache = null; save(); openSessionDetail(i); });
+  });
+}
+
+/* ---------------------------------------------------------------------------
+   ESERCIZIO NON REGISTRATO
+   Per rimettere nello storico un esercizio svolto ma non salvato (o andato
+   perso): viene agganciato alla seduta scelta, quindi conta nella settimana
+   giusta, nel volume e nei suggerimenti di carico della volta successiva.
+--------------------------------------------------------------------------- */
+function addMissingLog(i) {
+  const x = S.sessionLog[i];
+  const pool = DB.exercises.filter(e => e.type !== 'stretch')
+    .slice().sort((a, b) => a.name.localeCompare(b.name, 'it'));
+  const draw = exId => {
+    const ex = exById(exId) || pool[0];
+    const scale = ex.load === 'weight' ? rackOf(ex) : null;
+    const steps = ex.load === 'band' ? BANDS : levelsOf(ex);
+    let loadCtl;
+    if (steps) loadCtl = `<select id="mlLoad">${steps.map(b => `<option>${esc(b)}</option>`).join('')}</select>`;
+    else if (scale) loadCtl = `<select id="mlLoad"><option value="">— ${isAssist(ex) ? 'aiuto' : 'carico'} —</option>${scale.map(v => `<option value="${v}">${String(v).replace('.', ',')} kg</option>`).join('')}</select>`;
+    else if (ex.load === 'weight') loadCtl = `<input id="mlLoad" type="number" inputmode="decimal" step="0.5" placeholder="kg">`;
+    else loadCtl = `<input id="mlLoad" type="text" placeholder="nota sul carico (facoltativa)">`;
+    openModal(`<h2>Esercizio non registrato</h2>
+      <p class="small muted">Viene aggiunto a «${esc(x.label)}» del ${new Date(x.ts).toLocaleDateString('it-IT')}: conterà in quella settimana, nel volume e nei suggerimenti di carico.</p>
+      <div class="field"><label>Esercizio</label><select id="mlEx">${pool.map(e =>
+        `<option value="${e.id}" ${e.id === ex.id ? 'selected' : ''}>${esc(e.name)}</option>`).join('')}</select></div>
+      <div class="field"><label>Serie</label><input id="mlSets" type="number" inputmode="numeric" min="1" max="10" value="3"></div>
+      <div class="field"><label>Ripetizioni per serie</label><input id="mlReps" type="number" inputmode="numeric" min="1" max="99" value="12"></div>
+      <div class="field"><label>${isAssist(ex) ? 'Assistenza' : 'Carico'}</label>${loadCtl}</div>
+      <button class="btn" id="mlOk" style="margin-top:12px">Aggiungi</button>
+      <button class="btn ghost" id="mlNo" style="margin-top:10px">Annulla</button>`);
+    $('#mlEx').onchange = e => draw(e.target.value);
+    $('#mlNo').onclick = () => closeModal(() => openSessionDetail(i));
+    $('#mlOk').onclick = () => {
+      const sets = Math.max(1, Math.min(10, parseInt($('#mlSets').value, 10) || 0));
+      const reps = Math.max(1, Math.min(99, parseInt($('#mlReps').value, 10) || 0));
+      const load = String($('#mlLoad').value || '').trim();
+      const meta = x.idx != null ? sessionMeta(x.idx) : null;
+      const entry = { ts: x.ts - 60000, sid: x.sid || null, sIdx: x.idx, exId: ex.id, name: ex.name,
+        setup: S.setup, load, feedback: 'same', sets, repsTarget: reps, repsDone: reps, rir: null, reps,
+        goal: ex.type === 'core' ? 'core' : 'hypertrophy', week: meta ? meta.weekInCycle : null, manual: true };
+      const prev = S.logs.filter(g => g.exId === ex.id && g.ts < entry.ts).pop() || null;
+      const r = rateLog(entry, prev, false);
+      entry.stars = r.stars; entry.rateText = r.text; entry.warn = ''; entry.advice = r.advice || '';
+      // in ordine di tempo, così "ultima volta" e confronti restano corretti
+      let at = S.logs.findIndex(g => g.ts > entry.ts);
+      if (at < 0) at = S.logs.length;
+      S.logs.splice(at, 0, entry);
+      // una seduta in corso tiene gli indici dei suoi record: vanno spostati
+      const shift = arr => (arr || []).forEach((v, k) => { if (v !== null && v >= at) arr[k] = v + 1; });
+      if (current && !current.finished) { shift(current.logRef); saveResume(); }
+      else if (S.resume) shift(S.resume.logRef);
+      planCache = null; save();
+      closeModal(() => openSessionDetail(i));
+    };
+  };
+  draw(pool[0].id);
 }
 
 /* ---------------------------------------------------------------------------
@@ -2245,7 +2847,7 @@ function openSessionDetail(i) {
    qualsiasi momento dalla scheda Progressi.
 --------------------------------------------------------------------------- */
 function weekReport(weekAbs) {
-  const logs = S.logs.filter(l => l.sIdx != null && Math.floor(l.sIdx / 5) + 1 === weekAbs);
+  const logs = S.logs.filter(l => l.sIdx != null && weekOfIdx(l.sIdx) === weekAbs);
   const sessions = new Set(logs.map(l => l.sid)).size;
   const rated = logs.filter(l => l.stars > 0);
   const avg = rated.length ? rated.reduce((a, l) => a + l.stars, 0) / rated.length : 0;
@@ -2292,7 +2894,9 @@ function realignHistory() {
   // gli esercizi seguono la seduta a cui appartengono (per sid, o per orario
   // nelle registrazioni più vecchie che non lo avevano)
   let moved = 0;
-  list.forEach(x => logsOfSession(x).forEach(l => {
+  // (la ricerca per orario solo senza sid: una seduta con sid ma senza esercizi
+  // non deve "adottare" quelli di una seduta vicina)
+  list.forEach(x => (x.sid ? S.logs.filter(g => g.sid === x.sid) : logsOfSession(x)).forEach(l => {
     if (l.sIdx !== x.idx) { l.sIdx = x.idx; moved++; }
   }));
   planCache = null;
@@ -2312,12 +2916,12 @@ function migrateRealign() {
    conta il tipo registrato, non gli esercizi, così un blocco core facoltativo
    non passa per una seduta di forza. */
 function strengthSessionsIn(weekAbs) {
-  return S.sessionLog.filter(x => x.idx != null && Math.floor(x.idx / 5) + 1 === weekAbs &&
+  return S.sessionLog.filter(x => x.idx != null && weekOfIdx(x.idx) === weekAbs &&
     (x.kind === 'strength' || (!x.kind && /^Forza/.test(x.label || '')))).length;
 }
 
 function weeksWithData() {
-  const set = new Set(S.logs.filter(l => l.sIdx != null).map(l => Math.floor(l.sIdx / 5) + 1));
+  const set = new Set(S.logs.filter(l => l.sIdx != null).map(l => weekOfIdx(l.sIdx)));
   return Array.from(set).sort((a, b) => b - a);
 }
 
@@ -2370,7 +2974,7 @@ function groupSetsOf(ex, sets) {
 const addInto = (acc, part) => Object.keys(part).forEach(g => { acc[g] = (acc[g] || 0) + part[g]; });
 
 function weekLogs(weekAbs) {
-  return S.logs.filter(l => l.sIdx != null && Math.floor(l.sIdx / 5) + 1 === weekAbs);
+  return S.logs.filter(l => l.sIdx != null && weekOfIdx(l.sIdx) === weekAbs);
 }
 
 /* Serie effettivamente completate nella settimana. */
@@ -2385,11 +2989,11 @@ function weeklyVolume(weekAbs) {
 function plannedVolume(weekAbs) {
   const acc = {};
   let strength = 0;
-  for (let k = 0; k < 5; k++) {
-    const idx = (weekAbs - 1) * 5 + k;
+  for (let k = 0; k < weekLen(weekAbs); k++) {
+    const idx = weekStart(weekAbs) + k;
     let sess;
     try { sess = buildSession(idx); } catch (e) { continue; }
-    if (sess.type === 'stretch') continue;
+    if (sess.type !== 'strength') continue;
     strength++;
     sess.items.forEach(it => addInto(acc, groupSetsOf(exById(it.exId), it.sets)));
   }
@@ -2400,14 +3004,14 @@ const fmtSets = v => (Math.round(v * 2) / 2).toString().replace('.', ',');
 
 /* Analisi della settimana: righe per le barre e indicazioni pratiche. */
 function volumeAnalysis(weekAbs) {
-  const meta = sessionMeta((weekAbs - 1) * 5);
+  const meta = sessionMeta(weekStart(weekAbs));
   const done = weeklyVolume(weekAbs);
   const plan = plannedVolume(weekAbs);
   const strengthDone = strengthSessionsIn(weekAbs);
   const rows = VOL_GROUPS.filter(g => done[g] || plan.acc[g])
     .map(g => ({ group: g, sets: done[g] || 0, planned: plan.acc[g] || 0 }));
 
-  const curWeek = Math.floor(S.sessionIndex / 5) + 1;
+  const curWeek = weekOfIdx(S.sessionIndex);
   const inProgress = weekAbs === curWeek;
   const deload = meta.profile && meta.profile.label === 'Scarico';
   const low = rows.filter(r => r.sets < VOL_MIN);
@@ -2492,6 +3096,8 @@ function openWeekReport(weekAbs) {
     <div style="margin:10px 0">${starsHtml(Math.round(r.avg))}</div>
     <p class="small">${tone}</p>
     ${medals ? `<div class="block" style="margin-top:16px"><h3 style="font-size:16px;color:var(--muted)">Migliori traguardi</h3>${medals}</div>` : ''}
+    <div class="block" style="margin-top:16px"><h3 style="font-size:16px;color:var(--muted)">Attività aerobica</h3>
+      <p class="small">${(() => { const a = aerobicMinutes(weekAbs); return `${a.eq} minuti equivalenti su 150 (${a.vig} di scatti, ${a.mod} moderati).${a.eq < 150 && !isMobilityWeek(weekAbs) ? ' Per arrivarci: completa le due sedute aerobiche e, quando hai 50 minuti, lascia il finale metabolico nelle sedute di forza.' : ''}`; })()}</p></div>
     ${vol ? `<div class="block" style="margin-top:16px"><h3 style="font-size:16px;color:var(--muted)">Serie per gruppo muscolare</h3>
       <p class="small muted">Serie fatte / previste dal programma. Diretta = 1, indiretta = ½. Tacca a 10: volume ottimale; barra rossa sotto 5.</p>${vol}</div>` : ''}
     ${(cautions || fatigue || volAdvice) ? `<div class="block warnblock" style="margin-top:16px"><h3>Da tenere d'occhio</h3><ul>${cautions}${fatigue}${volAdvice}</ul></div>`
@@ -2641,6 +3247,10 @@ function buildFreeSession(exIds) {
   const meta = sessionMeta(S.sessionIndex);
   const items = exIds.map(id => {
     const ex = exById(id);
+    if (ex.pattern === 'finisher') {
+      const f = finisherItem(meta, ex.id);
+      if (f) return Object.assign(f, { note: 'Seduta libera' });
+    }
     const goalKey = ex.type === 'stretch' ? 'stretch' : (ex.type === 'core' ? 'core' : 'hypertrophy');
     return Object.assign({ exId: id, note: 'Seduta libera', goalKey,
       alt: { patterns: [ex.pattern], types: [ex.type] } }, dose(goalKey, meta.profile, ex));
@@ -2698,15 +3308,15 @@ function renderSettings() {
 
     <div class="card">
       <h2>Dove sei nel programma</h2>
-      <p class="small muted">Prossima seduta prevista: <b>sessione ${meta.pos} di 5 della settimana ${meta.weekAbs}</b>${meta.phase ? ' · fase ' + esc(meta.phase.ph.name) : ''}.
+      <p class="small muted">Prossima seduta prevista: <b>sessione ${meta.pos} di ${meta.days} della settimana ${meta.weekAbs}</b>${meta.phase ? ' · fase ' + esc(meta.phase.ph.name) : ''}.
         Sedute di programma registrate finora: ${countProgramSessions()}.</p>
       <div class="btn-row" style="margin-top:12px">
         <div class="field" style="flex:1;margin:0"><label>Settimana</label>
           <select id="posWeek">${Array.from({ length: Math.max(12, meta.weekAbs + 4) }, (_, i) => i + 1).map(w =>
             `<option value="${w}" ${w === meta.weekAbs ? 'selected' : ''}>Settimana ${w}</option>`).join('')}</select></div>
         <div class="field" style="flex:1;margin:0"><label>Sessione</label>
-          <select id="posDay">${[1, 2, 3, 4, 5].map(d =>
-            `<option value="${d}" ${d === meta.pos ? 'selected' : ''}>Sessione ${d} · ${sessionMeta((meta.weekAbs - 1) * 5 + d - 1).isStrength ? 'potenziamento' : 'mobilità'}</option>`).join('')}</select></div>
+          <select id="posDay">${Array.from({ length: 6 }, (_, i) => i + 1).map(d =>
+            `<option value="${d}" ${d === meta.pos ? 'selected' : ''}>Sessione ${d}${d <= weekLen(meta.weekAbs) ? ' · ' + typeWord(sessionMeta(weekStart(meta.weekAbs) + d - 1)) : ''}</option>`).join('')}</select></div>
       </div>
       <button class="btn ghost" id="posSet" style="margin-top:10px">Imposta questa posizione</button>
       <button class="btn ghost" id="posAuto" style="margin-top:10px">Ricalcola dalle sedute registrate</button>
@@ -2714,7 +3324,7 @@ function renderSettings() {
 
     <div class="card">
       <h2>Settimane di sola mobilità</h2>
-      <p class="small muted">Quando non puoi andare in sala pesi, tutte e cinque le sedute della settimana diventano mobilità e stretching.
+      <p class="small muted">Quando non puoi andare in sala pesi, tutte le sedute della settimana diventano mobilità e stretching.
         Il programma di forza non perde nulla: <b>slitta in avanti</b>, e riprende esattamente da dove era rimasto.</p>
       ${(S.mobilityWeeks || []).length
         ? `<p class="small">Impostate: ${S.mobilityWeeks.slice().sort((a, b) => a - b).map(w => 'settimana ' + w).join(', ')}.</p>`
@@ -2738,14 +3348,25 @@ function renderSettings() {
         <input type="checkbox" id="kneeChk" ${S.kneeCare ? 'checked' : ''}></div>
       <div class="switch"><span>Escludi gli esercizi critici per la spalla (conflitto subacromiale)</span>
         <input type="checkbox" id="shoulderChk" ${S.shoulderCare ? 'checked' : ''}></div>
-      <div class="switch"><span>Obiettivo trazioni alla sbarra<br><span class="small muted">Blocco dedicato in apertura delle tre sedute di forza</span></span>
+      <div class="switch"><span>Obiettivo trazioni alla sbarra<br><span class="small muted">Lavoro dedicato dopo i due esercizi principali; sospensione alla sbarra in chiusura, se resta tempo</span></span>
         <input type="checkbox" id="pullChk" ${S.pullupGoal ? 'checked' : ''}></div>
       <div class="switch"><span>Campanella del timer</span>
         <input type="checkbox" id="soundChk" ${S.sound !== false ? 'checked' : ''}></div>
 
       <div class="switch" style="border:0"><span>Schermo sempre acceso</span><span class="small muted" id="wlStatus">—</span></div>
       <button class="btn ghost" id="testSound" style="margin-top:12px">Prova la campanella</button>
-      <p class="small muted" style="margin-top:8px">La campanella si sovrappone a Spotify o YouTube abbassandoli per il tempo di un rintocco, senza mai metterli in pausa. Perché si senta, la modalità silenziosa dell'iPhone deve essere disattivata: tocca "Prova la campanella" e alza il volume con i tasti laterali mentre suona.</p>
+      <p class="small muted" style="margin-top:8px">La campanella si sovrappone a Spotify o YouTube senza abbassarli né metterli in pausa. Perché si senta, la modalità silenziosa dell'iPhone deve essere disattivata: tocca "Prova la campanella" e alza il volume con i tasti laterali mentre suona.</p>
+    </div>
+
+    <div class="card">
+      <h2>Grasso addominale</h2>
+      <p class="small muted">Tre leve, in ordine di peso. <b>L'alimentazione</b>: un deficit calorico moderato è ciò che riduce davvero il grasso, e con circa 1,6 g di proteine per kg di peso al giorno il muscolo si conserva mentre il grasso cala. <b>I pesi</b>: riducono anche il grasso viscerale, oltre a costruire muscolo. <b>Il lavoro a intervalli</b>: fra tutte le modalità è la più efficace sul grasso viscerale, già con poco tempo a settimana.</p>
+      <p class="small muted">Dalla 5.0 la settimana ha due sedute aerobiche (intervalli e ritmo costante) su bici da spinning, cyclette orizzontale, sacco, vogatore o scalini; niente corsa, nuoto o ellittico. Il finale metabolico si aggiunge anche alle sedute di forza quando scegli 50 minuti, o con 40-45 se avanza tempo.</p>
+      <div class="switch" style="border:0"><span>Finale metabolico</span>
+        <select id="finSel" style="width:190px;min-height:44px;background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:0 10px">
+          ${(PROG.finisherOptions || []).map(o => `<option value="${o.id}" ${(S.finisher || 'f_bikehiit') === o.id ? 'selected' : ''}>${esc(o.label)}</option>`).join('')}
+        </select></div>
+      <p class="small muted" style="margin-top:6px">Bici: sella alta, sempre seduti, cadenza alta. Se la rotula protesta, la cyclette orizzontale o il sacco caricano meno il ginocchio. Dopo i 50 anni, per l'alta intensità serve il via libera del medico se hai fattori di rischio cardiovascolare. Il girovita si registra in Progressi.</p>
     </div>
 
     <div class="card">
@@ -2792,7 +3413,7 @@ function renderSettings() {
     confirmAction(isMobilityWeek(w) ? 'Ripristinare la settimana normale?' : 'Solo mobilità la prossima settimana?',
       isMobilityWeek(w)
         ? `La settimana ${w} tornerà a prevedere tre sedute di potenziamento e due di mobilità.`
-        : `Nella settimana ${w} tutte e cinque le sedute saranno di mobilità e stretching. Il programma di forza slitta di una settimana: non perdi nulla.`,
+        : `Nella settimana ${w} tutte le sedute saranno di mobilità e stretching. Il programma di forza slitta di una settimana: non perdi nulla.`,
       isMobilityWeek(w) ? 'Ripristina' : 'Imposta', () => setMobWeek(w));
   };
   $('#mobThis').onclick = () => {
@@ -2800,18 +3421,19 @@ function renderSettings() {
     confirmAction(isMobilityWeek(w) ? 'Ripristinare la settimana normale?' : 'Solo mobilità questa settimana?',
       isMobilityWeek(w)
         ? `La settimana ${w} tornerà a prevedere tre sedute di potenziamento e due di mobilità.`
-        : `Nella settimana ${w} tutte e cinque le sedute saranno di mobilità e stretching. Il programma di forza slitta di una settimana: non perdi nulla.`,
+        : `Nella settimana ${w} tutte le sedute saranno di mobilità e stretching. Il programma di forza slitta di una settimana: non perdi nulla.`,
       isMobilityWeek(w) ? 'Ripristina' : 'Imposta', () => setMobWeek(w));
   };
   if ($('#mobClear')) $('#mobClear').onclick = () => confirmAction('Annullare tutte le settimane di sola mobilità?',
-    'Le settimane interessate torneranno a prevedere tre sedute di potenziamento e due di mobilità.',
+    'Le settimane interessate torneranno allo schema normale: forza, aerobico e mobilità.',
     'Annulla tutte', () => { S.mobilityWeeks = []; planCache = null; save(); renderSettings(); });
   $('#posSet').onclick = () => {
     const w = +$('#posWeek').value, d = +$('#posDay').value;
-    const idx = (w - 1) * 5 + (d - 1);
+    const dd = Math.min(d, weekLen(w));
+    const idx = weekStart(w) + (dd - 1);
     const alt = buildSession(idx);
     confirmAction('Spostare la posizione nel programma?',
-      `La prossima seduta diventerà "${alt.label}", sessione ${d} di 5 della settimana ${w}. Lo storico dei carichi e le valutazioni restano invariati.`,
+      `La prossima seduta diventerà "${alt.label}", sessione ${dd} di ${weekLen(w)} della settimana ${w}. Lo storico dei carichi e le valutazioni restano invariati.`,
       'Imposta', () => { S.sessionIndex = idx; planCache = null; homeSel = 'session'; save(); renderSettings(); });
   };
   $('#posAuto').onclick = () => {
@@ -2819,13 +3441,14 @@ function renderSettings() {
     const alt = buildSession(n);
     confirmAction('Ricalcolare la posizione?',
       `Risultano ${n} sedute di programma registrate, quindi la prossima sarebbe "${alt.label}", ` +
-      `sessione ${(n % 5) + 1} di 5 della settimana ${Math.floor(n / 5) + 1}. Blocchi core e sedute libere non contano.`,
+      `sessione ${posOfIdx(n) + 1} di ${weekLen(weekOfIdx(n))} della settimana ${weekOfIdx(n)}. Blocchi core e sedute libere non contano.`,
       'Allinea alla cronologia', () => { S.sessionIndex = n; realignHistory(); planCache = null; homeSel = 'session'; save(); renderSettings(); });
   };
   $('#progSel').onchange = e => { S.programId = e.target.value; save(); renderSettings(); };
   $('#setupSel').onchange = e => { S.setup = e.target.value; save(); };
   $('#kneeChk').onchange = e => { S.kneeCare = e.target.checked; save(); };
   $('#pullChk').onchange = e => { S.pullupGoal = e.target.checked; planCache = null; save(); };
+  $('#finSel').onchange = e => { S.finisher = e.target.value; planCache = null; save(); };
   $('#shoulderChk').onchange = e => { S.shoulderCare = e.target.checked; planCache = null; save(); };
   $('#soundChk').onchange = e => { S.sound = e.target.checked; save(); if (e.target.checked) testBells(); };
   $('#testSound').onclick = testBells;
@@ -2888,7 +3511,7 @@ function exportCsv() {
     const ex = exById(l.exId), d = new Date(l.ts), e = e1rm(l);
     return [
       d.toLocaleDateString('it-IT'), d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
-      l.sIdx != null ? Math.floor(l.sIdx / 5) + 1 : '',
+      l.sIdx != null ? weekOfIdx(l.sIdx) : '',
       l.name, ex ? ex.group : '', l.setup === 'gym' ? 'palestra' : 'casa',
       l.load, l.sets, l.repsTarget != null ? l.repsTarget : l.reps,
       l.repsDone != null ? l.repsDone : '', l.rir != null ? l.rir : '',
@@ -3224,7 +3847,7 @@ const isTimedItem = (it, ex) => it.goal === 'stretch' || it.hold > 0 || ex.load 
 const holdOf = (it, ex) => it.hold ? it.hold : (ex.load === 'time' ? 20 + it.reps : 30);
 /* recupero che chiude l'esercizio: un po' più lungo di quello fra le serie,
    il tempo di preparare l'attrezzo o la posizione successiva */
-const finalRestOf = (it, ex) => Math.max(it.rest, ex.type === 'stretch' ? 30 : 45);
+const finalRestOf = (it, ex) => CARDIO_ROLES.includes(it.role) ? 10 : Math.max(it.rest, ex.type === 'stretch' ? 30 : 45);
 
 /* Catena delle tenute da "from" serie già fatte: preparazione di 3 s, poi
    tenuta / pausa / tenuta … e, se non è l'ultimo esercizio, il recupero
@@ -3603,11 +4226,13 @@ function registerServiceWorker() {
   await initStore();               // archivio dei risultati (IndexedDB)
   requestPersistence();            // chiede di non cancellare i dati
   validateData();                  // controllo di coerenza dei file JSON
+  migrateWeek6();                  // dalla 5.0: settimane da 6 sedute
   migrateToMacro();
   migrateNames();
   resetCalfLogs();
   migrateLogFields();
   migrateRealign();
+  seedPaceFromHistory();
   go('home');
   // l'intro si anima per 3 secondi e resta sull'ultimo fotogramma: sparisce solo
   // quando l'utente tocca lo schermo, e solo dopo compare l'avvertenza

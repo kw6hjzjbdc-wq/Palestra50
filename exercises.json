@@ -4313,7 +4313,8 @@
     "Staccare la schiena dallo schienale per spingere di più."
    ],
    "safety": [
-    "Spalla: le impugnature parallele mantengono l'omero in rotazione neutra e la guida della macchina evita compensi quando l'esercizio si fa impegnativo."
+    "Spalla: le impugnature parallele mantengono l'omero in rotazione neutra e la guida della macchina evita compensi quando l'esercizio si fa impegnativo.",
+    "Spalla: resta un movimento sopra la testa. Se la salita dà fastidio, fermati con le mani all'altezza delle orecchie o sostituiscilo con la distensione su panca a presa neutra."
    ],
    "source": "ACSM – macchine guidate per adulti over 50",
    "rack": "machine"
@@ -4833,6 +4834,526 @@
     "Riproduce la posizione alta della trazione, l'angolo in cui si cede per primo."
    ],
    "source": "Progressione trazioni – isometria nell'angolo critico"
+  },
+  {
+   "id": "f_bikehiit",
+   "name": "Cyclette a intervalli",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Condizionamento",
+   "pattern": "finisher",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Cardio"
+   ],
+   "secondary": [
+    "Quadricipiti",
+    "Glutei"
+   ],
+   "equipment": [
+    "Cyclette"
+   ],
+   "art": {
+    "frames": [
+     "seatedExtStart",
+     "seatedExtEnd"
+    ],
+    "implement": null
+   },
+   "interval": {
+    "sets": 8,
+    "work": 30,
+    "rest": 60
+   },
+   "steps": [
+    "Sella alta: con il pedale in basso il ginocchio resta appena flesso (circa 25-30°). Una sella bassa aumenta la pressione sulla rotula.",
+    "2 minuti di pedalata facile per scaldarti, dentro il tempo di preparazione.",
+    "Scatto: 30 secondi a ritmo vivace (8 su 10), resistenza moderata, cadenza alta (80-100 pedalate al minuto).",
+    "Recupero: 60 secondi di pedalata tranquilla, senza fermarti. Il timer alterna i due ritmi da solo."
+   ],
+   "errors": [
+    "Alzare troppo la resistenza per fare fatica: meglio aumentare la cadenza.",
+    "Sella bassa o troppo avanzata."
+   ],
+   "safety": [
+    "Ginocchio: se compare dolore alla rotula abbassa la resistenza; se persiste, passa all'ergometro a braccia o a un altro finale dalla scheda Programma.",
+    "Dopo i 50 anni l'alta intensità richiede il via libera del medico se hai fattori di rischio cardiovascolare."
+   ],
+   "source": "Chang et al. 2026, Nutrition & Metabolism – HIIT la modalità più efficace sul grasso viscerale; cyclette con sella alta e resistenza moderata: basso carico sull'articolazione femoro-rotulea (prassi riabilitativa)",
+   "retired": true
+  },
+  {
+   "id": "f_armergo",
+   "name": "Ergometro a braccia a intervalli",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Condizionamento",
+   "pattern": "finisher",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Cardio"
+   ],
+   "secondary": [
+    "Deltoidi",
+    "Bicipiti",
+    "Tricipiti"
+   ],
+   "equipment": [
+    "Ergometro a braccia"
+   ],
+   "art": {
+    "frames": [
+     "seatedRowStart",
+     "seatedRowEnd"
+    ],
+    "implement": null
+   },
+   "interval": {
+    "sets": 8,
+    "work": 30,
+    "rest": 60
+   },
+   "steps": [
+    "Seduto, asse delle manovelle all'altezza delle spalle o poco sotto.",
+    "Scatto: 30 secondi a ritmo vivace (8 su 10), busto fermo.",
+    "Recupero: 60 secondi a ritmo lento senza fermarti."
+   ],
+   "errors": [
+    "Spalle alzate verso le orecchie.",
+    "Manovelle troppo alte, che portano il braccio sopra la spalla."
+   ],
+   "safety": [
+    "Spalla: tieni le manovelle sotto l'altezza della spalla; se compare dolore, riduci la resistenza.",
+    "Nessun carico sul ginocchio: è l'alternativa più sicura nelle giornate in cui la rotula protesta."
+   ],
+   "source": "Chang et al. 2026, Nutrition & Metabolism – HIIT la modalità più efficace sul grasso viscerale; cyclette con sella alta e resistenza moderata: basso carico sull'articolazione femoro-rotulea (prassi riabilitativa)",
+   "retired": true
+  },
+  {
+   "id": "f_inclinewalk",
+   "name": "Camminata in salita sul tapis roulant",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Condizionamento",
+   "pattern": "finisher",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Cardio"
+   ],
+   "secondary": [
+    "Glutei",
+    "Polpacci"
+   ],
+   "equipment": [
+    "Tapis roulant"
+   ],
+   "art": {
+    "frames": [
+     "swingFront",
+     "swingBack"
+    ],
+    "implement": null
+   },
+   "interval": {
+    "sets": 1,
+    "work": 600,
+    "rest": 0
+   },
+   "steps": [
+    "Pendenza 6-10%, velocità da camminata sostenuta (5-6 km/h): respiro accelerato ma riesci ancora a parlare.",
+    "Passi corti, busto dritto, senza aggrapparti ai corrimano.",
+    "Dieci minuti continui."
+   ],
+   "errors": [
+    "Tenersi al corrimano, che annulla gran parte del lavoro.",
+    "Corsa: non serve e sollecita la rotula."
+   ],
+   "safety": [
+    "Ginocchio: in salita il carico sulla rotula resta basso; evita la discesa, che lo aumenta.",
+    "Se il ginocchio protesta, scegli la cyclette o l'ergometro a braccia."
+   ],
+   "source": "WHO 2020 – attività aerobica moderata per adulti; Chang et al. 2026 – dose minima efficace sul grasso viscerale ~730 MET-min/settimana",
+   "retired": true
+  },
+  {
+   "id": "f_boxing",
+   "name": "Colpi al sacco d'aria",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "strength",
+   "group": "Condizionamento",
+   "pattern": "finisher",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Cardio"
+   ],
+   "secondary": [
+    "Deltoidi",
+    "Core"
+   ],
+   "equipment": [
+    "Nessuna"
+   ],
+   "art": {
+    "frames": [
+     "ohpStandStart",
+     "frontUp"
+    ],
+    "implement": null
+   },
+   "interval": {
+    "sets": 8,
+    "work": 30,
+    "rest": 60
+   },
+   "steps": [
+    "In piedi, piedi alla larghezza delle spalle, ginocchia morbide e ferme.",
+    "Scatto: 30 secondi di colpi dritti alternati a ritmo vivace, all'altezza del petto.",
+    "Recupero: 60 secondi di colpi lenti o braccia sciolte."
+   ],
+   "errors": [
+    "Saltellare o ruotare sulle ginocchia.",
+    "Bloccare il gomito in estensione a ogni colpo."
+   ],
+   "safety": [
+    "Ginocchio: i piedi restano fermi a terra, nessun salto.",
+    "Spalla: colpi all'altezza del petto, mai sopra la testa."
+   ],
+   "source": "Chang et al. 2026, Nutrition & Metabolism – HIIT la modalità più efficace sul grasso viscerale; cyclette con sella alta e resistenza moderata: basso carico sull'articolazione femoro-rotulea (prassi riabilitativa)",
+   "cardioModes": [
+    "hiit"
+   ]
+  },
+  {
+   "id": "a_spinning",
+   "name": "Bici da spinning",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Condizionamento",
+   "pattern": "cardio",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Cardio"
+   ],
+   "secondary": [
+    "Quadricipiti",
+    "Glutei"
+   ],
+   "equipment": [
+    "Bici da spinning"
+   ],
+   "art": {
+    "frames": [
+     "seatedExtStart",
+     "seatedExtEnd"
+    ],
+    "implement": null
+   },
+   "interval": {
+    "sets": 8,
+    "work": 30,
+    "rest": 60
+   },
+   "cardioModes": [
+    "hiit",
+    "steady"
+   ],
+   "steps": [
+    "Sella alta: con il pedale in basso il ginocchio resta appena flesso (circa 25-30°). Manubrio all'altezza della sella o poco sopra.",
+    "Resta sempre seduto: la pedalata in piedi aumenta molto il carico sulla rotula.",
+    "Scatto: cadenza alta (90-100 pedalate al minuto) con resistenza moderata, sforzo 8 su 10.",
+    "Recupero e ritmo costante: resistenza bassa, cadenza 70-80, respiro accelerato ma riesci a dire frasi brevi."
+   ],
+   "errors": [
+    "Alzare troppo la resistenza per fare fatica: meglio aumentare la cadenza.",
+    "Sella bassa o troppo avanzata.",
+    "Pedalare in piedi."
+   ],
+   "safety": [
+    "Ginocchio: se compare dolore alla rotula abbassa la resistenza; se persiste, passa alla cyclette orizzontale o al sacco.",
+    "Dopo i 50 anni l'alta intensità richiede il via libera del medico se hai fattori di rischio cardiovascolare."
+   ],
+   "source": "Chang et al. 2026, Nutrition & Metabolism – HIIT la modalità più efficace sul grasso viscerale; WHO 2020 – 150-300 min/settimana di attività moderata o 75-150 vigorosa"
+  },
+  {
+   "id": "a_recumbent",
+   "name": "Cyclette orizzontale",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Condizionamento",
+   "pattern": "cardio",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Cardio"
+   ],
+   "secondary": [
+    "Quadricipiti",
+    "Glutei"
+   ],
+   "equipment": [
+    "Cyclette orizzontale (recumbent)"
+   ],
+   "art": {
+    "frames": [
+     "seated",
+     "sit90"
+    ],
+    "implement": null
+   },
+   "interval": {
+    "sets": 8,
+    "work": 30,
+    "rest": 60
+   },
+   "cardioModes": [
+    "hiit",
+    "steady"
+   ],
+   "steps": [
+    "Regola il sedile: a pedale disteso il ginocchio resta appena piegato, mai bloccato.",
+    "Schiena appoggiata allo schienale, mani sulle impugnature laterali.",
+    "Ritmo costante: cadenza 70-90, respiro accelerato ma riesci a parlare a frasi brevi (5-6 su 10).",
+    "Negli intervalli: aumenta cadenza e resistenza per lo scatto, poi torna al ritmo facile."
+   ],
+   "errors": [
+    "Sedile troppo vicino: il ginocchio si piega troppo in alto nella pedalata.",
+    "Resistenza così alta da rallentare sotto le 60 pedalate."
+   ],
+   "safety": [
+    "Ginocchio: è l'attrezzo aerobico più delicato per la rotula; è la scelta da preferire nei giorni in cui il ginocchio protesta.",
+    "Lo schienale scarica la schiena: utile anche con la lombare affaticata dai pesi."
+   ],
+   "source": "Chang et al. 2026, Nutrition & Metabolism – HIIT la modalità più efficace sul grasso viscerale; WHO 2020 – 150-300 min/settimana di attività moderata o 75-150 vigorosa"
+  },
+  {
+   "id": "a_rower",
+   "name": "Vogatore",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Condizionamento",
+   "pattern": "cardio",
+   "load": "time",
+   "kneeFriendly": false,
+   "primary": [
+    "Cardio"
+   ],
+   "secondary": [
+    "Dorsali",
+    "Femorali",
+    "Glutei",
+    "Core"
+   ],
+   "equipment": [
+    "Vogatore ad aria"
+   ],
+   "art": {
+    "frames": [
+     "seatedRowStart",
+     "seatedRowEnd"
+    ],
+    "implement": null
+   },
+   "interval": {
+    "sets": 8,
+    "work": 30,
+    "rest": 60
+   },
+   "cardioModes": [
+    "hiit",
+    "steady"
+   ],
+   "steps": [
+    "Sequenza: spingi con le gambe, poi apri il busto, poi tira le braccia al petto; al ritorno l'inverso (braccia, busto, gambe).",
+    "Per il ginocchio accorcia l'attacco: torna avanti solo finché le tibie sono quasi verticali, senza raccoglierti del tutto.",
+    "Ritmo: 20-24 colpate al minuto nel lavoro costante, 26-30 negli scatti.",
+    "Se il ginocchio protesta, rema solo con busto e braccia a gambe distese: continui a lavorare senza caricarlo."
+   ],
+   "errors": [
+    "Tirare con le braccia prima di aver spinto con le gambe.",
+    "Schiena curva a fine passata.",
+    "Attacco troppo raccolto, con le ginocchia al petto."
+   ],
+   "safety": [
+    "Ginocchio: la flessione profonda all'attacco carica la rotula. Per questo con la priorità al ginocchio attiva non viene proposto in automatico: sceglilo con «Cambia esercizio» nei giorni buoni, con l'attacco accorciato.",
+    "Schiena: busto fermo e addome attivo, niente strappi."
+   ],
+   "source": "Chang et al. 2026, Nutrition & Metabolism – HIIT la modalità più efficace sul grasso viscerale; WHO 2020 – 150-300 min/settimana di attività moderata o 75-150 vigorosa"
+  },
+  {
+   "id": "a_stepper",
+   "name": "Macchina a scalini",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Condizionamento",
+   "pattern": "cardio",
+   "load": "time",
+   "kneeFriendly": false,
+   "primary": [
+    "Cardio"
+   ],
+   "secondary": [
+    "Glutei",
+    "Quadricipiti",
+    "Polpacci"
+   ],
+   "equipment": [
+    "Macchina a scalini (stair climber)"
+   ],
+   "art": {
+    "frames": [
+     "splitTop",
+     "splitBottom"
+    ],
+    "implement": null
+   },
+   "interval": {
+    "sets": 1,
+    "work": 900,
+    "rest": 0
+   },
+   "cardioModes": [
+    "steady"
+   ],
+   "steps": [
+    "Passi corti e regolari, appoggia tutto il piede sul gradino.",
+    "Busto dritto, mani appoggiate leggere ai corrimano senza sostenere il peso.",
+    "Velocità bassa-moderata: respiro accelerato ma riesci a parlare a frasi brevi."
+   ],
+   "errors": [
+    "Aggrapparsi ai corrimano, che annulla gran parte del lavoro.",
+    "Passi lunghi o velocità alta."
+   ],
+   "safety": [
+    "Ginocchio: salire a ogni passo carica la rotula in flessione. Per questo con la priorità al ginocchio attiva non viene proposto in automatico; usalo solo per il ritmo costante, a velocità bassa, nei giorni in cui il ginocchio sta bene.",
+    "Niente intervalli ad alta intensità su questo attrezzo."
+   ],
+   "source": "Chang et al. 2026, Nutrition & Metabolism – HIIT la modalità più efficace sul grasso viscerale; WHO 2020 – 150-300 min/settimana di attività moderata o 75-150 vigorosa"
+  },
+  {
+   "id": "a_bag",
+   "name": "Sacco da pugilato",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Condizionamento",
+   "pattern": "cardio",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Cardio"
+   ],
+   "secondary": [
+    "Deltoidi",
+    "Core",
+    "Dorsali"
+   ],
+   "equipment": [
+    "Sacco da pugilato e guantoni"
+   ],
+   "art": {
+    "frames": [
+     "ohpStandStart",
+     "frontUp"
+    ],
+    "implement": null
+   },
+   "interval": {
+    "sets": 8,
+    "work": 30,
+    "rest": 60
+   },
+   "cardioModes": [
+    "hiit"
+   ],
+   "steps": [
+    "Guantoni o fasce. Piedi alla larghezza delle spalle, ginocchia morbide e ferme: il lavoro è di busto e braccia.",
+    "Scatto: 30 secondi di diretti e ganci alternati a ritmo vivace (8 su 10).",
+    "Recupero: colpi leggeri e lenti o braccia sciolte, senza fermarti.",
+    "Ruota il busto con il colpo, non le ginocchia."
+   ],
+   "errors": [
+    "Saltellare o ruotare sulle ginocchia.",
+    "Colpire a braccio teso bloccando il gomito.",
+    "Polsi piegati all'impatto."
+   ],
+   "safety": [
+    "Ginocchio: piedi fermi a terra, nessun salto né passo laterale veloce.",
+    "Spalla: colpi all'altezza del petto o del mento, mai sopra la testa; niente montanti se la spalla dà fastidio."
+   ],
+   "source": "Chang et al. 2026, Nutrition & Metabolism – HIIT la modalità più efficace sul grasso viscerale; WHO 2020 – 150-300 min/settimana di attività moderata o 75-150 vigorosa"
+  },
+  {
+   "id": "h_walkbrisk",
+   "name": "Camminata veloce",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Condizionamento",
+   "pattern": "cardio",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Cardio"
+   ],
+   "secondary": [
+    "Glutei",
+    "Polpacci"
+   ],
+   "equipment": [
+    "Nessuna"
+   ],
+   "art": {
+    "frames": [
+     "swingFront",
+     "swingBack"
+    ],
+    "implement": null
+   },
+   "interval": {
+    "sets": 1,
+    "work": 1200,
+    "rest": 0
+   },
+   "cardioModes": [
+    "steady"
+   ],
+   "steps": [
+    "All'aperto su terreno piano, passo svelto: respiro accelerato ma riesci a parlare a frasi brevi.",
+    "Braccia che accompagnano il passo, busto dritto.",
+    "Evita le discese lunghe, che caricano di più la rotula."
+   ],
+   "errors": [
+    "Passo troppo lento: deve farti respirare più in fretta.",
+    "Discese ripide."
+   ],
+   "safety": [
+    "Ginocchio: in piano o in leggera salita il carico sulla rotula resta basso; evita le discese."
+   ],
+   "source": "WHO 2020 – 150-300 min/settimana di attività aerobica moderata"
   }
  ]
 }
