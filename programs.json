@@ -931,5 +931,101 @@
    "stretch"
   ],
   "note": "Sei sedute: forza A, aerobico a intervalli, forza B, aerobico a ritmo costante, forza C, mobilità (sempre l'ultima)."
+ },
+ "morning": {
+  "durations": [
+   10,
+   15
+  ],
+  "note": "Cinque sessioni brevi al mattino, a casa e senza attrezzi pesanti, nei giorni 1-5; il sesto giorno c'è solo la mobilità a pranzo.",
+  "source": "ACSM – flessibilità: allungare quasi ogni giorno dà i risultati migliori; tenute di 30-60 s dopo i 50 anni, ~60 s totali per muscolo. ACE – mobilità dinamica come preparazione. Allungamenti brevi (<60 s per muscolo) ore prima dell'allenamento non riducono forza e prestazione.",
+  "focus": {
+   "strength-0": {
+    "label": "in vista di Forza A: anche, quadricipiti e polpacci",
+    "dyn": [
+     "Mobilità anca",
+     "Mobilità globale"
+    ],
+    "stat": [
+     "Anca",
+     "Quadricipiti",
+     "Polpacci",
+     "Glutei",
+     "Adduttori"
+    ]
+   },
+   "strength-1": {
+    "label": "in vista di Forza B: spalle, torace e colonna",
+    "dyn": [
+     "Mobilità spalle",
+     "Mobilità colonna"
+    ],
+    "stat": [
+     "Petto",
+     "Dorso",
+     "Colonna",
+     "Collo",
+     "Anca"
+    ]
+   },
+   "strength-2": {
+    "label": "in vista di Forza C: catena posteriore e colonna",
+    "dyn": [
+     "Mobilità colonna",
+     "Mobilità globale"
+    ],
+    "stat": [
+     "Catena posteriore",
+     "Colonna",
+     "Glutei",
+     "Anca",
+     "Dorso"
+    ]
+   },
+   "cardio-0": {
+    "label": "in vista degli intervalli: anche, polpacci e quadricipiti",
+    "dyn": [
+     "Mobilità anca",
+     "Mobilità globale"
+    ],
+    "stat": [
+     "Polpacci",
+     "Anca",
+     "Quadricipiti",
+     "Catena posteriore",
+     "Glutei"
+    ]
+   },
+   "cardio-1": {
+    "label": "in vista del ritmo costante: anche, colonna e spalle",
+    "dyn": [
+     "Mobilità anca",
+     "Mobilità colonna",
+     "Mobilità spalle"
+    ],
+    "stat": [
+     "Anca",
+     "Colonna",
+     "Petto",
+     "Polpacci",
+     "Adduttori"
+    ]
+   },
+   "stretch": {
+    "label": "mobilità generale",
+    "dyn": [
+     "Mobilità colonna",
+     "Mobilità spalle",
+     "Mobilità anca"
+    ],
+    "stat": [
+     "Colonna",
+     "Anca",
+     "Petto",
+     "Catena posteriore",
+     "Collo"
+    ]
+   }
+  }
  }
 }

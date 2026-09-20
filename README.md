@@ -2,7 +2,7 @@
 
 PWA per allenamento in palestra e a casa, costruita su un profilo specifico: uomo di 50 anni, obiettivo tono e ipertrofia, riduzione del grasso addominale, rinforzo degli arti inferiori a protezione del ginocchio, mobilità mantenuta con stretching regolare.
 
-Settimana tipo (dalla 5.0): **6 sedute** — forza A, aerobico a intervalli, forza B, aerobico a ritmo costante, forza C, mobilità (sempre l'ultima) — di durata scelta ogni giorno fra 35, 40, 45 e 50 minuti, più un blocco core facoltativo.
+Settimana tipo (dalla 5.0): **6 sedute a pranzo** — forza A, aerobico a intervalli, forza B, aerobico a ritmo costante, forza C, mobilità (sempre l'ultima) — di durata scelta ogni giorno fra 35, 40, 45 e 50 minuti, più un blocco core facoltativo e, dalla 5.1, cinque sessioni di mobilità del mattino da 10 o 15 minuti (giorni 1-5).
 
 ---
 
@@ -74,6 +74,17 @@ Le tre sedute di forza mantengono il lavoro per le trazioni (tre volte a settima
 - *Attrezzi*: bici da spinning (sempre seduti, sella alta), cyclette orizzontale (la più delicata per la rotula), sacco da pugilato (piedi fermi, solo intervalli), vogatore, macchina a scalini. Con la **priorità al ginocchio** attiva vogatore e scalini non vengono proposti in automatico — l'attacco del vogatore e la salita sugli scalini caricano la rotula in flessione profonda — ma si scelgono con *Cambia esercizio* nei giorni buoni (vogatore con attacco accorciato, scalini solo a ritmo costante). A casa: colpi al sacco d'aria e camminata veloce in piano.
 
 **Minuti aerobici.** Progressi mostra i minuti della settimana nel conto dell'OMS (un minuto di scatto vale due moderati) rispetto al riferimento di 150; il riepilogo settimanale indica come arrivarci. Il finale metabolico nelle sedute di forza resta disponibile e, con due sedute aerobiche in settimana, ha riservati i suoi 10 minuti solo quando scegli 50 minuti (con 40-45 entra se avanza tempo).
+
+### Mobilità del mattino (dalla 5.1)
+
+Porzione a sé stante, in cima alla schermata Oggi: **cinque sessioni brevi al mattino**, nei giorni 1-5 della settimana, in aggiunta alle sedute di **pranzo** del programma. Il sesto giorno c'è solo la mobilità a pranzo. Durata a scelta: **10 o 15 minuti**.
+
+- **Cosa contiene.** Prima mobilità dinamica (2 esercizi a 10 minuti, 3 a 15) per "svegliare" le articolazioni, poi allungamenti statici sui distretti che lavoreranno a pranzo lo stesso giorno: anche, quadricipiti e polpacci prima di Forza A e degli intervalli; spalle, torace e colonna prima di Forza B; catena posteriore e colonna prima di Forza C; anche, colonna e spalle prima del ritmo costante.
+- **Dosi.** Per i distretti del giorno 2 tenute da 30 secondi per muscolo (circa 60 secondi totali, indicazione ACSM per la flessibilità); se avanza tempo le tenute salgono a 45 secondi (30-60 s è l'indicazione dopo i 50 anni) e anche gli altri allungamenti passano a 2 tenute.
+- **Perché al mattino.** L'ACSM indica che allungare quasi ogni giorno dà i risultati migliori; poche decine di secondi per muscolo, ore prima dell'allenamento, non riducono forza e prestazione della seduta di pranzo.
+- **Dove.** A casa: servono solo un tappetino, un muro o uno stipite e la loop band per i femorali.
+- **Segue la seduta di pranzo.** Il focus del mattino è calcolato ogni volta dalla seduta di pranzo prevista per quel giorno: se nel calendario scegli un'altra seduta (per esempio Forza B al posto di Forza A, o l'aerobico), la card del mattino cambia da sola distretti ed esercizi e mostra la nuova seduta di pranzo. Se la mattina era già stata fatta in vista di un'altra seduta, la card lo segnala e propone di ripeterla. Unica eccezione: la *seduta libera* costruita dal catalogo non è prevedibile, e il mattino resta legato alla seduta del programma.
+- **Conteggi.** I pallini 1-5 mostrano le mattine fatte; toccandone uno si recupera una mattina saltata. Le sessioni del mattino compaiono nello storico ma non fanno avanzare il programma e non contano nel volume dei pesi né nei minuti aerobici.
 
 ### Durata scelta ogni giorno (35, 40, 45, 50 minuti)
 

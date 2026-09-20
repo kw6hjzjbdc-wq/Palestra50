@@ -19,6 +19,7 @@ let S = null;              // stato persistente
 let current = null;        // sessione in corso
 let planCache = null;      // sessione di oggi già generata (per mantenere le sostituzioni)
 let homeSel = 'session';   // cosa è selezionato nella home: 'session' o 'core'
+let morningSel = null;     // mattina scelta nella card della mobilità del mattino
 let wakeLock = null, timerHandle = null;
 
 /* ---------------------------------------------------------------------------
@@ -46,6 +47,7 @@ const DEFAULT_STATE = {
   durPref: 35,             // durata scelta in Home per la prossima seduta
   finisher: 'a_spinning',  // finale metabolico a basso impatto per il ginocchio
   measures: [],            // girovita e peso
+  morningMin: 10,          // durata della mobilità del mattino (10 o 15 minuti)
   autoBackup: true,         // istantanea automatica a fine settimana
   snapshots: [],            // ultime 3 istantanee settimanali, ripristinabili
   resume: null,             // seduta interrotta, recuperabile dopo la chiusura dell'app
@@ -1346,7 +1348,7 @@ function estimateMinutes(items) {
    pause lunghe (fuori dall'intervallo 0,6-2) non vengono considerate. */
 function calibratePace(sess, realMinutes) {
   if (!sess || !realMinutes || realMinutes < 5 || realMinutes > 150) return;
-  if (sess.kind === 'core' || sess.kind === 'free') return;
+  if (!isProgramKind(sess.kind)) return;
   const raw = rawSeconds(sess.items) / 60;
   if (!raw) return;
   const observed = realMinutes / raw;
@@ -1364,7 +1366,7 @@ function seedPaceFromHistory() {
   S.paceSeeded = true;
   const acc = { strength: [], stretch: [], cardio: [] };
   S.sessionLog.slice(-12).forEach(x => {
-    if (x.kind === 'core' || x.kind === 'free' || !x.minutes) return;
+    if (!isProgramKind(x.kind) || !x.minutes) return;
     const logs = x.sid ? S.logs.filter(l => l.sid === x.sid) : logsOfSession(x);
     if (logs.length < 3) return;
     const items = logs.map(l => {
@@ -1588,6 +1590,165 @@ function aerobicMinutes(weekAbs) {
     else { vig += sets * hold / 60; mod += Math.max(0, sets - 1) * rest / 60; }
   });
   return { mod: Math.round(mod), vig: Math.round(vig), eq: Math.round(mod + 2 * vig) };
+}
+
+/* ---------------------------------------------------------------------------
+   MOBILITÀ DEL MATTINO (dalla 5.1)
+   Porzione a sé stante: cinque sessioni brevi (10 o 15 minuti) al mattino,
+   nei giorni 1-5 della settimana, in aggiunta alle sedute di pranzo. Il sesto
+   giorno c'è soltanto la mobilità a pranzo.
+   Perché funziona: l'ACSM indica che allungare quasi ogni giorno dà i
+   risultati migliori sulla flessibilità, con tenute di 30-60 s dopo i 50 anni e
+   circa 60 s totali per muscolo; poche decine di secondi per muscolo, ore
+   prima dell'allenamento, non riducono forza e prestazione.
+   Struttura: mobilità dinamica per "svegliare" le articolazioni, poi
+   allungamenti statici sui distretti che lavoreranno nella seduta di pranzo
+   dello stesso giorno. Si fa a casa, con tappetino e poco altro; non fa
+   avanzare il programma e non conta nel volume dei pesi.
+--------------------------------------------------------------------------- */
+const MORNING_DAYS = 5;
+const isProgramKind = k => k !== 'core' && k !== 'free' && k !== 'morning';
+
+/* Mattine già fatte nella settimana indicata (numeri di giorno 1-5). */
+function morningsDone(weekAbs) {
+  return S.sessionLog.filter(x => x.kind === 'morning' && x.mWeek === weekAbs).map(x => x.mDay);
+}
+
+function buildMorning(weekAbs, day, minutes) {
+  const idx = weekStart(weekAbs) + Math.min(day, weekLen(weekAbs)) - 1;
+  const meta = sessionMeta(idx);                      // la seduta di pranzo dello stesso giorno
+  const cfg = PROG.morning || {};
+  const key = meta.dayType === 'stretch' ? 'stretch' : `${meta.dayType}-${meta.tmplIdx}`;
+  const focus = (cfg.focus || {})[key] || (cfg.focus || {}).stretch || { dyn: [], stat: [], label: '' };
+  const budget = minutes || S.morningMin || 10;
+  const home = e => e.setup.includes('home');
+  const used = new Set(), items = [];
+  const rot = weekAbs + day;
+  const pickGroups = (pool, groups) => {
+    const pref = pool.filter(e => groups.includes(e.group)).sort((a, b) => groups.indexOf(a.group) - groups.indexOf(b.group) || a.id.localeCompare(b.id));
+    const rest = pool.filter(e => !groups.includes(e.group)).sort((a, b) => a.id.localeCompare(b.id));
+    return { pref, rest };
+  };
+  const dynPool = pickGroups(DB.exercises.filter(e => e.type === 'stretch' && e.pattern === 'mobility' && home(e)), focus.dyn || []);
+  const statPool = pickGroups(DB.exercises.filter(e => e.type === 'stretch' && e.pattern === 'static' && home(e)), focus.stat || []);
+  const add = (ex, goalKey, note, full) => {
+    const d = dose(goalKey, meta.profile, ex);
+    if (goalKey === 'mobility') { d.sets = ex.perSide ? 2 : 1; d.rest = 10; }   // un giro, un lato per volta
+    // distretti di oggi: 2 tenute da 30 s per muscolo (circa 60 s totali,
+    // indicazione ACSM); gli altri: una tenuta per muscolo
+    else { d.sets = (full ? 2 : 1) * (ex.perSide ? 2 : 1); d.hold = 30; d.rest = 10; }
+    const it = { exId: ex.id, note, goalKey, alt: { patterns: [ex.pattern], types: ['stretch'] }, ...d };
+    used.add(ex.id);
+    return it;
+  };
+  // 1. mobilità dinamica: 2 esercizi a 10 minuti, 3 a 15
+  const nDyn = budget >= 15 ? 3 : 2;
+  const rotate = (arr, k) => arr.length ? arr.slice(k % arr.length).concat(arr.slice(0, k % arr.length)) : arr;
+  const dynList = rotate(dynPool.pref, rot).concat(rotate(dynPool.rest, rot));
+  for (let i = 0; i < dynList.length && items.filter(x => x.goal === 'mobility').length < nDyn; i++) {
+    const ex = dynList[i];
+    if (!used.has(ex.id)) items.push(add(ex, 'mobility', 'Risveglio articolare'));
+  }
+  // 2. allungamenti statici dei distretti di oggi, finché c'è tempo
+  const statList = statPool.pref.concat(statPool.rest);
+  for (let i = 0; i < statList.length; i++) {
+    const ex = statList[i];
+    if (used.has(ex.id)) continue;
+    const mine = statPool.pref.includes(ex);
+    const it = add(ex, 'stretch', mine ? 'Per la seduta di oggi' : '', mine);
+    if (estimateMinutes(items.concat([it])) > budget) { used.delete(ex.id); continue; }
+    items.push(it);
+  }
+  // 3. tempo avanzato: tenute da 45 s (30-60 s è l'indicazione dopo i 50 anni),
+  //    poi un secondo giro sui distretti di oggi
+  items.forEach(it => {
+    if (it.goal !== 'stretch') return;
+    it.hold = 45;
+    if (estimateMinutes(items) > budget) it.hold = 30;
+  });
+  items.forEach(it => {
+    if (it.goal !== 'stretch' || statPool.pref.some(e => e.id === it.exId)) return;
+    it.sets += it.perSide ? 2 : 1;                // anche gli altri a 2 tenute, se c'è tempo
+    if (estimateMinutes(items) > budget) it.sets -= it.perSide ? 2 : 1;
+  });
+  return Object.assign({}, meta, {
+    label: `Mattino · giorno ${day}`, type: 'stretch', kind: 'morning', items,
+    minutes: estimateMinutes(items), budget, mWeek: weekAbs, mDay: day,
+    focusLabel: focus.label || '', focusKey: key, lunchLabel: buildSession(idx).label
+  });
+}
+
+/* Giorno del mattino da proporre: quello della seduta di pranzo in
+   programma oggi, se è fra i primi cinque e non è già stato fatto. */
+function morningToday() {
+  const w = weekOfIdx(S.sessionIndex);
+  const day = posOfIdx(S.sessionIndex) + 1;
+  return { w, day, available: day <= MORNING_DAYS };
+}
+
+function morningHtml() {
+  const t = morningToday();
+  const done = morningsDone(t.w);
+  if (morningSel === null || morningSel.w !== t.w) morningSel = { w: t.w, day: t.available ? t.day : null };
+  const day = morningSel.day;
+  const dots = Array.from({ length: MORNING_DAYS }, (_, i) => i + 1).map(d =>
+    `<button class="mdot ${done.includes(d) ? 'done' : ''} ${d === day ? 'sel' : ''}" data-mday="${d}" aria-label="Mattino del giorno ${d}${done.includes(d) ? ', fatto' : ''}">${done.includes(d) ? '✓' : d}</button>`).join('');
+  let body;
+  if (!day) {
+    body = `<p class="small muted" style="margin-top:10px">Oggi è il sesto giorno: niente sessione del mattino, c'è solo la mobilità a pranzo. Se vuoi recuperare una mattina saltata, toccane il numero.</p>`;
+  } else {
+    const m = buildMorning(t.w, day, S.morningMin || 10);
+    // la mattina segue sempre la seduta di pranzo di quel giorno: se la cambi
+    // nel calendario, qui cambiano focus ed esercizi. Se era già stata fatta
+    // pensando a un'altra seduta, lo si segnala.
+    const doneEntry = S.sessionLog.filter(x => x.kind === 'morning' && x.mWeek === t.w && x.mDay === day).pop();
+    const changed = doneEntry && doneEntry.mFocus && doneEntry.mFocus !== m.focusKey;
+    const rows = m.items.map((it, i) => {
+      const ex = exById(it.exId);
+      return `<li data-mplan="${i}"><div class="fig">${figureFor(ex, 1, { ground: false })}</div>
+        <div class="nm"><b>${esc(ex.name)}</b><span class="small muted">${esc(ex.group)}${it.note ? ' · ' + esc(it.note) : ''}</span></div>
+        <div class="dose">${doseText(it)}</div><div class="chev">›</div></li>`;
+    }).join('');
+    body = `
+      <p class="small muted" style="margin:10px 0 0">Giorno ${day} · pranzo: <b>${esc(m.lunchLabel)}</b>. ${m.focusLabel ? 'Focus ' + esc(m.focusLabel.replace(/^in vista d\S+ [^:]+: /, '')) + '.' : ''}
+        Se cambi la seduta di pranzo nel calendario qui sotto, questa sessione si aggiorna da sola.
+        ${changed ? `<br><span style="color:var(--amber)">Stamattina l'avevi fatta in vista di «${esc(doneEntry.mLunch || '')}»: se vuoi preparare i distretti della nuova seduta, puoi ripeterla adesso.</span>`
+          : (done.includes(day) ? 'Già fatta: puoi ripeterla.' : '')}</p>
+      <div class="seg dur" role="group" aria-label="Durata della mobilità del mattino" style="margin-top:10px">
+        ${((PROG.morning || {}).durations || [10, 15]).map(v => `<button data-mmin="${v}" aria-pressed="${(S.morningMin || 10) === v}">${v}′</button>`).join('')}
+      </div>
+      <p class="small muted" style="margin:6px 0 0">Durata stimata ${m.minutes} minuti · a casa, serve solo un tappetino.</p>
+      <ul class="plan">${rows}</ul>
+      <button class="btn teal" id="morningGo" style="margin-top:10px">Inizia la mobilità del mattino</button>`;
+  }
+  return `<div class="card morning">
+    <div class="kicker" style="font-family:var(--cond);letter-spacing:.06em;text-transform:uppercase;font-size:13px;color:var(--teal)">Mattino · a sé stante</div>
+    <h2 style="margin-top:2px">Mobilità del mattino</h2>
+    <p class="small muted" style="margin:6px 0 0">Cinque sessioni brevi nei giorni 1-5, in aggiunta alle sedute di pranzo. Non fanno avanzare il programma.</p>
+    <div class="mdots" role="group" aria-label="Mattine della settimana">${dots}</div>
+    ${body}
+  </div>`;
+}
+function bindMorning() {
+  const t = morningToday();
+  document.querySelectorAll('[data-mday]').forEach(b => b.onclick = () => {
+    morningSel = { w: t.w, day: +b.dataset.mday }; renderHome();
+  });
+  document.querySelectorAll('[data-mmin]').forEach(b => b.onclick = () => {
+    S.morningMin = +b.dataset.mmin; save(); renderHome();
+  });
+  if (!morningSel || !morningSel.day) return;
+  const m = buildMorning(t.w, morningSel.day, S.morningMin || 10);
+  document.querySelectorAll('[data-mplan]').forEach(li => li.onclick = () => {
+    const it = m.items[+li.dataset.mplan];
+    openSheet(exById(it.exId), it, { sess: m, after: () => renderHome() });
+  });
+  if ($('#morningGo')) $('#morningGo').onclick = () => {
+    if (current && !current.finished) {
+      confirmAction('Sessione già in corso', 'Vuoi abbandonarla e iniziare la mobilità del mattino? Gli esercizi già conclusi restano nello storico.',
+        'Inizia la mobilità', () => startSession(m));
+    } else startSession(m);
+  };
 }
 
 /* Seduta completa per la posizione idx del programma. minutes = durata scelta
@@ -1863,6 +2024,7 @@ function renderHome() {
   $('#view-home').innerHTML = `
     ${resume}
     ${resume ? '' : backupNag}
+    ${morningHtml()}
     <div class="seg" role="group" aria-label="Attrezzatura">
       <button data-setup="gym" aria-pressed="${S.setup === 'gym'}">Palestra</button>
       <button data-setup="home" aria-pressed="${S.setup === 'home'}">Casa</button>
@@ -1884,7 +2046,7 @@ function renderHome() {
     <div class="card">
       <div class="session-head ${core ? 'mobility' : ({ strength: '', cardio: 'cardio' }[s.dayType] ?? 'mobility')}">
         <div>
-          <div class="kicker">${core ? 'Blocco core facoltativo' : `Sessione ${s.pos} di ${s.days} · ${typeWord(s)}`}</div>
+          <div class="kicker">${core ? 'Blocco core facoltativo' : `Pranzo · sessione ${s.pos} di ${s.days} · ${typeWord(s)}`}</div>
           <h2>${esc(s.label)}</h2>
           <p class="small muted" style="margin:6px 0 0">${core ? 'Blocco breve da aggiungere quando hai tempo: non avanza la settimana del programma.'
                  : esc(s.isStrength ? s.profile.note : mobilityNote(s.profile, s.mobilityWeek))}</p>
@@ -1933,6 +2095,7 @@ function renderHome() {
     planCache = null;
     renderHome();
   });
+  bindMorning();
   document.querySelectorAll('[data-dur]').forEach(b => b.onclick = () => {
     S.durPref = +b.dataset.dur; planCache = null; save(); renderHome();
   });
@@ -2405,7 +2568,8 @@ function saveResume() {
     ts: Date.now(), started: c.started, pos: c.pos,
     kind: c.sess.kind, idx: c.sess.idx,
     items: c.sess.items,                      // la seduta può essere stata riordinata
-    label: c.sess.label, type: c.sess.type,
+    label: c.sess.label, type: c.sess.type, mWeek: c.sess.mWeek, mDay: c.sess.mDay,
+    focusKey: c.sess.focusKey, lunchLabel: c.sess.lunchLabel,
     setsDone: c.setsDone, loads: c.loads, feedback: c.feedback,
     repsDone: c.repsDone, rir: c.rir, logRef: c.logRef
   };
@@ -2425,6 +2589,7 @@ function restoreSession(r) {
   const meta = sessionMeta(r.idx);
   const sess = Object.assign({}, meta, {
     label: r.label, type: r.type, kind: r.kind, items: r.items,
+    mWeek: r.mWeek, mDay: r.mDay, focusKey: r.focusKey, lunchLabel: r.lunchLabel,
     minutes: estimateMinutes(r.items)
   });
   current = { sess, pos: r.pos, setsDone: r.setsDone, loads: r.loads,
@@ -2500,10 +2665,11 @@ function endSession() {
     const sid = current ? current.started : 0;
     S.sessionLog.push({ ts: Date.now(), sid: sid, idx: s.idx,
       label: s.label, kind: s.kind, minutes: mins,
+      ...(s.kind === 'morning' ? { mWeek: s.mWeek, mDay: s.mDay, mFocus: s.focusKey, mLunch: s.lunchLabel } : {}),
       note: withNote ? ($('#sNote').value || '') : '' });
-    if (s.kind !== 'core' && s.kind !== 'free') S.sessionIndex++;
+    if (isProgramKind(s.kind)) S.sessionIndex++;
     planCache = null; homeSel = 'session';
-    const weekDone = (s.kind !== 'core' && s.kind !== 'free' && posOfIdx(S.sessionIndex) === 0) ? weekOfIdx(S.sessionIndex) - 1 : 0;
+    const weekDone = (isProgramKind(s.kind) && posOfIdx(S.sessionIndex) === 0) ? weekOfIdx(S.sessionIndex) - 1 : 0;
     if (weekDone) S.lastRecap = weekDone;
     calibratePace(s, mins);            // la stima dei tempi impara dalla realtà
     clearResume();                     // la seduta è chiusa: niente da riprendere
@@ -2862,7 +3028,7 @@ function weekReport(weekAbs) {
    programma, quindi non contano. Serve a rimettere in pari la posizione quando
    una seduta è stata saltata senza registrarla. */
 function countProgramSessions() {
-  return S.sessionLog.filter(x => x.kind !== 'core' && x.kind !== 'free').length;
+  return S.sessionLog.filter(x => isProgramKind(x.kind)).length;
 }
 
 /* ---------------------------------------------------------------------------
@@ -2881,14 +3047,15 @@ function countProgramSessions() {
 --------------------------------------------------------------------------- */
 function realignHistory() {
   const list = S.sessionLog.slice().sort((a, b) => a.ts - b.ts);
-  const prog = list.filter(x => x.kind !== 'core' && x.kind !== 'free');
+  const prog = list.filter(x => isProgramKind(x.kind));
   let k = S.sessionIndex - 1;
   // le sedute più vecchie dell'inizio del programma (prove, versioni
   // precedenti) restano nello storico ma fuori da ogni settimana
   for (let i = prog.length - 1; i >= 0; i--, k--) prog[i].idx = k >= 0 ? k : null;
   let lastIdx = null;
   list.forEach(x => {
-    if (x.kind !== 'core' && x.kind !== 'free') lastIdx = x.idx;
+    if (isProgramKind(x.kind)) lastIdx = x.idx;
+    else if (x.kind === 'morning' && x.mWeek) x.idx = weekStart(x.mWeek) + x.mDay - 1;   // la mattina dello stesso giorno
     else x.idx = lastIdx;
   });
   // gli esercizi seguono la seduta a cui appartengono (per sid, o per orario
@@ -3441,7 +3608,7 @@ function renderSettings() {
     const alt = buildSession(n);
     confirmAction('Ricalcolare la posizione?',
       `Risultano ${n} sedute di programma registrate, quindi la prossima sarebbe "${alt.label}", ` +
-      `sessione ${posOfIdx(n) + 1} di ${weekLen(weekOfIdx(n))} della settimana ${weekOfIdx(n)}. Blocchi core e sedute libere non contano.`,
+      `sessione ${posOfIdx(n) + 1} di ${weekLen(weekOfIdx(n))} della settimana ${weekOfIdx(n)}. Blocchi core, sedute libere e mobilità del mattino non contano.`,
       'Allinea alla cronologia', () => { S.sessionIndex = n; realignHistory(); planCache = null; homeSel = 'session'; save(); renderSettings(); });
   };
   $('#progSel').onchange = e => { S.programId = e.target.value; save(); renderSettings(); };

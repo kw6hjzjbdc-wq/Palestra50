@@ -626,3 +626,10 @@ body.in-session.mini-on #view-session{padding-bottom:176px}
 .week .wknum.cardio{color:var(--coral)}
 .chip.cardio{color:var(--coral);border-color:rgba(239,138,91,.45)}
 .session-head.cardio .kicker{color:var(--coral)}
+
+/* mobilità del mattino (dalla 5.1) */
+.card.morning{border-color:rgba(79,195,161,.35)}
+.mdots{display:flex;gap:8px;margin-top:12px}
+.mdot{flex:1;min-height:44px;border-radius:10px;border:1px solid var(--line);background:var(--surface2);color:var(--muted);font-family:var(--cond);font-size:18px}
+.mdot.done{color:var(--teal);border-color:rgba(79,195,161,.5)}
+.mdot.sel{background:var(--teal);color:#07261e;border-color:var(--teal)}
