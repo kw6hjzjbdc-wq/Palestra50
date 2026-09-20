@@ -188,6 +188,8 @@ La scheda Progressi mostra, per la settimana in corso, le serie **fatte / previs
 
 Come si conta: una serie vale 1 per i gruppi che eseguono il movimento e ½ per quelli che collaborano (i tricipiti nella panca, i bicipiti nelle trazioni); negli esercizi monolaterali ogni lato riceve metà delle serie registrate; mobilità e allungamenti non contano. Il conteggio "previste" è ricavato dalle sedute che l'app genera per quella settimana.
 
+Le sedute di forza della settimana si contano dal registro delle sedute (il tipo effettivamente svolto), non dagli esercizi: il blocco core facoltativo non passa per una seduta di forza. Con la 4.6 lo storico è stato riallineato una volta alla posizione nel programma: le sedute salvate prima della correzione del 17/09 avevano un indice sfasato e finivano nella settimana sbagliata. Lo stesso riallineamento si ripete quando usi *Allinea alla cronologia* in Programma; nessun dato viene cancellato, cambia solo la settimana a cui la seduta è attribuita.
+
 Quando un gruppo resta sotto le 5 serie, sotto le barre e nel riepilogo di fine settimana compare **il motivo e il provvedimento**: settimana ancora in corso (nessuno); sedute di forza saltate (completarle, o accorciare la durata invece di saltarle); settimana di scarico o di sola mobilità (nessuno, è voluto); serie registrate meno di quelle previste (controllare esercizi chiusi in anticipo o sostituiti); gruppi che il programma tiene bassi per scelta, come polpacci e core (blocco core facoltativo o qualche serie in una seduta libera, se si vuole insistere).
 
 ---

@@ -2263,6 +2263,59 @@ function countProgramSessions() {
   return S.sessionLog.filter(x => x.kind !== 'core' && x.kind !== 'free').length;
 }
 
+/* ---------------------------------------------------------------------------
+   RIALLINEAMENTO DELLO STORICO ALLA POSIZIONE NEL PROGRAMMA
+   Ogni esercizio registrato porta con sé l'indice della seduta (sIdx), da cui
+   si ricava la settimana. Finché la posizione nel programma era sfasata (la
+   correzione del 17/09), alcune sedute sono state salvate con l'indice
+   sbagliato: nel riepilogo finivano in un'altra settimana, e la settimana 1
+   sembrava avere 2 sedute di forza invece di 3.
+   Qui le sedute di programma vengono rinumerate a ritroso a partire dalla
+   posizione attuale, che è quella confermata: l'ultima seduta chiusa è la
+   posizione attuale meno 1, la penultima meno 2, e così via. Blocchi core e
+   sedute libere prendono la settimana della seduta di programma che le
+   precede. Gli esercizi seguono la loro seduta tramite l'identificativo sid.
+   Nessun dato viene cancellato: cambia solo l'etichetta della settimana.
+--------------------------------------------------------------------------- */
+function realignHistory() {
+  const list = S.sessionLog.slice().sort((a, b) => a.ts - b.ts);
+  const prog = list.filter(x => x.kind !== 'core' && x.kind !== 'free');
+  let k = S.sessionIndex - 1;
+  // le sedute più vecchie dell'inizio del programma (prove, versioni
+  // precedenti) restano nello storico ma fuori da ogni settimana
+  for (let i = prog.length - 1; i >= 0; i--, k--) prog[i].idx = k >= 0 ? k : null;
+  let lastIdx = null;
+  list.forEach(x => {
+    if (x.kind !== 'core' && x.kind !== 'free') lastIdx = x.idx;
+    else x.idx = lastIdx;
+  });
+  // gli esercizi seguono la seduta a cui appartengono (per sid, o per orario
+  // nelle registrazioni più vecchie che non lo avevano)
+  let moved = 0;
+  list.forEach(x => logsOfSession(x).forEach(l => {
+    if (l.sIdx !== x.idx) { l.sIdx = x.idx; moved++; }
+  }));
+  planCache = null;
+  return moved;
+}
+
+/* Una sola volta, all'avvio della 4.6: corregge le sedute salvate prima
+   dell'allineamento della posizione. */
+function migrateRealign() {
+  if (S.realigned1) return;
+  S.realigned1 = true;
+  realignHistory();
+  save();
+}
+
+/* Sedute di forza davvero chiuse nella settimana, dal registro delle sedute:
+   conta il tipo registrato, non gli esercizi, così un blocco core facoltativo
+   non passa per una seduta di forza. */
+function strengthSessionsIn(weekAbs) {
+  return S.sessionLog.filter(x => x.idx != null && Math.floor(x.idx / 5) + 1 === weekAbs &&
+    (x.kind === 'strength' || (!x.kind && /^Forza/.test(x.label || '')))).length;
+}
+
 function weeksWithData() {
   const set = new Set(S.logs.filter(l => l.sIdx != null).map(l => Math.floor(l.sIdx / 5) + 1));
   return Array.from(set).sort((a, b) => b - a);
@@ -2350,10 +2403,7 @@ function volumeAnalysis(weekAbs) {
   const meta = sessionMeta((weekAbs - 1) * 5);
   const done = weeklyVolume(weekAbs);
   const plan = plannedVolume(weekAbs);
-  const logs = weekLogs(weekAbs);
-  const strengthDone = new Set(logs.filter(l => {
-    const ex = exById(l.exId); return ex && ex.type !== 'stretch';
-  }).map(l => l.sid)).size;
+  const strengthDone = strengthSessionsIn(weekAbs);
   const rows = VOL_GROUPS.filter(g => done[g] || plan.acc[g])
     .map(g => ({ group: g, sets: done[g] || 0, planned: plan.acc[g] || 0 }));
 
@@ -2770,7 +2820,7 @@ function renderSettings() {
     confirmAction('Ricalcolare la posizione?',
       `Risultano ${n} sedute di programma registrate, quindi la prossima sarebbe "${alt.label}", ` +
       `sessione ${(n % 5) + 1} di 5 della settimana ${Math.floor(n / 5) + 1}. Blocchi core e sedute libere non contano.`,
-      'Allinea alla cronologia', () => { S.sessionIndex = n; planCache = null; homeSel = 'session'; save(); renderSettings(); });
+      'Allinea alla cronologia', () => { S.sessionIndex = n; realignHistory(); planCache = null; homeSel = 'session'; save(); renderSettings(); });
   };
   $('#progSel').onchange = e => { S.programId = e.target.value; save(); renderSettings(); };
   $('#setupSel').onchange = e => { S.setup = e.target.value; save(); };
@@ -3557,6 +3607,7 @@ function registerServiceWorker() {
   migrateNames();
   resetCalfLogs();
   migrateLogFields();
+  migrateRealign();
   go('home');
   // l'intro si anima per 3 secondi e resta sull'ultimo fotogramma: sparisce solo
   // quando l'utente tocca lo schermo, e solo dopo compare l'avvertenza
