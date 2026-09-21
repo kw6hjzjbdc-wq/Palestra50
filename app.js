@@ -2514,11 +2514,11 @@ function renderSession() {
       ${timed && !chainHasWork() && c.setsDone[c.pos] < it.sets ? `<p class="small muted" style="margin-top:14px">${
         it.sets - c.setsDone[c.pos] > 1
           ? (it.role === 'finisher' || it.role === 'cardio')
-            ? `Un solo tocco avvia tutti gli intervalli: 3 secondi di preparazione, poi ${it.sets - c.setsDone[c.pos]} scatti da ${hold} secondi alternati a ${it.rest} secondi a ritmo tranquillo, senza fermarti. Rintocchi prima di ogni scatto, colpo acuto quando finisce.`
-            : `Un solo tocco avvia tutta la sequenza: 3 secondi di preparazione, poi ${it.sets - c.setsDone[c.pos]} tenute da ${hold} secondi con ${it.rest} secondi di pausa fra una e l'altra${c.pos < s.items.length - 1 ? ', infine il recupero prima dell\'esercizio successivo' : ''}. Il timer avanza da solo: rintocchi nei 3 secondi prima di ogni tenuta, un colpo acuto quando la tenuta finisce.`
+            ? `Un solo tocco avvia tutti gli intervalli: 3 secondi di preparazione, poi ${it.sets - c.setsDone[c.pos]} scatti da ${hold} secondi alternati a ${it.rest} secondi a ritmo tranquillo, senza fermarti. Rintocchi nei 3 secondi prima di ogni scatto e negli ultimi 3, colpo acuto alla fine.`
+            : `Un solo tocco avvia tutta la sequenza: 3 secondi di preparazione, poi ${it.sets - c.setsDone[c.pos]} tenute da ${hold} secondi con ${it.rest} secondi di pausa fra una e l'altra${c.pos < s.items.length - 1 ? ', infine il recupero prima dell\'esercizio successivo' : ''}. Il timer avanza da solo: rintocchi nei 3 secondi prima di ogni tenuta e negli ultimi 3 secondi di ciascuna, colpo acuto alla fine.`
           : ['finisher', 'cardio', 'warmup', 'cooldown'].includes(it.role)
-            ? `3 secondi di preparazione, poi ${Math.round(hold / 60)} minuti continui. Rintocchi prima dell'inizio, un colpo acuto alla fine.${CARDIO_ROLES.includes(it.role) && c.pos < s.items.length - 1 && CARDIO_ROLES.includes(s.items[c.pos + 1].role) ? ' La parte successiva parte da sola.' : ''}`
-            : `3 secondi di preparazione, poi una tenuta da ${hold} secondi. Rintocchi nei 3 secondi prima dell'inizio, un colpo acuto alla fine.`
+            ? `3 secondi di preparazione, poi ${Math.round(hold / 60)} minuti continui. Rintocchi prima dell'inizio e negli ultimi 3 secondi, colpo acuto alla fine.${CARDIO_ROLES.includes(it.role) && c.pos < s.items.length - 1 && CARDIO_ROLES.includes(s.items[c.pos + 1].role) ? ' La parte successiva parte da sola.' : ''}`
+            : `3 secondi di preparazione, poi una tenuta da ${hold} secondi. Rintocchi nei 3 secondi prima dell'inizio e negli ultimi 3, colpo acuto alla fine.`
         }${it.perSide ? ' Le tenute alternano sinistra e destra.' : ''}</p>` : ''}
 
       <div class="btn-row" style="margin-top:14px">
@@ -4090,14 +4090,21 @@ let bellCache = [], bellWorker = null;
        preparazione o della pausa fra una tenuta e l'altra), con il colpo
        acuto di "via";
      · negli ultimi 3 secondi di ogni recupero, con il colpo acuto finale;
-     · con un solo colpo acuto alla fine di ogni tenuta: "puoi rilasciare".
+     · negli ultimi 3 secondi di ogni tenuta o scatto, con il colpo acuto
+       finale: "puoi rilasciare".
    I rintocchi troppo vicini a un colpo appena suonato vengono omessi, così una
    pausa brevissima non produce mai campane sovrapposte.
 --------------------------------------------------------------------------- */
 function marksOf(segs) {
   const raw = [];
   segs.forEach(s => {
-    if (s.kind === 'work') { raw.push([s.end, true]); return; }
+    // anche le fasi di lavoro (tenute, scatti) hanno il conto alla rovescia
+    // negli ultimi 3 secondi, poi il colpo acuto di fine
+    if (s.kind === 'work') {
+      for (let k = 3; k >= 1; k--) if (s.end - k >= s.start + 1) raw.push([s.end - k, false]);
+      raw.push([s.end, true]);
+      return;
+    }
     for (let k = 3; k >= 1; k--) if (s.end - k >= s.start - 0.001) raw.push([s.end - k, false]);
     raw.push([s.end, true]);
   });
