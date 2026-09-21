@@ -1721,7 +1721,7 @@ function morningHtml() {
       <ul class="plan">${rows}</ul>
       <button class="btn teal" id="morningGo" style="margin-top:10px">Inizia la mobilità del mattino</button>`;
   }
-  return `<div class="card morning">
+  return `<div class="card morning" id="mCard">
     <div class="kicker" style="font-family:var(--cond);letter-spacing:.06em;text-transform:uppercase;font-size:13px;color:var(--teal)">Mattino · a sé stante</div>
     <h2 style="margin-top:2px">Mobilità del mattino</h2>
     <p class="small muted" style="margin:6px 0 0">Cinque sessioni brevi nei giorni 1-5, in aggiunta alle sedute di pranzo. Non fanno avanzare il programma.</p>
@@ -1786,6 +1786,224 @@ function buildSession(idx, kind, minutes) {
 const $ = sel => document.querySelector(sel);
 const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
+/* ---------------------------------------------------------------------------
+   HOME (dalla 5.3): la pagina che si apre dopo l'intro
+   Cinque riquadri, ciascuno toccabile per aprire la schermata completa:
+     1. mobilità del mattino di oggi: da fare, oppure com'è andata;
+     2. allenamento di pranzo di oggi: da fare, oppure com'è andato;
+     3. fase e punto del percorso fino alla data obiettivo;
+     4. progressione negli esercizi e tendenza dei risultati;
+     5. misure corporee e obiettivo ragionevole a fine piano.
+--------------------------------------------------------------------------- */
+const sameDay = (a, b) => { const x = new Date(a), y = new Date(b); return x.toDateString() === y.toDateString(); };
+
+/* Valutazione di una seduta chiusa: completamento delle serie previste,
+   minuti rispetto alla stima, stelle medie dove ci sono carichi da confrontare. */
+function sessionVerdict(x) {
+  const logs = x.sid ? S.logs.filter(l => l.sid === x.sid) : logsOfSession(x);
+  let done = 0, planned = 0;
+  logs.forEach(l => { done += l.sets || 0; planned += (l.setsPlanned || l.sets || 0); });
+  const pct = planned ? Math.round(done / planned * 100) : (logs.length ? 100 : 0);
+  const rated = logs.filter(l => l.stars > 0);
+  const avg = rated.length ? rated.reduce((a, l) => a + l.stars, 0) / rated.length : 0;
+  const text = pct >= 95 ? 'Seduta completa' : pct >= 70 ? 'Seduta quasi completa' : pct > 0 ? 'Seduta parziale' : 'Seduta registrata';
+  return { logs, pct, avg, text, minutes: x.minutes || 0 };
+}
+
+/* Mattino di oggi: fatto oggi, oppure quello da fare. */
+function morningStatus() {
+  const doneToday = S.sessionLog.filter(x => x.kind === 'morning' && sameDay(x.ts, Date.now())).pop();
+  if (doneToday) return { done: true, entry: doneToday, verdict: sessionVerdict(doneToday) };
+  const lunchToday = S.sessionLog.filter(x => isProgramKind(x.kind) && sameDay(x.ts, Date.now())).pop();
+  // se il pranzo di oggi è già chiuso, l'indice punta a domani: il mattino di
+  // oggi è quello del giorno appena svolto
+  const idx = lunchToday && lunchToday.idx != null ? lunchToday.idx : S.sessionIndex;
+  const w = weekOfIdx(idx), day = posOfIdx(idx) + 1;
+  if (day > MORNING_DAYS) return { done: false, none: true, w, day };
+  const m = buildMorning(w, day, S.morningMin || 10);
+  return { done: false, w, day, m };
+}
+function lunchStatus() {
+  const doneToday = S.sessionLog.filter(x => isProgramKind(x.kind) && sameDay(x.ts, Date.now())).pop();
+  if (doneToday) return { done: true, entry: doneToday, verdict: sessionVerdict(doneToday) };
+  return { done: false, s: todaySession(null) };
+}
+
+/* Percorso: fase, settimana, settimane alla fine e data di fine stimata
+   (si sposta se aggiungi settimane di sola mobilità). */
+function pathStatus() {
+  const p = program();
+  const meta = sessionMeta(S.sessionIndex);
+  const total = totalWeeks(p) || p.cycleWeeks || 1;
+  const tw = meta.trainingWeek;
+  const futureMob = (S.mobilityWeeks || []).filter(w => w >= meta.weekAbs).length;
+  const weeksLeft = Math.max(0, total - tw) + futureMob;
+  const daysIntoWeek = posOfIdx(S.sessionIndex);
+  const end = new Date(Date.now() + (weeksLeft * 7 + (meta.days - daysIntoWeek)) * 86400000);
+  return { p, meta, total, tw, weeksLeft, end, pct: Math.min(100, Math.round((tw - 1) / total * 100)) };
+}
+
+/* Tendenza degli esercizi: per ciascuno confronta la media delle ultime due
+   registrazioni con quella delle prime due (dentro le ultime 8 settimane),
+   sulla metrica che l'app usa già nei grafici (massimale stimato, gradino o
+   volume). Sopra +2% cresce, sotto -2% cala. */
+function exerciseTrend() {
+  const since = Date.now() - 56 * 86400000;
+  const byEx = {};
+  S.logs.forEach(l => {
+    const ex = exById(l.exId);
+    if (!ex || ex.type === 'stretch' || ex.pattern === 'cardio' || ex.pattern === 'finisher') return;
+    (byEx[l.exId] = byEx[l.exId] || []).push(l);
+  });
+  let up = 0, flat = 0, down = 0;
+  const detail = [];
+  Object.keys(byEx).forEach(k => {
+    const logs = byEx[k].filter(l => l.ts >= since);
+    const vals = logs.map(l => { const m = progressMetric(l); return m ? m.v : NaN; }).filter(isFinite);
+    if (vals.length < 2) return;
+    const a = vals.slice(0, 2), b = vals.slice(-2);
+    const ma = a.reduce((x, y) => x + y, 0) / a.length, mb = b.reduce((x, y) => x + y, 0) / b.length;
+    const r = ma ? (mb - ma) / ma : 0;
+    if (r > 0.02) up++; else if (r < -0.02) down++; else flat++;
+    detail.push({ name: logs[logs.length - 1].name, r });
+  });
+  const rated = S.logs.filter(l => l.stars > 0);
+  const avgOf = (from, to) => { const x = rated.filter(l => l.ts >= from && l.ts < to); return x.length ? x.reduce((s, l) => s + l.stars, 0) / x.length : 0; };
+  const now = Date.now(), d14 = 14 * 86400000;
+  return { up, flat, down, n: up + flat + down, recent: avgOf(now - d14, now + 1), before: avgOf(now - 2 * d14, now - d14),
+           best: detail.sort((x, y) => y.r - x.r).slice(0, 3) };
+}
+
+/* Obiettivo ragionevole a fine piano.
+   Peso: con pesi e deficit moderato è realistico perdere 0,25-0,5 kg a
+   settimana conservando il muscolo (la letteratura indica 0,5-1% del peso
+   corporeo a settimana come tetto per non perdere massa magra: Helms et al.
+   2014); la stima usa la fascia prudente, adatta a chi costruisce muscolo
+   nello stesso tempo.
+   Girovita: si proietta la tendenza delle TUE misure (servono almeno due
+   misure a 2 settimane di distanza), con un tetto di 0,5 cm a settimana;
+   come riferimento, l'OMS indica per gli uomini rischio aumentato sopra 94 cm
+   e molto aumentato sopra 102 cm. */
+function bodyProjection() {
+  const m = (S.measures || []).slice().sort((a, b) => a.ts - b.ts);
+  const path = pathStatus();
+  const weeks = Math.max(0, (path.end - Date.now()) / (7 * 86400000));
+  const lastW = m.slice().reverse().find(x => isFinite(x.weight));
+  const lastC = m.slice().reverse().find(x => isFinite(x.waist));
+  const firstC = m.find(x => isFinite(x.waist));
+  const out = { m, weeks, end: path.end, lastW, lastC };
+  if (lastW) out.weight = { from: lastW.weight, lo: lastW.weight - 0.5 * weeks, hi: lastW.weight - 0.25 * weeks };
+  // tetto complessivo: il 5-10% del peso iniziale, l'obiettivo che l'ACSM
+  // indica come realistico e già utile per la salute (Donnelly et al. 2009)
+  if (lastW) { out.weight.lo = Math.max(out.weight.lo, lastW.weight * 0.90); out.weight.hi = Math.max(out.weight.hi, lastW.weight * 0.95); }
+  if (lastC && firstC && lastC !== firstC && (lastC.ts - firstC.ts) >= 14 * 86400000) {
+    const perWeek = (lastC.waist - firstC.waist) / ((lastC.ts - firstC.ts) / (7 * 86400000));
+    const rate = Math.max(-0.5, Math.min(0, perWeek));        // tetto prudente; nessuna proiezione in aumento
+    out.waist = { from: lastC.waist, to: lastC.waist + rate * weeks, perWeek };
+    out.waist.to = Math.max(out.waist.to, lastC.waist - 8);    // tetto prudente: non più di 8 cm in tutto il piano
+  }
+  return out;
+}
+const kg1 = v => (Math.round(v * 10) / 10).toString().replace('.', ',');
+const dateIt = d => new Date(d).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' });
+
+function renderDash() {
+  $('#topTitle').textContent = 'Home';
+  const path = pathStatus();
+  $('#topChip').textContent = `Sett. ${path.meta.weekAbs} · ${path.meta.phase ? path.meta.phase.ph.name : ''}`;
+  $('#topChip').className = 'chip';
+
+  // 1. mattino
+  const ms = morningStatus();
+  const mBody = ms.done
+    ? `<div class="dstat ok">Fatta ✓</div><p class="small">${esc(ms.verdict.text)} · ${ms.verdict.pct}% delle tenute · ${ms.verdict.minutes} min</p>
+       <p class="small muted">Mattine della settimana: ${morningsDone(weekOfIdx(S.sessionIndex)).length} di ${MORNING_DAYS}.</p>`
+    : ms.none
+      ? `<div class="dstat">Oggi niente</div><p class="small muted">Sesto giorno: c'è solo la mobilità a pranzo.</p>`
+      : `<div class="dstat todo">Da fare · ${ms.m.minutes} min</div><p class="small">${esc(ms.m.focusLabel)}</p>
+         <p class="small muted">Giorno ${ms.day} di ${MORNING_DAYS} · ${ms.m.items.length} esercizi a casa.</p>`;
+
+  // 2. pranzo
+  const ls = lunchStatus();
+  const lBody = ls.done
+    ? `<div class="dstat ok">Fatto ✓</div><p class="small"><b>${esc(ls.entry.label)}</b></p>
+       <p class="small">${esc(ls.verdict.text)} · ${ls.verdict.pct}% delle serie · ${ls.verdict.minutes} min${ls.verdict.avg ? ' · ' + starsHtml(Math.round(ls.verdict.avg)) : ''}</p>`
+    : `<div class="dstat todo">Da fare · ${ls.s.minutes} min</div><p class="small"><b>${esc(ls.s.label)}</b></p>
+       <p class="small muted">Sessione ${ls.s.pos} di ${ls.s.days} · ${typeWord(ls.s)} · ${ls.s.items.length} esercizi.</p>`;
+
+  // 3. percorso
+  const ph = path.meta.phase;
+  const pBody = `<div class="dstat">${ph ? esc(ph.ph.name) : esc(path.p.name)}</div>
+    <p class="small">${ph ? `Settimana ${ph.weekInPhase} di ${ph.ph.weeks} della fase · ` : ''}settimana ${path.tw} di ${path.total} del piano${path.meta.mobilityWeek ? ' · sola mobilità' : ''}</p>
+    <div class="dbar"><i style="width:${path.pct}%"></i></div>
+    <p class="small muted">${path.weeksLeft} settimane alla fine · ${dateIt(path.end)}</p>`;
+
+  // 4. esercizi
+  const t = exerciseTrend();
+  const trendWord = t.recent && t.before ? (t.recent > t.before + 0.2 ? 'in miglioramento' : t.recent < t.before - 0.2 ? 'in calo' : 'stabile') : '';
+  const eBody = t.n
+    ? `<div class="dstat">${t.up} in crescita</div>
+       <div class="dsplit"><span class="up" style="flex:${t.up || 0.001}"></span><span class="flat" style="flex:${t.flat || 0.001}"></span><span class="down" style="flex:${t.down || 0.001}"></span></div>
+       <p class="small">${t.up} in crescita · ${t.flat} stabili · ${t.down} in calo (ultime 8 settimane)</p>
+       ${t.recent ? `<p class="small muted">Media stelle ultime 2 settimane ${kg1(t.recent)}${trendWord ? ' · ' + trendWord : ''}</p>` : ''}`
+    : `<div class="dstat">Ancora pochi dati</div><p class="small muted">Servono almeno due sedute per esercizio per vedere la tendenza.</p>`;
+
+  // 5. misure
+  const b = bodyProjection();
+  const bBody = (b.lastW || b.lastC)
+    ? `<div class="dstat">${b.lastC ? kg1(b.lastC.waist) + ' cm' : ''}${b.lastC && b.lastW ? ' · ' : ''}${b.lastW ? kg1(b.lastW.weight) + ' kg' : ''}</div>
+       <p class="small">Obiettivo ragionevole al ${dateIt(b.end)}: ${b.waist ? `girovita circa ${kg1(b.waist.to)} cm` : 'girovita da stimare (servono due misure a 2 settimane)'}${b.weight ? `, peso ${kg1(b.weight.lo)}-${kg1(b.weight.hi)} kg` : ''}.</p>`
+    : `<div class="dstat todo">Nessuna misura</div><p class="small muted">Registra girovita e peso: da lì l'app stima l'obiettivo a fine piano.</p>`;
+
+  const tile = (id, kicker, cls, body) => `<button class="dtile ${cls}" data-dash="${id}">
+      <div class="kicker">${kicker}</div>${body}<span class="chev">›</span></button>`;
+  $('#view-dash').innerHTML = `
+    ${tile('morning', 'Mattino · mobilità', 'mobility', mBody)}
+    ${tile('lunch', 'Pranzo · allenamento principale', ls.done ? 'strength' : typeClass(ls.s), lBody)}
+    ${tile('path', 'Il percorso', '', pBody)}
+    ${tile('trend', 'Progressione negli esercizi', '', eBody)}
+    ${tile('body', 'Misure corporee', '', bBody)}`;
+
+  document.querySelectorAll('[data-dash]').forEach(el => el.onclick = () => {
+    const k = el.dataset.dash;
+    if (k === 'morning') { go('home'); scrollToId('mCard'); }
+    else if (k === 'lunch') {
+      if (current && !current.finished) { go('session'); renderSession(); }
+      else { go('home'); scrollToId('lunchCard'); }
+    }
+    else if (k === 'path') openPath();
+    else if (k === 'trend') { go('history'); scrollToId('loadsCard'); }
+    else if (k === 'body') { go('history'); scrollToId('bodyCard'); }
+  });
+}
+function scrollToId(id) {
+  requestAnimationFrame(() => { const el = document.getElementById(id); if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+}
+
+/* Schermata completa del percorso: tutte le fasi con la posizione attuale. */
+function openPath() {
+  const path = pathStatus(), p = path.p;
+  let acc = 0;
+  const rows = (p.phases || []).map((f, i) => {
+    const start = acc + 1, end = acc + f.weeks; acc = end;
+    const cur = path.meta.phase && path.meta.phase.index === i;
+    const past = path.tw > end;
+    return `<li class="${cur ? 'cur' : ''}" style="${past ? 'opacity:.55' : ''}">
+      <div class="nm" style="flex:1"><b>${esc(f.name)}</b>${cur ? ' <span class="wkbadge">sei qui</span>' : ''}
+        <div class="small muted">settimane ${start}-${end} · ${esc(f.aim || '')}</div></div>
+      <div class="val small">${past ? '✓' : `${f.weeks} sett.`}</div></li>`;
+  }).join('');
+  const meta = path.meta;
+  openModal(`<h2>Il percorso</h2>
+    <p class="small muted">${esc(p.name)} · ${esc(p.periodization || '')}</p>
+    <div class="dbar" style="margin:12px 0 6px"><i style="width:${path.pct}%"></i></div>
+    <p class="small">Settimana ${path.tw} di ${path.total} · ${path.weeksLeft} settimane alla fine, previste per il <b>${dateIt(path.end)}</b>${(S.mobilityWeeks || []).length ? ' (le settimane di sola mobilità spostano la data)' : ''}.</p>
+    <p class="small">Blocco di 4 settimane: settimana ${meta.weekInCycle} di ${meta.cycleLen} · ${esc(meta.profile.label)}${meta.profile.label === 'Scarico' ? ' (recupero)' : ''}.</p>
+    <ul class="hist" style="margin-top:12px">${rows}</ul>
+    <button class="btn secondary" id="pathClose" style="margin-top:14px">Chiudi</button>`);
+  $('#pathClose').onclick = closeModal;
+}
+
 function go(view) {
   // uscendo dalla schermata della sessione il timer NON si ferma: si riduce da
   // solo alla barretta in basso e continua a scorrere mentre navighi
@@ -1798,6 +2016,7 @@ function go(view) {
   if (view !== 'session') $('#actionBar').classList.remove('on');
   window.scrollTo(0, 0);
   if (view === 'home') renderHome();
+  if (view === 'dash') renderDash();
   if (view === 'history') renderHistory();
   if (view === 'settings') renderSettings();
   if (view === 'catalog') renderCatalog();
@@ -2043,7 +2262,7 @@ function renderHome() {
       <p class="small muted" style="margin-top:10px">Tocca la seduta che vuoi fare adesso: quella prevista oggi prenderà il suo posto più avanti nella settimana.</p>
     </div>
 
-    <div class="card">
+    <div class="card" id="lunchCard">
       <div class="session-head ${core ? 'mobility' : ({ strength: '', cardio: 'cardio' }[s.dayType] ?? 'mobility')}">
         <div>
           <div class="kicker">${core ? 'Blocco core facoltativo' : `Pranzo · sessione ${s.pos} di ${s.days} · ${typeWord(s)}`}</div>
@@ -2163,7 +2382,7 @@ function renderSession() {
   $('#topChip').className = 'chip ' + (s.type === 'stretch' ? 'mobility' : s.type === 'cardio' ? 'cardio' : 'strength');
 
   const bars = s.items.map((_, i) =>
-    `<span class="${i < c.pos ? 'done' : (i === c.pos ? 'now' : '')}"></span>`).join('');
+    `<span class="${i === c.pos ? 'now' : (!isOpenItem(c, i) ? 'done' : '')}"></span>`).join('');
 
   const setBtns = Array.from({ length: it.sets }, (_, i) =>
     `<button data-set="${i}" class="${i < c.setsDone[c.pos] ? 'done' : ''}">${setLabel(it, i)}</button>`).join('');
@@ -2261,6 +2480,7 @@ function renderSession() {
 
   $('#view-session').innerHTML = `
     <div class="progress">${bars}</div>
+    ${s.items.length > 1 ? `<div class="swipehint">${c.pos > 0 ? '‹ precedente' : ''}${c.pos > 0 && c.pos < s.items.length - 1 ? ' · ' : ''}${c.pos < s.items.length - 1 ? 'successivo ›' : ''} — scorri col dito, il timer continua</div>` : ''}
     <div class="exercise">
       <div class="fig-large">${figureA11y(ex, 1)}</div>
       <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin-top:14px">
@@ -2311,7 +2531,6 @@ function renderSession() {
       </div>
       <div class="btn-row" style="margin-top:10px">
         <button class="btn ghost" id="postponeBtn" ${c.pos === s.items.length - 1 ? 'disabled' : ''}>Rimanda a dopo</button>
-        <button class="btn ghost" id="prevBtn" ${c.pos === 0 ? 'disabled' : ''}>‹ Precedente</button>
       </div>
       <p class="small muted" style="margin-top:14px">${esc(it.source)}${it.note ? ' · ' + esc(it.note) : ''}</p>
       <button class="btn ghost" id="abortBtn" style="margin-top:14px">Interrompi</button>
@@ -2330,7 +2549,7 @@ function renderSession() {
 
   $('#actionBar').innerHTML = `
     <button class="btn ${timed && !allDone ? 'teal' : ''}" id="doneSet" ${timerRunning() ? 'disabled' : ''}>${doneLabel}</button>
-    <button class="btn secondary" id="nextBtn">${c.pos === s.items.length - 1 ? 'Chiudi' : 'Avanti ›'}</button>`;
+    <button class="btn secondary" id="nextBtn">${nextOpenAfter(c, c.pos) < 0 ? 'Chiudi seduta' : 'Chiudi esercizio'}</button>`;
   $('#actionBar').classList.add('on');
 
   // I pallini servono a CORREGGERE il conteggio, non ad avanzarlo: toccarne uno
@@ -2394,8 +2613,9 @@ function renderSession() {
     const atPos = c.pos, atSid = c.started, atIt = it, atEx = it.exId;
     const valid = () => current && !current.finished && current.started === atSid &&
       current.pos === atPos && current.sess.items[atPos] === atIt && atIt.exId === atEx;
-    const last = c.pos === s.items.length - 1;
-    const nextName = last ? '' : exById(s.items[c.pos + 1].exId).name;
+    const nextPos = nextOpenAfter(c, c.pos);
+    const last = nextPos < 0;
+    const nextName = last ? '' : exById(s.items[nextPos].exId).name;
     const side = k => it.perSide ? ' · ' + (k % 2 ? 'Dx' : 'Sx') : '';
     const defs = holdChainDefs(it, ex, c.setsDone[c.pos], last);
     defs.forEach((d, i) => {
@@ -2403,15 +2623,22 @@ function renderSession() {
         d.what = it.sets === 1 ? `${it.workLabel || 'Tenuta'} · ${ex.name}`
           : `${it.workLabel || 'Tenuta'} ${d.set + 1} di ${it.sets}${side(d.set)} · ${ex.name}`;
         d.onEnd = () => {
-          if (!valid()) return false;
-          c.setsDone[c.pos] = Math.min(it.sets, c.setsDone[c.pos] + 1);
+          // la tenuta conta sull'esercizio da cui è partita, anche se nel
+          // frattempo sei passato a un'altra schermata scorrendo
+          if (!current || current.finished || current.started !== atSid) return false;
+          const at = current.sess.items.indexOf(atIt);
+          if (at < 0 || atIt.exId !== atEx) return false;
+          current.setsDone[at] = Math.min(it.sets, current.setsDone[at] + 1);
           saveResume();
-          if (c.setsDone[c.pos] >= it.sets) { concludeExercise(true); return true; }
+          if (current.setsDone[at] >= it.sets) {
+            if (current.pos === at) { concludeExercise(true); return true; }
+            logExercise(at);                   // registrato senza strapparti dalla schermata in cui sei
+          }
           renderSession();
           return true;
         };
       } else if (d.kind === 'rest' && d.final) {
-        const nextIt = last ? null : s.items[c.pos + 1];
+        const nextIt = last ? null : s.items[nextPos];
         const flow = CARDIO_ROLES.includes(it.role) && nextIt && CARDIO_ROLES.includes(nextIt.role);
         d.what = flow ? `Poi: ${(nextIt.workLabel || nextName)}` : `Recupero · poi ${nextName}`;
         d.onStart = () => minimizeTimer();       // lascia vedere il prossimo esercizio
@@ -2420,7 +2647,7 @@ function renderSession() {
         if (flow) d.onEnd = () => {
           setTimeout(() => {
             if (!timerRunning() && current && !current.finished && current.started === atSid &&
-                current.pos === atPos + 1 && $('#doneSet')) $('#doneSet').onclick();
+                current.sess.items[current.pos] === nextIt && $('#doneSet')) $('#doneSet').onclick();
           }, 50);
           return false;
         };
@@ -2455,24 +2682,23 @@ function renderSession() {
   if ($('#noteShow')) $('#noteShow').onclick = () => editNote(it.exId, () => renderSession());
   $('#postponeBtn').onclick = () => { captureLoad(); releaseTimerForMove(); postponeCurrent(); };
   $('#orderBtn').onclick = () => { captureLoad(); openReorder(); };
-  $('#prevBtn').onclick = () => { captureLoad(); if (c.pos > 0) { releaseTimerForMove(); c.pos--; saveResume(); renderSession(); } };
 
   // il timer di recupero accompagna al prossimo esercizio: passando avanti
   // continua a scorrere, si stacca solo l'azione automatica che aveva in coda
   const goNext = () => { releaseTimerForMove(); nextExercise(); };
   $('#nextBtn').onclick = () => {
     captureLoad();
-    if (c.pos === s.items.length - 1) {
-      confirmAction('Chiudere la sessione?', 'Stai per concludere l\'ultimo esercizio e chiudere la seduta.',
+    if (nextOpenAfter(c, c.pos) < 0) {
+      confirmAction('Chiudere la sessione?', 'Non restano altri esercizi aperti: chiudendo questo si conclude la seduta.',
         'Chiudi la sessione', () => { stopTimer(); nextExercise(); });
     } else if (c.setsDone[c.pos] < it.sets) {
-      confirmAction('Passare al prossimo esercizio?',
-        `Hai completato ${c.setsDone[c.pos]} serie su ${it.sets}.`, 'Vai avanti', goNext);
+      confirmAction('Chiudere questo esercizio?',
+        `Hai completato ${c.setsDone[c.pos]} serie su ${it.sets}: verrà registrato così. Per guardare solo un altro esercizio, scorri lo schermo.`, 'Chiudi e vai avanti', goNext);
     } else goNext();
   };
   $('#abortBtn').onclick = () => confirmAction('Interrompere la sessione?',
     'Gli esercizi già conclusi restano nello storico, il resto della seduta viene abbandonato.',
-    'Interrompi', () => { stopTimer(); releaseWakeLock(); current = null; clearResume(); go('home'); });
+    'Interrompi', () => { stopTimer(); releaseWakeLock(); current = null; clearResume(); go('dash'); });
 }
 
 /* Nota personale per esercizio: regolazioni della macchina, accorgimenti,
@@ -2610,7 +2836,7 @@ const arrow = f => f === 'up' ? '<span class="trend-up">↑</span>' : f === 'dow
 function concludeExercise(inChain) {
   const c = current, s = c.sess;
   const it = s.items[c.pos], ex = exById(it.exId);
-  const last = c.pos >= s.items.length - 1;
+  const last = nextOpenAfter(c, c.pos) < 0;
   if (!inChain) stopTimer();
   nextExercise();
   if (last || !current || current.finished) return;
@@ -2621,33 +2847,55 @@ function concludeExercise(inChain) {
   }
 }
 
-function nextExercise() {
+/* Registra l'esercizio in posizione pos (o aggiorna il record, se ci si era
+   già tornati sopra: niente doppioni nello storico). */
+function logExercise(pos) {
   const c = current, s = c.sess;
-  if (c.finished) return;              // evita doppie registrazioni sull'ultimo esercizio
-  // registra l'esercizio appena concluso (o aggiorna il record, se ci si era
-  // tornati sopra con "Esercizio precedente": niente doppioni nello storico)
-  const it = s.items[c.pos];
-  const rd = c.repsDone[c.pos];
+  const it = s.items[pos];
+  const rd = c.repsDone[pos];
   const entry = { ts: Date.now(), sid: c.started, sIdx: s.idx, exId: it.exId, name: exById(it.exId).name,
-                  setup: S.setup, load: c.loads[c.pos] || '', feedback: c.feedback[c.pos] || 'same',
-                  sets: c.setsDone[c.pos],
+                  setup: S.setup, load: c.loads[pos] || '', feedback: c.feedback[pos] || 'same',
+                  sets: c.setsDone[pos],
                   repsTarget: it.reps,                                   // obiettivo previsto
                   repsDone: (rd === null || rd === undefined) ? it.reps : rd,  // eseguite davvero
-                  rir: (c.rir[c.pos] === null || c.rir[c.pos] === undefined) ? null : c.rir[c.pos],
+                  rir: (c.rir[pos] === null || c.rir[pos] === undefined) ? null : c.rir[pos],
                   reps: it.reps,                                         // compatibilità storico
                   goal: it.goal, week: s.weekInCycle,
-                  hold: it.hold || 0, rest: it.rest || 0 };           // per i minuti aerobici
+                  hold: it.hold || 0, rest: it.rest || 0,             // per i minuti aerobici
+                  setsPlanned: it.sets };                             // per la valutazione in Home
   // valutazione automatica rispetto alla registrazione precedente dello stesso esercizio
-  const ref0 = c.logRef[c.pos];
+  const ref0 = c.logRef[pos];
   const prev = S.logs.filter((g, gi) => g.exId === it.exId && gi !== ref0).pop() || null;
   const r = rateLog(entry, prev, s.weekInCycle >= program().cycleWeeks);
   entry.stars = r.stars; entry.rateText = r.text; entry.warn = r.warn || ''; entry.advice = r.advice || '';
-  const ref = c.logRef[c.pos];
-  if (ref !== null && S.logs[ref]) S.logs[ref] = entry;
-  else { c.logRef[c.pos] = S.logs.length; S.logs.push(entry); }
+  if (ref0 !== null && ref0 !== undefined && S.logs[ref0]) S.logs[ref0] = entry;
+  else { c.logRef[pos] = S.logs.length; S.logs.push(entry); }
   save();
-  if (c.pos < s.items.length - 1) { c.pos++; saveResume(); renderSession(); }
-  else { c.finished = true; endSession(); }
+}
+
+/* Esercizi ancora da fare: né completati né già registrati. Scorrendo fra le
+   schermate si può lasciare indietro un esercizio: dopo ogni esercizio chiuso
+   si va al successivo ancora aperto, e la seduta finisce solo quando non ne
+   resta nessuno. */
+const isOpenItem = (c, i) => c.setsDone[i] < c.sess.items[i].sets && (c.logRef[i] === null || c.logRef[i] === undefined);
+function nextOpenAfter(c, pos) {
+  const n = c.sess.items.length;
+  for (let i = pos + 1; i < n; i++) if (isOpenItem(c, i)) return i;
+  for (let i = 0; i < pos; i++) if (isOpenItem(c, i)) return i;
+  return -1;
+}
+
+function nextExercise() {
+  const c = current;
+  if (c.finished) return;              // evita doppie registrazioni sull'ultimo esercizio
+  logExercise(c.pos);
+  const nx = nextOpenAfter(c, c.pos);
+  if (nx >= 0) { c.pos = nx; saveResume(); renderSession(); return; }
+  // fine seduta: gli esercizi iniziati ma lasciati a metà restano registrati
+  c.sess.items.forEach((_, i) => {
+    if (c.setsDone[i] > 0 && (c.logRef[i] === null || c.logRef[i] === undefined)) logExercise(i);
+  });
+  c.finished = true; endSession();
 }
 
 /* ---------- fine sessione: riepilogo e salvataggio ---------- */
@@ -2721,7 +2969,7 @@ function celebrate(st) {
   </div>`);
 
   $('#cheerOk').onclick = () => closeModal(() => {
-    go('home');
+    go('dash');
     if (st.weekDone) setTimeout(() => openWeekReport(st.weekDone), 260);
   });
 }
@@ -2840,7 +3088,7 @@ function renderHistory() {
       ${volAna.advice.length ? `<ul class="small" style="margin-top:12px;padding-left:18px">${volAna.advice.map(t => `<li style="margin-top:6px">${esc(t)}</li>`).join('')}</ul>` : ''}</div>` : ''}
     ${wks ? `<div class="card"><h2>Riepilogo settimanale</h2>
       <p class="small muted">Traguardi migliori e punti a cui fare attenzione, dalla valutazione automatica dei progressi.</p>${wks}</div>` : ''}
-    <div class="card"><h2>Carichi per esercizio</h2>
+    <div class="card" id="loadsCard"><h2>Carichi per esercizio</h2>
       <p class="small muted">La linea segue il massimale stimato, non il solo peso: migliorare le ripetizioni a parità di carico si vede.</p>
       <ul class="hist">${rows}</ul></div>
     ${sess ? `<div class="card"><h2>Ultime sedute</h2><ul class="hist">${sess}</ul></div>` : ''}`;
@@ -2897,7 +3145,7 @@ function measuresHtml() {
   const rows = m.slice(-6).reverse().map(x => `<li><div class="nm" style="flex:1">${new Date(x.ts).toLocaleDateString('it-IT')}</div>
       <div class="val">${fmt(x.waist)} cm · ${fmt(x.weight)} kg</div></li>`).join('');
   const due = !last || (Date.now() - last.ts) > 14 * 86400000;
-  return `<div class="card"><h2>Girovita e peso</h2>
+  return `<div class="card" id="bodyCard"><h2>Girovita e peso</h2>
     <p class="small muted">Misura il girovita all'altezza dell'ombelico, a fine espirazione, al mattino, ogni 2-4 settimane: è l'indicatore più diretto del grasso addominale. Il peso da solo inganna, perché il muscolo che costruisci pesa.</p>
     ${m.length > 1 ? `<p class="small" style="margin-top:8px">Girovita: ${delta('waist', 'cm') || '—'}<br>Peso: ${delta('weight', 'kg') || '—'}</p>` : ''}
     ${due ? `<div class="btn-row" style="margin-top:10px;align-items:center">
@@ -2908,8 +3156,25 @@ function measuresHtml() {
     : `<p class="small muted" style="margin-top:8px">Prossima misura consigliata dal ${new Date(last.ts + 14 * 86400000).toLocaleDateString('it-IT')}.</p>`}
     ${rows ? `<ul class="hist" style="margin-top:10px">${rows}</ul>` : ''}
     ${!due ? `<button class="btn ghost" id="msEarly" style="margin-top:8px">Registra comunque una misura</button>` : ''}
+    ${projectionHtml()}
   </div>`;
 }
+/* Obiettivo ragionevole a fine piano, con il ragionamento che lo produce. */
+function projectionHtml() {
+  const b = bodyProjection();
+  if (!b.lastW && !b.lastC) return '';
+  const waistRisk = v => v > 102 ? 'sopra la soglia OMS di rischio molto aumentato (102 cm)'
+    : v > 94 ? 'fra le soglie OMS di rischio aumentato (94 cm) e molto aumentato (102 cm)' : 'sotto la soglia OMS di rischio aumentato (94 cm)';
+  return `<div class="block" style="margin-top:14px">
+    <h3 style="font-size:16px;color:var(--muted)">Obiettivo ragionevole al ${dateIt(b.end)}</h3>
+    <p class="small muted">Fine del piano stimata fra ${Math.round(b.weeks)} settimane; la data si sposta se aggiungi settimane di sola mobilità.</p>
+    ${b.weight ? `<p class="small"><b>Peso: ${kg1(b.weight.lo)}-${kg1(b.weight.hi)} kg</b> (oggi ${kg1(b.weight.from)} kg). Calcolato con una perdita di 0,25-0,5 kg a settimana, la fascia prudente per ridurre il grasso conservando e costruendo muscolo (oltre lo 0,5-1% del peso a settimana si rischia di perdere massa magra: Helms et al. 2014), e con un tetto complessivo del 5-10% del peso, l'obiettivo che l'ACSM considera realistico e già utile per la salute (Donnelly et al. 2009). La leva principale è un deficit calorico moderato con circa 1,6 g di proteine per kg al giorno.</p>` : ''}
+    ${b.waist ? `<p class="small"><b>Girovita: circa ${kg1(b.waist.to)} cm</b> (oggi ${kg1(b.waist.from)} cm, ${waistRisk(b.waist.from)}). Proiezione della tendenza delle tue misure (${b.waist.perWeek <= 0 ? kg1(-b.waist.perWeek) + ' cm in meno' : kg1(b.waist.perWeek) + ' cm in più'} a settimana), con un tetto prudente di 0,5 cm a settimana e di 8 cm in tutto${b.waist.to <= 94 && b.waist.from > 94 ? ': arriveresti sotto la soglia dei 94 cm' : ''}.</p>`
+      : (b.lastC ? `<p class="small">Girovita oggi ${kg1(b.lastC.waist)} cm, ${waistRisk(b.lastC.waist)}. Per proiettarlo servono almeno due misure a 2 settimane di distanza.</p>` : '')}
+    <p class="small muted">È una stima, non una promessa: si aggiorna a ogni misura.</p>
+  </div>`;
+}
+
 function bindMeasures() {
   if ($('#msSave')) $('#msSave').onclick = () => {
     const w = parseFloat(String($('#msWaist').value).replace(',', '.'));
@@ -4232,6 +4497,47 @@ function cancelTimer() {
   if (current && !current.finished) renderSession();
 }
 
+/* ---------------------------------------------------------------------------
+   SCORRIMENTO FRA GLI ESERCIZI (dalla 5.3)
+   Dito verso destra → esercizio successivo; verso sinistra → precedente.
+   È solo una consultazione: non registra nulla, non chiude l'esercizio e non
+   tocca il timer, che continua a scorrere (le tenute in corso restano legate
+   all'esercizio da cui sono partite).
+--------------------------------------------------------------------------- */
+function swipeTo(dir) {
+  const c = current;
+  if (!c || c.finished) return;
+  const n = c.pos + dir;
+  if (n < 0 || n >= c.sess.items.length) return;
+  captureLoad();
+  const v = $('#view-session');
+  v.classList.add(dir > 0 ? 'swipe-next' : 'swipe-prev');
+  setTimeout(() => {
+    if (!current || current.finished) return;
+    current.pos = n; saveResume(); renderSession();
+    v.classList.remove('swipe-next', 'swipe-prev');
+  }, 120);
+}
+(function bindSwipe() {
+  const v = document.getElementById('view-session');
+  if (!v) return;
+  let x0 = null, y0 = 0, t0 = 0;
+  v.addEventListener('touchstart', e => {
+    if (e.touches.length !== 1) { x0 = null; return; }
+    const tag = (e.target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'select' || tag === 'textarea') { x0 = null; return; }
+    x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; t0 = Date.now();
+  }, { passive: true });
+  v.addEventListener('touchend', e => {
+    if (x0 === null) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - x0, dy = t.clientY - y0, dt = Date.now() - t0;
+    x0 = null;
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5 || dt > 800) return;
+    swipeTo(dx > 0 ? 1 : -1);          // verso destra: successivo; verso sinistra: precedente
+  }, { passive: true });
+})();
+
 $('#timerSkip').onclick = skipTimer;
 $('#timerStop').onclick = cancelTimer;
 $('#miniSkip').onclick = skipTimer;
@@ -4400,7 +4706,7 @@ function registerServiceWorker() {
   migrateLogFields();
   migrateRealign();
   seedPaceFromHistory();
-  go('home');
+  go('dash');
   // l'intro si anima per 3 secondi e resta sull'ultimo fotogramma: sparisce solo
   // quando l'utente tocca lo schermo, e solo dopo compare l'avvertenza
   const splash = document.getElementById('splash');

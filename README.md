@@ -75,6 +75,24 @@ Le tre sedute di forza mantengono il lavoro per le trazioni (tre volte a settima
 
 **Minuti aerobici.** Progressi mostra i minuti della settimana nel conto dell'OMS (un minuto di scatto vale due moderati) rispetto al riferimento di 150; il riepilogo settimanale indica come arrivarci. Il finale metabolico nelle sedute di forza resta disponibile e, con due sedute aerobiche in settimana, ha riservati i suoi 10 minuti solo quando scegli 50 minuti (con 40-45 entra se avanza tempo).
 
+### Home a riquadri (dalla 5.3)
+
+Dopo l'intro («Mobilità, potenziamento, allungamento») si apre la **Home**, con cinque riquadri; toccandone uno si apre la schermata completa.
+
+1. **Mattino**: la mobilità del mattino di oggi — da fare (durata, distretti, esercizi) oppure fatta, con la valutazione: completamento delle tenute previste, minuti, mattine fatte nella settimana. Apre la card del mattino nella schermata *Oggi*.
+2. **Pranzo**: l'allenamento principale di oggi — da fare (seduta, durata, tipo) oppure fatto, con completamento delle serie previste, minuti e stelle medie. Apre la seduta nella schermata *Oggi* (o la sessione in corso).
+3. **Il percorso**: fase, settimana nella fase e nel piano, barra di avanzamento, settimane mancanti e **data di fine stimata**, che si sposta se aggiungi settimane di sola mobilità. Apre la cronologia di tutte le fasi con la posizione attuale e il punto del blocco di 4 settimane.
+4. **Progressione negli esercizi**: quanti esercizi crescono, sono stabili o calano nelle ultime 8 settimane (media delle ultime due registrazioni contro le prime due, sul massimale stimato o sul gradino) e l'andamento delle stelle nelle ultime due settimane. Apre *Progressi → Carichi per esercizio*.
+5. **Misure corporee**: ultimo girovita e peso e l'**obiettivo ragionevole alla fine del piano**. Peso: 0,25-0,5 kg a settimana (sotto lo 0,5-1% del peso a settimana oltre il quale si rischia di perdere muscolo, Helms et al. 2014), con un tetto complessivo del 5-10% del peso (obiettivo realistico secondo l'ACSM, Donnelly et al. 2009). Girovita: tendenza delle tue misure (almeno due, a 2 settimane di distanza), con tetto di 0,5 cm a settimana e 8 cm in tutto; confronto con le soglie OMS per gli uomini (94 e 102 cm). Apre *Progressi → Girovita e peso*, con il ragionamento completo.
+
+La barra in basso ha ora cinque voci: **Home**, **Oggi** (sedute del giorno e calendario), Progressi, Esercizi, Programma.
+
+### Scorrere fra gli esercizi (dalla 5.3)
+
+Durante la seduta si passa da un esercizio all'altro **scorrendo lo schermo**: dito verso **destra** per il successivo, verso **sinistra** per il precedente. È solo consultazione: non registra nulla e **non ferma il timer**. Una sequenza di tenute continua a contare sull'esercizio da cui è partita anche se nel frattempo guardi un'altra schermata; se si completa mentre sei altrove, l'esercizio viene registrato senza spostarti.
+
+Il pulsante *Chiudi esercizio* registra l'esercizio così com'è e porta al successivo **ancora aperto**: se scorrendo ne hai lasciato indietro uno, l'app ci torna prima di chiudere la seduta. *Chiudi seduta* compare quando non restano esercizi aperti. Il vecchio pulsante *‹ Precedente* non c'è più.
+
 ### Mobilità del mattino (dalla 5.1)
 
 Porzione a sé stante, in cima alla schermata Oggi: **cinque sessioni brevi al mattino**, nei giorni 1-5 della settimana, in aggiunta alle sedute di **pranzo** del programma. Il sesto giorno c'è solo la mobilità a pranzo. Durata a scelta: **10 o 15 minuti**.

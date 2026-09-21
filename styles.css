@@ -633,3 +633,32 @@ body.in-session.mini-on #view-session{padding-bottom:176px}
 .mdot{flex:1;min-height:44px;border-radius:10px;border:1px solid var(--line);background:var(--surface2);color:var(--muted);font-family:var(--cond);font-size:18px}
 .mdot.done{color:var(--teal);border-color:rgba(79,195,161,.5)}
 .mdot.sel{background:var(--teal);color:#07261e;border-color:var(--teal)}
+
+/* ============================================================
+   HOME a riquadri (dalla 5.3)
+   ============================================================ */
+#view-dash{padding-bottom:calc(110px + env(safe-area-inset-bottom))}
+.dtile{display:block;position:relative;width:100%;text-align:left;margin:0 0 12px;padding:16px 40px 16px 16px;
+  background:var(--surface);border:1px solid var(--line);border-radius:18px;color:var(--text)}
+.dtile:active{transform:scale(.99);opacity:.9}
+.dtile .kicker{font-family:var(--cond);letter-spacing:.06em;text-transform:uppercase;font-size:13px;color:var(--muted)}
+.dtile.strength .kicker{color:var(--amber)}
+.dtile.mobility .kicker{color:var(--teal)}
+.dtile.cardio .kicker{color:var(--coral)}
+.dtile .chev{position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:22px}
+.dtile p{margin:4px 0 0}
+.dstat{font-family:var(--cond);font-size:24px;margin-top:4px}
+.dstat.ok{color:var(--teal)}
+.dstat.todo{color:var(--amber)}
+.dbar{height:8px;border-radius:5px;background:rgba(255,255,255,.08);margin-top:8px;overflow:hidden}
+.dbar i{display:block;height:100%;background:linear-gradient(90deg,#FFD27A,#F0951A);border-radius:5px}
+.dsplit{display:flex;gap:3px;height:8px;margin-top:8px;border-radius:5px;overflow:hidden}
+.dsplit .up{background:var(--teal)} .dsplit .flat{background:rgba(255,255,255,.25)} .dsplit .down{background:var(--alert)}
+.hist li.cur{border-left:3px solid var(--amber);padding-left:8px}
+.hist li .wkbadge{font-size:11px;padding:2px 7px;border-radius:8px;background:var(--amber);color:#151007}
+
+/* scorrimento fra gli esercizi della seduta */
+#view-session .exercise{transition:transform .22s ease, opacity .22s ease}
+#view-session.swipe-next .exercise{transform:translateX(24px);opacity:.3}
+#view-session.swipe-prev .exercise{transform:translateX(-24px);opacity:.3}
+.swipehint{font-size:13px;color:var(--muted);text-align:center;margin-top:10px}
