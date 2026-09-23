@@ -1719,7 +1719,8 @@ function morningHtml() {
       </div>
       <p class="small muted" style="margin:6px 0 0">Durata stimata ${m.minutes} minuti · a casa, serve solo un tappetino.</p>
       <ul class="plan">${rows}</ul>
-      <button class="btn teal" id="morningGo" style="margin-top:10px">Inizia la mobilità del mattino</button>`;
+      <button class="btn teal" id="morningGo" style="margin-top:10px">Inizia la mobilità del mattino</button>
+      ${done.includes(day) ? '' : `<button class="btn ghost" id="morningMark" style="margin-top:8px">L'ho già fatta: segnala come svolta</button>`}`;
   }
   return `<div class="card morning" id="mCard">
     <div class="kicker" style="font-family:var(--cond);letter-spacing:.06em;text-transform:uppercase;font-size:13px;color:var(--teal)">Mattino · a sé stante</div>
@@ -1743,6 +1744,10 @@ function bindMorning() {
     const it = m.items[+li.dataset.mplan];
     openSheet(exById(it.exId), it, { sess: m, after: () => renderHome() });
   });
+  if ($('#morningMark')) $('#morningMark').onclick = () => confirmAction(
+    'Segnare la mobilità del mattino come svolta?',
+    `Verranno registrati i ${m.items.length} esercizi alle dosi previste (${m.minutes} minuti). Serve quando l'hai fatta senza aprire l'app.`,
+    'Segna come fatta', () => { markSessionDone(m); renderHome(); });
   if ($('#morningGo')) $('#morningGo').onclick = () => {
     if (current && !current.finished) {
       confirmAction('Sessione già in corso', 'Vuoi abbandonarla e iniziare la mobilità del mattino? Gli esercizi già conclusi restano nello storico.',
@@ -1795,6 +1800,104 @@ const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;',
      4. progressione negli esercizi e tendenza dei risultati;
      5. misure corporee e obiettivo ragionevole a fine piano.
 --------------------------------------------------------------------------- */
+/* ---------------------------------------------------------------------------
+   SEDUTE DA REGISTRARE A POSTERIORI (dalla 5.5)
+   Due casi:
+   · hai svolto la seduta ma non l'hai aperta nell'app ("Segna come già
+     fatta"): ogni esercizio viene registrato alle dosi previste;
+   · l'app si è chiusa prima del riepilogo: gli esercizi già conclusi sono nello
+     storico ma la seduta non risulta svolta. All'avvio l'app se ne accorge e
+     propone di completarla, aggiungendo gli esercizi mancanti alle dosi
+     previste.
+   In nessuno dei due casi si cancella qualcosa: si aggiunge ciò che manca.
+--------------------------------------------------------------------------- */
+function plannedEntry(sess, it, sid, ts) {
+  const ex = exById(it.exId);
+  const entry = { ts, sid, sIdx: sess.idx, exId: it.exId, name: ex ? ex.name : it.exId,
+    setup: S.setup, load: '', feedback: 'same', sets: it.sets,
+    repsTarget: it.reps, repsDone: it.reps, rir: null, reps: it.reps,
+    goal: it.goal, week: sess.weekInCycle, hold: it.hold || 0, rest: it.rest || 0,
+    setsPlanned: it.sets, planned: true };
+  const prev = S.logs.filter(g => g.exId === it.exId && g.sid !== sid).pop() || null;
+  const r = rateLog(entry, prev, false);
+  entry.stars = r.stars; entry.rateText = r.text; entry.warn = ''; entry.advice = r.advice || '';
+  return entry;
+}
+
+/* Registra la seduta alle dosi previste. Gli esercizi già registrati con lo
+   stesso identificativo restano come sono. */
+function markSessionDone(sess, when, sid) {
+  const ts = when || Date.now();
+  sid = sid || ts;
+  const already = new Set(S.logs.filter(l => l.sid === sid).map(l => l.exId));
+  sess.items.forEach((it, i) => {
+    if (already.has(it.exId)) return;
+    S.logs.push(plannedEntry(sess, it, sid, ts - (sess.items.length - i) * 60000));
+  });
+  if (!S.sessionLog.some(x => x.sid === sid)) {
+    S.sessionLog.push({ ts, sid, idx: sess.idx, label: sess.label, kind: sess.kind,
+      minutes: sess.minutes || estimateMinutes(sess.items), planned: true,
+      ...(sess.kind === 'morning' ? { mWeek: sess.mWeek, mDay: sess.mDay, mFocus: sess.focusKey, mLunch: sess.lunchLabel } : {}),
+      note: 'Registrata a posteriori' });
+    if (isProgramKind(sess.kind)) S.sessionIndex++;
+  }
+  planCache = null;
+  save();
+}
+
+/* Sedute rimaste aperte: esercizi registrati con un identificativo di seduta
+   che non compare fra le sedute chiuse. */
+function orphanSessions() {
+  const closed = new Set(S.sessionLog.filter(x => x.sid).map(x => x.sid));
+  const open = S.resume ? S.resume.started : null;
+  const by = new Map();
+  S.logs.forEach(l => {
+    if (!l.sid || closed.has(l.sid) || l.sid === open) return;
+    const g = by.get(l.sid) || { sid: l.sid, logs: [] };
+    g.logs.push(l); by.set(l.sid, g);
+  });
+  const out = [];
+  by.forEach(g => {
+    const last = Math.max(...g.logs.map(l => l.ts));
+    if (Date.now() - last < 3 * 3600 * 1000) return;     // potrebbe essere ancora in corso
+    const idx = g.logs[0].sIdx;
+    const allStretch = g.logs.every(l => { const e = exById(l.exId); return e && e.type === 'stretch'; });
+    out.push({ sid: g.sid, logs: g.logs, ts: last, idx, allStretch });
+  });
+  return out.sort((a, b) => a.ts - b.ts);
+}
+
+function fixOrphanSessions() {
+  const list = orphanSessions();
+  if (!list.length) return;
+  const o = list[0];
+  const meta = (o.idx != null) ? sessionMeta(o.idx) : sessionMeta(S.sessionIndex);
+  const d = new Date(o.ts);
+  const morningLikely = o.allStretch && meta.dayType !== 'stretch' && meta.pos <= MORNING_DAYS;
+  const day = new Date(o.ts).toLocaleDateString('it-IT');
+  const hour = d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+  openModal(`<h2>Una seduta è rimasta aperta</h2>
+    <p class="small muted">Il ${day} alle ${hour} hai registrato ${o.logs.length} esercizi, ma la seduta non è stata chiusa: l'app si è chiusa prima del riepilogo. Vuoi registrarla adesso? Gli esercizi mancanti verranno aggiunti alle dosi previste.</p>
+    <button class="btn" id="orMorning" style="margin-top:12px">${morningLikely ? 'Sì: era la mobilità del mattino' : 'Era la mobilità del mattino'}</button>
+    <button class="btn ${morningLikely ? 'ghost' : ''}" id="orLunch" style="margin-top:10px">Era la seduta del giorno (${esc(buildSession(o.idx != null ? o.idx : S.sessionIndex).label)})</button>
+    <button class="btn ghost" id="orNo" style="margin-top:10px">Lascia com'è</button>`);
+  const close = fn => closeModal(() => { if (fn) fn(); go('dash'); });
+  $('#orMorning').onclick = () => close(() => {
+    const w = weekOfIdx(meta.idx), day2 = Math.min(posOfIdx(meta.idx) + 1, MORNING_DAYS);
+    markSessionDone(buildMorning(w, day2, S.morningMin || 10), o.ts, o.sid);
+  });
+  $('#orLunch').onclick = () => close(() => {
+    markSessionDone(buildSession(o.idx != null ? o.idx : S.sessionIndex), o.ts, o.sid);
+  });
+  $('#orNo').onclick = () => close(() => {
+    // niente cancellazioni: si segna solo di non richiederlo più
+    S.orphanIgnored = (S.orphanIgnored || []).concat([o.sid]);
+    S.sessionLog.push({ ts: o.ts, sid: o.sid, idx: o.idx, label: 'Seduta non chiusa (ignorata)',
+      kind: 'free', minutes: 0, note: 'Esercizi registrati, seduta non conteggiata' });
+    save();
+  });
+}
+
 const sameDay = (a, b) => { const x = new Date(a), y = new Date(b); return x.toDateString() === y.toDateString(); };
 
 /* Valutazione di una seduta chiusa: completamento delle serie previste,
@@ -2289,6 +2392,9 @@ function renderHome() {
       <button class="btn ghost" id="freeBtn">Seduta libera</button>
       <button class="btn ghost" id="skipBtn">Salta a domani</button>
     </div>
+    <div class="btn-row" style="margin-top:10px">
+      <button class="btn ghost" id="markBtn">${core ? 'Segna il core come svolto' : 'L\'ho già fatta: segnala come svolta'}</button>
+    </div>
     <p class="small muted" style="margin-top:16px">Programma attivo: ${esc(p.name)} · ${esc(p.periodization)}.</p>
   `;
 
@@ -2332,6 +2438,10 @@ function renderHome() {
     'Gli esercizi già conclusi restano nello storico; i dati non ancora registrati vengono persi.',
     'Scarta', () => { clearResume(); renderHome(); });
   if ($('#nagExport')) $('#nagExport').onclick = exportData;
+  if ($('#markBtn')) $('#markBtn').onclick = () => confirmAction(
+    'Segnare la seduta come svolta?',
+    `Verranno registrati i ${s.items.length} esercizi di «${s.label}» alle dosi previste (${s.minutes} minuti), senza carichi. Serve quando l'hai svolta senza aprire l'app.`,
+    'Segna come svolta', () => { markSessionDone(s); renderHome(); });
 
   const begin = kind => {
     if (current && !current.finished) {
@@ -2899,8 +3009,13 @@ function nextExercise() {
 }
 
 /* ---------- fine sessione: riepilogo e salvataggio ---------- */
+let endTries = 0;
 function endSession() {
   stopTimer(); releaseWakeLock();
+  // la seduta è conclusa: la barra di navigazione torna disponibile, così non
+  // si resta mai chiusi dentro la schermata della sessione
+  document.body.classList.remove('in-session');
+  $('#actionBar').classList.remove('on');
   const s = current.sess, mins = Math.round((Date.now() - current.started) / 60000);
   openModal(`
     <h2>Sessione completata</h2>
@@ -2935,6 +3050,12 @@ function endSession() {
 
   $('#saveSession').onclick = () => finish(true);
   $('#skipSave').onclick = () => finish(false);
+  // se per qualsiasi motivo il riepilogo non resta a schermo, lo si ripropone:
+  // una seduta finita deve sempre potersi chiudere
+  setTimeout(() => {
+    if (current && current.finished && !$('#modal').classList.contains('on') && endTries++ < 3) endSession();
+    else if ($('#modal').classList.contains('on')) endTries = 0;
+  }, 500);
 }
 
 /* Pop up di complimenti: cerchio che si disegna, spunta, scintille e numeri
@@ -4583,7 +4704,7 @@ function confirmAction(title, text, okLabel, onOk) {
   openModal(`<h2>${esc(title)}</h2><p class="small muted">${esc(text)}</p>
     <button class="btn" id="cfOk" style="margin-top:12px">${esc(okLabel)}</button>
     <button class="btn ghost" id="cfNo" style="margin-top:10px">Annulla</button>`);
-  $('#cfOk').onclick = () => { closeModal(); onOk(); };
+  $('#cfOk').onclick = () => closeModal(() => onOk());
   $('#cfNo').onclick = closeModal;
 }
 
@@ -4604,8 +4725,15 @@ function dangerAction(title, text, okLabel, onOk) {
   $('#dgNo').onclick = () => close();
 }
 
+/* La dissolvenza di chiusura dura 200 ms. Se in quei 200 ms si apre un altro
+   modale — è il caso di "Chiudi seduta", che conferma e subito dopo mostra il
+   riepilogo — il timeout della chiusura precedente spegneva anche il nuovo:
+   la schermata restava vuota e senza vie d'uscita. Ora l'apertura annulla la
+   chiusura in corso, e ciò che segue una conferma parte DOPO la dissolvenza. */
+let modalTimer = null;
 function openModal(html) {
   const m = $('#modal');
+  if (modalTimer) { clearTimeout(modalTimer); modalTimer = null; }
   m.classList.remove('closing');
   $('#modalBox').innerHTML = html;
   m.classList.add('on');
@@ -4614,7 +4742,9 @@ function closeModal(then) {
   const m = $('#modal');
   if (!m.classList.contains('on')) { if (then) then(); return; }
   m.classList.add('closing');                    // dissolvenza e rientro verso il basso
-  setTimeout(() => {
+  if (modalTimer) clearTimeout(modalTimer);
+  modalTimer = setTimeout(() => {
+    modalTimer = null;
     m.classList.remove('on', 'closing');
     if (then) then();
   }, 200);
@@ -4718,7 +4848,11 @@ function registerServiceWorker() {
   // quando l'utente tocca lo schermo, e solo dopo compare l'avvertenza
   const splash = document.getElementById('splash');
   const afterSplash = () => {
-    const poi = () => { if (!S.disclaimerOk) disclaimer(); else askMobilityWeek(); };
+    const poi = () => {
+      if (!S.disclaimerOk) { disclaimer(); return; }
+      askMobilityWeek();
+      if (!$('#modal').classList.contains('on')) fixOrphanSessions();
+    };
     if (!splash || splash.dataset.done) { poi(); return; }
     splash.dataset.done = '1';
     splash.classList.add('hide');

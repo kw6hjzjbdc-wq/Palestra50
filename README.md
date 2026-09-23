@@ -87,6 +87,14 @@ Dopo l'intro («Mobilità, potenziamento, allungamento») si apre la **Home**, c
 
 La barra in basso ha ora cinque voci: **Home**, **Oggi** (sedute del giorno e calendario), Progressi, Esercizi, Programma.
 
+### Sedute non chiuse (corretto nella 5.5)
+
+Un difetto della 5.3-5.4: premendo *Chiudi seduta* la conferma si chiudeva e, nei 200 millisecondi della sua dissolvenza, spegneva anche il riepilogo che si stava aprendo. Restavi sulla schermata della sessione senza riepilogo e senza barra di navigazione, e l'unico modo di uscire era chiudere l'app — con la seduta che risultava non svolta.
+
+Tre correzioni: l'apertura di un modale annulla la dissolvenza di quello precedente; il riepilogo di fine seduta si ripropone da solo se per qualunque motivo sparisce; quando la seduta è conclusa la barra di navigazione torna disponibile, così non si resta mai chiusi dentro.
+
+In più, all'avvio l'app riconosce le **sedute rimaste aperte** (esercizi registrati senza che la seduta sia stata chiusa) e propone di registrarle, completando gli esercizi mancanti alle dosi previste. Nulla viene cancellato: si aggiunge solo ciò che manca.
+
 ### Scorrere fra gli esercizi (dalla 5.3)
 
 Durante la seduta si passa da un esercizio all'altro **scorrendo lo schermo**: dito verso **destra** per il successivo, verso **sinistra** per il precedente. È solo consultazione: non registra nulla e **non ferma il timer**. Una sequenza di tenute continua a contare sull'esercizio da cui è partita anche se nel frattempo guardi un'altra schermata; se si completa mentre sei altrove, l'esercizio viene registrato senza spostarti.
@@ -102,6 +110,7 @@ Porzione a sé stante, in cima alla schermata Oggi: **cinque sessioni brevi al m
 - **Perché al mattino.** L'ACSM indica che allungare quasi ogni giorno dà i risultati migliori; poche decine di secondi per muscolo, ore prima dell'allenamento, non riducono forza e prestazione della seduta di pranzo.
 - **Dove.** A casa: servono solo un tappetino, un muro o uno stipite e la loop band per i femorali.
 - **Segue la seduta di pranzo.** Il focus del mattino è calcolato ogni volta dalla seduta di pranzo prevista per quel giorno: se nel calendario scegli un'altra seduta (per esempio Forza B al posto di Forza A, o l'aerobico), la card del mattino cambia da sola distretti ed esercizi e mostra la nuova seduta di pranzo. Se la mattina era già stata fatta in vista di un'altra seduta, la card lo segnala e propone di ripeterla. Unica eccezione: la *seduta libera* costruita dal catalogo non è prevedibile, e il mattino resta legato alla seduta del programma.
+- **Se l'hai fatta senza aprire l'app**, il pulsante *L'ho già fatta: segnala come svolta* la registra alle dosi previste (stessa cosa per la seduta di pranzo, in fondo alla schermata *Oggi*).
 - **Conteggi.** I pallini 1-5 mostrano le mattine fatte; toccandone uno si recupera una mattina saltata. Le sessioni del mattino compaiono nello storico ma non fanno avanzare il programma e non contano nel volume dei pesi né nei minuti aerobici.
 
 ### Durata scelta ogni giorno (35, 40, 45, 50 minuti)
