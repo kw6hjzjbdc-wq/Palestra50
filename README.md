@@ -77,7 +77,7 @@ Le tre sedute di forza mantengono il lavoro per le trazioni (tre volte a settima
 
 ### Home a riquadri (dalla 5.3)
 
-Dopo l'intro («Mobilità, potenziamento, allungamento») si apre la **Home**, con cinque riquadri; toccandone uno si apre la schermata completa.
+Dopo l'intro («Mobilità, potenziamento, allungamento») si apre la **Home**, con tre riquadri: *Mattino*, *Pranzo* e *Progressi*. Il terzo è un riassunto (fase, settimana, esercizi in crescita, ultima misura) e apre la pagina **Progressi**, che contiene gli altri riquadri — *Il percorso*, *Progressione negli esercizi*, *Misure corporee* e *Volume e storico*. Così la Home resta concentrata su cosa fare oggi. Toccando un riquadro si apre la schermata completa.
 
 1. **Mattino**: la mobilità del mattino di oggi — da fare (durata, distretti, esercizi) oppure fatta, con la valutazione: completamento delle tenute previste, minuti, mattine fatte nella settimana. Apre la card del mattino nella schermata *Oggi*.
 2. **Pranzo**: l'allenamento principale di oggi — da fare (seduta, durata, tipo) oppure fatto, con completamento delle serie previste, minuti e stelle medie. Apre la seduta nella schermata *Oggi* (o la sessione in corso).

@@ -25,7 +25,7 @@
 <!-- Intro di apertura: si anima per 3 secondi e resta sull'ultimo fotogramma
      finché l'utente non tocca lo schermo -->
 <div class="splash" id="splash">
-  <div class="ver num">5.5 2309</div>
+  <div class="ver num">5.6 2409</div>
   <svg class="logo" viewBox="0 0 120 120">
     <defs>
       <linearGradient id="logoGrad" x1="0" y1="0" x2="1" y2="1">
@@ -70,6 +70,9 @@
   <!-- SESSIONE in corso -->
   <main id="view-session" class="view"></main>
 
+  <!-- PROGRESSI: tre riquadri (percorso, esercizi, misure) -->
+  <main id="view-prog" class="view"></main>
+
   <!-- STORICO -->
   <main id="view-history" class="view"></main>
 
@@ -91,7 +94,7 @@
       <svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>
       Oggi
     </button>
-    <button data-go="history">
+    <button data-go="prog">
       <svg viewBox="0 0 24 24"><path d="M4 19V5"/><path d="M4 19h16"/><path d="m7 15 4-5 3 3 5-7"/></svg>
       Progressi
     </button>

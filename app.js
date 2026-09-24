@@ -2034,38 +2034,24 @@ function renderDash() {
     : `<div class="dstat todo">Da fare · ${ls.s.minutes} min</div><p class="small"><b>${esc(ls.s.label)}</b></p>
        <p class="small muted">Sessione ${ls.s.pos} di ${ls.s.days} · ${typeWord(ls.s)} · ${ls.s.items.length} esercizi.</p>`;
 
-  // 3. percorso
-  const ph = path.meta.phase;
-  const pBody = `<div class="dstat">${ph ? esc(ph.ph.name) : esc(path.p.name)}</div>
-    <p class="small">${ph ? `Settimana ${ph.weekInPhase} di ${ph.ph.weeks} della fase · ` : ''}settimana ${path.tw} di ${path.total} del piano${path.meta.mobilityWeek ? ' · sola mobilità' : ''}</p>
-    <div class="dbar"><i style="width:${path.pct}%"></i></div>
-    <p class="small muted">${path.weeksLeft} settimane alla fine · ${dateIt(path.end)}</p>`;
-
-  // 4. esercizi
+  // 3. un solo riquadro riassuntivo: percorso, esercizi e misure stanno nella
+  //    pagina Progressi, così la Home resta concentrata su cosa fare oggi
   const t = exerciseTrend();
-  const trendWord = t.recent && t.before ? (t.recent > t.before + 0.2 ? 'in miglioramento' : t.recent < t.before - 0.2 ? 'in calo' : 'stabile') : '';
-  const eBody = t.n
-    ? `<div class="dstat">${t.up} in crescita</div>
-       <div class="dsplit"><span class="up" style="flex:${t.up || 0.001}"></span><span class="flat" style="flex:${t.flat || 0.001}"></span><span class="down" style="flex:${t.down || 0.001}"></span></div>
-       <p class="small">${t.up} in crescita · ${t.flat} stabili · ${t.down} in calo (ultime 8 settimane)</p>
-       ${t.recent ? `<p class="small muted">Media stelle ultime 2 settimane ${kg1(t.recent)}${trendWord ? ' · ' + trendWord : ''}</p>` : ''}`
-    : `<div class="dstat">Ancora pochi dati</div><p class="small muted">Servono almeno due sedute per esercizio per vedere la tendenza.</p>`;
-
-  // 5. misure
   const b = bodyProjection();
-  const bBody = (b.lastW || b.lastC)
-    ? `<div class="dstat">${b.lastC ? kg1(b.lastC.waist) + ' cm' : ''}${b.lastC && b.lastW ? ' · ' : ''}${b.lastW ? kg1(b.lastW.weight) + ' kg' : ''}</div>
-       <p class="small">Obiettivo ragionevole al ${dateIt(b.end)}: ${b.waist ? `girovita circa ${kg1(b.waist.to)} cm` : 'girovita da stimare (servono due misure a 2 settimane)'}${b.weight ? `, peso ${kg1(b.weight.lo)}-${kg1(b.weight.hi)} kg` : ''}.</p>`
-    : `<div class="dstat todo">Nessuna misura</div><p class="small muted">Registra girovita e peso: da lì l'app stima l'obiettivo a fine piano.</p>`;
+  const ph = path.meta.phase;
+  const gBody = `<div class="dstat">${ph ? esc(ph.ph.name) : esc(path.p.name)}</div>
+    <p class="small">Settimana ${path.tw} di ${path.total} · ${path.weeksLeft} alla fine</p>
+    <div class="dbar"><i style="width:${path.pct}%"></i></div>
+    <p class="small">${t.n ? `${t.up} esercizi in crescita su ${t.n}` : 'Tendenza degli esercizi: ancora pochi dati'}${
+      b.lastC ? ` · girovita ${kg1(b.lastC.waist)} cm` : (b.lastW ? ` · peso ${kg1(b.lastW.weight)} kg` : '')}</p>
+    <p class="small muted">Percorso, progressione negli esercizi e misure corporee.</p>`;
 
   const tile = (id, kicker, cls, body) => `<button class="dtile ${cls}" data-dash="${id}">
       <div class="kicker">${kicker}</div>${body}<span class="chev">›</span></button>`;
   $('#view-dash').innerHTML = `
     ${tile('morning', 'Mattino · mobilità', 'mobility', mBody)}
     ${tile('lunch', 'Pranzo · allenamento principale', ls.done ? 'strength' : typeClass(ls.s), lBody)}
-    ${tile('path', 'Il percorso', '', pBody)}
-    ${tile('trend', 'Progressione negli esercizi', '', eBody)}
-    ${tile('body', 'Misure corporee', '', bBody)}`;
+    ${tile('prog', 'Progressi', '', gBody)}`;
 
   document.querySelectorAll('[data-dash]').forEach(el => el.onclick = () => {
     const k = el.dataset.dash;
@@ -2074,11 +2060,64 @@ function renderDash() {
       if (current && !current.finished) { go('session'); renderSession(); }
       else { go('home'); scrollToId('lunchCard'); }
     }
+    else if (k === 'prog') go('prog');
     else if (k === 'path') openPath();
     else if (k === 'trend') { go('history'); scrollToId('loadsCard'); }
     else if (k === 'body') { go('history'); scrollToId('bodyCard'); }
   });
 }
+/* Pagina Progressi: i tre approfondimenti, uno per riquadro, più l'accesso a
+   volume e storico. Stanno qui e non nella Home, che resta concentrata su cosa
+   fare oggi. */
+function renderProg() {
+  $('#topTitle').textContent = 'Progressi';
+  $('#topChip').textContent = `${S.logs.length} esercizi registrati`;
+  $('#topChip').className = 'chip';
+
+  const path = pathStatus(), ph = path.meta.phase;
+  const t = exerciseTrend();
+  const b = bodyProjection();
+  const trendWord = t.recent && t.before ? (t.recent > t.before + 0.2 ? 'in miglioramento' : t.recent < t.before - 0.2 ? 'in calo' : 'stabile') : '';
+
+  const pBody = `<div class="dstat">${ph ? esc(ph.ph.name) : esc(path.p.name)}</div>
+    <p class="small">${ph ? `Settimana ${ph.weekInPhase} di ${ph.ph.weeks} della fase · ` : ''}settimana ${path.tw} di ${path.total} del piano${path.meta.mobilityWeek ? ' · sola mobilità' : ''}</p>
+    <div class="dbar"><i style="width:${path.pct}%"></i></div>
+    <p class="small muted">${path.weeksLeft} settimane alla fine · ${dateIt(path.end)}</p>`;
+
+  const eBody = t.n
+    ? `<div class="dstat">${t.up} in crescita</div>
+       <div class="dsplit"><span class="up" style="flex:${t.up || 0.001}"></span><span class="flat" style="flex:${t.flat || 0.001}"></span><span class="down" style="flex:${t.down || 0.001}"></span></div>
+       <p class="small">${t.up} in crescita · ${t.flat} stabili · ${t.down} in calo (ultime 8 settimane)</p>
+       ${t.recent ? `<p class="small muted">Media stelle ultime 2 settimane ${kg1(t.recent)}${trendWord ? ' · ' + trendWord : ''}</p>` : ''}`
+    : `<div class="dstat">Ancora pochi dati</div><p class="small muted">Servono almeno due sedute per esercizio per vedere la tendenza.</p>`;
+
+  const bBody = (b.lastW || b.lastC)
+    ? `<div class="dstat">${b.lastC ? kg1(b.lastC.waist) + ' cm' : ''}${b.lastC && b.lastW ? ' · ' : ''}${b.lastW ? kg1(b.lastW.weight) + ' kg' : ''}</div>
+       <p class="small">Obiettivo ragionevole al ${dateIt(b.end)}: ${b.waist ? `girovita circa ${kg1(b.waist.to)} cm` : 'girovita da stimare (servono due misure a 2 settimane)'}${b.weight ? `, peso ${kg1(b.weight.lo)}-${kg1(b.weight.hi)} kg` : ''}.</p>`
+    : `<div class="dstat todo">Nessuna misura</div><p class="small muted">Registra girovita e peso: da lì l'app stima l'obiettivo a fine piano.</p>`;
+
+  const aero = aerobicMinutes(weekOfIdx(S.sessionIndex));
+  const vBody = `<div class="dstat">Settimana ${weekOfIdx(S.sessionIndex)}</div>
+    <p class="small">${aero.eq} minuti aerobici equivalenti su 150</p>
+    <p class="small muted">Serie per gruppo muscolare, riepiloghi settimanali, carichi esercizio per esercizio e ultime sedute.</p>`;
+
+  const tile = (id, kicker, body) => `<button class="dtile" data-prog="${id}">
+      <div class="kicker">${kicker}</div>${body}<span class="chev">›</span></button>`;
+  $('#view-prog').innerHTML = `
+    ${tile('path', 'Il percorso', pBody)}
+    ${tile('trend', 'Progressione negli esercizi', eBody)}
+    ${tile('body', 'Misure corporee', bBody)}
+    ${tile('history', 'Volume e storico', vBody)}`;
+
+  document.querySelectorAll('[data-prog]').forEach(el => el.onclick = () => {
+    const k = el.dataset.prog;
+    if (k === 'path') openPath();
+    else if (k === 'trend') { go('history'); scrollToId('loadsCard'); }
+    else if (k === 'body') { go('history'); scrollToId('bodyCard'); }
+    else go('history');
+  });
+}
+
 function scrollToId(id) {
   requestAnimationFrame(() => { const el = document.getElementById(id); if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
 }
@@ -2113,13 +2152,15 @@ function go(view) {
   if (timerRunning() && view !== 'session' && $('#timer').classList.contains('on')) minimizeTimer();
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   $('#view-' + view).classList.add('active');
-  document.querySelectorAll('.nav button').forEach(b => b.classList.toggle('active', b.dataset.go === view));
+  const navFor = view === 'history' ? 'prog' : view;   // lo storico sta dentro Progressi
+  document.querySelectorAll('.nav button').forEach(b => b.classList.toggle('active', b.dataset.go === navFor));
   // la barra comandi fissa appartiene alla sola schermata della sessione
   document.body.classList.toggle('in-session', view === 'session');
   if (view !== 'session') $('#actionBar').classList.remove('on');
   window.scrollTo(0, 0);
   if (view === 'home') renderHome();
   if (view === 'dash') renderDash();
+  if (view === 'prog') renderProg();
   if (view === 'history') renderHistory();
   if (view === 'settings') renderSettings();
   if (view === 'catalog') renderCatalog();
@@ -4740,6 +4781,9 @@ function openModal(html) {
 }
 function closeModal(then) {
   const m = $('#modal');
+  // alcuni pulsanti passano closeModal direttamente come gestore: l'argomento
+  // è l'evento del tocco, non una funzione da eseguire dopo
+  if (typeof then !== 'function') then = null;
   if (!m.classList.contains('on')) { if (then) then(); return; }
   m.classList.add('closing');                    // dissolvenza e rientro verso il basso
   if (modalTimer) clearTimeout(modalTimer);
