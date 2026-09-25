@@ -87,6 +87,15 @@ Dopo l'intro («Mobilità, potenziamento, allungamento») si apre la **Home**, c
 
 La barra in basso ha ora cinque voci: **Home**, **Oggi** (sedute del giorno e calendario), Progressi, Esercizi, Programma.
 
+### Sedute saltate (dalla 5.7)
+
+Quando una seduta non si fa e non la si vuole recuperare, si dichiara saltata invece di lasciarla in sospeso:
+- in **Oggi**, il pulsante *Non la faccio: salta*;
+- durante la seduta, *Interrompi* ora chiede cosa farne: *La riprendo più tardi* (resta quella di oggi, con il banner «Riprendi») oppure *Non la faccio: salta e vai alla prossima*;
+- per la mobilità del mattino, *Non la faccio: salta*, che segna il pallino della giornata con un trattino.
+
+La seduta saltata resta nello storico con l'etichetta *saltata* e il programma avanza a quella successiva, così l'indice non si disallinea (una seduta saltata ha comunque consumato il suo posto in calendario). Nulla viene registrato come svolto: nel volume settimanale quella seduta continua a risultare mancante, e il riepilogo aggiunge quante ne hai saltate volontariamente. Saltare la mobilità del mattino non sposta il programma, perché le mattine non fanno avanzare le sedute di pranzo.
+
 ### Sedute non chiuse (corretto nella 5.5)
 
 Un difetto della 5.3-5.4: premendo *Chiudi seduta* la conferma si chiudeva e, nei 200 millisecondi della sua dissolvenza, spegneva anche il riepilogo che si stava aprendo. Restavi sulla schermata della sessione senza riepilogo e senza barra di navigazione, e l'unico modo di uscire era chiudere l'app — con la seduta che risultava non svolta.
@@ -317,7 +326,7 @@ Il punto che conta: **il programma di forza non perde nulla, slitta**. Nel conte
 
 ### Se la posizione nel programma non corrisponde
 
-Può capitare che l'indice della prossima seduta si disallinei da ciò che hai davvero svolto, tipicamente dopo un "Salta a domani" o qualche prova. La scheda **Programma → Dove sei nel programma** mostra la posizione corrente e offre due modi per correggerla:
+Può capitare che l'indice della prossima seduta si disallinei da ciò che hai davvero svolto, tipicamente dopo qualche prova. La scheda **Programma → Dove sei nel programma** mostra la posizione corrente e offre due modi per correggerla:
 
 - **Imposta questa posizione**: scegli settimana e sessione dai due menu e confermi. L'app dice quale seduta diventerà la prossima prima di applicare.
 - **Ricalcola dalle sedute registrate**: conta le sedute di programma presenti nello storico e allinea l'indice a quel numero. I blocchi core e le sedute libere non contano, perché non fanno avanzare il programma.

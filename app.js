@@ -1607,11 +1607,17 @@ function aerobicMinutes(weekAbs) {
    avanzare il programma e non conta nel volume dei pesi.
 --------------------------------------------------------------------------- */
 const MORNING_DAYS = 5;
+// 'skipped' vale come seduta di programma: ha consumato il suo posto in
+// calendario, quindi l'indice avanza e lo storico resta allineato
 const isProgramKind = k => k !== 'core' && k !== 'free' && k !== 'morning';
+const isSkipped = x => x.kind === 'skipped';
 
 /* Mattine già fatte nella settimana indicata (numeri di giorno 1-5). */
 function morningsDone(weekAbs) {
   return S.sessionLog.filter(x => x.kind === 'morning' && x.mWeek === weekAbs).map(x => x.mDay);
+}
+function morningsSkipped(weekAbs) {
+  return S.sessionLog.filter(x => isSkipped(x) && x.realKind === 'morning' && x.mWeek === weekAbs).map(x => x.mDay);
 }
 
 function buildMorning(weekAbs, day, minutes) {
@@ -1691,8 +1697,9 @@ function morningHtml() {
   const done = morningsDone(t.w);
   if (morningSel === null || morningSel.w !== t.w) morningSel = { w: t.w, day: t.available ? t.day : null };
   const day = morningSel.day;
+  const skipped = morningsSkipped(t.w);
   const dots = Array.from({ length: MORNING_DAYS }, (_, i) => i + 1).map(d =>
-    `<button class="mdot ${done.includes(d) ? 'done' : ''} ${d === day ? 'sel' : ''}" data-mday="${d}" aria-label="Mattino del giorno ${d}${done.includes(d) ? ', fatto' : ''}">${done.includes(d) ? '✓' : d}</button>`).join('');
+    `<button class="mdot ${done.includes(d) ? 'done' : (skipped.includes(d) ? 'skip' : '')} ${d === day ? 'sel' : ''}" data-mday="${d}" aria-label="Mattino del giorno ${d}${done.includes(d) ? ', fatto' : (skipped.includes(d) ? ', saltato' : '')}">${done.includes(d) ? '✓' : (skipped.includes(d) ? '–' : d)}</button>`).join('');
   let body;
   if (!day) {
     body = `<p class="small muted" style="margin-top:10px">Oggi è il sesto giorno: niente sessione del mattino, c'è solo la mobilità a pranzo. Se vuoi recuperare una mattina saltata, toccane il numero.</p>`;
@@ -1720,7 +1727,8 @@ function morningHtml() {
       <p class="small muted" style="margin:6px 0 0">Durata stimata ${m.minutes} minuti · a casa, serve solo un tappetino.</p>
       <ul class="plan">${rows}</ul>
       <button class="btn teal" id="morningGo" style="margin-top:10px">Inizia la mobilità del mattino</button>
-      ${done.includes(day) ? '' : `<button class="btn ghost" id="morningMark" style="margin-top:8px">L'ho già fatta: segnala come svolta</button>`}`;
+      ${done.includes(day) ? '' : `<button class="btn ghost" id="morningMark" style="margin-top:8px">L'ho già fatta: segnala come svolta</button>
+      <button class="btn ghost" id="morningSkip" style="margin-top:8px">Non la faccio: salta</button>`}`;
   }
   return `<div class="card morning" id="mCard">
     <div class="kicker" style="font-family:var(--cond);letter-spacing:.06em;text-transform:uppercase;font-size:13px;color:var(--teal)">Mattino · a sé stante</div>
@@ -1748,6 +1756,10 @@ function bindMorning() {
     'Segnare la mobilità del mattino come svolta?',
     `Verranno registrati i ${m.items.length} esercizi alle dosi previste (${m.minutes} minuti). Serve quando l'hai fatta senza aprire l'app.`,
     'Segna come fatta', () => { markSessionDone(m); renderHome(); });
+  if ($('#morningSkip')) $('#morningSkip').onclick = () => confirmAction(
+    'Saltare la mobilità del mattino?',
+    'Resta segnata come saltata nei pallini della settimana. Le sedute di pranzo non cambiano.',
+    'Sì, la salto', () => { skipSession(m, 'Mattino saltato'); renderHome(); });
   if ($('#morningGo')) $('#morningGo').onclick = () => {
     if (current && !current.finished) {
       confirmAction('Sessione già in corso', 'Vuoi abbandonarla e iniziare la mobilità del mattino? Gli esercizi già conclusi restano nello storico.',
@@ -1845,6 +1857,30 @@ function markSessionDone(sess, when, sid) {
   save();
 }
 
+/* ---------------------------------------------------------------------------
+   SEDUTA SALTATA (dalla 5.7)
+   Capita di non poterla fare: invece di lasciarla in sospeso o di far finta di
+   nulla, la si dichiara saltata. La seduta resta nello storico con il suo
+   motivo e il programma avanza a quella successiva, così l'indice non si
+   disallinea. Nulla viene registrato come svolto: nel volume settimanale
+   quella seduta continua a risultare mancante, ed è giusto che si veda.
+--------------------------------------------------------------------------- */
+function skipSession(sess, why) {
+  const ts = Date.now();
+  S.sessionLog.push({ ts, sid: ts, idx: sess.idx, label: sess.label,
+    kind: 'skipped', realKind: sess.kind, minutes: 0,
+    ...(sess.kind === 'morning' ? { mWeek: sess.mWeek, mDay: sess.mDay } : {}),
+    note: why || 'Saltata' });
+  if (sess.kind !== 'morning') {
+    S.sessionIndex++;
+    const weekDone = posOfIdx(S.sessionIndex) === 0 ? weekOfIdx(S.sessionIndex) - 1 : 0;
+    if (weekDone) { S.lastRecap = weekDone; takeSnapshot(weekDone); }
+  }
+  planCache = null; homeSel = 'session';
+  clearResume();
+  save();
+}
+
 /* Sedute rimaste aperte: esercizi registrati con un identificativo di seduta
    che non compare fra le sedute chiuse. */
 function orphanSessions() {
@@ -1927,8 +1963,9 @@ function morningStatus() {
   return { done: false, w, day, m };
 }
 function lunchStatus() {
-  const doneToday = S.sessionLog.filter(x => isProgramKind(x.kind) && sameDay(x.ts, Date.now())).pop();
-  if (doneToday) return { done: true, entry: doneToday, verdict: sessionVerdict(doneToday) };
+  const today = S.sessionLog.filter(x => isProgramKind(x.kind) && sameDay(x.ts, Date.now())).pop();
+  if (today && isSkipped(today)) return { skipped: true, entry: today, s: todaySession(null) };
+  if (today) return { done: true, entry: today, verdict: sessionVerdict(today) };
   return { done: false, s: todaySession(null) };
 }
 
@@ -2028,7 +2065,10 @@ function renderDash() {
 
   // 2. pranzo
   const ls = lunchStatus();
-  const lBody = ls.done
+  const lBody = ls.skipped
+    ? `<div class="dstat">Saltato</div><p class="small"><b>${esc(ls.entry.label)}</b> non svolta.</p>
+       <p class="small muted">La prossima è «${esc(ls.s.label)}» · ${ls.s.minutes} min.</p>`
+    : ls.done
     ? `<div class="dstat ok">Fatto ✓</div><p class="small"><b>${esc(ls.entry.label)}</b></p>
        <p class="small">${esc(ls.verdict.text)} · ${ls.verdict.pct}% delle serie · ${ls.verdict.minutes} min${ls.verdict.avg ? ' · ' + starsHtml(Math.round(ls.verdict.avg)) : ''}</p>`
     : `<div class="dstat todo">Da fare · ${ls.s.minutes} min</div><p class="small"><b>${esc(ls.s.label)}</b></p>
@@ -2050,7 +2090,7 @@ function renderDash() {
       <div class="kicker">${kicker}</div>${body}<span class="chev">›</span></button>`;
   $('#view-dash').innerHTML = `
     ${tile('morning', 'Mattino · mobilità', 'mobility', mBody)}
-    ${tile('lunch', 'Pranzo · allenamento principale', ls.done ? 'strength' : typeClass(ls.s), lBody)}
+    ${tile('lunch', 'Pranzo · allenamento principale', ls.done || ls.skipped ? 'strength' : typeClass(ls.s), lBody)}
     ${tile('prog', 'Progressi', '', gBody)}`;
 
   document.querySelectorAll('[data-dash]').forEach(el => el.onclick = () => {
@@ -2431,7 +2471,7 @@ function renderHome() {
     <button class="btn ${(s.isStrength && !core) ? '' : 'teal'}" id="startBtn">${core ? 'Inizia il blocco core' : 'Inizia la sessione'}</button>
     <div class="btn-row" style="margin-top:10px">
       <button class="btn ghost" id="freeBtn">Seduta libera</button>
-      <button class="btn ghost" id="skipBtn">Salta a domani</button>
+      <button class="btn ghost" id="skipBtn">Non la faccio: salta</button>
     </div>
     <div class="btn-row" style="margin-top:10px">
       <button class="btn ghost" id="markBtn">${core ? 'Segna il core come svolto' : 'L\'ho già fatta: segnala come svolta'}</button>
@@ -2497,9 +2537,9 @@ function renderHome() {
         'Inizia la seduta libera', openFreeSession);
     } else openFreeSession();
   };
-  $('#skipBtn').onclick = () => confirmAction('Saltare la seduta di oggi?',
-    'Passerai alla sessione successiva del programma senza registrare questa.',
-    'Salta', () => { S.sessionIndex++; planCache = null; homeSel = 'session'; save(); renderHome(); });
+  $('#skipBtn').onclick = () => confirmAction('Saltare «' + s.label + '»?',
+    'Resta nello storico come saltata e il programma passa alla seduta successiva. Niente viene registrato come svolto: nel volume della settimana continuerà a risultare mancante.',
+    'Sì, la salto', () => { skipSession(s, 'Saltata dalla schermata Oggi'); renderHome(); });
 }
 
 /* ---------- sessione in corso ---------- */
@@ -2847,9 +2887,19 @@ function renderSession() {
         `Hai completato ${c.setsDone[c.pos]} serie su ${it.sets}: verrà registrato così. Per guardare solo un altro esercizio, scorri lo schermo.`, 'Chiudi e vai avanti', goNext);
     } else goNext();
   };
-  $('#abortBtn').onclick = () => confirmAction('Interrompere la sessione?',
-    'Gli esercizi già conclusi restano nello storico, il resto della seduta viene abbandonato.',
-    'Interrompi', () => { stopTimer(); releaseWakeLock(); current = null; clearResume(); go('dash'); });
+  $('#abortBtn').onclick = () => {
+    openModal(`<h2>Interrompere la seduta?</h2>
+      <p class="small muted">Gli esercizi già conclusi restano nello storico. Scegli cosa farne:</p>
+      <button class="btn" id="abLater" style="margin-top:12px">La riprendo più tardi</button>
+      <p class="small muted" style="margin-top:6px">La seduta resta quella di oggi e la ritrovi in Oggi con «Riprendi».</p>
+      <button class="btn ghost" id="abSkip" style="margin-top:12px">Non la faccio: salta e vai alla prossima</button>
+      <p class="small muted" style="margin-top:6px">Resta nello storico come saltata e il programma avanza alla seduta successiva.</p>
+      <button class="btn ghost" id="abNo" style="margin-top:12px">Annulla</button>`);
+    const leave = () => { stopTimer(); releaseWakeLock(); current = null; go('dash'); };
+    $('#abLater').onclick = () => closeModal(() => { leave(); saveResumeFromAbort(s, c); });
+    $('#abSkip').onclick = () => closeModal(() => { const sess = s; leave(); clearResume(); skipSession(sess, 'Saltata dopo aver interrotto la seduta'); go('dash'); });
+    $('#abNo').onclick = () => closeModal();
+  };
 }
 
 /* Nota personale per esercizio: regolazioni della macchina, accorgimenti,
@@ -2937,6 +2987,10 @@ function captureLoad() {
    corrente, serie completate, carichi, ripetizioni e RIR già inseriti.
 --------------------------------------------------------------------------- */
 const RESUME_MAX_H = 6;          // oltre sei ore la seduta è considerata chiusa
+
+/* Interrompendo "la riprendo più tardi" lo stato resta su disco com'era:
+   saveResume l'ha già scritto a ogni modifica, quindi qui non serve altro. */
+function saveResumeFromAbort() {}
 
 function saveResume() {
   if (!current || current.finished) return;
@@ -3225,8 +3279,8 @@ function renderHistory() {
 
   const sess = S.sessionLog.map((x, i) => [x, i]).slice(-10).reverse().map(pair => {
     const x = pair[0], i = pair[1];
-    return `<li data-sess="${i}"><div class="nm" style="flex:1"><b>${esc(x.label)}</b>
-      <div class="small muted">${new Date(x.ts).toLocaleDateString('it-IT')} · ${x.minutes} min${x.note ? ' · ' + esc(x.note) : ''}</div></div>
+    return `<li data-sess="${i}"><div class="nm" style="flex:1"><b>${esc(x.label)}</b>${isSkipped(x) ? ' <span class="wkbadge done">saltata</span>' : ''}
+      <div class="small muted">${new Date(x.ts).toLocaleDateString('it-IT')}${isSkipped(x) ? '' : ' · ' + x.minutes + ' min'}${x.note ? ' · ' + esc(x.note) : ''}</div></div>
       <div class="chev">›</div></li>`;
   }).join('');
 
@@ -3617,11 +3671,13 @@ function volumeAnalysis(weekAbs) {
   }
   if (!low.length) return { rows, advice, low, meta };
 
+  const skippedN = S.sessionLog.filter(x => isSkipped(x) && x.idx != null && weekOfIdx(x.idx) === weekAbs &&
+    (x.realKind === 'strength' || !x.realKind)).length;
   const missing = Math.max(0, plan.strength - strengthDone);
   if (missing > 0) {
     advice.push(inProgress
       ? `Settimana ancora in corso: ${missing === 1 ? 'manca 1 seduta' : `mancano ${missing} sedute`} di forza su ${plan.strength}. Le barre si allungano man mano; per ora nessun provvedimento.`
-      : `${strengthDone === 1 ? 'È stata svolta 1 seduta' : `Sono state svolte ${strengthDone} sedute`} di forza su ${plan.strength}: il volume basso dipende soprattutto da questo. Provvedimento: nella prossima settimana cerca di completarle tutte; se capita spesso, riduci la durata delle sedute nelle impostazioni invece di saltarle.`);
+      : `${strengthDone === 1 ? 'È stata svolta 1 seduta' : `Sono state svolte ${strengthDone} sedute`} di forza su ${plan.strength}${skippedN ? ` (${skippedN} ${skippedN === 1 ? 'saltata' : 'saltate'} volontariamente)` : ''}: il volume basso dipende soprattutto da questo. Provvedimento: nella prossima settimana cerca di completarle tutte; se capita spesso, riduci la durata delle sedute nelle impostazioni invece di saltarle.`);
   }
   if (deload) {
     advice.push('È una settimana di scarico: il volume ridotto è voluto e serve a recuperare. Nessun provvedimento.');
