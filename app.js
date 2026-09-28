@@ -800,8 +800,37 @@ function meritValue(l) {
    Se le ripetizioni reali non sono state annotate (registrazioni vecchie) si
    ricade sul target, segnalandolo al chiamante. */
 function volValue(l) {
+  const ex = exById(l.exId);
+  // negli esercizi a tempo il volume sono i secondi tenuti, non le ripetizioni
+  if (ex && ex.load === 'time') return (l.sets || 0) * (l.hold || (20 + (l.reps || 0)));
   const reps = isFinite(l.repsDone) && l.repsDone > 0 ? l.repsDone : (l.reps || 0);
   return (l.sets || 0) * reps;
+}
+
+/* Due registrazioni si confrontano solo sulla STESSA grandezza.
+   Prima il confronto usava per ciascuna la metrica "migliore" disponibile: se
+   in una seduta le ripetizioni superavano le 15, il massimale stimato non era
+   più calcolabile e il volume della seduta nuova finiva paragonato al
+   massimale della precedente. Numeri di scala diversa, risultato assurdo:
+   aumentando le ripetizioni la valutazione scendeva a una stella.
+   Ordine di preferenza: massimale stimato (se calcolabile per entrambe) →
+   lavoro totale, cioè carico per serie per ripetizioni (o merito per volume
+   sugli esercizi assistiti) → volume semplice. */
+function comparePair(cur, prev) {
+  const ea = e1rm(cur), eb = e1rm(prev);
+  if (ea && eb) return { a: ea, b: eb, what: 'massimale stimato' };
+  const ex = exById(cur.exId);
+  if (ex && ex.load === 'weight') {
+    const ma = meritValue(cur), mb = meritValue(prev);
+    if (ma !== null && mb !== null && ma > 0 && mb > 0) {
+      const va = volValue(cur), vb = volValue(prev);
+      if (va && vb) return { a: ma * va, b: mb * vb, what: isAssist(ex) ? 'lavoro totale (aiuto e ripetizioni)' : 'lavoro totale (carico per ripetizioni)' };
+      return { a: ma, b: mb, what: isAssist(ex) ? 'assistenza' : 'carico' };
+    }
+  }
+  const va = volValue(cur), vb = volValue(prev);
+  if (va && vb) return { a: va, b: vb, what: (ex && ex.load === 'time') ? 'secondi totali' : 'volume' };
+  return null;
 }
 
 /* Massimale stimato con la formula di Epley: carico x (1 + ripetizioni/30).
@@ -834,6 +863,21 @@ function progressMetric(l) {
   return vol ? { v: vol, what: 'volume' } : null;
 }
 
+/* Serie di valori confrontabili fra loro per lo stesso esercizio: una sola
+   metrica per tutta la serie, scelta in base a ciò che è disponibile per
+   TUTTE le registrazioni. Mescolare massimale stimato e volume dentro lo
+   stesso grafico faceva sembrare un crollo il passaggio a serie più lunghe. */
+function seriesValues(logs) {
+  if (!logs.length) return { vals: [], what: '' };
+  const ex = exById(logs[0].exId);
+  if (logs.every(l => e1rm(l))) return { vals: logs.map(l => e1rm(l)), what: 'massimale stimato' };
+  if (ex && ex.load === 'weight' && logs.every(l => meritValue(l) !== null && volValue(l))) {
+    return { vals: logs.map(l => meritValue(l) * volValue(l)), what: 'lavoro totale' };
+  }
+  if (logs.every(l => meritValue(l) !== null)) return { vals: logs.map(l => meritValue(l)), what: 'gradino' };
+  return { vals: logs.map(l => volValue(l)), what: (ex && ex.load === 'time') ? 'secondi totali' : 'volume' };
+}
+
 /* Confronta una registrazione con la precedente dello stesso esercizio. */
 function rateLog(cur, prev, deload) {
   const ex = exById(cur.exId);
@@ -864,10 +908,15 @@ function rateLog(cur, prev, deload) {
     }
   }
 
-  const ma = progressMetric(cur), mb = progressMetric(prev);
-  if (!ma || !mb || !mb.v) return { stars: 0, text: 'Dati insufficienti per il confronto.' };
-  const ratio = ma.v / mb.v;
-  const what = ma.what === mb.what ? ma.what : 'risultato';
+  const cmp = comparePair(cur, prev);
+  if (!cmp || !cmp.b) return { stars: 0, text: 'Dati insufficienti per il confronto.' };
+  const ratio = cmp.a / cmp.b;
+  const what = cmp.what;
+  // obiettivo diverso dalla volta scorsa (per esempio forza dopo resistenza):
+  // il confronto si fa sul lavoro totale e va detto, altrimenti sembra un
+  // crollo o un balzo che non c'è
+  const goalShift = cur.goal && prev.goal && cur.goal !== prev.goal
+    ? ` Obiettivo diverso dalla volta scorsa (${(PROG.goals[prev.goal] || {}).label || prev.goal} → ${(PROG.goals[cur.goal] || {}).label || cur.goal}).` : '';
   const weeks = Math.max(0, weekOfIdx(cur.sIdx || 0) - weekOfIdx(prev.sIdx || 0));
   const expected = weeks > 0 ? 1 + 0.025 * weeks : 1;
   const pct = Math.round((ratio - 1) * 100);
@@ -902,16 +951,17 @@ function rateLog(cur, prev, deload) {
       text: 'Seconda seduta di fila portata a zero ripetizioni di riserva su questo esercizio.',
       advice: 'Lavorare sempre al limite accumula fatica senza aggiungere stimolo: tieni 1-2 ripetizioni di margine.' };
   }
-  if (ratio < 0.97) return { stars: 1, text: `Calo del ${Math.abs(pct)}% ${suRif(what)} rispetto alla volta scorsa.` };
-  if (ratio < expected - 0.005) return { stars: 2, text: `Stabile: atteso circa +${Math.round((expected - 1) * 100)}% ${suRif(what)}.` };
-  if (ratio <= expected + 0.02) return { stars: 3, text: `In linea con la progressione prevista (+${pct}% ${suRif(what)}).` };
-  if (ratio <= 1 + SAFE_STEP / 2) return { stars: 4, text: `Sopra le attese: +${pct}% ${suRif(what)}, ne era previsto +${Math.round((expected - 1) * 100)}%.` };
-  return { stars: 5, text: `Progresso netto: +${pct}% ${suRif(what)}, dentro la fascia di sicurezza.` };
+  if (ratio < 0.97) return { stars: goalShift ? 2 : 1, text: `Calo del ${Math.abs(pct)}% ${suRif(what)} rispetto alla volta scorsa.${goalShift}` };
+  if (ratio < expected - 0.005) return { stars: 2, text: `Stabile: atteso circa +${Math.round((expected - 1) * 100)}% ${suRif(what)}.${goalShift}` };
+  if (ratio <= expected + 0.02) return { stars: 3, text: `In linea con la progressione prevista (+${pct}% ${suRif(what)}).${goalShift}` };
+  if (ratio <= 1 + SAFE_STEP / 2) return { stars: 4, text: `Sopra le attese: +${pct}% ${suRif(what)}, ne era previsto +${Math.round((expected - 1) * 100)}%.${goalShift}` };
+  return { stars: goalShift ? 4 : 5, text: `Progresso netto: +${pct}% ${suRif(what)}.${goalShift}` };
 }
 
 /* Preposizione corretta davanti al nome della metrica ("sul volume", ma
    "sull'assistenza"): l'elisione va gestita, altrimenti si legge "sul assistenza". */
-const suRif = w => /^[aeiou]/i.test(w) ? `sull'${w}` : `sul ${w}`;
+const suRif = w => /^secondi/i.test(w) ? `sui ${w}`
+  : /^[aeiou]/i.test(w) ? `sull'${w}` : `sul ${w}`;
 
 const starsHtml = n => n ? `<span class="stars">${'★'.repeat(n)}<span class="off">${'★'.repeat(5 - n)}</span></span>` : '';
 
@@ -1337,6 +1387,17 @@ function paceOf(kind) {
   const p = S && S.pace && isFinite(S.pace[kind]) && S.pace[kind] > 0 ? S.pace[kind] : 1;
   return p;
 }
+/* Minuti che costa un singolo esercizio in più: lavoro, recuperi fra le serie
+   e il tempo per prepararlo. Non include il "costo fisso" della seduta, che è
+   già stato pagato. */
+function itemMinutes(it) {
+  const ex = exById(it.exId);
+  const change = CHANGE_SEC[it.role] !== undefined && it.role !== 'strength' ? CHANGE_SEC[it.role]
+    : (ex && ex.type === 'stretch') ? CHANGE_SEC.stretch : CHANGE_SEC.strength;
+  const sec = it.sets * workSecOf(it) + Math.max(0, it.sets - 1) * it.rest + change;
+  return Math.round(sec * paceOf(sessionKindOf([it])) / 60);
+}
+
 function estimateMinutes(items) {
   if (!items.length) return 0;
   return Math.round(rawSeconds(items) * paceOf(sessionKindOf(items)) / 60);
@@ -1999,7 +2060,7 @@ function exerciseTrend() {
   const detail = [];
   Object.keys(byEx).forEach(k => {
     const logs = byEx[k].filter(l => l.ts >= since);
-    const vals = logs.map(l => { const m = progressMetric(l); return m ? m.v : NaN; }).filter(isFinite);
+    const vals = seriesValues(logs).vals.filter(isFinite);
     if (vals.length < 2) return;
     const a = vals.slice(0, 2), b = vals.slice(-2);
     const ma = a.reduce((x, y) => x + y, 0) / a.length, mb = b.reduce((x, y) => x + y, 0) / b.length;
@@ -2145,6 +2206,8 @@ function renderProg() {
       <div class="kicker">${kicker}</div>${body}<span class="chev">›</span></button>`;
   $('#view-prog').innerHTML = `
     ${tile('path', 'Il percorso', pBody)}
+    ${tile('upcoming', 'Le prossime settimane', `<div class="dstat">Cosa ti aspetta</div>
+      <p class="small muted">Tipo di seduta giorno per giorno, con fasi, scarichi e settimane di sola mobilità.</p>`)}
     ${tile('trend', 'Progressione negli esercizi', eBody)}
     ${tile('body', 'Misure corporee', bBody)}
     ${tile('history', 'Volume e storico', vBody)}`;
@@ -2152,6 +2215,7 @@ function renderProg() {
   document.querySelectorAll('[data-prog]').forEach(el => el.onclick = () => {
     const k = el.dataset.prog;
     if (k === 'path') openPath();
+    else if (k === 'upcoming') openUpcoming();
     else if (k === 'trend') { go('history'); scrollToId('loadsCard'); }
     else if (k === 'body') { go('history'); scrollToId('bodyCard'); }
     else go('history');
@@ -2160,6 +2224,56 @@ function renderProg() {
 
 function scrollToId(id) {
   requestAnimationFrame(() => { const el = document.getElementById(id); if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+}
+
+/* ---------------------------------------------------------------------------
+   LE PROSSIME SETTIMANE (dalla 5.8)
+   Che cosa mi aspetta: per ogni giorno il tipo di seduta e il suo schema
+   (Forza A, Aerobico a intervalli, Mobilità…), con la fase e le settimane di
+   scarico o di sola mobilità già segnalate. Le etichette si leggono dal
+   programma senza generare le sedute: l'elenco resta immediato anche per
+   dieci settimane.
+--------------------------------------------------------------------------- */
+function dayLabel(meta) {
+  const p = meta.program;
+  if (meta.mobilityWeek) return ((p.stretchDays || [])[meta.tmplIdx] || {}).label || 'Mobilità';
+  if (meta.isStrength) return ((p.strengthDays || [])[meta.tmplIdx] || {}).label || 'Potenziamento';
+  if (meta.isCardio) return ((PROG.cardioDays || [])[meta.tmplIdx] || {}).label || 'Aerobico';
+  return ((p.stretchDays || [])[meta.tmplIdx] || {}).label || 'Mobilità';
+}
+
+function openUpcoming(fromWeek) {
+  const start = fromWeek || weekOfIdx(S.sessionIndex);
+  const p = program();
+  const weeks = [];
+  for (let w = start; w < start + 6; w++) {
+    const n = weekLen(w);
+    const first = sessionMeta(weekStart(w));
+    const days = [];
+    for (let k = 0; k < n; k++) {
+      const meta = sessionMeta(weekStart(w) + k);
+      const cur = weekStart(w) + k === S.sessionIndex;
+      days.push(`<li${cur ? ' class="cur"' : ''}>
+        <span class="wknum ${typeClass(meta)}" style="flex:0 0 26px">${k + 1}</span>
+        <div class="nm" style="flex:1"><b>${esc(dayLabel(meta))}</b>${cur ? ' <span class="wkbadge">oggi</span>' : ''}
+          <div class="small muted">${typeWord(meta)}</div></div></li>`);
+    }
+    weeks.push(`<div class="block" style="margin-top:14px">
+      <h3 style="font-size:16px;color:var(--muted)">Settimana ${w}${first.phase ? ' · ' + esc(first.phase.ph.name) : ''}${
+        first.mobilityWeek ? ' · sola mobilità' : (first.profile.label === 'Scarico' ? ' · scarico' : '')}</h3>
+      <ul class="hist">${days.join('')}</ul></div>`);
+  }
+  openModal(`<h2>Le prossime settimane</h2>
+    <p class="small muted">${esc(p.name)}. Gli esercizi esatti vengono scelti quando apri la seduta, in base a carichi, attrezzatura e tempo che hai; qui vedi il tipo di lavoro previsto giorno per giorno.</p>
+    ${weeks.join('')}
+    <div class="btn-row" style="margin-top:14px">
+      <button class="btn ghost" id="upPrev" ${start <= 1 ? 'disabled' : ''}>‹ Indietro</button>
+      <button class="btn ghost" id="upNext">Altre 6 ›</button>
+    </div>
+    <button class="btn secondary" id="upClose" style="margin-top:10px">Chiudi</button>`);
+  $('#upPrev').onclick = () => closeModal(() => openUpcoming(Math.max(1, start - 6)));
+  $('#upNext').onclick = () => closeModal(() => openUpcoming(start + 6));
+  $('#upClose').onclick = () => closeModal();
 }
 
 /* Schermata completa del percorso: tutte le fasi con la posizione attuale. */
@@ -2182,8 +2296,10 @@ function openPath() {
     <p class="small">Settimana ${path.tw} di ${path.total} · ${path.weeksLeft} settimane alla fine, previste per il <b>${dateIt(path.end)}</b>${(S.mobilityWeeks || []).length ? ' (le settimane di sola mobilità spostano la data)' : ''}.</p>
     <p class="small">Blocco di 4 settimane: settimana ${meta.weekInCycle} di ${meta.cycleLen} · ${esc(meta.profile.label)}${meta.profile.label === 'Scarico' ? ' (recupero)' : ''}.</p>
     <ul class="hist" style="margin-top:12px">${rows}</ul>
-    <button class="btn secondary" id="pathClose" style="margin-top:14px">Chiudi</button>`);
-  $('#pathClose').onclick = closeModal;
+    <button class="btn ghost" id="pathUp" style="margin-top:14px">Vedi le prossime settimane</button>
+    <button class="btn secondary" id="pathClose" style="margin-top:10px">Chiudi</button>`);
+  $('#pathUp').onclick = () => closeModal(() => openUpcoming());
+  $('#pathClose').onclick = () => closeModal();
 }
 
 function go(view) {
@@ -2444,6 +2560,7 @@ function renderHome() {
         : s.phase ? `<p class="small muted" style="margin:6px 0 0">Settimana ${s.phase.weekInPhase} di ${s.phase.ph.weeks} della fase, ${s.trainingWeek} di ${totalWeeks(p)} del programma${weeksLeftText(p, s.trainingWeek)}. ${esc(s.phase.ph.aim)}</p>` : ''}
       <ul class="week">${week}</ul>
       <p class="small muted" style="margin-top:10px">Tocca la seduta che vuoi fare adesso: quella prevista oggi prenderà il suo posto più avanti nella settimana.</p>
+      <button class="btn ghost" id="upcomingBtn" style="margin-top:8px">Le prossime settimane</button>
     </div>
 
     <div class="card" id="lunchCard">
@@ -2519,6 +2636,7 @@ function renderHome() {
     'Gli esercizi già conclusi restano nello storico; i dati non ancora registrati vengono persi.',
     'Scarta', () => { clearResume(); renderHome(); });
   if ($('#nagExport')) $('#nagExport').onclick = exportData;
+  if ($('#upcomingBtn')) $('#upcomingBtn').onclick = () => openUpcoming();
   if ($('#markBtn')) $('#markBtn').onclick = () => confirmAction(
     'Segnare la seduta come svolta?',
     `Verranno registrati i ${s.items.length} esercizi di «${s.label}» alle dosi previste (${s.minutes} minuti), senza carichi. Serve quando l'hai svolta senza aprire l'app.`,
@@ -3118,6 +3236,7 @@ function endSession() {
     <div class="field"><label>Note</label><input id="sNote" type="text" placeholder="sensazioni, ginocchio, ecc."></div>
     <button class="btn" id="saveSession">Salva e chiudi</button>
     <button class="btn ghost" id="skipSave" style="margin-top:10px">Chiudi senza note</button>
+    ${s.kind === 'core' ? '' : `<button class="btn ghost" id="addMore" style="margin-top:10px">Ho ancora tempo: aggiungi esercizi</button>`}
   `);
   const finish = (withNote) => {
     const sid = current ? current.started : 0;
@@ -3145,12 +3264,101 @@ function endSession() {
 
   $('#saveSession').onclick = () => finish(true);
   $('#skipSave').onclick = () => finish(false);
+  if ($('#addMore')) $('#addMore').onclick = () => closeModal(() => openExtraPicker());
   // se per qualsiasi motivo il riepilogo non resta a schermo, lo si ripropone:
   // una seduta finita deve sempre potersi chiudere
   setTimeout(() => {
     if (current && current.finished && !$('#modal').classList.contains('on') && endTries++ < 3) endSession();
     else if ($('#modal').classList.contains('on')) endTries = 0;
   }, 500);
+}
+
+/* ---------------------------------------------------------------------------
+   ESERCIZI IN PIÙ A FINE SEDUTA (dalla 5.8)
+   Se alla fine resta tempo, l'app propone due o tre esercizi scelti dove il
+   volume settimanale è più indietro (petto, polpacci, femorali… secondo la
+   settimana in corso), con serie proporzionate ai minuti disponibili. Gli
+   esercizi si aggiungono alla seduta in corso: contano nel volume e nello
+   storico come tutti gli altri.
+--------------------------------------------------------------------------- */
+const EXTRA_PATTERNS = {
+  'Petto': ['pushH'], 'Dorso': ['pullH', 'pullV'], 'Spalle': ['shoulderIso', 'pushV'],
+  'Braccia': ['arms'], 'Quadricipiti': ['quadIso', 'squat'], 'Glutei e femorali': ['hamIso', 'hinge'],
+  'Polpacci': ['calf'], 'Core': ['coreAnti', 'coreFlex']
+};
+
+function extraCandidates(minutes) {
+  const c = current;
+  if (!c) return [];
+  const meta = sessionMeta(c.sess.idx);
+  const inSession = new Set(c.sess.items.map(it => it.exId));
+  const week = weekOfIdx(c.sess.idx);
+  const done = weeklyVolume(week), plan = plannedVolume(week).acc;
+  // i gruppi più indietro rispetto a quanto previsto per la settimana
+  const groups = Object.keys(EXTRA_PATTERNS)
+    .map(g => ({ g, gap: (plan[g] || 0) - (done[g] || 0), done: done[g] || 0 }))
+    .sort((a, b) => (b.gap - a.gap) || (a.done - b.done));
+  const out = [], used = new Set(inSession);
+  const stretchDay = c.sess.type === 'stretch';
+  groups.forEach(({ g }) => {
+    if (out.length >= 4) return;
+    let pool = [];
+    (stretchDay ? [] : EXTRA_PATTERNS[g]).forEach(pat => { pool = pool.concat(slotPool([pat])); });
+    if (stretchDay) pool = DB.exercises.filter(e => e.type === 'stretch' && e.pattern === 'static' && e.setup.includes(S.setup));
+    pool = pool.filter(e => !used.has(e.id));
+    const ex = pool[0];
+    if (!ex) return;
+    used.add(ex.id);
+    const goalKey = stretchDay ? 'stretch' : (c.sess.type === 'cardio' ? 'hypertrophy' : (c.sess.items.find(i => i.role === 'key') || {}).goalKey || 'hypertrophy');
+    const d = dose(goalKey, meta.profile, ex);
+    // serie che stanno davvero nei minuti dichiarati, cambio compreso
+    let sets = d.perSide ? 2 : 1;
+    const fits = n => itemMinutes(Object.assign({}, d, { exId: ex.id, sets: n, goal: goalKey })) <= minutes;
+    while (sets + (d.perSide ? 2 : 1) <= d.sets && fits(sets + (d.perSide ? 2 : 1))) sets += d.perSide ? 2 : 1;
+    out.push({ group: g, item: Object.assign(d, { exId: ex.id, note: 'Aggiunto a fine seduta', goalKey, role: 'extra',
+      sets, alt: { patterns: [ex.pattern], types: [ex.type] } }) });
+  });
+  return out.slice(0, 4);
+}
+
+function openExtraPicker(minutes) {
+  const min = minutes || 10;
+  const list = extraCandidates(min);
+  const rows = list.map((x, i) => {
+    const ex = exById(x.item.exId);
+    return `<li data-extra="${i}"><div class="fig">${figureFor(ex, 1, { ground: false })}</div>
+      <div class="nm" style="flex:1"><b>${esc(ex.name)}</b>
+        <div class="small muted">${esc(x.group)} · ${doseText(x.item)} · ${itemMinutes(x.item)} min</div></div>
+      <button class="pick">Aggiungi</button></li>`;
+  }).join('');
+  openModal(`<h2>Quanto tempo hai ancora?</h2>
+    <div class="seg dur" role="group" aria-label="Minuti disponibili" style="margin-top:10px">
+      ${[5, 10, 15].map(v => `<button data-xmin="${v}" aria-pressed="${v === min}">${v}′</button>`).join('')}
+    </div>
+    <p class="small muted" style="margin-top:10px">Proposte sui gruppi più indietro rispetto al programma di questa settimana. Tocca quelli che vuoi fare: si aggiungono alla seduta.</p>
+    <ul class="hist">${rows || '<li><span class="small muted">Nessuna proposta disponibile.</span></li>'}</ul>
+    <button class="btn ghost" id="xClose" style="margin-top:12px">Chiudi la seduta</button>`);
+  document.querySelectorAll('[data-xmin]').forEach(b => b.onclick = () => closeModal(() => openExtraPicker(+b.dataset.xmin)));
+  document.querySelectorAll('[data-extra]').forEach(li => li.onclick = () => {
+    const x = list[+li.dataset.extra];
+    closeModal(() => addExtraToSession(x.item));
+  });
+  $('#xClose').onclick = () => closeModal(() => { if (current && current.finished) endSession(); });
+}
+
+/* Aggiunge l'esercizio in coda alla seduta e ci porta sopra: la seduta torna
+   aperta, e si chiuderà come sempre quando non restano esercizi da fare. */
+function addExtraToSession(item) {
+  const c = current;
+  if (!c) return;
+  c.sess.items.push(item);
+  c.setsDone.push(0); c.loads.push(''); c.feedback.push(null);
+  c.logRef.push(null); c.repsDone.push(null); c.rir.push(null);
+  c.finished = false;
+  c.pos = c.sess.items.length - 1;
+  c.sess.minutes = estimateMinutes(c.sess.items);
+  saveResume();
+  go('session'); renderSession();
 }
 
 /* Pop up di complimenti: cerchio che si disegna, spunta, scintille e numeri
@@ -3267,8 +3475,7 @@ function renderHistory() {
     const logs = byEx[k], last = logs[logs.length - 1];
     // la linea segue il massimale stimato: così migliorare le ripetizioni a
     // parità di carico si vede, mentre prima il grafico restava piatto
-    const nums = logs.map(l => { const m = progressMetric(l); return m ? m.v : NaN; })
-                     .filter(n => isFinite(n));
+    const nums = seriesValues(logs).vals.filter(n => isFinite(n));
     const e = e1rm(last);
     return `<li data-ex="${k}">
       <div class="spark">${sparkline(nums)}</div>
@@ -3549,6 +3756,26 @@ function realignHistory() {
   }));
   planCache = null;
   return moved;
+}
+
+/* Una sola volta (5.8): le stelle sono un giudizio calcolato, non un dato
+   inserito da te. Quelle assegnate prima della correzione confrontavano
+   grandezze diverse — volume contro massimale stimato — e potevano dare una
+   stella a una seduta migliorata. Qui vengono ricalcolate con la regola nuova,
+   in ordine di data; nessun'altra informazione viene toccata. */
+function migrateRatings() {
+  if (S.ratingsFixed) return;
+  S.ratingsFixed = true;
+  const byEx = {};
+  S.logs.slice().sort((a, b) => a.ts - b.ts).forEach(l => {
+    const prev = byEx[l.exId] || null;
+    if (prev) {
+      const r = rateLog(l, prev, false);
+      l.stars = r.stars; l.rateText = r.text; l.warn = r.warn || ''; l.advice = r.advice || '';
+    }
+    byEx[l.exId] = l;
+  });
+  save();
 }
 
 /* Una sola volta, all'avvio della 4.6: corregge le sedute salvate prima
@@ -4943,6 +5170,7 @@ function registerServiceWorker() {
   migrateLogFields();
   migrateRealign();
   seedPaceFromHistory();
+  migrateRatings();
   go('dash');
   // l'intro si anima per 3 secondi e resta sull'ultimo fotogramma: sparisce solo
   // quando l'utente tocca lo schermo, e solo dopo compare l'avvertenza

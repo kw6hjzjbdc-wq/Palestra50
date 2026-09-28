@@ -87,6 +87,22 @@ Dopo l'intro («Mobilità, potenziamento, allungamento») si apre la **Home**, c
 
 La barra in basso ha ora cinque voci: **Home**, **Oggi** (sedute del giorno e calendario), Progressi, Esercizi, Programma.
 
+### Le prossime settimane (dalla 5.8)
+
+Da *Oggi* (sotto il calendario), dalla pagina *Progressi* e dal riquadro *Il percorso*: sei settimane per volta, giorno per giorno, con il tipo di seduta e il suo schema (Forza A, Aerobico a intervalli, Mobilità…), la fase, le settimane di scarico e quelle di sola mobilità. Gli esercizi esatti restano scelti all'apertura della seduta, perché dipendono da carichi, attrezzatura e tempo disponibile.
+
+### Esercizi in più a fine seduta (dalla 5.8)
+
+Nel riepilogo di fine seduta, *Ho ancora tempo: aggiungi esercizi*. Si dichiara quanto tempo resta (5, 10 o 15 minuti) e l'app propone quattro esercizi sui **gruppi più indietro** rispetto al volume previsto per la settimana, con le serie che stanno davvero in quei minuti (tempo di preparazione compreso). Toccandone uno si torna nella seduta, che riprende da quell'esercizio e si chiude normalmente.
+
+### Valutazione a stelle: metriche confrontabili (corretto nella 5.8)
+
+Un difetto: per ogni registrazione l'app sceglieva la metrica "migliore" disponibile — massimale stimato se calcolabile, altrimenti volume. Sopra le 15 ripetizioni il massimale stimato non è più attendibile e non veniva calcolato, così il *volume* della seduta nuova finiva confrontato con il *massimale* della precedente: grandezze di scala diversa, e una seduta migliorata poteva prendere una stella sola.
+
+Ora il confronto avviene sempre sulla stessa grandezza, scelta fra le due registrazioni: massimale stimato se calcolabile per entrambe, altrimenti lavoro totale (carico × serie × ripetizioni, o merito × volume sugli esercizi assistiti), altrimenti volume semplice; per gli esercizi a tempo contano i secondi tenuti. Se l'obiettivo è cambiato rispetto alla volta scorsa (per esempio da resistenza a forza) il messaggio lo dice. Lo stesso criterio vale per i grafici e per la tendenza in *Progressi*, che prima potevano mescolare le due scale.
+
+Le stelle già assegnate con la vecchia regola vengono **ricalcolate una volta** all'aggiornamento: sono un giudizio prodotto dall'app, non un dato inserito da te, e nessun'altra informazione viene toccata.
+
 ### Sedute saltate (dalla 5.7)
 
 Quando una seduta non si fa e non la si vuole recuperare, si dichiara saltata invece di lasciarla in sospeso:
