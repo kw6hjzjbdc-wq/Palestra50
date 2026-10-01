@@ -271,7 +271,7 @@ const exById = id => (DB.all || DB.exercises).find(e => e.id === id);
    trovarli alla scrivania che in palestra.
 --------------------------------------------------------------------------- */
 const KNOWN_IMPLEMENTS = [
-  null, 'barbell', 'barbellBack', 'dumbbells', 'dumbbell1', 'goblet', 'machine',
+  null, 'spinBike', 'recumbent', 'barbell', 'barbellBack', 'dumbbells', 'dumbbell1', 'goblet', 'machine',
   'cable', 'wheel', 'platform', 'thighPad', 'grips', 'bar', 'barBand', 'pullbar',
   'bandVertical', 'bandTop', 'bandFront', 'bandBack', 'bandFeet', 'bandFoot',
   'bandKnees', 'bandAnkle', 'bandShoulder', 'bandSide'
@@ -383,6 +383,31 @@ function implementSvg(kind, p) {
     case 'bandFoot':     return band((p.toe || p.ankle)[0], (p.toe || p.ankle)[1]);
     case 'bandKnees':    return `<path d="M ${p.knee[0]} ${p.knee[1] - 4} L ${(p.knee2 || p.knee)[0] - 6} ${p.knee[1] - 6}" class="band" stroke-width="2.6" stroke-dasharray="4 3"/>`;
     case 'bandAnkle':    return `<path d="M ${p.ankle[0]} ${p.ankle[1]} L ${(p.ankle2 || p.ankle)[0]} ${(p.ankle2 || p.ankle)[1]}" class="band" stroke-width="2.6" stroke-dasharray="4 3"/>`;
+    // bici da spinning: sella, manubrio alto, volano davanti e pedivella
+    case 'spinBike':     return `<g>
+      <circle cx="86" cy="84" r="10" class="imp" stroke-width="3"/>
+      <circle cx="63" cy="88" r="8" class="imp" stroke-width="2"/>
+      <circle cx="63" cy="88" r="1.8" class="impf"/>
+      <line x1="63" y1="88" x2="86" y2="84" class="imp" stroke-width="3"/>
+      <line x1="63" y1="88" x2="50" y2="74" class="imp" stroke-width="3"/>
+      <line x1="50" y1="74" x2="80" y2="60" class="imp" stroke-width="2.6"/>
+      <line x1="80" y1="60" x2="86" y2="84" class="imp" stroke-width="3"/>
+      <line x1="72" y1="58" x2="84" y2="58" class="imp" stroke-width="3" stroke-linecap="round"/>
+      <line x1="80" y1="60" x2="80" y2="56" class="imp" stroke-width="2.6"/>
+      <rect x="42" y="71" width="16" height="4" rx="2" class="impf"/>
+      <line x1="56" y1="99" x2="70" y2="99" class="imp" stroke-width="3" stroke-linecap="round"/>
+      <line x1="63" y1="88" x2="63" y2="99" class="imp" stroke-width="2.4"/>
+      <line x1="86" y1="94" x2="86" y2="99" class="imp" stroke-width="2.4"/>
+      <line x1="80" y1="99" x2="94" y2="99" class="imp" stroke-width="3" stroke-linecap="round"/>
+    </g>`;
+    // cyclette orizzontale: schienale, sedile basso e pedivella davanti
+    case 'recumbent':    return `<g>
+      <rect x="${p.hip[0] - 10}" y="${p.hip[1] + 2}" width="22" height="4" rx="2" class="impf"/>
+      <line x1="${p.hip[0] - 10}" y1="${p.hip[1] + 2}" x2="${p.hip[0] - 16}" y2="${p.hip[1] - 20}" class="imp" stroke-width="3.4"/>
+      <circle cx="${(p.toe || p.ankle)[0] + 6}" cy="${(p.toe || p.ankle)[1] + 2}" r="7" class="imp" stroke-width="2.6"/>
+      <line x1="${p.hip[0] + 10}" y1="${p.hip[1] + 4}" x2="${(p.toe || p.ankle)[0] + 6}" y2="${(p.toe || p.ankle)[1] + 2}" class="imp" stroke-width="3"/>
+      <line x1="${p.hip[0] - 14}" y1="99" x2="${(p.toe || p.ankle)[0] + 12}" y2="99" class="imp" stroke-width="3" stroke-linecap="round"/>
+    </g>`;
     case 'bandSide':     return band(114, h[1]);
     default:             return '';
   }
@@ -473,6 +498,21 @@ function mobilityNote(profile, mobWeek) {
 /* Dose (serie, ripetizioni, recupero) per un obiettivo e una settimana.
    Gli esercizi unilaterali (un lato alla volta) ricevono sempre un numero PARI
    di serie, così destra e sinistra lavorano lo stesso numero di volte. */
+/* Allungamento della tenuta negli esercizi a tempo: ogni due registrazioni di
+   fila chiuse con almeno 10 secondi di margine, la tenuta suggerita cresce di
+   5 secondi (fino a +30). È l'equivalente della regola 2-for-2 per il carico:
+   si progredisce quando il margine c'è, non per calendario. */
+function holdBonus(ex) {
+  if (!ex || ex.load !== 'time' || ex.type === 'stretch') return 0;
+  const logs = S.logs.filter(l => l.exId === ex.id);
+  let bonus = 0;
+  for (let i = 1; i < logs.length; i++) {
+    const a = logs[i - 1], b = logs[i];
+    if (a.rirUnit === 's' && b.rirUnit === 's' && a.rir >= 10 && b.rir >= 10) { bonus += 5; i++; }
+  }
+  return Math.min(30, bonus);
+}
+
 function dose(goalKey, profile, ex) {
   const g = PROG.goals[goalKey];
   let sets = Math.min(6, Math.max(2, g.sets + (profile.setsDelta || 0)));
@@ -481,9 +521,10 @@ function dose(goalKey, profile, ex) {
   const reps = Math.round(g.repsLow + (g.repsHigh - g.repsLow) * profile.repsBias);
   // la tenuta vale solo per gli esercizi a tempo (allungamenti, isometrie)
   const timed = goalKey === 'stretch' || !ex || ex.load === 'time';
+  const bonus = timed ? holdBonus(ex) : 0;
   return {
     goal: goalKey, goalLabel: g.label, sets, reps, perSide,
-    rest: g.rest, hold: timed ? (g.hold || 0) : 0, rpe: g.rpe, source: g.source
+    rest: g.rest, hold: timed ? (g.hold || 0) + bonus : 0, holdBonus: bonus, rpe: g.rpe, source: g.source
   };
 }
 /* Etichetta della singola serie: per gli unilaterali alterna sinistra e destra. */
@@ -817,9 +858,16 @@ function volValue(l) {
    lavoro totale, cioè carico per serie per ripetizioni (o merito per volume
    sugli esercizi assistiti) → volume semplice. */
 function comparePair(cur, prev) {
+  const ex = exById(cur.exId);
+  // esercizi a tempo: conta quanto hai tenuto, più metà del margine dichiarato
+  // (la riserva è capacità, non lavoro svolto)
+  if (ex && ex.load === 'time' && ex.type !== 'stretch') {
+    const cap = l => (l.sets || 0) * ((l.hold || 0) + 0.5 * (l.rirUnit === 's' && isFinite(l.rir) ? l.rir : 0));
+    const a = cap(cur), b = cap(prev);
+    if (a && b) return { a, b, what: 'tenuta complessiva' };
+  }
   const ea = e1rm(cur), eb = e1rm(prev);
   if (ea && eb) return { a: ea, b: eb, what: 'massimale stimato' };
-  const ex = exById(cur.exId);
   if (ex && ex.load === 'weight') {
     const ma = meritValue(cur), mb = meritValue(prev);
     if (ma !== null && mb !== null && ma > 0 && mb > 0) {
@@ -918,7 +966,9 @@ function rateLog(cur, prev, deload) {
   const goalShift = cur.goal && prev.goal && cur.goal !== prev.goal
     ? ` Obiettivo diverso dalla volta scorsa (${(PROG.goals[prev.goal] || {}).label || prev.goal} → ${(PROG.goals[cur.goal] || {}).label || cur.goal}).` : '';
   const weeks = Math.max(0, weekOfIdx(cur.sIdx || 0) - weekOfIdx(prev.sIdx || 0));
-  const expected = weeks > 0 ? 1 + 0.025 * weeks : 1;
+  // l'attesa cresce col tempo passato dall'ultima volta, ma si ferma a +5%:
+  // un esercizio ripreso dopo un mese non deve pretendere un salto del 10%
+  const expected = weeks > 0 ? 1 + 0.025 * Math.min(weeks, 2) : 1;
   const pct = Math.round((ratio - 1) * 100);
 
   // il salto va misurato sul carico effettivo, non sul massimale stimato:
@@ -946,10 +996,15 @@ function rateLog(cur, prev, deload) {
       text: `Settimana di scarico: hai aumentato del ${pct}% invece di ridurre.`,
       advice: 'Lo scarico serve al recupero di tendini e articolazioni: la settimana prossima riparti più forte.' };
   }
-  if (cur.rir === 0 && prev.rir === 0) {
+  // due sedute di fila al limite: lo si segnala solo se non è arrivato nemmeno
+  // un miglioramento, altrimenti si toglierebbe merito a un progresso vero
+  if (cur.rir === 0 && prev.rir === 0 && ratio <= 1.02) {
+    const sec = cur.rirUnit === 's';
     return { stars: 3, warn: 'cedimento',
-      text: 'Seconda seduta di fila portata a zero ripetizioni di riserva su questo esercizio.',
-      advice: 'Lavorare sempre al limite accumula fatica senza aggiungere stimolo: tieni 1-2 ripetizioni di margine.' };
+      text: sec ? 'Seconda tenuta di fila portata fino al limite, senza guadagno.'
+                : 'Seconda seduta di fila portata a zero ripetizioni di riserva su questo esercizio.',
+      advice: sec ? 'Tieni qualche secondo di margine: l\'isometria rende di più se non arrivi al tremore.'
+                  : 'Lavorare sempre al limite accumula fatica senza aggiungere stimolo: tieni 1-2 ripetizioni di margine.' };
   }
   if (ratio < 0.97) return { stars: goalShift ? 2 : 1, text: `Calo del ${Math.abs(pct)}% ${suRif(what)} rispetto alla volta scorsa.${goalShift}` };
   if (ratio < expected - 0.005) return { stars: 2, text: `Stabile: atteso circa +${Math.round((expected - 1) * 100)}% ${suRif(what)}.${goalShift}` };
@@ -961,6 +1016,7 @@ function rateLog(cur, prev, deload) {
 /* Preposizione corretta davanti al nome della metrica ("sul volume", ma
    "sull'assistenza"): l'elisione va gestita, altrimenti si legge "sul assistenza". */
 const suRif = w => /^secondi/i.test(w) ? `sui ${w}`
+  : /^(tenuta|serie|progressione)/i.test(w) ? `sulla ${w}`
   : /^[aeiou]/i.test(w) ? `sull'${w}` : `sul ${w}`;
 
 const starsHtml = n => n ? `<span class="stars">${'★'.repeat(n)}<span class="off">${'★'.repeat(5 - n)}</span></span>` : '';
@@ -2662,6 +2718,17 @@ function renderHome() {
 
 /* ---------- sessione in corso ---------- */
 /* Testo di aiuto della scala RIR (ripetizioni in riserva). */
+/* Negli esercizi a tempo la riserva si misura in secondi, non in ripetizioni:
+   "quanto avrei resistito ancora" dice quanto margine c'era, ed entra nel
+   merito della prestazione (vedi comparePair) e nell'allungamento della
+   tenuta suggerita (holdBonus). */
+const SEC_HINT = {
+  '-1': 'tocca un valore a fine tenuta',
+  0: 'al limite: non un secondo di più',
+  5: 'cinque secondi di margine',
+  10: 'dieci secondi: c\'era spazio',
+  15: 'quindici o più: tenuta facile'
+};
 const RIR_HINT = {
   '-1': 'tocca un numero a fine serie',
   0: 'al limite, nessuna in riserva',
@@ -2744,7 +2811,14 @@ function renderSession() {
 
   // --- ripetizioni in riserva (proposta 3) ---
   const rirVal = c.rir[c.pos];
-  const rirCtl = `
+  const rirCtl = timed ? `
+    <div class="rirrow">
+      <span class="lab">Quanti secondi avresti resistito ancora?</span>
+      <div class="rirbtns" role="group" aria-label="Secondi di riserva">
+        ${[0, 5, 10, 15].map(v => `<button data-rir="${v}" aria-pressed="${rirVal === v}">${v === 0 ? '0' : (v === 15 ? '15s+' : v + 's')}</button>`).join('')}
+      </div>
+      <span class="small muted">${SEC_HINT[rirVal === undefined || rirVal === null ? -1 : rirVal]}</span>
+    </div>` : `
     <div class="rirrow">
       <span class="lab">Quante ne avresti fatte ancora?</span>
       <div class="rirbtns" role="group" aria-label="Ripetizioni di riserva">
@@ -2818,6 +2892,7 @@ function renderSession() {
       <p class="lasttime">${lastTxt}</p>
       ${jump}`}
 
+      ${it.holdBonus ? `<p class="small muted" style="margin-top:10px">Tenuta allungata di ${it.holdBonus} s rispetto alla base: nelle ultime sedute hai chiuso con almeno dieci secondi di margine.</p>` : ''}
       ${timerRunning() && !chainHasWork() ? `<p class="small muted" style="margin-top:14px">Recupero in corso: il pulsante si riattiva allo scadere. Intanto puoi aprire la scheda dell'esercizio; «Salta» sulla barretta lo chiude in anticipo.</p>` : ''}
       ${chainHasWork() ? `<p class="small muted" style="margin-top:14px">Sequenza in corso: il timer avanza da solo fra tenute e pause e conta le serie.</p>` : ''}
       ${timed && !chainHasWork() && c.setsDone[c.pos] < it.sets ? `<p class="small muted" style="margin-top:14px">${
@@ -3182,6 +3257,7 @@ function logExercise(pos) {
                   repsTarget: it.reps,                                   // obiettivo previsto
                   repsDone: (rd === null || rd === undefined) ? it.reps : rd,  // eseguite davvero
                   rir: (c.rir[pos] === null || c.rir[pos] === undefined) ? null : c.rir[pos],
+                  rirUnit: isTimedItem(it, exById(it.exId)) ? 's' : 'reps',
                   reps: it.reps,                                         // compatibilità storico
                   goal: it.goal, week: s.weekInCycle,
                   hold: it.hold || 0, rest: it.rest || 0,             // per i minuti aerobici
@@ -3619,7 +3695,8 @@ function openSessionDetail(i) {
   const d = new Date(x.ts);
   const rows = logs.map(l => `<li>
       <div class="nm" style="flex:1"><b>${esc(l.name)}</b>
-        <div class="small muted">${l.sets}×${l.reps} · ${l.goal === 'stretch' ? 'allungamento' : esc(l.goal)}</div></div>
+        <div class="small muted">${l.sets}×${l.hold ? l.hold + 's' : (l.repsDone || l.reps)}${l.rirUnit === 's' && isFinite(l.rir) ? ' · ' + l.rir + 's di margine' : (isFinite(l.rir) ? ' · RIR ' + l.rir : '')}</div>
+        ${l.rateText ? `<div class="small muted">${starsHtml(l.stars)} ${esc(l.rateText)}</div>` : ''}</div>
       <div class="val">${esc(l.load || '—')} ${arrow(l.feedback)}</div>
       ${l.manual ? `<button class="mini-skip" data-dellog="${S.logs.indexOf(l)}" aria-label="Elimina la registrazione aggiunta a mano">✕</button>` : ''}</li>`).join('');
   openModal(`<h2>${esc(x.label)}</h2>

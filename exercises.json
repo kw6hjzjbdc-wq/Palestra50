@@ -5059,10 +5059,10 @@
    ],
    "art": {
     "frames": [
-     "seatedExtStart",
-     "seatedExtEnd"
+     "spinTop",
+     "spinBottom"
     ],
-    "implement": null
+    "implement": "spinBike"
    },
    "interval": {
     "sets": 8,
@@ -5116,7 +5116,7 @@
      "seated",
      "sit90"
     ],
-    "implement": null
+    "implement": "recumbent"
    },
    "interval": {
     "sets": 8,

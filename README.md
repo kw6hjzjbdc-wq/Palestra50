@@ -87,6 +87,21 @@ Dopo l'intro («Mobilità, potenziamento, allungamento») si apre la **Home**, c
 
 La barra in basso ha ora cinque voci: **Home**, **Oggi** (sedute del giorno e calendario), Progressi, Esercizi, Programma.
 
+### Esercizi a tempo: riserva in secondi (dalla 5.9)
+
+Negli esercizi la cui difficoltà è il tempo (tenuta isometrica alla sbarra, plank, wall sit, sospensione) la domanda di fine serie non è più «quante ne avresti fatte ancora?» ma **«quanti secondi avresti resistito ancora?»**, con 0, 5, 10 e 15+.
+
+Il margine entra nella valutazione: la prestazione di una tenuta vale *secondi tenuti + metà dei secondi di riserva* (la riserva è capacità, non lavoro svolto), moltiplicata per le serie. Dieci secondi tenuti con dieci di margine valgono più di dieci al limite, ed è giusto che le stelle lo dicano.
+
+Entra anche nella progressione: **ogni due sedute di fila chiuse con almeno 10 secondi di margine, la tenuta suggerita cresce di 5 secondi**, fino a +30. È l'equivalente della regola 2-for-2 del carico — si progredisce quando il margine c'è, non per calendario — e la schermata dell'esercizio lo segnala.
+
+Due sedute di fila portate al limite vengono segnalate solo se non è arrivato nemmeno un miglioramento: prima la segnalazione copriva anche i progressi veri.
+
+### Perché quelle stelle: due correzioni (5.9)
+
+- **L'attesa non cresce all'infinito.** Il confronto si aspetta circa +2,5% a settimana dall'ultima volta che hai fatto quell'esercizio. Con la rotazione degli esercizi potevano passare quattro settimane, e l'app pretendeva +10%: un miglioramento reale del 5% prendeva due stelle. Ora l'attesa si ferma a +5%.
+- **Il motivo è visibile.** In *Progressi → Ultime sedute*, aprendo una seduta, ogni esercizio mostra le sue stelle e la frase che le spiega («in linea con la progressione prevista», «calo del 4% sul massimale stimato», «obiettivo diverso dalla volta scorsa»), con margine o RIR dichiarati.
+
 ### Le prossime settimane (dalla 5.8)
 
 Da *Oggi* (sotto il calendario), dalla pagina *Progressi* e dal riquadro *Il percorso*: sei settimane per volta, giorno per giorno, con il tipo di seduta e il suo schema (Forza A, Aerobico a intervalli, Mobilità…), la fase, le settimane di scarico e quelle di sola mobilità. Gli esercizi esatti restano scelti all'apertura della seduta, perché dipendono da carichi, attrezzatura e tempo disponibile.
