@@ -5268,6 +5268,18 @@ function registerServiceWorker() {
   };
   const qEl = document.getElementById('splashQuote');
   if (qEl) qEl.textContent = pickQuote();
+  // riga dinamica sotto il titolo: a che punto sei del percorso. È la cosa che
+  // più tiene in riga nei mesi lunghi — vedere che la meta si avvicina.
+  const gEl = document.getElementById('splashGoal');
+  if (gEl) {
+    try {
+      const path = pathStatus();
+      const days = Math.max(0, Math.round((path.end - Date.now()) / 86400000));
+      gEl.textContent = path.weeksLeft > 0
+        ? `Settimana ${path.tw} di ${path.total} · ${days} giorni alla meta`
+        : 'Ultima settimana del percorso: ci sei.';
+    } catch (e) { gEl.textContent = ''; }
+  }
   if (splash) splash.onclick = afterSplash; else afterSplash();
   registerServiceWorker();
 })();

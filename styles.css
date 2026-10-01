@@ -663,3 +663,10 @@ body.in-session.mini-on #view-session{padding-bottom:176px}
 #view-session.swipe-prev .exercise{transform:translateX(-24px);opacity:.3}
 .swipehint{font-size:13px;color:var(--muted);text-align:center;margin-top:10px}
 .mdot.skip{color:var(--muted);border-style:dashed}
+
+/* riga del percorso nell'intro */
+.splash .goal{
+  margin-top:10px;font-size:14px;color:var(--amber);font-family:var(--cond);letter-spacing:.04em;
+  opacity:0;animation:fadeUp .7s 2.35s ease-out forwards;
+}
+@media (prefers-reduced-motion:reduce){.splash .goal{opacity:1}}

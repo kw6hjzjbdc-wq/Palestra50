@@ -16,7 +16,7 @@
    la pagina, che mostra all'utente "aggiornamento pronto". È l'utente a
    decidere quando applicarlo, così un aggiornamento non irrompe a metà seduta.
    ========================================================================== */
-const CACHE = 'palestra50-v37';
+const CACHE = 'palestra50-v38';
 
 const SHELL = [
   './', './index.html', './styles.css', './app.js',
