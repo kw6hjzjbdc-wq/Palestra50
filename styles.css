@@ -670,3 +670,11 @@ body.in-session.mini-on #view-session{padding-bottom:176px}
   opacity:0;animation:fadeUp .7s 2.35s ease-out forwards;
 }
 @media (prefers-reduced-motion:reduce){.splash .goal{opacity:1}}
+
+/* righe delle serie registrate */
+.setlog{display:grid;gap:6px;margin-top:10px}
+.setlog button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+  background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:9px 12px;color:var(--text);min-height:42px}
+.setlog .n{flex:0 0 58px;font-family:var(--cond);color:var(--muted);font-size:14px}
+.setlog .v{flex:1;font-size:15px}
+.setlog .chev{color:var(--muted);font-size:15px}

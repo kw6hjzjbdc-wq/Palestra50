@@ -522,9 +522,13 @@ function dose(goalKey, profile, ex) {
   // la tenuta vale solo per gli esercizi a tempo (allungamenti, isometrie)
   const timed = goalKey === 'stretch' || !ex || ex.load === 'time';
   const bonus = timed ? holdBonus(ex) : 0;
+  // se l'obiettivo non indica una tenuta (plank, wall sit dentro un blocco
+  // core) la si ricava dall'esercizio: senza questo numero la seduta non
+  // registrava i secondi e l'esercizio restava senza valutazione
+  const baseHold = g.hold || (ex && ex.load === 'time' ? 20 + reps : 30);
   return {
     goal: goalKey, goalLabel: g.label, sets, reps, perSide,
-    rest: g.rest, hold: timed ? (g.hold || 0) + bonus : 0, holdBonus: bonus, rpe: g.rpe, source: g.source
+    rest: g.rest, hold: timed ? baseHold + bonus : 0, holdBonus: bonus, rpe: g.rpe, source: g.source
   };
 }
 /* Etichetta della singola serie: per gli unilaterali alterna sinistra e destra. */
@@ -840,8 +844,34 @@ function meritValue(l) {
 /* Volume reale: serie completate per ripetizioni effettivamente eseguite.
    Se le ripetizioni reali non sono state annotate (registrazioni vecchie) si
    ricade sul target, segnalandolo al chiamante. */
+/* Righe delle singole serie, quando ci sono: dalla 5.11 ogni serie ha le sue
+   ripetizioni, il suo carico e i suoi secondi. */
+const setRows = l => (Array.isArray(l.setLog) && l.setLog.length) ? l.setLog : null;
+const numLoad = v => { const n = parseFloat(String(v === undefined ? '' : v).replace(',', '.')); return isFinite(n) ? n : null; };
+
+/* Tonnellaggio reale: somma di carico x ripetizioni serie per serie. Sugli
+   esercizi assistiti si usa il merito (meno aiuto = più merito). */
+function tonnage(l) {
+  const ex = exById(l.exId);
+  if (!ex || ex.load !== 'weight') return null;
+  const rows = setRows(l);
+  const w = v => { const n = numLoad(v); if (n === null) return null; return isAssist(ex) ? Math.max(1, ASSIST_BASE - n) : n; };
+  if (rows) {
+    let tot = 0;
+    for (const r of rows) { const x = w(r.load); if (x === null) return null; tot += x * (r.reps || 0); }
+    return tot || null;
+  }
+  const x = w(l.load);
+  return x === null ? null : x * volValue(l);
+}
+
 function volValue(l) {
   const ex = exById(l.exId);
+  const rows = setRows(l);
+  if (rows) {
+    if (ex && ex.load === 'time') return rows.reduce((a, r) => a + (r.hold || 0), 0);
+    return rows.reduce((a, r) => a + (r.reps || 0), 0);
+  }
   // negli esercizi a tempo il volume sono i secondi tenuti, non le ripetizioni
   if (ex && ex.load === 'time') return (l.sets || 0) * (l.hold || (20 + (l.reps || 0)));
   const reps = isFinite(l.repsDone) && l.repsDone > 0 ? l.repsDone : (l.reps || 0);
@@ -862,13 +892,19 @@ function comparePair(cur, prev) {
   // esercizi a tempo: conta quanto hai tenuto, più metà del margine dichiarato
   // (la riserva è capacità, non lavoro svolto)
   if (ex && ex.load === 'time' && ex.type !== 'stretch') {
-    const cap = l => (l.sets || 0) * ((l.hold || 0) + 0.5 * (l.rirUnit === 's' && isFinite(l.rir) ? l.rir : 0));
+    const cap = l => {
+      const rows = setRows(l);
+      if (rows) return rows.reduce((a, r) => a + (r.hold || 0) + 0.5 * (isFinite(r.rir) ? r.rir : 0), 0);
+      return (l.sets || 0) * ((l.hold || 0) + 0.5 * (l.rirUnit === 's' && isFinite(l.rir) ? l.rir : 0));
+    };
     const a = cap(cur), b = cap(prev);
     if (a && b) return { a, b, what: 'tenuta complessiva' };
   }
   const ea = e1rm(cur), eb = e1rm(prev);
   if (ea && eb) return { a: ea, b: eb, what: 'massimale stimato' };
   if (ex && ex.load === 'weight') {
+    const ta = tonnage(cur), tb = tonnage(prev);
+    if (ta && tb) return { a: ta, b: tb, what: isAssist(ex) ? 'lavoro totale (aiuto e ripetizioni)' : 'lavoro totale (carico per ripetizioni)' };
     const ma = meritValue(cur), mb = meritValue(prev);
     if (ma !== null && mb !== null && ma > 0 && mb > 0) {
       const va = volValue(cur), vb = volValue(prev);
@@ -890,6 +926,18 @@ function comparePair(cur, prev) {
 function e1rm(l) {
   const ex = exById(l.exId);
   if (!ex || ex.load !== 'weight') return null;
+  // con le serie registrate una per una vale la migliore, come si fa di norma
+  const rows = setRows(l);
+  if (rows && !isAssist(ex)) {
+    let best = null;
+    rows.forEach(r => {
+      const w = numLoad(r.load), rp = r.reps;
+      if (w === null || w <= 0 || !isFinite(rp) || rp <= 0 || rp > 15) return;
+      const v = w * (1 + rp / 30);
+      if (best === null || v > best) best = v;
+    });
+    if (best !== null) return best;
+  }
   // sugli esercizi assistiti il numero è un aiuto, non un carico sollevato:
   // il massimale stimato non avrebbe significato
   if (isAssist(ex)) return null;
@@ -2741,6 +2789,7 @@ function startSession(sess) {
   current = { sess, pos: 0, setsDone: sess.items.map(() => 0), loads: sess.items.map(() => ''),
               feedback: sess.items.map(() => null), logRef: sess.items.map(() => null),
               repsDone: sess.items.map(() => null), rir: sess.items.map(() => null),
+              setLog: sess.items.map(() => []),      // una riga per serie conclusa
               started: Date.now() };
   requestWakeLock();
   unlockAudio();
@@ -2800,7 +2849,7 @@ function renderSession() {
     ? it.reps : c.repsDone[c.pos];
   const repsCtl = (timed || ex.type === 'stretch') ? '' : `
     <div class="repsrow">
-      <span class="lab">Ripetizioni ultima serie</span>
+      <span class="lab">Ripetizioni di questa serie</span>
       <div class="stepper">
         <button data-rep="-1" aria-label="Una ripetizione in meno">−</button>
         <b class="num" id="repsVal">${repsVal}</b>
@@ -2832,7 +2881,9 @@ function renderSession() {
   if (sug && sug.last) {
     const l = sug.last;
     const det = [];
-    if (isFinite(l.repsDone)) det.push(`${l.sets}×${l.repsDone}`);
+    const rws = Array.isArray(l.setLog) && l.setLog.length ? l.setLog : null;
+    if (rws) det.push(rws.map(r => `${r.load ? String(r.load).replace('.', ',') + '×' : ''}${r.hold ? r.hold + 's' : r.reps}`).join(' · '));
+    else if (isFinite(l.repsDone)) det.push(`${l.sets}×${l.repsDone}`);
     if (isFinite(l.rir)) det.push(`RIR ${l.rir}`);
     const e = e1rm(l);
     if (e) det.push(`max stimato ${e.toFixed(1)} kg`);
@@ -2875,6 +2926,7 @@ function renderSession() {
       ${nota ? `<div class="exnote" id="noteShow">📌 ${esc(nota)}</div>` : ''}
 
       <div class="setdots">${setBtns}</div>
+      ${setRowsHtml(c.pos)}
 
       ${noLoad ? '' : `
       ${isAssist(ex) ? `<div class="assistnote">Il numero è <b>l'aiuto</b>, non il peso sollevato: più è basso, più sei forte. Progredire significa ridurlo.</div>` : ''}
@@ -2904,6 +2956,10 @@ function renderSession() {
             ? `3 secondi di preparazione, poi ${Math.round(hold / 60)} minuti continui. Rintocchi prima dell'inizio e negli ultimi 3 secondi, colpo acuto alla fine.${CARDIO_ROLES.includes(it.role) && c.pos < s.items.length - 1 && CARDIO_ROLES.includes(s.items[c.pos + 1].role) ? ' La parte successiva parte da sola.' : ''}`
             : `3 secondi di preparazione, poi una tenuta da ${hold} secondi. Rintocchi nei 3 secondi prima dell'inizio e negli ultimi 3, colpo acuto alla fine.`
         }${it.perSide ? ' Le tenute alternano sinistra e destra.' : ''}</p>` : ''}
+
+      ${timed && c.setsDone[c.pos] < it.sets && !timerRunning() ? `<div class="btn-row" style="margin-top:12px">
+        <button class="btn ghost" id="stopwatchBtn">Cronometro: tieni finché riesci</button>
+      </div>` : ''}
 
       <div class="btn-row" style="margin-top:14px">
         <button class="btn ghost" id="infoBtn">Scheda esercizio</button>
@@ -2940,6 +2996,7 @@ function renderSession() {
   // già spento non conclude la serie, la marca soltanto. Portare il conteggio
   // al massimo con un tocco chiede conferma, perché equivale a dichiarare
   // l'esercizio finito e prima era il modo più facile per perdere una serie.
+  document.querySelectorAll('[data-setedit]').forEach(b => b.onclick = () => editSet(c.pos, +b.dataset.setedit));
   document.querySelectorAll('[data-set]').forEach(b => b.onclick = () => {
     const i = +b.dataset.set;
     const now = c.setsDone[c.pos];
@@ -2982,6 +3039,7 @@ function renderSession() {
     const before = c.setsDone[c.pos];
     if (before < it.sets) c.setsDone[c.pos] = before + 1;
     const done = c.setsDone[c.pos];
+    recordSet(c.pos);                       // carico e ripetizioni di QUESTA serie
     saveResume();
     if (done >= it.sets) { concludeExercise(); return; }
     renderSession();
@@ -3006,13 +3064,17 @@ function renderSession() {
       if (d.kind === 'work') {
         d.what = it.sets === 1 ? `${it.workLabel || 'Tenuta'} · ${ex.name}`
           : `${it.workLabel || 'Tenuta'} ${d.set + 1} di ${it.sets}${side(d.set)} · ${ex.name}`;
-        d.onEnd = () => {
+        d.onEnd = (seg) => {
           // la tenuta conta sull'esercizio da cui è partita, anche se nel
           // frattempo sei passato a un'altra schermata scorrendo
           if (!current || current.finished || current.started !== atSid) return false;
           const at = current.sess.items.indexOf(atIt);
           if (at < 0 || atIt.exId !== atEx) return false;
           current.setsDone[at] = Math.min(it.sets, current.setsDone[at] + 1);
+          // secondi davvero tenuti: se hai chiuso prima con «Termina la
+          // tenuta», o allungato con +15 s, è quello che finisce nello storico
+          const held = seg ? Math.max(1, Math.round((seg.end - seg.start) / 1000)) : it.hold;
+          recordSet(at, { hold: held });
           saveResume();
           if (current.setsDone[at] >= it.sets) {
             if (current.pos === at) { concludeExercise(true); return true; }
@@ -3045,6 +3107,36 @@ function renderSession() {
     renderSession();
   };
 
+  /* Cronometro: la tenuta dura quanto riesci. Tre secondi di preparazione con
+     le campanelle, poi il contatore sale; «Fine tenuta» ferma, registra i
+     secondi davvero tenuti e avvia la pausa. Serve quando il tempo previsto
+     non è il punto — plank, wall sit, sospensione portata al limite. */
+  const runStopwatch = () => {
+    const atSid = c.started, atIt = it, atEx = it.exId;
+    const label = it.workLabel || 'Tenuta';
+    const defs = [
+      { kind: 'prep', dur: 3, what: `Preparati · ${label} · ${ex.name}` },
+      { kind: 'work', dur: 3600, what: `${label} a cronometro · ${ex.name}`, onEnd: (seg) => {
+          if (!current || current.finished || current.started !== atSid) return false;
+          const at = current.sess.items.indexOf(atIt);
+          if (at < 0 || atIt.exId !== atEx) return false;
+          const held = Math.max(1, Math.round((Date.now() - seg.start) / 1000));
+          current.setsDone[at] = Math.min(it.sets, current.setsDone[at] + 1);
+          recordSet(at, { hold: held });
+          saveResume();
+          if (current.setsDone[at] >= it.sets) {
+            if (current.pos === at) { concludeExercise(); return true; }
+            logExercise(at); renderSession(); return true;
+          }
+          startTimer(it.rest, `Pausa · poi ${label.toLowerCase()} ${current.setsDone[at] + 1} di ${it.sets} · ${ex.name}`, null, 'rest');
+          return true;
+        } }];
+    runChain(defs, { countUp: true });
+    renderSession();
+  };
+
+  if ($('#stopwatchBtn')) $('#stopwatchBtn').onclick = () => { if (!timerRunning()) { captureLoad(); runStopwatch(); } };
+
   $('#doneSet').onclick = () => {
     if (timerRunning()) return;                  // un timer è già in corso
     captureLoad();
@@ -3058,7 +3150,7 @@ function renderSession() {
     if (changed) {
       if (chainHasWork()) stopTimer();          // le tenute in corso erano dell'esercizio sostituito
       c.setsDone[c.pos] = 0; c.loads[c.pos] = ''; c.feedback[c.pos] = null;
-      c.repsDone[c.pos] = null; c.rir[c.pos] = null;
+      c.repsDone[c.pos] = null; c.rir[c.pos] = null; c.setLog[c.pos] = [];
     }
     saveResume(); renderSession();
   });
@@ -3123,7 +3215,7 @@ function moveItem(from, to) {
   if (from === to || from < c.pos || to < c.pos || to >= s.items.length) return;
   // l'esercizio in corso cambia posto: una sequenza di tenute aperta si ferma
   if (from === c.pos || to === c.pos) releaseTimerForMove();
-  [s.items, c.setsDone, c.loads, c.feedback, c.logRef, c.repsDone, c.rir].forEach(arr => {
+  [s.items, c.setsDone, c.loads, c.feedback, c.logRef, c.repsDone, c.rir, c.setLog].forEach(arr => {
     const v = arr.splice(from, 1)[0];
     arr.splice(to, 0, v);
   });
@@ -3167,6 +3259,82 @@ function openReorder() {
   draw();
 }
 
+/* ---------------------------------------------------------------------------
+   REGISTRAZIONE SERIE PER SERIE (dalla 5.11)
+   Prima l'app teneva un solo carico e un solo numero di ripetizioni per
+   esercizio: se alzavi il peso alla seconda serie, la fatica si scaricava
+   sulla terza ma nei numeri non si vedeva nulla. Ora ogni serie conclusa
+   lascia la sua riga (carico, ripetizioni o secondi, riserva) e il confronto
+   fra sedute usa i totali veri: tonnellaggio, ripetizioni, secondi.
+--------------------------------------------------------------------------- */
+function recordSet(pos, extra) {
+  const c = current;
+  if (!c) return;
+  const it = c.sess.items[pos], ex = exById(it.exId);
+  const timed = isTimedItem(it, ex);
+  const rd = c.repsDone[pos];
+  const row = Object.assign({
+    load: c.loads[pos] || '',
+    reps: timed ? 1 : ((rd === null || rd === undefined) ? it.reps : rd),
+    hold: timed ? (it.hold || 0) : 0,
+    rir: (c.rir[pos] === null || c.rir[pos] === undefined) ? null : c.rir[pos]
+  }, extra || {});
+  c.setLog[pos] = c.setLog[pos] || [];
+  const n = Math.max(0, c.setsDone[pos] - 1);     // la serie appena chiusa
+  c.setLog[pos][n] = row;
+  saveResume();
+}
+
+/* Riepilogo compatto delle serie già registrate, con la riga toccabile per
+   correggere ciò che è stato annotato male. */
+function setRowsHtml(pos) {
+  const c = current, it = c.sess.items[pos], ex = exById(it.exId);
+  const rows = (c.setLog[pos] || []).slice(0, c.setsDone[pos]);
+  if (!rows.length) return '';
+  const timed = isTimedItem(it, ex);
+  return `<div class="setlog">
+    ${rows.map((r, i) => `<button data-setedit="${i}">
+      <span class="n">${setLabel(it, i)}</span>
+      <span class="v">${timed ? `${r.hold || 0}s` : `${r.reps} rip`}${r.load ? ' · ' + esc(String(r.load).replace('.', ',')) + (ex.load === 'weight' ? ' kg' : '') : ''}${
+        r.rir === null || r.rir === undefined ? '' : ` · ${timed ? r.rir + 's di margine' : 'RIR ' + r.rir}`}</span>
+      <span class="chev">✎</span></button>`).join('')}
+  </div>`;
+}
+
+/* Correzione di una serie già registrata. */
+function editSet(pos, i) {
+  const c = current, it = c.sess.items[pos], ex = exById(it.exId);
+  const r = (c.setLog[pos] || [])[i] || {};
+  const timed = isTimedItem(it, ex);
+  const scale = ex.load === 'weight' ? rackOf(ex) : null;
+  const steps = ex.load === 'band' ? BANDS : levelsOf(ex);
+  let loadCtl = '';
+  if (steps) loadCtl = `<select id="esLoad">${steps.map(b => `<option ${r.load === b ? 'selected' : ''}>${esc(b)}</option>`).join('')}</select>`;
+  else if (scale) loadCtl = `<select id="esLoad"><option value="">—</option>${scale.map(v => `<option value="${v}" ${String(v) === String(r.load) ? 'selected' : ''}>${String(v).replace('.', ',')} kg</option>`).join('')}</select>`;
+  else if (ex.load === 'weight') loadCtl = `<input id="esLoad" type="number" inputmode="decimal" step="0.5" value="${esc(r.load || '')}">`;
+  openModal(`<h2>${esc(setLabel(it, i))} · ${esc(ex.name)}</h2>
+    <p class="small muted">Correggi quello che hai davvero fatto in questa serie.</p>
+    ${loadCtl ? `<div class="field"><label>${isAssist(ex) ? 'Assistenza' : 'Carico'}</label>${loadCtl}</div>` : ''}
+    <div class="field"><label>${timed ? 'Secondi tenuti' : 'Ripetizioni'}</label>
+      <input id="esReps" type="number" inputmode="numeric" min="0" max="${timed ? 900 : 99}" value="${timed ? (r.hold || 0) : (r.reps || 0)}"></div>
+    <div class="field"><label>${timed ? 'Secondi di riserva' : 'Ripetizioni di riserva'}</label>
+      <input id="esRir" type="number" inputmode="numeric" min="0" max="${timed ? 60 : 9}" value="${r.rir === null || r.rir === undefined ? '' : r.rir}"></div>
+    <button class="btn" id="esOk" style="margin-top:12px">Salva</button>
+    <button class="btn ghost" id="esNo" style="margin-top:10px">Annulla</button>`);
+  $('#esOk').onclick = () => {
+    const v = parseInt($('#esReps').value, 10);
+    const rr = $('#esRir').value === '' ? null : parseInt($('#esRir').value, 10);
+    const row = Object.assign({}, r);
+    if (isFinite(v)) { if (timed) row.hold = v; else row.reps = v; }
+    row.rir = isFinite(rr) ? rr : null;
+    if ($('#esLoad')) row.load = $('#esLoad').value;
+    c.setLog[pos][i] = row;
+    saveResume();
+    closeModal(() => renderSession());
+  };
+  $('#esNo').onclick = () => closeModal();
+}
+
 function captureLoad() {
   const el = $('#loadIn');
   if (el && current) current.loads[current.pos] = el.value;
@@ -3195,7 +3363,7 @@ function saveResume() {
     label: c.sess.label, type: c.sess.type, mWeek: c.sess.mWeek, mDay: c.sess.mDay,
     focusKey: c.sess.focusKey, lunchLabel: c.sess.lunchLabel,
     setsDone: c.setsDone, loads: c.loads, feedback: c.feedback,
-    repsDone: c.repsDone, rir: c.rir, logRef: c.logRef
+    repsDone: c.repsDone, rir: c.rir, logRef: c.logRef, setLog: c.setLog
   };
   save();
 }
@@ -3220,6 +3388,7 @@ function restoreSession(r) {
               feedback: r.feedback, logRef: r.logRef,
               repsDone: r.repsDone || r.items.map(() => null),
               rir: r.rir || r.items.map(() => null),
+              setLog: r.setLog || r.items.map(() => []),
               started: r.started };
   requestWakeLock(); unlockAudio();
   go('session'); renderSession();
@@ -3250,17 +3419,33 @@ function concludeExercise(inChain) {
 function logExercise(pos) {
   const c = current, s = c.sess;
   const it = s.items[pos];
-  const rd = c.repsDone[pos];
+  const ex0 = exById(it.exId);
+  const timed0 = isTimedItem(it, ex0);
+  // righe delle serie davvero chiuse; se una serie è stata segnata con i
+  // pallini senza passare dal pulsante, si completa con i valori correnti
+  const rows = [];
+  for (let i = 0; i < c.setsDone[pos]; i++) {
+    const r = (c.setLog[pos] || [])[i];
+    rows.push(r || { load: c.loads[pos] || '', reps: timed0 ? 1 : ((c.repsDone[pos] === null || c.repsDone[pos] === undefined) ? it.reps : c.repsDone[pos]),
+                     hold: timed0 ? (it.hold || 0) : 0, rir: null });
+  }
+  const nums = rows.map(r => numLoad(r.load)).filter(v => v !== null);
+  const repLoad = nums.length === rows.length && nums.length
+    ? String(isAssist(ex0) ? Math.min(...nums) : Math.max(...nums))     // serie più impegnativa
+    : (rows.length ? (rows[rows.length - 1].load || '') : (c.loads[pos] || ''));
+  const lastRir = rows.slice().reverse().find(r => r.rir !== null && r.rir !== undefined);
+  const rd = rows.length ? (timed0 ? it.reps : rows[rows.length - 1].reps) : c.repsDone[pos];
   const entry = { ts: Date.now(), sid: c.started, sIdx: s.idx, exId: it.exId, name: exById(it.exId).name,
-                  setup: S.setup, load: c.loads[pos] || '', feedback: c.feedback[pos] || 'same',
-                  sets: c.setsDone[pos],
+                  setup: S.setup, load: repLoad, feedback: c.feedback[pos] || 'same',
+                  sets: c.setsDone[pos], setLog: rows,
                   repsTarget: it.reps,                                   // obiettivo previsto
                   repsDone: (rd === null || rd === undefined) ? it.reps : rd,  // eseguite davvero
-                  rir: (c.rir[pos] === null || c.rir[pos] === undefined) ? null : c.rir[pos],
-                  rirUnit: isTimedItem(it, exById(it.exId)) ? 's' : 'reps',
+                  rir: lastRir ? lastRir.rir : ((c.rir[pos] === null || c.rir[pos] === undefined) ? null : c.rir[pos]),
+                  rirUnit: timed0 ? 's' : 'reps',
                   reps: it.reps,                                         // compatibilità storico
                   goal: it.goal, week: s.weekInCycle,
-                  hold: it.hold || 0, rest: it.rest || 0,             // per i minuti aerobici
+                  hold: rows.length && timed0 ? Math.round(rows.reduce((a, r) => a + (r.hold || 0), 0) / rows.length) : (it.hold || 0),
+                  rest: it.rest || 0,                                 // per i minuti aerobici
                   setsPlanned: it.sets };                             // per la valutazione in Home
   // valutazione automatica rispetto alla registrazione precedente dello stesso esercizio
   const ref0 = c.logRef[pos];
@@ -3429,7 +3614,7 @@ function addExtraToSession(item) {
   if (!c) return;
   c.sess.items.push(item);
   c.setsDone.push(0); c.loads.push(''); c.feedback.push(null);
-  c.logRef.push(null); c.repsDone.push(null); c.rir.push(null);
+  c.logRef.push(null); c.repsDone.push(null); c.rir.push(null); c.setLog.push([]);
   c.finished = false;
   c.pos = c.sess.items.length - 1;
   c.sess.minutes = estimateMinutes(c.sess.items);
@@ -3695,7 +3880,9 @@ function openSessionDetail(i) {
   const d = new Date(x.ts);
   const rows = logs.map(l => `<li>
       <div class="nm" style="flex:1"><b>${esc(l.name)}</b>
-        <div class="small muted">${l.sets}×${l.hold ? l.hold + 's' : (l.repsDone || l.reps)}${l.rirUnit === 's' && isFinite(l.rir) ? ' · ' + l.rir + 's di margine' : (isFinite(l.rir) ? ' · RIR ' + l.rir : '')}</div>
+        <div class="small muted">${Array.isArray(l.setLog) && l.setLog.length
+          ? l.setLog.map(r => `${r.load ? String(r.load).replace('.', ',') + '×' : ''}${r.hold ? r.hold + 's' : r.reps}${isFinite(r.rir) ? ` (${r.rir}${l.rirUnit === 's' ? 's' : ''})` : ''}`).join(' · ')
+          : `${l.sets}×${l.hold ? l.hold + 's' : (l.repsDone || l.reps)}${l.rirUnit === 's' && isFinite(l.rir) ? ' · ' + l.rir + 's di margine' : (isFinite(l.rir) ? ' · RIR ' + l.rir : '')}`}</div>
         ${l.rateText ? `<div class="small muted">${starsHtml(l.stars)} ${esc(l.rateText)}</div>` : ''}</div>
       <div class="val">${esc(l.load || '—')} ${arrow(l.feedback)}</div>
       ${l.manual ? `<button class="mini-skip" data-dellog="${S.logs.indexOf(l)}" aria-label="Elimina la registrazione aggiunta a mano">✕</button>` : ''}</li>`).join('');
@@ -4845,13 +5032,14 @@ function runChain(defs, opts) {
     const s = Object.assign({}, d, { start: t, end: t + d.dur * 1000 });
     t = s.end; return s;
   });
-  chain = { segs, idx: 0, audioT0: t0 };
+  chain = { segs, idx: 0, audioT0: t0, countUp: !!(opts && opts.countUp) };
   const mini = opts && opts.mini;
   $('#timer').classList.toggle('on', !mini);
   $('#miniTimer').classList.toggle('on', !!mini);
   document.body.classList.toggle('mini-on', !!mini);
   unlockAudio();
-  playBells(specOf(relSegs(defs)), 0);           // una sola traccia per tutta la catena
+  // a cronometro la fine non è prevedibile: si suona solo la preparazione
+  playBells(specOf(relSegs(chain.countUp ? defs.slice(0, 1) : defs)), 0);
   enterSeg();
   timerHandle = setInterval(tick, 100);
   tick();
@@ -4885,7 +5073,7 @@ function enterSeg() {
   $('#timer').classList.toggle('work', work);
   $('#miniTimer').classList.toggle('work', work);
   $('#timerSkip').textContent = seg.kind === 'prep' ? 'Parti ora'
-    : work ? 'Termina la tenuta'
+    : work ? (chain.countUp ? 'Fine tenuta' : 'Termina la tenuta')
     : (next ? 'Accorcia la pausa' : 'Riprendi ora');
   if (seg.onStart) seg.onStart();
 }
@@ -4897,7 +5085,7 @@ function tick() {
   // chiude in ordine tutti i segmenti scaduti (anche più d'uno, al rientro)
   while (chain && chain.idx < chain.segs.length && now >= chain.segs[chain.idx].end) {
     const ch = chain, seg = ch.segs[ch.idx++];
-    if (seg.onEnd && seg.onEnd() === true) redrawn = true;
+    if (seg.onEnd && seg.onEnd(seg) === true) redrawn = true;
     if (chain !== ch) return;                    // il callback ha fermato o sostituito il timer
     if (ch.idx < ch.segs.length) enterSeg();
   }
@@ -4914,11 +5102,14 @@ function tick() {
   const prep = seg.kind === 'prep';
   const dur = Math.max(1, (seg.end - seg.start) / 1000);
   const left = Math.max(0, Math.ceil((seg.end - now) / 1000));
+  // a cronometro il numero sale invece di scendere: è il tempo che stai tenendo
+  const up = chain.countUp && seg.kind === 'work';
+  const shown = up ? Math.max(0, Math.floor((now - seg.start) / 1000)) : left;
   // in preparazione si mostra solo la cifra che scorre: resta centrata nel cerchio
-  const txt = prep ? String(left) : `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+  const txt = prep ? String(left) : `${Math.floor(shown / 60)}:${String(shown % 60).padStart(2, '0')}`;
   $('#timerCount').textContent = txt;
   $('#miniCount').textContent = txt;
-  $('#ringFill').setAttribute('stroke-dashoffset', String(prep ? 0 : 283 * (1 - Math.min(1, left / dur))));
+  $('#ringFill').setAttribute('stroke-dashoffset', String(prep || up ? 0 : 283 * (1 - Math.min(1, left / dur))));
   $('#timer').classList.toggle('prep', prep);
   $('#miniTimer').classList.toggle('prep', prep);
   $('#timer').classList.toggle('warn', seg.kind === 'rest' && left <= 3);
@@ -5074,11 +5265,11 @@ $('#miniStop').onclick = cancelTimer;
 $('#timerMin').onclick = minimizeTimer;
 $('#miniExpand').onclick = expandTimer;
 $('#timerPlus').onclick = () => {
-  if (!chain || chain.segs[chain.idx].kind === 'prep') return;
+  if (!chain || chain.countUp || chain.segs[chain.idx].kind === 'prep') return;
   shiftChain(15000); restartBells(); tick();
 };
 $('#timerMinus').onclick = () => {
-  if (!chain || chain.segs[chain.idx].kind === 'prep') return;
+  if (!chain || chain.countUp || chain.segs[chain.idx].kind === 'prep') return;
   const seg = chain.segs[chain.idx];
   const newEnd = Math.max(Date.now() + 1000, seg.end - 15000);
   shiftChain(newEnd - seg.end); restartBells(); tick();

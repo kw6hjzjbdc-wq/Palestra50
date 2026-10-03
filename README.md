@@ -102,6 +102,18 @@ Due sedute di fila portate al limite vengono segnalate solo se non è arrivato n
 - **L'attesa non cresce all'infinito.** Il confronto si aspetta circa +2,5% a settimana dall'ultima volta che hai fatto quell'esercizio. Con la rotazione degli esercizi potevano passare quattro settimane, e l'app pretendeva +10%: un miglioramento reale del 5% prendeva due stelle. Ora l'attesa si ferma a +5%.
 - **Il motivo è visibile.** In *Progressi → Ultime sedute*, aprendo una seduta, ogni esercizio mostra le sue stelle e la frase che le spiega («in linea con la progressione prevista», «calo del 4% sul massimale stimato», «obiettivo diverso dalla volta scorsa»), con margine o RIR dichiarati.
 
+### Ogni serie ha la sua riga (dalla 5.11)
+
+Prima l'app teneva un solo carico e un solo numero di ripetizioni per esercizio, quelli dell'ultima serie. Se alzavi il peso alla seconda serie, la fatica si scaricava sulla terza ma nei numeri non si vedeva.
+
+Ora ogni serie conclusa lascia la sua riga — carico, ripetizioni o secondi, riserva — sotto i pallini delle serie; toccando una riga si corregge ciò che è stato annotato male. Il confronto fra sedute usa i totali veri: **tonnellaggio** (somma di carico × ripetizioni serie per serie), **massimale stimato della serie migliore**, **ripetizioni** o **secondi totali**. Nello storico ogni seduta mostra le serie una per una, e la riga «ultima volta» le riporta in fila (`40×12 · 50×10 · 50×8`).
+
+### Esercizi a tempo: tempo effettivo e cronometro (dalla 5.11)
+
+- **Il tempo registrato è quello vero.** Nella sequenza automatica, se chiudi prima con *Termina la tenuta* o allunghi con *+15 s*, nello storico finiscono i secondi davvero tenuti, non quelli previsti.
+- **Cronometro.** Sugli esercizi a tempo compare *Cronometro: tieni finché riesci*: tre secondi di preparazione con le campanelle, poi il contatore **sale**; *Fine tenuta* ferma, registra i secondi e avvia da solo la pausa (con i suoi rintocchi). È il modo giusto per plank, wall sit e sospensioni portate al limite, dove il tempo previsto non è il punto.
+- **Plank senza stelle: corretto.** Quando l'obiettivo del blocco non indicava una tenuta (è il caso del core), la dose usciva con 0 secondi: la seduta non registrava nulla e l'esercizio restava senza valutazione. Ora la tenuta prevista si ricava dall'esercizio stesso, quindi i secondi vengono registrati e le stelle arrivano come per gli altri.
+
 ### Le prossime settimane (dalla 5.8)
 
 Da *Oggi* (sotto il calendario), dalla pagina *Progressi* e dal riquadro *Il percorso*: sei settimane per volta, giorno per giorno, con il tipo di seduta e il suo schema (Forza A, Aerobico a intervalli, Mobilità…), la fase, le settimane di scarico e quelle di sola mobilità. Gli esercizi esatti restano scelti all'apertura della seduta, perché dipendono da carichi, attrezzatura e tempo disponibile.
