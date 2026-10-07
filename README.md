@@ -102,6 +102,39 @@ Due sedute di fila portate al limite vengono segnalate solo se non è arrivato n
 - **L'attesa non cresce all'infinito.** Il confronto si aspetta circa +2,5% a settimana dall'ultima volta che hai fatto quell'esercizio. Con la rotazione degli esercizi potevano passare quattro settimane, e l'app pretendeva +10%: un miglioramento reale del 5% prendeva due stelle. Ora l'attesa si ferma a +5%.
 - **Il motivo è visibile.** In *Progressi → Ultime sedute*, aprendo una seduta, ogni esercizio mostra le sue stelle e la frase che le spiega («in linea con la progressione prevista», «calo del 4% sul massimale stimato», «obiettivo diverso dalla volta scorsa»), con margine o RIR dichiarati.
 
+### Dove sei nel programma: un solo modo di dirlo (dalla 5.12)
+
+La stessa informazione era scritta in quattro modi diversi. La Home e le Impostazioni contavano la **settimana di calendario** (la quarta), il riquadro *Progressi* la **settimana di allenamento** (la terza, perché una settimana era di sola mobilità e non conta sul piano di 37), l'etichetta in alto in *Oggi* mostrava invece la settimana dentro il blocco di quattro. Tre numeri per la stessa domanda.
+
+Ora esiste una sola formula, usata da tutte le schermate: **«sessione 2 di 6 · settimana 4 di 37»**. Quando le due settimane divergono — cioè solo dopo una settimana di sola mobilità — la formula lo dice per esteso: **«sessione 2 di 6 · settimana 4 di calendario · allenamento 3 di 37»**. L'etichetta in alto, dove lo spazio è poco, porta la versione corta *Sett. 4 · sess. 2 di 6*, con lo stesso numero di settimana di tutto il resto. Le Impostazioni aggiungono una riga che spiega la differenza quando c'è.
+
+### Cambiare la seduta aerobica o di mobilità (dalla 5.12)
+
+Le sedute di forza hanno un ordine che serve: A, B e C si alternano per non caricare due volte gli stessi distretti. L'aerobico no — che i minuti arrivino dalla cyclette, dal sacco o dalla bici da spinning cambia poco per il risultato e molto per la voglia di farli (e per l'attrezzo libero in sala).
+
+In *Oggi*, nelle giornate aerobiche e di mobilità, compare **Cambia attrezzo o tipo di lavoro** (o *Cambia schema di mobilità*):
+
+- **aerobico** — si sceglie l'attrezzo fra quelli disponibili (bici da spinning, cyclette orizzontale, sacco da pugilato, vogatore, macchina a scalini; a casa colpi al sacco d'aria e camminata veloce) e il tipo di lavoro, *intervalli* o *ritmo costante*. Riscaldamento, parte centrale, defaticamento e allungamenti finali si ricostruiscono attorno alla scelta, con la stessa progressione degli scatti e lo stesso budget di minuti. Se l'attrezzo non regge il lavoro a intervalli (la macchina a scalini, per esempio) l'app passa da sola al ritmo costante. Vogatore e scalini restano segnalati come sconsigliati con la priorità al ginocchio, ma si possono scegliere;
+- **mobilità** — si sceglie quale dei due schemi svolgere: *Anca, gambe e ginocchio* oppure *Colonna, spalle e parte alta*.
+
+La scelta è legata alla **posizione nel programma**, non all'esercizio: resta se cambi la durata della seduta, se esci e rientri, se chiudi l'app, e si cancella da sola quando quella seduta è passata. *Torna alla seduta prevista* annulla. Quello che non cambia è il posto della mobilità: resta l'ultima seduta della settimana, qui si cambia solo il contenuto.
+
+### Kettlebell (dalla 5.12)
+
+In sala ci sono kettlebell **da 8 a 24 kg, un ferro ogni 2 kg**: è una scala a sé, con il suo passo minimo, e l'app la usa come già fa con bilanciere, manubri e macchine (il selettore del carico propone solo pesi che esistono davvero).
+
+Tre esercizi nuovi, tutti compatibili con ginocchio e spalla:
+
+- **Slancio con kettlebell (swing russo)** — schema d'anca, non di ginocchio: la rotula resta quasi scarica. Lo swing russo si ferma all'altezza dello sterno, quindi non entra nell'arco doloroso del conflitto subacromiale. Lavora glutei, femorali, erettori spinali e presa, con una componente cardiometabolica che serve all'obiettivo sul grasso addominale;
+- **Goblet squat con kettlebell** — il carico davanti al petto tiene il busto eretto e scarica la rotula;
+- **Rematore con kettlebell a un braccio** — presa neutra e gomito vicino al corpo, fuori dall'arco critico della spalla.
+
+Il kettlebell compare anche fra gli attrezzi utilizzabili per rematore con manubrio, affondi e split squat bulgaro.
+
+### Seduta rimasta aperta: anche come seduta libera (dalla 5.12)
+
+Quando l'app si chiude prima del riepilogo, all'avvio successivo propone di sistemare la seduta. Alle due risposte esistenti (*era la mobilità del mattino*, *era la seduta del giorno*) se ne aggiunge una terza: **era una seduta libera**. In quel caso resta registrato soltanto ciò che hai davvero fatto — nessun esercizio aggiunto d'ufficio alle dosi previste — e il programma **non avanza**, perché la seduta prevista è ancora da svolgere. I minuti si ricavano dall'intervallo fra la prima e l'ultima registrazione. Come sempre, nessuna delle quattro risposte cancella qualcosa.
+
 ### Ogni serie ha la sua riga (dalla 5.11)
 
 Prima l'app teneva un solo carico e un solo numero di ripetizioni per esercizio, quelli dell'ultima serie. Se alzavi il peso alla seconda serie, la fatica si scaricava sulla terza ma nei numeri non si vedeva.
@@ -529,6 +562,7 @@ Aggiornate a settembre 2026: dove una fonte più recente sostituisce una precede
 - **Morton et al. 2018**, British Journal of Sports Medicine — circa 1,6 g/kg/die di proteine per massimizzare i guadagni di massa magra con i pesi.
 - **NSCA**, *Essentials of Strength Training and Conditioning* — regola 2-for-2 (due ripetizioni oltre l'obiettivo per due sedute, poi incremento del 2,5–10%); ordine degli esercizi.
 - **ACSM** — flessibilità: tenute di 10-30 s, 30-60 s dopo i 50 anni, circa 60 s totali per muscolo, almeno 2-3 giorni a settimana.
+- **Meigh et al. 2022**, *Effects of supervised high-intensity hardstyle kettlebell training on grip strength and health-related physical fitness in insufficiently active older adults: the BELL pragmatic controlled trial*, BMC Geriatrics — 12 settimane di kettlebell in adulti fra 59 e 79 anni: forza di presa +23-25%, sit-to-stand +23%, stacco stimato +16 kg, nessun infortunio serio. È la base degli esercizi con kettlebell introdotti nella 5.12.
 - **OMS 2020** — raccomandazioni di attività fisica per adulti.
 - **Zourdos et al. 2016**, Strength and Conditioning Journal — scala delle ripetizioni in riserva.
 - **Epley (1985)** — formula del massimale stimato.

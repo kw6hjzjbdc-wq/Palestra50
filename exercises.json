@@ -153,7 +153,8 @@
    ],
    "equipment": [
     "Manubri",
-    "Panca"
+    "Panca",
+    "Kettlebell"
    ],
    "art": {
     "frames": [
@@ -199,7 +200,8 @@
     "Core"
    ],
    "equipment": [
-    "Manubri"
+    "Manubri",
+    "Kettlebell"
    ],
    "art": {
     "frames": [
@@ -738,7 +740,8 @@
    ],
    "equipment": [
     "Manubrio",
-    "Panca"
+    "Panca",
+    "Kettlebell"
    ],
    "art": {
     "frames": [
@@ -5354,6 +5357,148 @@
     "Ginocchio: in piano o in leggera salita il carico sulla rotula resta basso; evita le discese."
    ],
    "source": "WHO 2020 – 150-300 min/settimana di attività aerobica moderata"
+  },
+  {
+   "id": "g_kbswing",
+   "name": "Slancio con kettlebell (swing russo)",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Catena posteriore",
+   "pattern": "hinge",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Glutei",
+    "Femorali"
+   ],
+   "secondary": [
+    "Erettori spinali",
+    "Core",
+    "Presa"
+   ],
+   "equipment": [
+    "Kettlebell"
+   ],
+   "art": {
+    "frames": [
+     "hingeBottom",
+     "frontUp"
+    ],
+    "implement": "kettlebell"
+   },
+   "steps": [
+    "Kettlebell a mezzo metro davanti ai piedi: afferralo con le braccia tese e portalo indietro fra le gambe, schiena lunga.",
+    "Spingi forte il bacino avanti e stringi i glutei: il peso sale da solo fino all'altezza dello sterno, non più in alto.",
+    "Lascialo ricadere accompagnandolo con le anche, non con le ginocchia: il movimento è un'anca che si chiude e si apre."
+   ],
+   "errors": [
+    "Trasformarlo in uno squat: le ginocchia si piegano poco, il lavoro è dell'anca.",
+    "Sollevare il peso con le braccia o portarlo sopra la testa.",
+    "Inarcare o arrotondare la schiena nel punto basso."
+   ],
+   "safety": [
+    "Ginocchio: è uno schema d'anca, la rotula resta quasi scarica; le ginocchia si piegano appena.",
+    "Spalla: lo swing russo si ferma all'altezza dello sterno, quindi non entra nell'arco doloroso del conflitto subacromiale.",
+    "Schiena: parti leggero (8-12 kg) finché il movimento non è automatico; se la zona lombare si affatica, ferma la serie."
+   ],
+   "source": "Meigh et al. 2022 (BMC Geriatrics, studio BELL): 12 settimane di kettlebell hardstyle in adulti 59-79 anni, +23-25% di forza di presa, +23% al sit-to-stand, nessun infortunio serio",
+   "rack": "kettlebell"
+  },
+  {
+   "id": "g_kbgoblet",
+   "name": "Goblet squat con kettlebell",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Quadricipiti",
+   "pattern": "squat",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Quadricipiti",
+    "Glutei"
+   ],
+   "secondary": [
+    "Core",
+    "Erettori spinali"
+   ],
+   "equipment": [
+    "Kettlebell"
+   ],
+   "art": {
+    "frames": [
+     "stand",
+     "squatBottom"
+    ],
+    "implement": "kettlebellGoblet"
+   },
+   "steps": [
+    "Tieni il kettlebell per le corna, campana appoggiata allo sterno, gomiti sotto il peso.",
+    "Piedi poco più larghi delle spalle, punte appena aperte: scendi tenendo il petto alto e i talloni a terra.",
+    "Risali spingendo il pavimento lontano da te ed espirando."
+   ],
+   "errors": [
+    "Lasciar cadere i gomiti in fuori, perdendo l'appoggio della campana.",
+    "Far collassare le ginocchia verso l'interno in risalita."
+   ],
+   "safety": [
+    "Ginocchio: il carico davanti al petto tiene il busto eretto e riduce il carico sulla rotula; scendi solo fino a dove controlli il movimento.",
+    "La presa per le corna tiene i polsi dritti: se il polso si piega indietro, il kettlebell è troppo pesante."
+   ],
+   "source": "ACSM 2026 (Position Stand, MSSE): schemi multiarticolari per primi, 2-3 ripetizioni di riserva; Meigh et al. 2022 (BMC Geriatrics, studio BELL): 12 settimane di kettlebell hardstyle in adulti 59-79 anni, +23-25% di forza di presa, +23% al sit-to-stand, nessun infortunio serio",
+   "rack": "kettlebell"
+  },
+  {
+   "id": "g_kbrow",
+   "name": "Rematore con kettlebell a un braccio",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Dorso",
+   "pattern": "pullH",
+   "load": "weight",
+   "kneeFriendly": true,
+   "perSide": true,
+   "primary": [
+    "Gran dorsale",
+    "Romboidi"
+   ],
+   "secondary": [
+    "Bicipite",
+    "Trapezio medio",
+    "Presa",
+    "Core"
+   ],
+   "equipment": [
+    "Kettlebell",
+    "Panca"
+   ],
+   "art": {
+    "frames": [
+     "rowStart",
+     "rowEnd"
+    ],
+    "implement": "kettlebell"
+   },
+   "steps": [
+    "Mano e ginocchio omologhi sulla panca, schiena parallela al pavimento, kettlebell a terra sotto la spalla.",
+    "Tira il gomito verso l'anca tenendolo vicino al corpo, portando la scapola indietro e in basso.",
+    "Scendi lentamente fino a braccio disteso, senza ruotare il busto."
+   ],
+   "errors": [
+    "Ruotare le spalle per guadagnare centimetri.",
+    "Tirare con il bicipite invece che con la scapola."
+   ],
+   "safety": [
+    "Spalla: la presa neutra del kettlebell e il gomito vicino al corpo tengono la spalla fuori dall'arco doloroso.",
+    "La campana scende sotto la mano: lascia spazio sufficiente fra la panca e il pavimento."
+   ],
+   "source": "ACSM 2026 (Position Stand, MSSE): tirate orizzontali per l'equilibrio spinta/tirata; Meigh et al. 2022 (BMC Geriatrics, studio BELL): 12 settimane di kettlebell hardstyle in adulti 59-79 anni, +23-25% di forza di presa, +23% al sit-to-stand, nessun infortunio serio",
+   "rack": "kettlebell"
   }
  ]
 }

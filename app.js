@@ -50,6 +50,7 @@ const DEFAULT_STATE = {
   morningMin: 10,          // durata della mobilità del mattino (10 o 15 minuti)
   autoBackup: true,         // istantanea automatica a fine settimana
   snapshots: [],            // ultime 3 istantanee settimanali, ripristinabili
+  sessPick: {},             // seduta aerobica o di mobilità scelta al posto di quella prevista
   resume: null,             // seduta interrotta, recuperabile dopo la chiusura dell'app
   lastRecap: 0              // ultima settimana di cui è stato mostrato il riepilogo
 };
@@ -58,6 +59,7 @@ function load() {
   try { S = Object.assign({}, DEFAULT_STATE, JSON.parse(localStorage.getItem(KEY) || '{}')); }
   catch (e) { S = Object.assign({}, DEFAULT_STATE); }
   if (!S.exNotes) S.exNotes = {};
+  if (!S.sessPick || typeof S.sessPick !== 'object') S.sessPick = {};
   if (!Array.isArray(S.snapshots)) S.snapshots = [];
 }
 
@@ -200,7 +202,7 @@ function askMobilityWeek() {
     <p class="small muted">Hai detto che per una settimana potrai fare solo mobilità e stretching.
       Dimmi quale: tutte le sedute diventeranno di allungamento e il programma di forza
       <b>slitterà in avanti</b>, riprendendo da dove è rimasto. Nessuna settimana di lavoro va persa.</p>
-    <p class="small muted">Sei alla sessione ${meta.pos} di ${meta.days} della settimana ${q}.</p>
+    <p class="small muted">Sei alla ${whereText(meta)}.</p>
     <button class="btn" id="mbNext" style="margin-top:12px">La prossima · settimana ${n}</button>
     <button class="btn ghost" id="mbThis" style="margin-top:10px">Quella in corso · settimana ${q}</button>
     <button class="btn ghost" id="mbNo" style="margin-top:10px">Per ora no</button>`);
@@ -272,6 +274,7 @@ const exById = id => (DB.all || DB.exercises).find(e => e.id === id);
 --------------------------------------------------------------------------- */
 const KNOWN_IMPLEMENTS = [
   null, 'spinBike', 'recumbent', 'barbell', 'barbellBack', 'dumbbells', 'dumbbell1', 'goblet', 'machine',
+  'kettlebell', 'kettlebellGoblet',
   'cable', 'wheel', 'platform', 'thighPad', 'grips', 'bar', 'barBand', 'pullbar',
   'bandVertical', 'bandTop', 'bandFront', 'bandBack', 'bandFeet', 'bandFoot',
   'bandKnees', 'bandAnkle', 'bandShoulder', 'bandSide'
@@ -311,6 +314,7 @@ function validateData() {
     if (KNOWN_IMPLEMENTS.indexOf(art.implement === undefined ? null : art.implement) < 0) {
       dataIssues.push(`${who}: attrezzo "${art.implement}" non riconosciuto dal disegnatore`);
     }
+    if (e.rack && !RACKS[e.rack]) dataIssues.push(`${who}: scala dei carichi "${e.rack}" sconosciuta`);
     if (e.levels && (!Array.isArray(e.levels) || e.levels.length < 2)) {
       dataIssues.push(`${who}: la progressione deve avere almeno due gradini`);
     }
@@ -356,6 +360,12 @@ function implementSvg(kind, p) {
     case 'dumbbells':    return bell(h) + bell(h2);
     case 'dumbbell1':    return bell(h);
     case 'goblet':       return `<rect x="${n[0] - 4}" y="${n[1] + 4}" width="8" height="13" rx="2.5" class="impf"/>`;
+    // kettlebell appeso alla mano: maniglia ad arco e campana arrotondata
+    case 'kettlebell':   return `<path d="M ${h[0] - 3.6} ${h[1] + 4} a 3.6 3.6 0 0 1 7.2 0" class="imp" stroke-width="2.2"/>` +
+                                `<path d="M ${h[0] - 5.4} ${h[1] + 6.5} a 5.4 5.4 0 1 0 10.8 0 z" class="impf"/>`;
+    // kettlebell tenuto al petto per il goblet squat
+    case 'kettlebellGoblet': return `<path d="M ${n[0] - 3.2} ${n[1] + 6} a 3.2 3.2 0 0 1 6.4 0" class="imp" stroke-width="2.2"/>` +
+                                `<path d="M ${n[0] - 5} ${n[1] + 8} a 5 5 0 1 0 10 0 z" class="impf"/>`;
     case 'wheel':        return `<circle cx="${h[0]}" cy="${h[1] + 2}" r="6" class="imp" fill="none" stroke-width="3"/>`;
     case 'machine':      return `<line x1="108" y1="18" x2="108" y2="100" class="imp" stroke-width="3"/>` + band(108, h[1]);
     // pedana della leg press: piano inclinato appoggiato ai piedi
@@ -573,6 +583,7 @@ const isAssist = ex => !!(ex && ex.assist);
    · manubri — rastrelliera da 2 a 40 kg; il numero annotato è il peso del
      SINGOLO manubrio, anche quando se ne usano due;
    · macchine, cavi e lat machine — pacco pesi da 10 a 120 kg a passi di 2,5;
+   · kettlebell — da 8 a 24 kg, un ferro ogni 2 kg;
    · casa — manubri da 1 e 2 kg, usabili anche in coppia.
 
    Da queste scale discende anche il passo minimo: serve a non segnalare come
@@ -595,6 +606,8 @@ const RACKS = {
   barbell:  barbellScale(),
   dumbbell: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40],
   machine:  Array.from({ length: 45 }, (_, i) => 10 + i * 2.5),      // 10 → 120
+  // kettlebell della sala: da 8 a 24 kg, un ferro ogni 2 kg
+  kettlebell: Array.from({ length: 9 }, (_, i) => 8 + i * 2),         // 8 → 24
   home:     [1, 2, 3, 4]                                             // 1+2 kg, anche in coppia
 };
 const rackOf = ex => (ex && RACKS[ex.rack]) ? RACKS[ex.rack] : null;
@@ -606,6 +619,7 @@ function rackNote(ex) {
     case 'barbell':  return 'Bilanciere da 10 kg con dischi da 2, 5, 10 e 20 kg a coppie: 12 e 16 kg non sono componibili.';
     case 'dumbbell': return 'Peso del singolo manubrio, dalla rastrelliera da 2 a 40 kg.';
     case 'machine':  return 'Pacco pesi da 10 a 120 kg, a scalini di 2,5 kg.';
+    case 'kettlebell': return 'Kettlebell da 8 a 24 kg, un ferro ogni 2 kg: il passo è fisso, non si compone.';
     case 'home':     return 'Manubri da 1 e 2 kg, anche in coppia.';
     default: return '';
   }
@@ -1168,6 +1182,37 @@ function trainingWeekOf(weekAbs) {
   return Math.max(1, weekAbs - skipped);
 }
 
+/* ---------------------------------------------------------------------------
+   DOVE SEI NEL PROGRAMMA — UN SOLO MODO DI DIRLO (dalla 5.12)
+   La stessa informazione veniva scritta in quattro modi diversi: la Home
+   mostrava la settimana di calendario, il riquadro Progressi quella di
+   allenamento (che non conta le settimane di sola mobilità) e le Impostazioni
+   un terzo conteggio ancora. Da qui in avanti il numero principale è sempre la
+   settimana di calendario; la settimana di allenamento compare accanto solo
+   quando le due differiscono, cioè quando c'è stata una settimana di sola
+   mobilità. Ogni schermata usa queste tre funzioni, nessuna scrive più la
+   posizione per conto proprio.
+--------------------------------------------------------------------------- */
+function weekText(meta, opt) {
+  const o = opt || {};
+  const p = meta.program || program();
+  const total = totalWeeks(p) || p.cycleWeeks || 0;
+  let t = `settimana ${meta.weekAbs}`;
+  if (total) {
+    t += (meta.trainingWeek === meta.weekAbs)
+      ? ` di ${total}`
+      : ` di calendario · allenamento ${meta.trainingWeek} di ${total}`;
+  }
+  return o.cap ? t.charAt(0).toUpperCase() + t.slice(1) : t;
+}
+function whereText(meta, opt) {
+  const o = opt || {};
+  const t = `sessione ${meta.pos} di ${meta.days} · ${weekText(meta)}`;
+  return o.cap ? t.charAt(0).toUpperCase() + t.slice(1) : t;
+}
+/* Versione corta per le etichette in alto, dove lo spazio è poco. */
+const shortWhere = meta => `Sett. ${meta.weekAbs} · sess. ${meta.pos} di ${meta.days}`;
+
 function sessionMeta(idx) {
   const p = program();
   const weekAbs = weekOfIdx(idx);
@@ -1384,14 +1429,17 @@ function buildStrength(meta, budget) {
 }
 
 function buildStretch(meta, budget) {
-  const tmpl = meta.program.stretchDays[meta.tmplIdx];
+  const chosen = pickOf(meta.idx) || {};
+  const sDays = meta.program.stretchDays;
+  const ti = (chosen.stretch != null && sDays[chosen.stretch]) ? chosen.stretch : meta.tmplIdx;
+  const tmpl = sDays[ti];
   const used = new Set(), items = [];
   const dyn = DB.exercises.filter(e => e.type === 'stretch' && e.pattern === 'mobility' && e.setup.includes(S.setup));
   const stat = DB.exercises.filter(e => e.type === 'stretch' && e.pattern === 'static' && e.setup.includes(S.setup)
                                         && tmpl.staticGroups.includes(e.group));
   dyn.sort((a, b) => a.id.localeCompare(b.id));
   stat.sort((a, b) => a.id.localeCompare(b.id));
-  let rot = (meta.mesocycle - 1) * 2 + meta.tmplIdx + (meta.weekInCycle - 1);
+  let rot = (meta.mesocycle - 1) * 2 + ti + (meta.weekInCycle - 1);
   // in una settimana di sola mobilità tutte le sedute sono di allungamento: la rotazione
   // scorre a ogni seduta, così non si ripetono gli stessi allungamenti
   if (meta.mobilityWeek) rot += (meta.pos - 1) * 2;
@@ -1647,6 +1695,37 @@ const FINISHER_RESERVE = 10;     // minuti riservati al finale con 50 minuti a d
    vogatore e scalini non vengono proposti in automatico (flessione profonda
    sotto carico), ma restano selezionabili con «Cambia esercizio».
 --------------------------------------------------------------------------- */
+/* ---------------------------------------------------------------------------
+   CAMBIARE LA SEDUTA AEROBICA O DI MOBILITÀ (dalla 5.12)
+   Le sedute di forza hanno un ordine che serve a qualcosa: A, B e C si
+   alternano per non caricare due volte gli stessi distretti. L'aerobico e la
+   mobilità no: che i minuti arrivino dalla cyclette, dal sacco o dalla bici da
+   spinning cambia poco per il risultato, e molto per la voglia di farli (e per
+   l'attrezzo libero in sala). Da qui la scelta libera dell'attrezzo e dello
+   schema di mobilità.
+   La scelta è legata alla POSIZIONE nel programma, non all'esercizio: così
+   sopravvive al ricalcolo della seduta, alla durata cambiata e alla chiusura
+   dell'app, e sparisce da sola quando quella seduta è passata. Resta invece
+   intatta la regola della mobilità in chiusura di settimana: qui si cambia il
+   contenuto della seduta, mai il suo posto nella settimana.
+--------------------------------------------------------------------------- */
+const pickOf = idx => (S.sessPick || {})[String(idx)] || null;
+
+function setPick(idx, p) {
+  S.sessPick = S.sessPick || {};
+  if (p) S.sessPick[String(idx)] = p; else delete S.sessPick[String(idx)];
+  // le scelte delle sedute ormai passate non servono più
+  Object.keys(S.sessPick).forEach(k => { if (+k < S.sessionIndex) delete S.sessPick[k]; });
+  planCache = null;
+  save();
+}
+/* Firma della scelta: entra nella chiave della seduta tenuta in memoria, così
+   cambiare attrezzo ricostruisce davvero la seduta. */
+function pickKey(idx) {
+  const p = pickOf(idx);
+  return p ? `${p.exId || ''}/${p.mode || ''}/${p.stretch == null ? '' : p.stretch}` : '';
+}
+
 function cardioPool(mode) {
   let pool = DB.exercises.filter(e => (e.pattern === 'cardio' || e.pattern === 'finisher') &&
     e.setup.includes(S.setup) && (e.cardioModes || []).includes(mode));
@@ -1664,12 +1743,20 @@ function hiitScheme(meta) {
 }
 
 function buildCardio(meta, budget) {
-  const tmpl = (PROG.cardioDays || [])[meta.tmplIdx] || { label: 'Aerobico', mode: 'steady' };
+  const chosen = pickOf(meta.idx) || {};
+  const days = PROG.cardioDays || [];
+  let tmpl = days[meta.tmplIdx] || { label: 'Aerobico', mode: 'steady' };
+  // modalità scelta a mano (intervalli o ritmo costante) al posto di quella del giorno
+  if (chosen.mode && chosen.mode !== tmpl.mode) tmpl = days.find(t => t.mode === chosen.mode) || tmpl;
   const mode = tmpl.mode;
   const used = new Set();
   let pool = cardioPool(mode);
   if (!pool.length) pool = cardioPool(mode === 'hiit' ? 'steady' : 'hiit');
-  const ex = pickFrom(pool, (meta.weekAbs - 1) + meta.tmplIdx, used);
+  // attrezzo scelto a mano: vale solo se è davvero disponibile e adatto alla modalità
+  let ex = chosen.exId ? exById(chosen.exId) : null;
+  if (ex && (ex.retired || !ex.setup.includes(S.setup) || !(ex.cardioModes || []).includes(mode))) ex = null;
+  if (ex) used.add(ex.id);
+  else ex = pickFrom(pool, (meta.weekAbs - 1) + meta.tmplIdx, used);
   const items = [];
   if (!ex) return { label: tmpl.label, type: 'cardio', items, mode };
   const deload = meta.profile.label === 'Scarico';
@@ -2078,10 +2165,12 @@ function fixOrphanSessions() {
   const day = new Date(o.ts).toLocaleDateString('it-IT');
   const hour = d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
   openModal(`<h2>Una seduta è rimasta aperta</h2>
-    <p class="small muted">Il ${day} alle ${hour} hai registrato ${o.logs.length} esercizi, ma la seduta non è stata chiusa: l'app si è chiusa prima del riepilogo. Vuoi registrarla adesso? Gli esercizi mancanti verranno aggiunti alle dosi previste.</p>
+    <p class="small muted">Il ${day} alle ${hour} hai registrato ${o.logs.length} esercizi, ma la seduta non è stata chiusa: l'app si è chiusa prima del riepilogo. Com'era?</p>
     <button class="btn" id="orMorning" style="margin-top:12px">${morningLikely ? 'Sì: era la mobilità del mattino' : 'Era la mobilità del mattino'}</button>
     <button class="btn ${morningLikely ? 'ghost' : ''}" id="orLunch" style="margin-top:10px">Era la seduta del giorno (${esc(buildSession(o.idx != null ? o.idx : S.sessionIndex).label)})</button>
-    <button class="btn ghost" id="orNo" style="margin-top:10px">Lascia com'è</button>`);
+    <button class="btn ghost" id="orFree" style="margin-top:10px">Era una seduta libera</button>
+    <button class="btn ghost" id="orNo" style="margin-top:10px">Lascia com'è</button>
+    <p class="small muted" style="margin-top:12px">Con le prime due la seduta risulta svolta per intero: gli esercizi che mancano vengono aggiunti alle dosi previste. Con «seduta libera» resta registrato soltanto quello che hai davvero fatto, e il programma non avanza: la seduta prevista rimane da svolgere. In nessun caso si cancella qualcosa.</p>`);
   const close = fn => closeModal(() => { if (fn) fn(); go('dash'); });
   $('#orMorning').onclick = () => close(() => {
     const w = weekOfIdx(meta.idx), day2 = Math.min(posOfIdx(meta.idx) + 1, MORNING_DAYS);
@@ -2090,6 +2179,7 @@ function fixOrphanSessions() {
   $('#orLunch').onclick = () => close(() => {
     markSessionDone(buildSession(o.idx != null ? o.idx : S.sessionIndex), o.ts, o.sid);
   });
+  $('#orFree').onclick = () => close(() => closeAsFree(o));
   $('#orNo').onclick = () => close(() => {
     // niente cancellazioni: si segna solo di non richiederlo più
     S.orphanIgnored = (S.orphanIgnored || []).concat([o.sid]);
@@ -2097,6 +2187,21 @@ function fixOrphanSessions() {
       kind: 'free', minutes: 0, note: 'Esercizi registrati, seduta non conteggiata' });
     save();
   });
+}
+
+/* Chiude come seduta libera una seduta rimasta aperta: restano registrati
+   soltanto gli esercizi davvero svolti (nessuna dose aggiunta d'ufficio) e il
+   programma non avanza, perché la seduta prevista è ancora da fare. I minuti
+   si ricavano dall'intervallo fra la prima e l'ultima registrazione. */
+function closeAsFree(o) {
+  if (S.sessionLog.some(x => x.sid === o.sid)) return;
+  const first = Math.min.apply(null, o.logs.map(l => l.ts));
+  const minutes = Math.max(1, Math.round((o.ts - first) / 60000) + 3);
+  S.sessionLog.push({ ts: o.ts, sid: o.sid, idx: o.idx, label: 'Seduta libera',
+    kind: 'free', minutes, free: true,
+    note: 'Seduta rimasta aperta, registrata come libera' });
+  planCache = null;
+  save();
 }
 
 const sameDay = (a, b) => { const x = new Date(a), y = new Date(b); return x.toDateString() === y.toDateString(); };
@@ -2215,7 +2320,7 @@ const dateIt = d => new Date(d).toLocaleDateString('it-IT', { day: 'numeric', mo
 function renderDash() {
   $('#topTitle').textContent = 'Home';
   const path = pathStatus();
-  $('#topChip').textContent = `Sett. ${path.meta.weekAbs} · ${path.meta.phase ? path.meta.phase.ph.name : ''}`;
+  $('#topChip').textContent = shortWhere(path.meta);
   $('#topChip').className = 'chip';
 
   // 1. mattino
@@ -2245,7 +2350,7 @@ function renderDash() {
   const b = bodyProjection();
   const ph = path.meta.phase;
   const gBody = `<div class="dstat">${ph ? esc(ph.ph.name) : esc(path.p.name)}</div>
-    <p class="small">Settimana ${path.tw} di ${path.total} · ${path.weeksLeft} alla fine</p>
+    <p class="small">${whereText(path.meta, { cap: true })} · ${path.weeksLeft} settimane alla fine</p>
     <div class="dbar"><i style="width:${path.pct}%"></i></div>
     <p class="small">${t.n ? `${t.up} esercizi in crescita su ${t.n}` : 'Tendenza degli esercizi: ancora pochi dati'}${
       b.lastC ? ` · girovita ${kg1(b.lastC.waist)} cm` : (b.lastW ? ` · peso ${kg1(b.lastW.weight)} kg` : '')}</p>
@@ -2285,7 +2390,7 @@ function renderProg() {
   const trendWord = t.recent && t.before ? (t.recent > t.before + 0.2 ? 'in miglioramento' : t.recent < t.before - 0.2 ? 'in calo' : 'stabile') : '';
 
   const pBody = `<div class="dstat">${ph ? esc(ph.ph.name) : esc(path.p.name)}</div>
-    <p class="small">${ph ? `Settimana ${ph.weekInPhase} di ${ph.ph.weeks} della fase · ` : ''}settimana ${path.tw} di ${path.total} del piano${path.meta.mobilityWeek ? ' · sola mobilità' : ''}</p>
+    <p class="small">${whereText(path.meta, { cap: true })}${ph ? ` · ${ph.weekInPhase}ª settimana della fase su ${ph.ph.weeks}` : ''}${path.meta.mobilityWeek ? ' · sola mobilità' : ''}</p>
     <div class="dbar"><i style="width:${path.pct}%"></i></div>
     <p class="small muted">${path.weeksLeft} settimane alla fine · ${dateIt(path.end)}</p>`;
 
@@ -2363,7 +2468,7 @@ function openUpcoming(fromWeek) {
           <div class="small muted">${typeWord(meta)}</div></div></li>`);
     }
     weeks.push(`<div class="block" style="margin-top:14px">
-      <h3 style="font-size:16px;color:var(--muted)">Settimana ${w}${first.phase ? ' · ' + esc(first.phase.ph.name) : ''}${
+      <h3 style="font-size:16px;color:var(--muted)">${weekText(first, { cap: true })}${first.phase ? ' · ' + esc(first.phase.ph.name) : ''}${
         first.mobilityWeek ? ' · sola mobilità' : (first.profile.label === 'Scarico' ? ' · scarico' : '')}</h3>
       <ul class="hist">${days.join('')}</ul></div>`);
   }
@@ -2382,7 +2487,7 @@ function openUpcoming(fromWeek) {
 
 /* Schermata completa del percorso: tutte le fasi con la posizione attuale. */
 function openPath() {
-  const path = pathStatus(), p = path.p;
+  const path = pathStatus(), p = path.p, meta = path.meta;
   let acc = 0;
   const rows = (p.phases || []).map((f, i) => {
     const start = acc + 1, end = acc + f.weeks; acc = end;
@@ -2393,11 +2498,10 @@ function openPath() {
         <div class="small muted">settimane ${start}-${end} · ${esc(f.aim || '')}</div></div>
       <div class="val small">${past ? '✓' : `${f.weeks} sett.`}</div></li>`;
   }).join('');
-  const meta = path.meta;
   openModal(`<h2>Il percorso</h2>
     <p class="small muted">${esc(p.name)} · ${esc(p.periodization || '')}</p>
     <div class="dbar" style="margin:12px 0 6px"><i style="width:${path.pct}%"></i></div>
-    <p class="small">Settimana ${path.tw} di ${path.total} · ${path.weeksLeft} settimane alla fine, previste per il <b>${dateIt(path.end)}</b>${(S.mobilityWeeks || []).length ? ' (le settimane di sola mobilità spostano la data)' : ''}.</p>
+    <p class="small">${whereText(meta, { cap: true })} · ${path.weeksLeft} settimane alla fine, previste per il <b>${dateIt(path.end)}</b>${(S.mobilityWeeks || []).length ? ' (le settimane di sola mobilità spostano la data)' : ''}.</p>
     <p class="small">Blocco di 4 settimane: settimana ${meta.weekInCycle} di ${meta.cycleLen} · ${esc(meta.profile.label)}${meta.profile.label === 'Scarico' ? ' (recupero)' : ''}.</p>
     <ul class="hist" style="margin-top:12px">${rows}</ul>
     <button class="btn ghost" id="pathUp" style="margin-top:14px">Vedi le prossime settimane</button>
@@ -2530,6 +2634,101 @@ function openExercisePicker(item, sess, after, opts) {
   $('#pickKeep').onclick = () => closeModal();
 }
 
+/* ---------------------------------------------------------------------------
+   PANNELLI DI SCELTA DELLA SEDUTA (dalla 5.12)
+   Aerobico: si sceglie l'attrezzo e, se serve, il tipo di lavoro (intervalli o
+   ritmo costante). Mobilità: si sceglie quale dei due schemi svolgere.
+--------------------------------------------------------------------------- */
+const cardioModeWord = m => m === 'hiit' ? 'intervalli' : 'ritmo costante';
+
+function openSessionPicker(sess) {
+  const meta = sessionMeta(sess.idx);
+  if (meta.dayType === 'cardio') openCardioPicker(sess, meta);
+  else openStretchPicker(sess, meta);
+}
+
+/* Riapre il pannello dopo una modifica, ricostruendo la seduta. */
+function reopenPicker(idx, fn) {
+  renderHome();
+  if (idx === S.sessionIndex) fn(todaySession(), sessionMeta(idx));
+}
+
+function openCardioPicker(sess, meta) {
+  const chosen = pickOf(meta.idx) || {};
+  const days = PROG.cardioDays || [];
+  const base = days[meta.tmplIdx] || { label: 'Aerobico', mode: 'steady' };
+  const mode = chosen.mode || base.mode;
+  const curId = (sess.items.filter(i => i.role === 'cardio')[0] || {}).exId;
+  const pool = DB.exercises.filter(e => (e.pattern === 'cardio' || e.pattern === 'finisher') &&
+      !e.retired && e.setup.includes(S.setup) && (e.cardioModes || []).length)
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const modes = days.map(t =>
+    `<button data-cmode="${t.mode}" aria-pressed="${t.mode === mode}">${esc(cardioModeWord(t.mode))}</button>`).join('');
+  const rows = pool.map(ex => {
+    const ms = ex.cardioModes || [];
+    const isCur = ex.id === curId;
+    const care = S.kneeCare && ex.kneeFriendly === false;
+    const why = isCur ? 'in programma oggi'
+      : care ? 'flessione profonda sotto carico: non viene proposto da solo con la priorità al ginocchio'
+      : ms.includes(mode) ? 'adatto al lavoro a ' + cardioModeWord(mode)
+      : 'si può fare solo a ' + ms.map(cardioModeWord).join(' o ');
+    return `<li class="${isCur ? 'cur' : ''}" data-ckex="${ex.id}">
+      <div class="fig">${figureFor(ex, 1, { ground: false })}</div>
+      <div class="nm"><b>${esc(ex.name)}</b>
+        <div class="small muted">${esc(ms.map(cardioModeWord).join(' · '))}</div>
+        <div class="why">${esc(why)}</div></div>
+      <button class="pick">${isCur ? 'Mantieni' : 'Scegli'}</button></li>`;
+  }).join('');
+  openModal(`<h2>Cambia la seduta aerobica</h2>
+    <p class="small muted">Il programma propone «${esc(base.label)}», ma l'attrezzo lo scegli tu: i minuti contano allo stesso modo da qualunque macchina arrivino. La scelta vale per questa seduta e resta anche se cambi la durata o chiudi l'app.</p>
+    <div class="seg" role="group" aria-label="Tipo di lavoro" style="margin-top:12px">${modes}</div>
+    <ul class="picker" style="margin-top:12px">${rows}</ul>
+    ${(chosen.exId || chosen.mode) ? '<button class="btn ghost" id="ckReset" style="margin-top:14px">Torna alla seduta prevista</button>' : ''}
+    <button class="btn secondary" id="ckClose" style="margin-top:10px">Chiudi</button>`);
+
+  document.querySelectorAll('[data-ckex]').forEach(li => li.onclick = () => {
+    const ex = exById(li.dataset.ckex);
+    const ms = ex.cardioModes || [];
+    // se l'attrezzo non regge il tipo di lavoro del giorno, si adatta il lavoro
+    const m = ms.includes(mode) ? mode : ms[0];
+    setPick(meta.idx, { exId: ex.id, mode: m });
+    closeModal(() => { homeSel = 'session'; renderHome(); });
+  });
+  document.querySelectorAll('[data-cmode]').forEach(b => b.onclick = () => {
+    const m = b.dataset.cmode;
+    const keep = (chosen.exId && ((exById(chosen.exId) || {}).cardioModes || []).includes(m)) ? chosen.exId : null;
+    setPick(meta.idx, { exId: keep, mode: m });
+    closeModal(() => reopenPicker(meta.idx, openCardioPicker));
+  });
+  if ($('#ckReset')) $('#ckReset').onclick = () =>
+    closeModal(() => { setPick(meta.idx, null); renderHome(); });
+  $('#ckClose').onclick = () => closeModal();
+}
+
+function openStretchPicker(sess, meta) {
+  const chosen = pickOf(meta.idx) || {};
+  const sDays = meta.program.stretchDays || [];
+  const ti = (chosen.stretch != null && sDays[chosen.stretch]) ? chosen.stretch : meta.tmplIdx;
+  const rows = sDays.map((t, i) => `<li class="${i === ti ? 'cur' : ''}" data-ski="${i}">
+      <div class="nm" style="flex:1"><b>${esc(t.label)}</b>
+        <div class="small muted">${esc(t.staticGroups.join(' · '))}</div>
+        <div class="why">${i === ti ? 'in programma oggi' : `${t.dynamic} esercizi di mobilità dinamica e ${t.count} allungamenti`}</div></div>
+      <button class="pick">${i === ti ? 'Mantieni' : 'Scegli'}</button></li>`).join('');
+  openModal(`<h2>Cambia la seduta di mobilità</h2>
+    <p class="small muted">Due schemi, distretti diversi: scegli quello che ti serve oggi. La mobilità resta comunque l'ultima seduta della settimana — qui cambia solo il contenuto, non il posto.</p>
+    <ul class="picker" style="margin-top:12px">${rows}</ul>
+    ${chosen.stretch != null ? '<button class="btn ghost" id="skReset" style="margin-top:14px">Torna alla seduta prevista</button>' : ''}
+    <button class="btn secondary" id="skClose" style="margin-top:10px">Chiudi</button>`);
+
+  document.querySelectorAll('[data-ski]').forEach(li => li.onclick = () => {
+    setPick(meta.idx, { stretch: +li.dataset.ski });
+    closeModal(() => { homeSel = 'session'; renderHome(); });
+  });
+  if ($('#skReset')) $('#skReset').onclick = () =>
+    closeModal(() => { setPick(meta.idx, null); renderHome(); });
+  $('#skClose').onclick = () => closeModal();
+}
+
 /* Elenco degli esercizi che coinvolgono un gruppo muscolare, richiamato
    toccando una delle etichette nella scheda esercizio. */
 function openMusclePicker(muscle, item, sess, after) {
@@ -2565,7 +2764,7 @@ function weeksLeftText(p, weekAbs) {
 }
 
 function todaySession(kind) {
-  const key = `${S.programId}|${S.setup}|${S.sessionIndex}|${kind || ''}|${S.durPref || 35}|${S.finisher || ''}`;
+  const key = `${S.programId}|${S.setup}|${S.sessionIndex}|${kind || ''}|${S.durPref || 35}|${S.finisher || ''}|${pickKey(S.sessionIndex)}`;
   if (!planCache || planCache.key !== key) planCache = { key, sess: buildSession(S.sessionIndex, kind) };
   return planCache.sess;
 }
@@ -2582,7 +2781,7 @@ function renderHome() {
   const s = todaySession(core ? 'core' : null);
 
   $('#topTitle').textContent = 'Oggi';
-  $('#topChip').textContent = `Sett. ${s.weekInCycle}/${p.cycleWeeks} · ciclo ${s.mesocycle}`;
+  $('#topChip').textContent = shortWhere(s);
   $('#topChip').className = 'chip ' + (core ? 'mobility' : (s.dayType || 'mobility').replace('stretch', 'mobility'));
 
   // --- calendario della settimana: le sedute previste, più il blocco core ---
@@ -2644,6 +2843,13 @@ function renderHome() {
        </div>
        <button class="btn ghost" id="dropResume" style="margin-top:8px">Scarta la seduta interrotta</button>` : '';
 
+  // aerobico e mobilità: il contenuto della seduta si può cambiare
+  const chosenNow = pickOf(S.sessionIndex);
+  const swapHtml = (core || s.isStrength) ? '' : `
+      ${chosenNow ? `<p class="small" style="margin-top:10px">Seduta scelta da te al posto di quella prevista.</p>` : ''}
+      <button class="btn ghost" id="swapKind" style="margin-top:10px">${
+        s.dayType === 'cardio' ? 'Cambia attrezzo o tipo di lavoro' : 'Cambia schema di mobilità'}</button>`;
+
   $('#view-home').innerHTML = `
     ${resume}
     ${resume ? '' : backupNag}
@@ -2657,11 +2863,11 @@ function renderHome() {
       <div class="kicker" style="font-family:var(--cond);letter-spacing:.06em;text-transform:uppercase;font-size:13px;color:var(--muted)">
         ${s.mobilityWeek ? 'Settimana di sola mobilità'
           : s.phase ? `Fase ${s.phase.index + 1} di ${p.phases.length} · ${esc(s.phase.ph.name)}`
-                    : `Settimana ${s.weekInCycle} di ${p.cycleWeeks} · ${esc(p.name)}`}</div>
+                    : `Blocco · settimana ${s.weekInCycle} di ${p.cycleWeeks} · ${esc(p.name)}`}</div>
       <h2 style="margin-top:2px">La tua settimana</h2>
       ${s.mobilityWeek
         ? `<p class="small muted" style="margin:6px 0 0">Tutte le sedute sono di mobilità e stretching. Il programma di forza riprende la settimana ${s.weekAbs + 1} da dove era rimasto: nessuna settimana di lavoro va persa.</p>`
-        : s.phase ? `<p class="small muted" style="margin:6px 0 0">Settimana ${s.phase.weekInPhase} di ${s.phase.ph.weeks} della fase, ${s.trainingWeek} di ${totalWeeks(p)} del programma${weeksLeftText(p, s.trainingWeek)}. ${esc(s.phase.ph.aim)}</p>` : ''}
+        : s.phase ? `<p class="small muted" style="margin:6px 0 0">${whereText(s, { cap: true })}, ${s.phase.weekInPhase}ª della fase su ${s.phase.ph.weeks}${weeksLeftText(p, s.trainingWeek)}. ${esc(s.phase.ph.aim)}</p>` : ''}
       <ul class="week">${week}</ul>
       <p class="small muted" style="margin-top:10px">Tocca la seduta che vuoi fare adesso: quella prevista oggi prenderà il suo posto più avanti nella settimana.</p>
       <button class="btn ghost" id="upcomingBtn" style="margin-top:8px">Le prossime settimane</button>
@@ -2687,6 +2893,7 @@ function renderHome() {
       </div>`}
       <ul class="plan">${rows}</ul>
       <p class="small muted" style="margin-top:10px">Tocca un esercizio per aprire la scheda con esecuzione, muscoli coinvolti ed errori da evitare.</p>
+      ${swapHtml}
     </div>
 
     <button class="btn ${(s.isStrength && !core) ? '' : 'teal'}" id="startBtn">${core ? 'Inizia il blocco core' : 'Inizia la sessione'}</button>
@@ -2741,6 +2948,7 @@ function renderHome() {
     'Scarta', () => { clearResume(); renderHome(); });
   if ($('#nagExport')) $('#nagExport').onclick = exportData;
   if ($('#upcomingBtn')) $('#upcomingBtn').onclick = () => openUpcoming();
+  if ($('#swapKind')) $('#swapKind').onclick = () => openSessionPicker(s);
   if ($('#markBtn')) $('#markBtn').onclick = () => confirmAction(
     'Segnare la seduta come svolta?',
     `Verranno registrati i ${s.items.length} esercizi di «${s.label}» alle dosi previste (${s.minutes} minuti), senza carichi. Serve quando l'hai svolta senza aprire l'app.`,
@@ -4449,8 +4657,9 @@ function renderSettings() {
 
     <div class="card">
       <h2>Dove sei nel programma</h2>
-      <p class="small muted">Prossima seduta prevista: <b>sessione ${meta.pos} di ${meta.days} della settimana ${meta.weekAbs}</b>${meta.phase ? ' · fase ' + esc(meta.phase.ph.name) : ''}.
+      <p class="small muted">Prossima seduta prevista: <b>${whereText(meta)}</b>${meta.phase ? ' · fase ' + esc(meta.phase.ph.name) : ''}.
         Sedute di programma registrate finora: ${countProgramSessions()}.</p>
+      ${meta.trainingWeek !== meta.weekAbs ? `<p class="small muted">La settimana di calendario è la ${meta.weekAbs}ª; le settimane di sola mobilità non contano come allenamento, quindi sul piano di ${totalWeeks(p) || p.cycleWeeks} settimane sei alla ${meta.trainingWeek}ª.</p>` : ''}
       <div class="btn-row" style="margin-top:12px">
         <div class="field" style="flex:1;margin:0"><label>Settimana</label>
           <select id="posWeek">${Array.from({ length: Math.max(12, meta.weekAbs + 4) }, (_, i) => i + 1).map(w =>
@@ -4574,7 +4783,7 @@ function renderSettings() {
     const idx = weekStart(w) + (dd - 1);
     const alt = buildSession(idx);
     confirmAction('Spostare la posizione nel programma?',
-      `La prossima seduta diventerà "${alt.label}", sessione ${dd} di ${weekLen(w)} della settimana ${w}. Lo storico dei carichi e le valutazioni restano invariati.`,
+      `La prossima seduta diventerà "${alt.label}", ${whereText(sessionMeta(idx))}. Lo storico dei carichi e le valutazioni restano invariati.`,
       'Imposta', () => { S.sessionIndex = idx; planCache = null; homeSel = 'session'; save(); renderSettings(); });
   };
   $('#posAuto').onclick = () => {
@@ -4582,7 +4791,7 @@ function renderSettings() {
     const alt = buildSession(n);
     confirmAction('Ricalcolare la posizione?',
       `Risultano ${n} sedute di programma registrate, quindi la prossima sarebbe "${alt.label}", ` +
-      `sessione ${posOfIdx(n) + 1} di ${weekLen(weekOfIdx(n))} della settimana ${weekOfIdx(n)}. Blocchi core, sedute libere e mobilità del mattino non contano.`,
+      `${whereText(sessionMeta(n))}. Blocchi core, sedute libere e mobilità del mattino non contano.`,
       'Allinea alla cronologia', () => { S.sessionIndex = n; realignHistory(); planCache = null; homeSel = 'session'; save(); renderSettings(); });
   };
   $('#progSel').onchange = e => { S.programId = e.target.value; save(); renderSettings(); };
@@ -5467,7 +5676,7 @@ function registerServiceWorker() {
       const path = pathStatus();
       const days = Math.max(0, Math.round((path.end - Date.now()) / 86400000));
       gEl.textContent = path.weeksLeft > 0
-        ? `Settimana ${path.tw} di ${path.total} · ${days} giorni alla meta`
+        ? `${weekText(path.meta, { cap: true })} · ${days} giorni alla meta`
         : 'Ultima settimana del percorso: ci sei.';
     } catch (e) { gEl.textContent = ''; }
   }
