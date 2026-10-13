@@ -19,6 +19,7 @@ let S = null;              // stato persistente
 let current = null;        // sessione in corso
 let planCache = null;      // sessione di oggi già generata (per mantenere le sostituzioni)
 let homeSel = 'session';   // cosa è selezionato nella home: 'session' o 'core'
+let homeView = null;       // Oggi: null = scelta, 'morning' = mattino, 'lunch' = seduta del giorno
 let morningSel = null;     // mattina scelta nella card della mobilità del mattino
 let wakeLock = null, timerHandle = null;
 
@@ -688,10 +689,60 @@ function beatTarget(l) {
 /* Elenco dei gradini per gli esercizi a corpo libero con progressione. */
 const levelsOf = ex => (ex && ex.levels) ? ex.levels : null;
 
+/* ---------------------------------------------------------------------------
+   SETTIMANA DI SCARICO BEN VISIBILE (dalla 5.13)
+   Ogni quarta settimana del blocco è di scarico: stessi carichi, una serie e
+   qualche ripetizione in meno. L'app già congela il carico suggerito, ma
+   l'informazione viveva in una riga di nota che si poteva non leggere, e
+   bastava alzare il peso a mano per vanificare il recupero. Ora c'è una fascia
+   rossa in cima allo schermo, presente in tutte le schermate e anche durante
+   la seduta, che lo ricorda finché la settimana non è passata.
+--------------------------------------------------------------------------- */
+function isDeloadWeek(idx) {
+  try {
+    const m = sessionMeta(idx == null ? S.sessionIndex : idx);
+    return !m.mobilityWeek && !!m.profile && m.profile.label === 'Scarico';
+  } catch (e) { return false; }
+}
+function deloadText() {
+  try { return `Settimana ${sessionMeta(S.sessionIndex).weekAbs} di scarico · non aumentare i carichi`; }
+  catch (e) { return 'Settimana di scarico · non aumentare i carichi'; }
+}
+/* Aggiorna la fascia in cima e quella del timer a tutto schermo. */
+function refreshDeload() {
+  const on = isDeloadWeek();
+  const txt = on ? '⚠ ' + deloadText() : '';
+  const bar = $('#deloadBar'), strip = $('#deloadTimerBar');
+  if (bar) { bar.hidden = !on; bar.textContent = txt; bar.onclick = openDeloadInfo; }
+  if (strip) { strip.hidden = !on; strip.textContent = txt; }
+}
+function openDeloadInfo() {
+  let note = '';
+  try { note = sessionMeta(S.sessionIndex).profile.note || ''; } catch (e) {}
+  openModal(`<h2>Settimana di scarico</h2>
+    <p class="small muted">${esc(note)}</p>
+    <p class="small muted">Serve a far recuperare tendini, articolazioni e sistema nervoso: è la settimana che rende possibile l'aumento di carico in quella successiva, non una settimana persa.
+      Per questo l'app <b>congela il carico suggerito</b> anche dove hai soddisfatto la regola 2-for-2: l'aumento guadagnato scatta la settimana prossima.</p>
+    <p class="small muted">Se oggi ti senti bene, la tentazione è alzare il peso a mano: è proprio quello che toglie senso allo scarico. Tieni i carichi della settimana scorsa e chiudi le serie con due o tre ripetizioni di riserva.</p>
+    <button class="btn secondary" id="dlOk" style="margin-top:14px">Ho capito</button>`);
+  $('#dlOk').onclick = () => closeModal();
+}
+/* Riquadro esteso, nelle schermate di Oggi. */
+function deloadCardHtml() {
+  if (!isDeloadWeek()) return '';
+  let note = '';
+  try { note = sessionMeta(S.sessionIndex).profile.note || ''; } catch (e) {}
+  return `<div class="card deload-card">
+    <div class="kicker">⚠ Settimana di scarico</div>
+    <h2 style="margin-top:2px">Non aumentare i carichi</h2>
+    <p class="small" style="margin:6px 0 0">${esc(note)}</p>
+    <p class="small" style="margin:6px 0 0">Il carico suggerito resta quello della settimana scorsa anche dove hai soddisfatto la regola 2-for-2: l'aumento scatta la settimana prossima.</p>
+  </div>`;
+}
+
 function suggestLoad(ex) {
   // in settimana di scarico nessun aumento: si recupera a carico invariato
-  let deloadNow = false;
-  try { deloadNow = sessionMeta(S.sessionIndex).profile.label === 'Scarico'; } catch (e) {}
+  const deloadNow = isDeloadWeek();
   const r = suggestLoadCore(ex, deloadNow);
   if (r && deloadNow && r.heldForDeload) {
     r.reason = 'Settimana di scarico: il carico resta fermo. L\'aumento guadagnato con la regola 2-for-2 scatta la settimana prossima.';
@@ -2365,10 +2416,10 @@ function renderDash() {
 
   document.querySelectorAll('[data-dash]').forEach(el => el.onclick = () => {
     const k = el.dataset.dash;
-    if (k === 'morning') { go('home'); scrollToId('mCard'); }
+    if (k === 'morning') { homeView = 'morning'; go('home'); }
     else if (k === 'lunch') {
       if (current && !current.finished) { go('session'); renderSession(); }
-      else { go('home'); scrollToId('lunchCard'); }
+      else { homeView = 'lunch'; go('home'); }
     }
     else if (k === 'prog') go('prog');
     else if (k === 'path') openPath();
@@ -2521,6 +2572,7 @@ function go(view) {
   // la barra comandi fissa appartiene alla sola schermata della sessione
   document.body.classList.toggle('in-session', view === 'session');
   if (view !== 'session') $('#actionBar').classList.remove('on');
+  refreshDeload();
   window.scrollTo(0, 0);
   if (view === 'home') renderHome();
   if (view === 'dash') renderDash();
@@ -2772,7 +2824,115 @@ function todaySession(kind) {
 const typeWord = x => x.dayType === 'strength' || (x.isStrength && !x.dayType) ? 'potenziamento' : x.dayType === 'cardio' ? 'aerobica' : 'mobilità';
 const typeClass = x => x.dayType === 'strength' || (x.isStrength && !x.dayType) ? 'strength' : x.dayType === 'cardio' ? 'cardio' : 'mobility';
 
+/* ---------------------------------------------------------------------------
+   OGGI: PRIMA SI SCEGLIE, POI SI ENTRA (dalla 5.13)
+   La pagina mostrava di seguito mattino, calendario della settimana ed elenco
+   della seduta di pranzo: tre blocchi lunghi, con quello che serviva davvero
+   adesso quasi sempre fuori schermo. Ora Oggi si apre su due scelte — la
+   mobilità del mattino e la seduta del giorno — e i dettagli compaiono solo
+   dentro quella che tocchi, con «Torna alla scelta» per cambiare idea.
+--------------------------------------------------------------------------- */
 function renderHome() {
+  $('#topTitle').textContent = 'Oggi';
+  refreshDeload();
+  if (homeView === 'morning') return renderHomeMorning();
+  if (homeView === 'lunch') return renderHomeLunch();
+  return renderHomePick();
+}
+
+/* Avvisi che valgono per tutta la pagina: seduta in corso o interrotta e
+   promemoria del backup. Tornano identici nelle tre schermate. */
+function homeBanners() {
+  const daysSince = S.lastExport ? (Date.now() - S.lastExport) / 86400000 : Infinity;
+  const backupNag = (S.logs.length > 0 && daysSince > 7)
+    ? `<div class="notice" style="margin-top:14px;display:flex;align-items:center;gap:12px">
+         <span style="flex:1">${S.lastExport ? 'Backup non aggiornato da un po\'' : 'Non hai ancora un backup'}: se rimuovi l'app dalla Home, i dati si perdono.</span>
+         <button class="btn secondary" id="nagExport" style="width:auto;min-height:44px;font-size:15px">Esporta ora</button>
+       </div>` : '';
+  const saved = (!current || current.finished) ? resumableSession() : null;
+  const resume = (current && !current.finished)
+    ? `<div class="notice" style="margin-top:14px;display:flex;align-items:center;gap:12px">
+         <span style="flex:1">Sessione in corso: ${esc(current.sess.label)}</span>
+         <button class="btn" id="resumeBtn" style="width:auto;min-height:44px;font-size:17px">Riprendi</button>
+       </div>`
+    : saved
+    ? `<div class="notice" style="margin-top:14px;display:flex;align-items:center;gap:12px">
+         <span style="flex:1">Seduta lasciata a metà: ${esc(saved.label)}, esercizio ${saved.pos + 1} di ${saved.items.length}
+           (${new Date(saved.ts).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}).</span>
+         <button class="btn" id="restoreBtn" style="width:auto;min-height:44px;font-size:17px">Riprendi</button>
+       </div>
+       <button class="btn ghost" id="dropResume" style="margin-top:8px">Scarta la seduta interrotta</button>` : '';
+  return { html: resume + (resume ? '' : backupNag), saved };
+}
+
+/* Collega i pulsanti degli avvisi: esistono in tutte e tre le schermate. */
+function bindHomeBanners(saved) {
+  if ($('#resumeBtn')) $('#resumeBtn').onclick = () => { go('session'); renderSession(); };
+  if ($('#restoreBtn')) $('#restoreBtn').onclick = () => restoreSession(saved);
+  if ($('#dropResume')) $('#dropResume').onclick = () => confirmAction('Scartare la seduta interrotta?',
+    'Gli esercizi già conclusi restano nello storico; i dati non ancora registrati vengono persi.',
+    'Scarta', () => { clearResume(); renderHome(); });
+  if ($('#nagExport')) $('#nagExport').onclick = exportData;
+  if ($('#homeBack')) $('#homeBack').onclick = () => { homeView = null; renderHome(); };
+}
+
+/* Schermata di scelta: due riquadri, nient'altro. */
+function renderHomePick() {
+  const s = todaySession(null);
+  $('#topChip').textContent = shortWhere(s);
+  $('#topChip').className = 'chip';
+  const ms = morningStatus(), ls = lunchStatus();
+  const b = homeBanners();
+
+  const mBody = ms.done
+    ? `<div class="dstat ok">Fatta ✓</div><p class="small">${esc(ms.verdict.text)} · ${ms.verdict.minutes} min</p>
+       <p class="small muted">Mattine della settimana: ${morningsDone(weekOfIdx(S.sessionIndex)).length} di ${MORNING_DAYS}. Puoi ripeterla o recuperarne una.</p>`
+    : ms.none
+      ? `<div class="dstat">Oggi niente</div><p class="small muted">Sesto giorno: c'è solo la mobilità a pranzo. Entra se vuoi recuperare una mattina saltata.</p>`
+      : `<div class="dstat todo">Da fare · ${ms.m.minutes} min</div><p class="small">${esc(ms.m.focusLabel || '')}</p>
+         <p class="small muted">Giorno ${ms.day} di ${MORNING_DAYS} · ${ms.m.items.length} esercizi, a casa, serve solo un tappetino.</p>`;
+
+  const lBody = ls.skipped
+    ? `<div class="dstat">Saltata</div><p class="small"><b>${esc(ls.entry.label)}</b> non svolta.</p>
+       <p class="small muted">La prossima è «${esc(ls.s.label)}» · ${ls.s.minutes} min.</p>`
+    : ls.done
+      ? `<div class="dstat ok">Fatta ✓</div><p class="small"><b>${esc(ls.entry.label)}</b></p>
+         <p class="small">${esc(ls.verdict.text)} · ${ls.verdict.pct}% delle serie · ${ls.verdict.minutes} min</p>`
+      : `<div class="dstat todo">Da fare · ${ls.s.minutes} min</div><p class="small"><b>${esc(ls.s.label)}</b></p>
+         <p class="small muted">${typeWord(ls.s)} · ${ls.s.items.length} esercizi · sessione ${ls.s.pos} di ${ls.s.days} della settimana.</p>`;
+
+  const tile = (id, kicker, cls, body) => `<button class="dtile ${cls}" data-pick="${id}">
+      <div class="kicker">${kicker}</div>${body}<span class="chev">›</span></button>`;
+
+  $('#view-home').innerHTML = `
+    ${b.html}
+    ${deloadCardHtml()}
+    ${tile('morning', 'Mattino · mobilità', 'mobility', mBody)}
+    ${tile('lunch', 'Pranzo · allenamento del giorno', ls.done || ls.skipped ? 'strength' : typeClass(ls.s), lBody)}
+    <p class="small muted" style="margin-top:14px">Tocca la sessione su cui vuoi lavorare: esercizi, durata e calendario della settimana si aprono lì dentro.</p>`;
+
+  document.querySelectorAll('[data-pick]').forEach(el => el.onclick = () => {
+    homeView = el.dataset.pick; renderHome();
+  });
+  bindHomeBanners(b.saved);
+}
+
+/* Schermata del mattino. */
+function renderHomeMorning() {
+  const s = todaySession(null);
+  $('#topChip').textContent = shortWhere(s);
+  $('#topChip').className = 'chip mobility';
+  const b = homeBanners();
+  $('#view-home').innerHTML = `
+    <button class="btn ghost" id="homeBack" style="margin-top:14px">‹ Torna alla scelta</button>
+    ${b.html}
+    ${deloadCardHtml()}
+    ${morningHtml()}`;
+  bindHomeBanners(b.saved);
+  bindMorning();
+}
+
+function renderHomeLunch() {
   const p = program();
   const here = posOfIdx(S.sessionIndex);          // posizione prevista dal programma
   const wStart = S.sessionIndex - here;
@@ -2780,7 +2940,6 @@ function renderHome() {
   const core = homeSel === 'core';
   const s = todaySession(core ? 'core' : null);
 
-  $('#topTitle').textContent = 'Oggi';
   $('#topChip').textContent = shortWhere(s);
   $('#topChip').className = 'chip ' + (core ? 'mobility' : (s.dayType || 'mobility').replace('stretch', 'mobility'));
 
@@ -2818,30 +2977,7 @@ function renderHome() {
       <div class="dose">${doseText(it)}</div><div class="chev">›</div></li>`;
   }).join('');
 
-  // promemoria di backup: compare se ci sono dati non ancora salvati da almeno
-  // 7 giorni, o se non è mai stato fatto un export pur avendo dello storico
-  const daysSince = S.lastExport ? (Date.now() - S.lastExport) / 86400000 : Infinity;
-  const backupNag = (S.logs.length > 0 && daysSince > 7)
-    ? `<div class="notice" style="margin-top:14px;display:flex;align-items:center;gap:12px">
-         <span style="flex:1">${S.lastExport ? 'Backup non aggiornato da un po\'' : 'Non hai ancora un backup'}: se rimuovi l'app dalla Home, i dati si perdono.</span>
-         <button class="btn secondary" id="nagExport" style="width:auto;min-height:44px;font-size:15px">Esporta ora</button>
-       </div>` : '';
-
-  // banner di ripresa se una sessione è rimasta aperta
-  // seduta in corso in memoria, oppure interrotta e salvata su disco
-  const saved = (!current || current.finished) ? resumableSession() : null;
-  const resume = (current && !current.finished)
-    ? `<div class="notice" style="margin-top:14px;display:flex;align-items:center;gap:12px">
-         <span style="flex:1">Sessione in corso: ${esc(current.sess.label)}</span>
-         <button class="btn" id="resumeBtn" style="width:auto;min-height:44px;font-size:17px">Riprendi</button>
-       </div>`
-    : saved
-    ? `<div class="notice" style="margin-top:14px;display:flex;align-items:center;gap:12px">
-         <span style="flex:1">Seduta lasciata a metà: ${esc(saved.label)}, esercizio ${saved.pos + 1} di ${saved.items.length}
-           (${new Date(saved.ts).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}).</span>
-         <button class="btn" id="restoreBtn" style="width:auto;min-height:44px;font-size:17px">Riprendi</button>
-       </div>
-       <button class="btn ghost" id="dropResume" style="margin-top:8px">Scarta la seduta interrotta</button>` : '';
+  const b = homeBanners();
 
   // aerobico e mobilità: il contenuto della seduta si può cambiare
   const chosenNow = pickOf(S.sessionIndex);
@@ -2851,9 +2987,9 @@ function renderHome() {
         s.dayType === 'cardio' ? 'Cambia attrezzo o tipo di lavoro' : 'Cambia schema di mobilità'}</button>`;
 
   $('#view-home').innerHTML = `
-    ${resume}
-    ${resume ? '' : backupNag}
-    ${morningHtml()}
+    <button class="btn ghost" id="homeBack" style="margin-top:14px">‹ Torna alla scelta</button>
+    ${b.html}
+    ${deloadCardHtml()}
     <div class="seg" role="group" aria-label="Attrezzatura">
       <button data-setup="gym" aria-pressed="${S.setup === 'gym'}">Palestra</button>
       <button data-setup="home" aria-pressed="${S.setup === 'home'}">Casa</button>
@@ -2907,9 +3043,9 @@ function renderHome() {
     <p class="small muted" style="margin-top:16px">Programma attivo: ${esc(p.name)} · ${esc(p.periodization)}.</p>
   `;
 
-  document.querySelectorAll('[data-setup]').forEach(b => b.onclick = () => {
+  document.querySelectorAll('[data-setup]').forEach(x => x.onclick = () => {
     if (current && !current.finished) return;   // non cambiare attrezzatura a sessione aperta
-    S.setup = b.dataset.setup; save(); renderHome();
+    S.setup = x.dataset.setup; save(); renderHome();
   });
 
   // selezione della seduta dal calendario settimanale
@@ -2929,9 +3065,8 @@ function renderHome() {
     planCache = null;
     renderHome();
   });
-  bindMorning();
-  document.querySelectorAll('[data-dur]').forEach(b => b.onclick = () => {
-    S.durPref = +b.dataset.dur; planCache = null; save(); renderHome();
+  document.querySelectorAll('[data-dur]').forEach(x => x.onclick = () => {
+    S.durPref = +x.dataset.dur; planCache = null; save(); renderHome();
   });
   const coreLi = document.querySelector('[data-core]');
   if (coreLi) coreLi.onclick = () => { homeSel = 'core'; planCache = null; renderHome(); };
@@ -2941,12 +3076,7 @@ function renderHome() {
     const it = s.items[+li.dataset.plan];
     openSheet(exById(it.exId), it, { sess: s, after: () => renderHome() });
   });
-  if ($('#resumeBtn')) $('#resumeBtn').onclick = () => { go('session'); renderSession(); };
-  if ($('#restoreBtn')) $('#restoreBtn').onclick = () => restoreSession(saved);
-  if ($('#dropResume')) $('#dropResume').onclick = () => confirmAction('Scartare la seduta interrotta?',
-    'Gli esercizi già conclusi restano nello storico; i dati non ancora registrati vengono persi.',
-    'Scarta', () => { clearResume(); renderHome(); });
-  if ($('#nagExport')) $('#nagExport').onclick = exportData;
+  bindHomeBanners(b.saved);
   if ($('#upcomingBtn')) $('#upcomingBtn').onclick = () => openUpcoming();
   if ($('#swapKind')) $('#swapKind').onclick = () => openSessionPicker(s);
   if ($('#markBtn')) $('#markBtn').onclick = () => confirmAction(
@@ -3010,6 +3140,7 @@ function startSession(sess) {
 function renderSession() {
   const c = current, s = c.sess, it = s.items[c.pos], ex = exById(it.exId);
   const sug = suggestLoad(ex);
+  refreshDeload();
   $('#topTitle').textContent = s.type === 'stretch' ? 'Mobilità' : s.type === 'cardio' ? 'Aerobico' : 'Sessione';
   $('#topChip').textContent = `${c.pos + 1}/${s.items.length}`;
   $('#topChip').className = 'chip ' + (s.type === 'stretch' ? 'mobility' : s.type === 'cardio' ? 'cardio' : 'strength');
@@ -5562,6 +5693,8 @@ function closeSheet() {
 
 document.querySelectorAll('.nav button').forEach(b => b.onclick = () => {
   if (current && b.dataset.go !== 'session') { /* la sessione resta in memoria */ }
+  // "Oggi" riporta sempre alla scelta fra mattino e seduta del giorno
+  if (b.dataset.go === 'home') homeView = null;
   go(b.dataset.go);
 });
 

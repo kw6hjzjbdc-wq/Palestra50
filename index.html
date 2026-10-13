@@ -25,7 +25,7 @@
 <!-- Intro di apertura: si anima per 3 secondi e resta sull'ultimo fotogramma
      finché l'utente non tocca lo schermo -->
 <div class="splash" id="splash">
-  <div class="ver num">5.12 0610</div>
+  <div class="ver num">5.13 1310</div>
   <svg class="logo" viewBox="0 0 120 120">
     <defs>
       <linearGradient id="logoGrad" x1="0" y1="0" x2="1" y2="1">
@@ -60,6 +60,9 @@
       <h1 id="topTitle">Oggi</h1>
       <span class="chip" id="topChip">—</span>
     </div>
+    <!-- Fascia rossa della settimana di scarico: resta in cima in ogni
+         schermata, sessione compresa, finché la settimana non è passata -->
+    <button class="deload" id="deloadBar" hidden></button>
   </header>
 
   <!-- HOME: riepilogo in cinque riquadri, la pagina dopo l'intro -->
@@ -112,6 +115,7 @@
 
 <!-- Timer di recupero a tutto schermo -->
 <div class="timer" id="timer">
+  <div class="deload strip" id="deloadTimerBar" hidden></div>
   <div style="position:relative;display:grid;place-items:center">
     <svg class="ring" viewBox="0 0 100 100">
       <circle cx="50" cy="50" r="45" stroke="#2B3B4E" stroke-width="7" fill="none"/>

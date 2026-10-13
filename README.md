@@ -102,6 +102,18 @@ Due sedute di fila portate al limite vengono segnalate solo se non è arrivato n
 - **L'attesa non cresce all'infinito.** Il confronto si aspetta circa +2,5% a settimana dall'ultima volta che hai fatto quell'esercizio. Con la rotazione degli esercizi potevano passare quattro settimane, e l'app pretendeva +10%: un miglioramento reale del 5% prendeva due stelle. Ora l'attesa si ferma a +5%.
 - **Il motivo è visibile.** In *Progressi → Ultime sedute*, aprendo una seduta, ogni esercizio mostra le sue stelle e la frase che le spiega («in linea con la progressione prevista», «calo del 4% sul massimale stimato», «obiettivo diverso dalla volta scorsa»), con margine o RIR dichiarati.
 
+### Oggi: prima si sceglie, poi si entra (dalla 5.13)
+
+La schermata *Oggi* mostrava di seguito la mobilità del mattino, il calendario della settimana e l'elenco completo della seduta di pranzo: tre blocchi lunghi, con quello che serviva davvero quasi sempre fuori schermo.
+
+Ora *Oggi* si apre su **due scelte** — *Mattino · mobilità* e *Pranzo · allenamento del giorno* — ciascuna con stato (da fare, fatta, saltata), durata e numero di esercizi. Toccandone una si aprono i suoi dettagli: la mobilità del mattino con i pallini dei cinque giorni e la durata, oppure il calendario della settimana, la durata scelta, l'elenco degli esercizi e i pulsanti di avvio. **‹ Torna alla scelta** riporta indietro, e la voce *Oggi* della barra in basso riapre sempre la scelta. I riquadri della Home portano direttamente dentro la sessione giusta, senza passare dalla scelta.
+
+### Settimana di scarico: fascia rossa sempre in vista (dalla 5.13)
+
+Ogni quarta settimana del blocco è di scarico: stessi carichi, una serie e qualche ripetizione in meno. L'app già congelava il carico suggerito, ma l'informazione viveva in una riga di nota facile da saltare, e bastava alzare il peso a mano per vanificare il recupero.
+
+Ora, per tutta la settimana di scarico, compare una **fascia rossa in cima allo schermo** — *⚠ Settimana 4 di scarico · non aumentare i carichi*. Sta dentro la barra del titolo, quindi resta visibile in ogni schermata, **durante la seduta compresa**, e ricompare anche sul timer a tutto schermo. Toccandola si apre la spiegazione: perché lo scarico serve, e perché il carico suggerito resta quello della settimana scorsa anche dove hai soddisfatto la regola 2-for-2 (l'aumento scatta la settimana successiva). Nelle schermate di *Oggi* la fascia è accompagnata da un riquadro rosso con la nota della settimana. Nelle settimane di sola mobilità la fascia non compare: non c'è carico da tenere fermo.
+
 ### Dove sei nel programma: un solo modo di dirlo (dalla 5.12)
 
 La stessa informazione era scritta in quattro modi diversi. La Home e le Impostazioni contavano la **settimana di calendario** (la quarta), il riquadro *Progressi* la **settimana di allenamento** (la terza, perché una settimana era di sola mobilità e non conta sul piano di 37), l'etichetta in alto in *Oggi* mostrava invece la settimana dentro il blocco di quattro. Tre numeri per la stessa domanda.

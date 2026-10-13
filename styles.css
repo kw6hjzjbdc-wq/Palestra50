@@ -55,6 +55,25 @@ h3{font-size:19px}
 .chip.strength{color:var(--amber);border-color:#5a410f}
 .chip.mobility{color:var(--teal);border-color:#1d4d40}
 
+/* ---------- settimana di scarico ----------
+   Fascia rossa dentro la barra in alto: la barra è sticky, quindi la fascia
+   resta visibile in ogni schermata, anche mentre si svolge la seduta. */
+.deload{
+  display:block;width:100%;margin:10px 0 0;padding:9px 12px;
+  background:#7E1623;border:1px solid #C2394A;border-radius:12px;
+  color:#FFE3E6;font-family:var(--cond);font-size:14px;line-height:1.25;
+  letter-spacing:.02em;text-align:left;cursor:pointer;
+}
+.deload[hidden]{display:none}
+/* la stessa fascia in cima al timer a tutto schermo */
+.deload.strip{
+  position:absolute;top:calc(env(safe-area-inset-top) + 12px);left:18px;right:18px;
+  width:auto;margin:0;text-align:center;cursor:default;
+}
+.card.deload-card{border-color:#C2394A;background:#2A131A}
+.card.deload-card .kicker{font-family:var(--cond);font-size:15px;color:#FF9AA6;letter-spacing:.04em}
+.card.deload-card .small{color:#FFD7DC}
+
 /* ---------- card ---------- */
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin:14px 0}
 .card.flat{background:none;border-color:var(--line)}
