@@ -45,7 +45,7 @@
    "rest": 15,
    "hold": 30,
    "rpe": "tensione moderata",
-   "source": "ACSM – flessibilità: tenute di 10-30 s (30-60 s dopo i 50 anni), ~60 s totali per muscolo, almeno 2-3 giorni a settimana"
+   "source": "ACSM (Garber et al. 2011, Position Stand) – flessibilità: tenute di 10-30 s, 30-60 s negli adulti più anziani, ~60 s totali per muscolo, almeno 2-3 giorni a settimana; i risultati migliori con lavoro quotidiano"
   },
   "mobility": {
    "label": "Mobilità dinamica",
@@ -55,7 +55,7 @@
    "rest": 15,
    "hold": 0,
    "rpe": "riscaldamento",
-   "source": "ACE – mobilità dinamica pre-attività"
+   "source": "ACSM (Garber et al. 2011) – mobilità dinamica come preparazione all'attività"
   },
   "pullupActivation": {
    "label": "Trazioni · attivazione",
@@ -103,7 +103,7 @@
    "rest": 60,
    "hold": 30,
    "rpe": "scatto 8/10 · recupero 3/10",
-   "source": "Chang et al. 2026 (Nutrition & Metabolism, 61 RCT): l'HIIT è la modalità più efficace sul grasso viscerale già da ~400 MET-min/settimana; anche i pesi lo riducono, con effetto minore"
+   "source": "Chang et al. 2026 (Nutrition & Metabolism, 61 RCT): l'HIIT è la modalità più efficace sul grasso viscerale con dose minima efficace ~400 MET-min/settimana ed effetto massimo verso 1000-1100; anche i pesi lo riducono, con effetto minore"
   },
   "cardioHiit": {
    "label": "Intervalli",
@@ -113,7 +113,7 @@
    "rest": 60,
    "hold": 30,
    "rpe": "scatto 8/10 · recupero 3/10",
-   "source": "Chang et al. 2026 (Nutrition & Metabolism): HIIT la modalità più efficace sul grasso viscerale (≈400 MET-min/settimana)"
+   "source": "Chang et al. 2026 (Nutrition & Metabolism, 61 RCT) e Xu et al. 2026 (BMC Sports Sci Med Rehabil, 60 RCT): l'HIIT è la modalità più efficace sul grasso viscerale; 400 MET-min/settimana sono la dose minima efficace, l'effetto massimo verso 1000-1100"
   },
   "cardioSteady": {
    "label": "Ritmo costante",
@@ -938,7 +938,7 @@
    15
   ],
   "note": "Cinque sessioni brevi al mattino, a casa e senza attrezzi pesanti, nei giorni 1-5; il sesto giorno c'è solo la mobilità a pranzo.",
-  "source": "ACSM – flessibilità: allungare quasi ogni giorno dà i risultati migliori; tenute di 30-60 s dopo i 50 anni, ~60 s totali per muscolo. ACE – mobilità dinamica come preparazione. Allungamenti brevi (<60 s per muscolo) ore prima dell'allenamento non riducono forza e prestazione.",
+  "source": "ACSM – flessibilità: allungare quasi ogni giorno dà i risultati migliori; tenute di 30-60 s negli adulti più anziani, ~60 s totali per muscolo. ACSM – mobilità dinamica come preparazione. Allungamenti brevi (<60 s per muscolo) ore prima dell'allenamento non riducono forza e prestazione.",
   "focus": {
    "strength-0": {
     "label": "in vista di Forza A: anche, quadricipiti e polpacci",

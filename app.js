@@ -33,7 +33,7 @@ const DEFAULT_STATE = {
   macroMigrated: false,    // passaggio una tantum al macrociclo
   sessionIndex: 0,         // numero progressivo della prossima sessione da fare
   kneeCare: true,          // dà priorità agli esercizi a basso impatto sul ginocchio
-  shoulderCare: true,      // esclude gli esercizi critici per il conflitto subacromiale
+  shoulderCare: true,      // evita gli esercizi di solito dolorosi con la tendinopatia della cuffia
   pullupGoal: true,        // preparazione alle trazioni nelle sedute di forza (accessoria)
   perms: {},               // ordine delle 5 sedute all'interno di ciascuna settimana
   mobilityWeeks: [],       // settimane in cui si fa solo mobilità (il programma slitta)
@@ -61,6 +61,11 @@ function load() {
   catch (e) { S = Object.assign({}, DEFAULT_STATE); }
   if (!S.exNotes) S.exNotes = {};
   if (!S.sessPick || typeof S.sessPick !== 'object') S.sessPick = {};
+  // valori fuori scala in arrivo da un backup manomesso: riportati nel campo
+  S.sessionIndex = Math.max(0, Math.round(S.sessionIndex) || 0);
+  if (!Array.isArray(S.mobilityWeeks)) S.mobilityWeeks = [];
+  if (!Array.isArray(S.measures)) S.measures = [];
+  if (!S.perms || typeof S.perms !== 'object') S.perms = {};
   if (!Array.isArray(S.snapshots)) S.snapshots = [];
 }
 
@@ -230,6 +235,18 @@ function migrateToMacro() {
   if (PROG.programs.some(p => p.id === 'macro2027')) S.programId = 'macro2027';
   save();
 }
+/* Numero di revisione dello storico: cresce di uno a ogni modifica reale dei
+   record. Serve a due cose — evitare di riscrivere l'archivio quando non è
+   cambiato nulla, e svuotare la memoria delle sedute già costruite, che
+   dipendono anche dai risultati registrati. */
+let logsRev = 0, logsSer = null;
+function logsTouched() {
+  const ser = JSON.stringify(S.logs);
+  if (ser === logsSer) return false;
+  logsSer = ser; logsRev++;
+  return true;
+}
+
 function save() {
   try {
     // i record di allenamento vivono in IndexedDB: in localStorage resta tutto
@@ -237,8 +254,13 @@ function save() {
     if (idbReady) {
       const light = Object.assign({}, S, { logs: [] });
       localStorage.setItem(KEY, JSON.stringify(light));
-      idbWrite(S.logs);
+      // riscrivere migliaia di record a ogni salvataggio costava quanto tutto
+      // il resto messo insieme: ora si riscrive solo quando qualcosa è cambiato
+      if (logsTouched()) idbWrite(S.logs);
     } else {
+      // senza archivio separato lo storico viene riscritto comunque: inutile
+      // pagare un secondo confronto, basta considerarlo cambiato
+      logsRev++;
       localStorage.setItem(KEY, JSON.stringify(S));
     }
   } catch (e) {
@@ -472,7 +494,7 @@ const figureA11y = (ex, frameIdx, opts) =>
 --------------------------------------------------------------------------- */
 function weekProfile(week, cycleWeeks) {
   /* Nel programma il carico NON sale per calendario: sale con la regola
-     2-for-2 (NSCA) quando superi di 2 ripetizioni l'obiettivo per due sedute.
+     2-for-2 quando superi di 2 ripetizioni l'obiettivo per due sedute.
      La settimana cambia serie e ripetizioni; i messaggi dicono esattamente
      questo, senza promettere aumenti percentuali che l'app non applica. */
   if (week >= cycleWeeks) {
@@ -495,8 +517,8 @@ function weekProfile(week, cycleWeeks) {
 
 /* Nota della settimana per le sedute di mobilità e stretching.
    Qui non c'è carico da aumentare: la progressione si misura in ampiezza del
-   movimento raggiunta senza dolore, e in controllo. Linee guida ACE:
-   tensione moderata, mai dolore, respirazione regolare. */
+   movimento raggiunta senza dolore, e in controllo: tensione moderata, mai
+   dolore, respirazione regolare (ACSM, Garber et al. 2011). */
 function mobilityNote(profile, mobWeek) {
   if (mobWeek) return 'Settimana di sola mobilità: tutte le sedute sono di allungamento, nessun carico. ' +
                       'Cerca ampiezza con calma, sempre sotto la soglia del dolore.';
@@ -549,7 +571,7 @@ function setLabel(it, i) {
 }
 
 /* ---------------------------------------------------------------------------
-   PROGRESSIONE DEL CARICO — regola 2-for-2 (NSCA)
+   PROGRESSIONE DEL CARICO — regola 2-for-2
    Il carico sale solo quando il miglioramento si è ripetuto: nelle ultime DUE
    sedute dello stesso esercizio devi aver completato almeno DUE ripetizioni
    oltre l'obiettivo nell'ultima serie. L'incremento resta nella fascia 2,5-10%
@@ -1152,7 +1174,18 @@ const starsHtml = n => n ? `<span class="stars">${'★'.repeat(n)}<span class="o
    invece di dividere per 5.
 --------------------------------------------------------------------------- */
 const OLD_WEEK = 5;
-const week6From = () => (S && isFinite(S.week6From)) ? S.week6From : 0;
+/* Il passaggio alle settimane da 6 sedute avviene sempre a inizio settimana,
+   quindi week6From è per costruzione un multiplo di 5 (migrateWeek6 lo calcola
+   così). Un valore diverso — un backup modificato a mano, un file importato da
+   un'altra installazione — mandava weekStart oltre l'indice e posOfIdx a -1:
+   la prima seduta del programma usciva senza tipo, costruita come mobilità e
+   registrata con kind indefinito, quindi invisibile ai conteggi delle sedute
+   di forza. Qui il valore viene riportato all'inizio della sua settimana. */
+const week6From = () => {
+  if (!S || !isFinite(S.week6From)) return 0;
+  const v = Math.max(0, Math.round(S.week6From));
+  return v - (v % OLD_WEEK);
+};
 const week6No = () => Math.floor(week6From() / OLD_WEEK) + 1;
 function weekOfIdx(idx) {
   const f = week6From();
@@ -1265,14 +1298,18 @@ function whereText(meta, opt) {
 const shortWhere = meta => `Sett. ${meta.weekAbs} · sess. ${meta.pos} di ${meta.days}`;
 
 function sessionMeta(idx) {
+  // nessuna posizione prima della prima: un indice negativo arrivava da un
+  // file importato o modificato a mano e faceva saltare tutte le schermate
+  idx = Math.max(0, Math.round(idx) || 0);
   const p = program();
   const weekAbs = weekOfIdx(idx);
-  const pos0 = posOfIdx(idx);
-  const dayInWeek = weekPerm(weekAbs)[pos0];
+  const pos0 = Math.max(0, Math.min(weekLen(weekAbs) - 1, posOfIdx(idx)));
+  const perm = weekPerm(weekAbs);
+  const dayInWeek = perm[pos0] || pos0 + 1;
   const mobWeek = isMobilityWeek(weekAbs);
   const pattern = dayPattern(weekAbs);
   // in una settimana di sola mobilità nessuna seduta è di forza o aerobica
-  const dayType = mobWeek ? 'stretch' : pattern[dayInWeek - 1];
+  const dayType = mobWeek ? 'stretch' : (pattern[dayInWeek - 1] || pattern[0]);
   const isStrength = dayType === 'strength';
   const isCardio = dayType === 'cardio';
   const ph = phaseOf(p, trainingWeekOf(weekAbs));
@@ -1524,7 +1561,8 @@ function buildStretch(meta, budget) {
       if (estimateMinutes(items.concat([it])) > (budget || 35)) break;
       used.add(ex.id); items.push(it);
     }
-    // tenute più lunghe: 30-60 secondi è l'indicazione per gli adulti dopo i 50
+    // tenute più lunghe: 30-60 secondi è l'indicazione per gli adulti più
+    // anziani (ACSM, Garber et al. 2011: "in older persons")
     items.forEach(it => {
       if (it.goal !== 'stretch' || it.hold >= 45) return;
       const h = it.hold; it.hold = 45;
@@ -1734,8 +1772,12 @@ const FINISHER_RESERVE = 10;     // minuti riservati al finale con 50 minuti a d
    SEDUTE AEROBICHE (dalla 5.0)
    Due a settimana, fra le sedute di forza:
      · INTERVALLI: scatti brevi e recuperi attivi. È la modalità più efficace
-       sul grasso viscerale (Chang et al. 2026, 61 studi randomizzati), già da
-       circa 400 MET-min a settimana.
+       sul grasso viscerale (Chang et al. 2026, 61 studi randomizzati; Xu et
+       al. 2026, 60 studi, stessa graduatoria). Attenzione alla dose: 400
+       MET-min a settimana sono il MINIMO efficace per l'HIIT, non l'obiettivo;
+       l'effetto massimo si colloca verso 1000-1100 MET-min a settimana, pari
+       a circa 230 minuti di camminata veloce. Le due sedute aerobiche e il
+       finale metabolico servono proprio ad avvicinarsi a quella dose.
      · RITMO COSTANTE: lavoro moderato continuo, "riesci a parlare a frasi
        brevi". Accumula i minuti raccomandati dall'OMS (150-300 a settimana di
        attività moderata, o metà se vigorosa) senza aggiungere fatica.
@@ -1901,7 +1943,7 @@ function aerobicMinutes(weekAbs) {
    nei giorni 1-5 della settimana, in aggiunta alle sedute di pranzo. Il sesto
    giorno c'è soltanto la mobilità a pranzo.
    Perché funziona: l'ACSM indica che allungare quasi ogni giorno dà i
-   risultati migliori sulla flessibilità, con tenute di 30-60 s dopo i 50 anni e
+   risultati migliori sulla flessibilità, con tenute di 30-60 s negli adulti più anziani e
    circa 60 s totali per muscolo; poche decine di secondi per muscolo, ore
    prima dell'allenamento, non riducono forza e prestazione.
    Struttura: mobilità dinamica per "svegliare" le articolazioni, poi
@@ -1968,7 +2010,7 @@ function buildMorning(weekAbs, day, minutes) {
     if (estimateMinutes(items.concat([it])) > budget) { used.delete(ex.id); continue; }
     items.push(it);
   }
-  // 3. tempo avanzato: tenute da 45 s (30-60 s è l'indicazione dopo i 50 anni),
+  // 3. tempo avanzato: tenute da 45 s (30-60 s negli adulti più anziani),
   //    poi un secondo giro sui distretti di oggi
   items.forEach(it => {
     if (it.goal !== 'stretch') return;
@@ -1983,7 +2025,7 @@ function buildMorning(weekAbs, day, minutes) {
   return Object.assign({}, meta, {
     label: `Mattino · giorno ${day}`, type: 'stretch', kind: 'morning', items,
     minutes: estimateMinutes(items), budget, mWeek: weekAbs, mDay: day,
-    focusLabel: focus.label || '', focusKey: key, lunchLabel: buildSession(idx).label
+    focusLabel: focus.label || '', focusKey: key, lunchLabel: sessionFor(idx).label
   });
 }
 
@@ -2069,6 +2111,36 @@ function bindMorning() {
         'Inizia la mobilità', () => startSession(m));
     } else startSession(m);
   };
+}
+
+/* ---------------------------------------------------------------------------
+   MEMORIA DELLE SEDUTE GIÀ COSTRUITE (dalla 6.0)
+   Costruire una seduta non è gratis: filtra i pool, applica le precauzioni,
+   calcola le dosi e fa stare tutto nel tempo scelto. La stessa posizione veniva
+   però ricostruita più volte nella stessa schermata — il calendario della
+   settimana ne costruisce sei, la mobilità del mattino un'altra solo per
+   leggerne l'etichetta, il volume previsto tutte quelle di forza.
+   La chiave contiene tutto ciò da cui una seduta dipende, risultati registrati
+   compresi: quando cambia qualcosa la memoria si svuota da sola, senza doverci
+   pensare nei punti di modifica.
+   ATTENZIONE: l'oggetto restituito è condiviso. Va usato in sola lettura
+   (etichette, tipo, minuti, elenco). Chi deve modificare una seduta — le
+   sostituzioni di esercizio della seduta di oggi — passa da todaySession(),
+   che tiene una copia sua.
+--------------------------------------------------------------------------- */
+let sessMemo = new Map(), sessMemoKey = null;
+function planSignature() {
+  return [S.programId, S.setup, S.durPref || 35, S.finisher || '', S.kneeCare, S.shoulderCare,
+          S.pullupGoal, S.week6From || 0, logsRev, (S.mobilityWeeks || []).join('.'),
+          JSON.stringify(S.perms || {}), JSON.stringify(S.sessPick || {})].join('|');
+}
+function sessionFor(idx, kind) {
+  const sig = planSignature();
+  if (sig !== sessMemoKey) { sessMemo.clear(); sessMemoKey = sig; }
+  const k = idx + '|' + (kind || '');
+  let sess = sessMemo.get(k);
+  if (!sess) { sess = buildSession(idx, kind); sessMemo.set(k, sess); }
+  return sess;
 }
 
 /* Seduta completa per la posizione idx del programma. minutes = durata scelta
@@ -2308,6 +2380,12 @@ function pathStatus() {
    registrazioni con quella delle prime due (dentro le ultime 8 settimane),
    sulla metrica che l'app usa già nei grafici (massimale stimato, gradino o
    volume). Sopra +2% cresce, sotto -2% cala. */
+let trendMemo = null;
+function trendFor() {
+  const sig = planSignature();
+  if (!trendMemo || trendMemo.sig !== sig) trendMemo = { sig, v: exerciseTrend() };
+  return trendMemo.v;
+}
 function exerciseTrend() {
   const since = Date.now() - 56 * 86400000;
   const byEx = {};
@@ -2354,8 +2432,12 @@ function bodyProjection() {
   const firstC = m.find(x => isFinite(x.waist));
   const out = { m, weeks, end: path.end, lastW, lastC };
   if (lastW) out.weight = { from: lastW.weight, lo: lastW.weight - 0.5 * weeks, hi: lastW.weight - 0.25 * weeks };
-  // tetto complessivo: il 5-10% del peso iniziale, l'obiettivo che l'ACSM
-  // indica come realistico e già utile per la salute (Donnelly et al. 2009)
+  // Tetto prudente del 5-10% del peso iniziale. Nota sulla fonte: era
+  // attribuito al Position Stand ACSM di Donnelly et al. 2009, superato dal
+  // Consensus Statement ACSM 2024 (Jakicic et al.), che NON fissa più obiettivi
+  // percentuali di perdita di peso e insiste invece su almeno 150 minuti a
+  // settimana di attività moderata, con beneficio crescente con la dose. Il
+  // tetto resta qui come freno prudente alla proiezione, non come obiettivo.
   if (lastW) { out.weight.lo = Math.max(out.weight.lo, lastW.weight * 0.90); out.weight.hi = Math.max(out.weight.hi, lastW.weight * 0.95); }
   if (lastC && firstC && lastC !== firstC && (lastC.ts - firstC.ts) >= 14 * 86400000) {
     const perWeek = (lastC.waist - firstC.waist) / ((lastC.ts - firstC.ts) / (7 * 86400000));
@@ -2368,36 +2450,44 @@ function bodyProjection() {
 const kg1 = v => (Math.round(v * 10) / 10).toString().replace('.', ',');
 const dateIt = d => new Date(d).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' });
 
+/* ---------------------------------------------------------------------------
+   RIQUADRI DELLE DUE SEDUTE DI OGGI
+   Gli stessi due riquadri compaiono nella Home e nella schermata di scelta di
+   Oggi: il testo sta qui una volta sola, con una riga in più nella scelta,
+   dove c'è lo spazio per dire anche che cosa si apre toccandoli.
+--------------------------------------------------------------------------- */
+const dashTile = (attr, id, kicker, cls, body) => `<button class="dtile ${cls}" data-${attr}="${id}">
+      <div class="kicker">${kicker}</div>${body}<span class="chev">›</span></button>`;
+
+function morningTileBody(ms, full) {
+  if (ms.done) return `<div class="dstat ok">Fatta ✓</div><p class="small">${esc(ms.verdict.text)} · ${ms.verdict.pct}% delle tenute · ${ms.verdict.minutes} min</p>
+       <p class="small muted">Mattine della settimana: ${morningsDone(weekOfIdx(S.sessionIndex)).length} di ${MORNING_DAYS}.${full ? ' Puoi ripeterla o recuperarne una.' : ''}</p>`;
+  if (ms.none) return `<div class="dstat">Oggi niente</div><p class="small muted">Sesto giorno: c'è solo la mobilità a pranzo.${full ? ' Entra se vuoi recuperare una mattina saltata.' : ''}</p>`;
+  return `<div class="dstat todo">Da fare · ${ms.m.minutes} min</div><p class="small">${esc(ms.m.focusLabel || '')}</p>
+         <p class="small muted">Giorno ${ms.day} di ${MORNING_DAYS} · ${ms.m.items.length} esercizi a casa${full ? ', serve solo un tappetino' : ''}.</p>`;
+}
+
+function lunchTileBody(ls, full) {
+  if (ls.skipped) return `<div class="dstat">Saltata</div><p class="small"><b>${esc(ls.entry.label)}</b> non svolta.</p>
+       <p class="small muted">La prossima è «${esc(ls.s.label)}» · ${ls.s.minutes} min.</p>`;
+  if (ls.done) return `<div class="dstat ok">Fatta ✓</div><p class="small"><b>${esc(ls.entry.label)}</b></p>
+       <p class="small">${esc(ls.verdict.text)} · ${ls.verdict.pct}% delle serie · ${ls.verdict.minutes} min${ls.verdict.avg ? ' · ' + starsHtml(Math.round(ls.verdict.avg)) : ''}</p>`;
+  return `<div class="dstat todo">Da fare · ${ls.s.minutes} min</div><p class="small"><b>${esc(ls.s.label)}</b></p>
+       <p class="small muted">${typeWord(ls.s)} · ${ls.s.items.length} esercizi · sessione ${ls.s.pos} di ${ls.s.days} della settimana.</p>`;
+}
+
 function renderDash() {
   $('#topTitle').textContent = 'Home';
   const path = pathStatus();
   $('#topChip').textContent = shortWhere(path.meta);
   $('#topChip').className = 'chip';
 
-  // 1. mattino
-  const ms = morningStatus();
-  const mBody = ms.done
-    ? `<div class="dstat ok">Fatta ✓</div><p class="small">${esc(ms.verdict.text)} · ${ms.verdict.pct}% delle tenute · ${ms.verdict.minutes} min</p>
-       <p class="small muted">Mattine della settimana: ${morningsDone(weekOfIdx(S.sessionIndex)).length} di ${MORNING_DAYS}.</p>`
-    : ms.none
-      ? `<div class="dstat">Oggi niente</div><p class="small muted">Sesto giorno: c'è solo la mobilità a pranzo.</p>`
-      : `<div class="dstat todo">Da fare · ${ms.m.minutes} min</div><p class="small">${esc(ms.m.focusLabel)}</p>
-         <p class="small muted">Giorno ${ms.day} di ${MORNING_DAYS} · ${ms.m.items.length} esercizi a casa.</p>`;
+  const ms = morningStatus(), ls = lunchStatus();
+  const mBody = morningTileBody(ms, false), lBody = lunchTileBody(ls, false);
 
-  // 2. pranzo
-  const ls = lunchStatus();
-  const lBody = ls.skipped
-    ? `<div class="dstat">Saltato</div><p class="small"><b>${esc(ls.entry.label)}</b> non svolta.</p>
-       <p class="small muted">La prossima è «${esc(ls.s.label)}» · ${ls.s.minutes} min.</p>`
-    : ls.done
-    ? `<div class="dstat ok">Fatto ✓</div><p class="small"><b>${esc(ls.entry.label)}</b></p>
-       <p class="small">${esc(ls.verdict.text)} · ${ls.verdict.pct}% delle serie · ${ls.verdict.minutes} min${ls.verdict.avg ? ' · ' + starsHtml(Math.round(ls.verdict.avg)) : ''}</p>`
-    : `<div class="dstat todo">Da fare · ${ls.s.minutes} min</div><p class="small"><b>${esc(ls.s.label)}</b></p>
-       <p class="small muted">Sessione ${ls.s.pos} di ${ls.s.days} · ${typeWord(ls.s)} · ${ls.s.items.length} esercizi.</p>`;
-
-  // 3. un solo riquadro riassuntivo: percorso, esercizi e misure stanno nella
+  // un solo riquadro riassuntivo: percorso, esercizi e misure stanno nella
   //    pagina Progressi, così la Home resta concentrata su cosa fare oggi
-  const t = exerciseTrend();
+  const t = trendFor();
   const b = bodyProjection();
   const ph = path.meta.phase;
   const gBody = `<div class="dstat">${ph ? esc(ph.ph.name) : esc(path.p.name)}</div>
@@ -2407,8 +2497,7 @@ function renderDash() {
       b.lastC ? ` · girovita ${kg1(b.lastC.waist)} cm` : (b.lastW ? ` · peso ${kg1(b.lastW.weight)} kg` : '')}</p>
     <p class="small muted">Percorso, progressione negli esercizi e misure corporee.</p>`;
 
-  const tile = (id, kicker, cls, body) => `<button class="dtile ${cls}" data-dash="${id}">
-      <div class="kicker">${kicker}</div>${body}<span class="chev">›</span></button>`;
+  const tile = (id, kicker, cls, body) => dashTile('dash', id, kicker, cls, body);
   $('#view-dash').innerHTML = `
     ${tile('morning', 'Mattino · mobilità', 'mobility', mBody)}
     ${tile('lunch', 'Pranzo · allenamento principale', ls.done || ls.skipped ? 'strength' : typeClass(ls.s), lBody)}
@@ -2436,7 +2525,7 @@ function renderProg() {
   $('#topChip').className = 'chip';
 
   const path = pathStatus(), ph = path.meta.phase;
-  const t = exerciseTrend();
+  const t = trendFor();
   const b = bodyProjection();
   const trendWord = t.recent && t.before ? (t.recent > t.before + 0.2 ? 'in miglioramento' : t.recent < t.before - 0.2 ? 'in calo' : 'stabile') : '';
 
@@ -2883,26 +2972,8 @@ function renderHomePick() {
   $('#topChip').className = 'chip';
   const ms = morningStatus(), ls = lunchStatus();
   const b = homeBanners();
-
-  const mBody = ms.done
-    ? `<div class="dstat ok">Fatta ✓</div><p class="small">${esc(ms.verdict.text)} · ${ms.verdict.minutes} min</p>
-       <p class="small muted">Mattine della settimana: ${morningsDone(weekOfIdx(S.sessionIndex)).length} di ${MORNING_DAYS}. Puoi ripeterla o recuperarne una.</p>`
-    : ms.none
-      ? `<div class="dstat">Oggi niente</div><p class="small muted">Sesto giorno: c'è solo la mobilità a pranzo. Entra se vuoi recuperare una mattina saltata.</p>`
-      : `<div class="dstat todo">Da fare · ${ms.m.minutes} min</div><p class="small">${esc(ms.m.focusLabel || '')}</p>
-         <p class="small muted">Giorno ${ms.day} di ${MORNING_DAYS} · ${ms.m.items.length} esercizi, a casa, serve solo un tappetino.</p>`;
-
-  const lBody = ls.skipped
-    ? `<div class="dstat">Saltata</div><p class="small"><b>${esc(ls.entry.label)}</b> non svolta.</p>
-       <p class="small muted">La prossima è «${esc(ls.s.label)}» · ${ls.s.minutes} min.</p>`
-    : ls.done
-      ? `<div class="dstat ok">Fatta ✓</div><p class="small"><b>${esc(ls.entry.label)}</b></p>
-         <p class="small">${esc(ls.verdict.text)} · ${ls.verdict.pct}% delle serie · ${ls.verdict.minutes} min</p>`
-      : `<div class="dstat todo">Da fare · ${ls.s.minutes} min</div><p class="small"><b>${esc(ls.s.label)}</b></p>
-         <p class="small muted">${typeWord(ls.s)} · ${ls.s.items.length} esercizi · sessione ${ls.s.pos} di ${ls.s.days} della settimana.</p>`;
-
-  const tile = (id, kicker, cls, body) => `<button class="dtile ${cls}" data-pick="${id}">
-      <div class="kicker">${kicker}</div>${body}<span class="chev">›</span></button>`;
+  const mBody = morningTileBody(ms, true), lBody = lunchTileBody(ls, true);
+  const tile = (id, kicker, cls, body) => dashTile('pick', id, kicker, cls, body);
 
   $('#view-home').innerHTML = `
     ${b.html}
@@ -2946,7 +3017,7 @@ function renderHomeLunch() {
   // --- calendario della settimana: le sedute previste, più il blocco core ---
   let week = '';
   for (let q = 0; q < nDays; q++) {
-    const alt = buildSession(wStart + q);
+    const alt = sessionFor(wStart + q);          // sola lettura: etichetta, tipo, minuti
     // "da programma" resta attaccata alla seduta che il programma prevede come
     // prossima (il suo giorno di calendario), anche dopo uno scambio di ordine;
     // la posizione scelta per oggi è marcata a parte come "scelta per oggi".
@@ -2962,7 +3033,7 @@ function renderHomeLunch() {
         <div class="small muted">${typeWord(alt)} · ${alt.minutes} min${alt.items.some(i => i.block === 'pullup') ? ' · trazioni' : ''}${(nDays === 6 && q === nDays - 1) ? ' · sempre l\'ultima' : ''}</div></div>
       ${badge}</li>`;
   }
-  const coreS = buildSession(S.sessionIndex, 'core');
+  const coreS = sessionFor(S.sessionIndex, 'core');
   week += `<li class="wk next${core ? ' sel' : ''}" data-core="1">
       <span class="wknum core">+</span>
       <div class="nm"><b>Solo blocco core</b>
@@ -4075,7 +4146,9 @@ function renderHistory() {
     const logs = byEx[k], last = logs[logs.length - 1];
     // la linea segue il massimale stimato: così migliorare le ripetizioni a
     // parità di carico si vede, mentre prima il grafico restava piatto
-    const nums = seriesValues(logs).vals.filter(n => isFinite(n));
+    // la linea mostra le ultime 24 registrazioni: oltre non si legge nulla di
+    // più e il calcolo cresce con lo storico, che a fine programma è lungo
+    const nums = seriesValues(logs.slice(-24)).vals.filter(n => isFinite(n));
     const e = e1rm(last);
     return `<li data-ex="${k}">
       <div class="spark">${sparkline(nums)}</div>
@@ -4095,7 +4168,7 @@ function renderHistory() {
     `<button class="btn ghost" data-week="${w}" style="margin-top:8px">Settimana ${w} · ${weekReport(w).sessions} sedute</button>`).join('');
 
   const curWeek = weekOfIdx(S.sessionIndex);
-  const volAna = volumeAnalysis(curWeek);
+  const volAna = volumeFor(curWeek);
   const vol = volumeHtml(curWeek, volAna);
 
   const aero = aerobicMinutes(curWeek);
@@ -4105,8 +4178,9 @@ function renderHistory() {
     ${vol ? `<div class="card"><h2>Volume della settimana ${curWeek}</h2>
       <p class="small muted">Serie fatte / previste dal programma, per gruppo muscolare. Una serie conta 1 per i muscoli
       che la eseguono e ½ per quelli che collaborano (i tricipiti nella panca, i bicipiti nelle trazioni).
-      La tacca chiara segna le 10 serie settimanali, volume oltre il quale la letteratura mostra i risultati migliori
-      sull'ipertrofia; sotto le 5 la barra diventa rossa.</p>
+      La tacca chiara segna le 10 serie settimanali: è il <b>minimo</b> raccomandato dal Position Stand ACSM 2026 per l'ipertrofia,
+      non un tetto — i guadagni continuano a crescere con rendimenti decrescenti e si appiattiscono verso le 18-20 serie
+      (Pelland et al. 2026). Sotto le 5 la barra diventa rossa.</p>
       <div style="margin-top:10px">${vol}</div>
       ${volAna.advice.length ? `<ul class="small" style="margin-top:12px;padding-left:18px">${volAna.advice.map(t => `<li style="margin-top:6px">${esc(t)}</li>`).join('')}</ul>` : ''}</div>` : ''}
     ${wks ? `<div class="card"><h2>Riepilogo settimanale</h2>
@@ -4191,7 +4265,7 @@ function projectionHtml() {
   return `<div class="block" style="margin-top:14px">
     <h3 style="font-size:16px;color:var(--muted)">Obiettivo ragionevole al ${dateIt(b.end)}</h3>
     <p class="small muted">Fine del piano stimata fra ${Math.round(b.weeks)} settimane; la data si sposta se aggiungi settimane di sola mobilità.</p>
-    ${b.weight ? `<p class="small"><b>Peso: ${kg1(b.weight.lo)}-${kg1(b.weight.hi)} kg</b> (oggi ${kg1(b.weight.from)} kg). Calcolato con una perdita di 0,25-0,5 kg a settimana, la fascia prudente per ridurre il grasso conservando e costruendo muscolo (oltre lo 0,5-1% del peso a settimana si rischia di perdere massa magra: Helms et al. 2014), e con un tetto complessivo del 5-10% del peso, l'obiettivo che l'ACSM considera realistico e già utile per la salute (Donnelly et al. 2009). La leva principale è un deficit calorico moderato con circa 1,6 g di proteine per kg al giorno.</p>` : ''}
+    ${b.weight ? `<p class="small"><b>Peso: ${kg1(b.weight.lo)}-${kg1(b.weight.hi)} kg</b> (oggi ${kg1(b.weight.from)} kg). Calcolato con una perdita di 0,25-0,5 kg a settimana, la fascia prudente per ridurre il grasso conservando e costruendo muscolo (oltre lo 0,5-1% del peso a settimana si rischia di perdere massa magra: Helms et al. 2014), e con un tetto prudente del 5-10% del peso, che tiene la proiezione nel campo del realistico. La posizione attuale dell'ACSM (Jakicic et al. 2024, Consensus Statement, che sostituisce Donnelly et al. 2009) non fissa più obiettivi percentuali di perdita di peso: indica almeno 150 minuti a settimana di attività moderata, con beneficio che cresce con la dose. La leva principale resta un deficit calorico moderato con circa 1,6 g di proteine per kg al giorno (Morton et al. 2018).</p>` : ''}
     ${b.waist ? `<p class="small"><b>Girovita: circa ${kg1(b.waist.to)} cm</b> (oggi ${kg1(b.waist.from)} cm, ${waistRisk(b.waist.from)}). Proiezione della tendenza delle tue misure (${b.waist.perWeek <= 0 ? kg1(-b.waist.perWeek) + ' cm in meno' : kg1(b.waist.perWeek) + ' cm in più'} a settimana), con un tetto prudente di 0,5 cm a settimana e di 8 cm in tutto${b.waist.to <= 94 && b.waist.from > 94 ? ': arriveresti sotto la soglia dei 94 cm' : ''}.</p>`
       : (b.lastC ? `<p class="small">Girovita oggi ${kg1(b.lastC.waist)} cm, ${waistRisk(b.lastC.waist)}. Per proiettarlo servono almeno due misure a 2 settimane di distanza.</p>` : '')}
     <p class="small muted">È una stima, non una promessa: si aggiorna a ogni misura.</p>
@@ -4470,7 +4544,7 @@ function plannedVolume(weekAbs) {
   for (let k = 0; k < weekLen(weekAbs); k++) {
     const idx = weekStart(weekAbs) + k;
     let sess;
-    try { sess = buildSession(idx); } catch (e) { continue; }
+    try { sess = sessionFor(idx); } catch (e) { continue; }
     if (sess.type !== 'strength') continue;
     strength++;
     sess.items.forEach(it => addInto(acc, groupSetsOf(exById(it.exId), it.sets)));
@@ -4479,6 +4553,15 @@ function plannedVolume(weekAbs) {
 }
 
 const fmtSets = v => (Math.round(v * 2) / 2).toString().replace('.', ',');
+
+/* L'analisi del volume compare in due schermate e viene chiesta più volte per
+   la stessa settimana: si tiene l'ultima, con la stessa firma delle sedute. */
+let volMemo = null;
+function volumeFor(weekAbs) {
+  const sig = planSignature() + '|' + weekAbs;
+  if (!volMemo || volMemo.sig !== sig) volMemo = { sig, v: volumeAnalysis(weekAbs) };
+  return volMemo.v;
+}
 
 /* Analisi della settimana: righe per le barre e indicazioni pratiche. */
 function volumeAnalysis(weekAbs) {
@@ -4531,7 +4614,7 @@ function volumeAnalysis(weekAbs) {
 }
 
 function volumeHtml(weekAbs, ana) {
-  const a = ana || volumeAnalysis(weekAbs);
+  const a = ana || volumeFor(weekAbs);
   if (!a.rows.length || !a.rows.some(r => r.sets > 0)) return '';
   const max = Math.max(VOL_TARGET + 2, ...a.rows.map(r => Math.max(r.sets, r.planned)));
   return a.rows.map(r => {
@@ -4567,7 +4650,7 @@ function openWeekReport(weekAbs) {
     : 'Settimana in calo: capita, spesso dipende da sonno o stress. Riparti dal carico dell\'ultima seduta riuscita.';
 
   // volume per gruppo muscolare, con indicazioni pratiche se qualcosa è sotto soglia
-  const ana = volumeAnalysis(weekAbs);
+  const ana = volumeFor(weekAbs);
   const vol = volumeHtml(weekAbs, ana);
   const volAdvice = ana.advice.map(t => `<li>${esc(t)}</li>`).join('');
 
@@ -4579,7 +4662,7 @@ function openWeekReport(weekAbs) {
     <div class="block" style="margin-top:16px"><h3 style="font-size:16px;color:var(--muted)">Attività aerobica</h3>
       <p class="small">${(() => { const a = aerobicMinutes(weekAbs); return `${a.eq} minuti equivalenti su 150 (${a.vig} di scatti, ${a.mod} moderati).${a.eq < 150 && !isMobilityWeek(weekAbs) ? ' Per arrivarci: completa le due sedute aerobiche e, quando hai 50 minuti, lascia il finale metabolico nelle sedute di forza.' : ''}`; })()}</p></div>
     ${vol ? `<div class="block" style="margin-top:16px"><h3 style="font-size:16px;color:var(--muted)">Serie per gruppo muscolare</h3>
-      <p class="small muted">Serie fatte / previste dal programma. Diretta = 1, indiretta = ½. Tacca a 10: volume ottimale; barra rossa sotto 5.</p>${vol}</div>` : ''}
+      <p class="small muted">Serie fatte / previste dal programma. Diretta = 1, indiretta = ½. Tacca a 10: minimo raccomandato per l'ipertrofia (plateau verso 18-20); barra rossa sotto 5.</p>${vol}</div>` : ''}
     ${(cautions || fatigue || volAdvice) ? `<div class="block warnblock" style="margin-top:16px"><h3>Da tenere d'occhio</h3><ul>${cautions}${fatigue}${volAdvice}</ul></div>`
       : '<p class="small muted" style="margin-top:14px">Nessun incremento fuori scala e volume adeguato su tutti i gruppi.</p>'}
     ${S.autoBackup ? `<button class="btn" id="wrBackup" style="margin-top:18px">Salva il backup della settimana</button>
@@ -4827,8 +4910,14 @@ function renderSettings() {
           <option value="home" ${S.setup === 'home' ? 'selected' : ''}>Casa</option></select></div>
       <div class="switch"><span>Priorità agli esercizi che proteggono il ginocchio</span>
         <input type="checkbox" id="kneeChk" ${S.kneeCare ? 'checked' : ''}></div>
-      <div class="switch"><span>Escludi gli esercizi critici per la spalla (conflitto subacromiale)</span>
+      <div class="switch"><span>Evita gli esercizi di solito dolorosi per la spalla</span>
         <input type="checkbox" id="shoulderChk" ${S.shoulderCare ? 'checked' : ''}></div>
+      <p class="small muted" style="margin:8px 0 0">Sono due preferenze di comfort, non divieti. Le linee guida più recenti non vietano esercizi:
+        per il dolore femoro-rotuleo il rinforzo è il trattamento di prima scelta e nessun tipo risulta superiore a un altro
+        (Morri et al. 2025), e per la tendinopatia della cuffia dei rotatori — la definizione che oggi comprende il conflitto
+        subacromiale — l'esercizio attivo contro resistenza è raccomandato con prove forti, senza un elenco di movimenti da
+        evitare (linea guida JOSPT 2025). Qui l'app sceglie per primi gli esercizi che di solito danno meno fastidio; se un
+        movimento non ti dà dolore, togli la spunta e torna disponibile.</p>
       <div class="switch"><span>Obiettivo trazioni alla sbarra<br><span class="small muted">Lavoro dedicato dopo i due esercizi principali; sospensione alla sbarra in chiusura, se resta tempo</span></span>
         <input type="checkbox" id="pullChk" ${S.pullupGoal ? 'checked' : ''}></div>
       <div class="switch"><span>Campanella del timer</span>
