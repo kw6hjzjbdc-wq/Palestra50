@@ -213,6 +213,18 @@ Da *Oggi* (sotto il calendario), dalla pagina *Progressi* e dal riquadro *Il per
 
 Nel riepilogo di fine seduta, *Ho ancora tempo: aggiungi esercizi*. Si dichiara quanto tempo resta (5, 10 o 15 minuti) e l'app propone quattro esercizi sui **gruppi più indietro** rispetto al volume previsto per la settimana, con le serie che stanno davvero in quei minuti (tempo di preparazione compreso). Toccandone uno si torna nella seduta, che riprende da quell'esercizio e si chiude normalmente.
 
+### Aerobico nello storico: fasi, non prestazioni (6.6)
+
+Una seduta aerobica registra lo stesso attrezzo tre volte: riscaldamento (5 minuti facili), parte centrale (intervalli o ritmo costante) e defaticamento (3 minuti). Lo storico le trattava come tre prestazioni successive dello stesso esercizio: nei *Carichi per esercizio* la bici da spinning aveva una linea che saliva (riscaldamento → parte centrale) e poi scendeva (→ defaticamento), con «3 sedute» dopo una seduta sola, e fino alla 6.4 una stella diversa per ogni fase. Intensità e durata le decide il programma e non c'era nulla di precedente da confrontare: il giudizio era senza senso.
+
+- **Carichi per esercizio** contiene solo gli esercizi con una prestazione da misurare (pesi, corpo libero, core). Le sedute segnate come fatte alle dosi previste non entrano nella linea.
+- **Aerobico e allungamenti** è un elenco a parte: numero di sedute, data e minuti dell'ultima seduta, senza linea di andamento e senza stelle. Il dettaglio mostra le sedute una per una con le loro fasi («Riscaldamento 5′ · Intervalli 8× 30″ / 90″ · Defaticamento 3′»).
+- **Sedute contate come sedute**, non come registrazioni (`sessionsCount`), anche per gli esercizi di forza.
+- La **scheda esercizio** dell'aerobico mostra l'ultima seduta con le sue fasi invece di carico, ripetizioni e stelle; nel catalogo «ultima seduta» invece di «ultima volta —».
+- La **tendenza degli esercizi** in *Progressi* conta solo registrazioni valutabili (niente aerobico, allungamenti, sedute segnate come fatte).
+- Corretti i nomi degli obiettivi aerobici esclusi dalla valutazione (`cardioWarm`, `cardioCool`, `cardioHiit`, `cardioSteady`): nella 6.5 la lista usava nomi inesistenti e l'esclusione reggeva solo grazie al controllo sull'attrezzo.
+- I minuti aerobici della settimana (OMS) restano nel riquadro *Attività aerobica*, come prima.
+
 ### Stelle: verifica di congruenza (6.5)
 
 Le stelle sono un giudizio dell'app, ricalcolato. Una verifica su casi costruiti — stessa prestazione o prestazione migliore, che devono dare un giudizio coerente — ha trovato otto incongruenze, ora corrette:

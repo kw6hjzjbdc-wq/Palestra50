@@ -1197,13 +1197,25 @@ function rateLog(cur, prev, deload) {
      · lo scarico si riconosce sempre allo stesso modo (isDeloadWeek).
 --------------------------------------------------------------------------- */
 const TEST_GOALS = ['pullupTest', 'muTest'];
-const UNRATED_GOALS = ['cardio', 'finisher', 'warmup', 'cooldown', 'stretch', 'mobility'];
+// (6.6) i nomi veri degli obiettivi aerobici: nella 6.5 la lista usava nomi
+// che il programma non ha, e reggeva solo grazie al controllo sull'attrezzo
+const UNRATED_GOALS = ['cardioWarm', 'cardioCool', 'cardioHiit', 'cardioSteady', 'finisher', 'stretch', 'mobility'];
+/* Aerobico e finale metabolico: intensità e durata le decide il programma
+   (riscaldamento, parte centrale, defaticamento), quindi non sono prestazioni
+   da confrontare. */
+const isCardioEx = ex => !!ex && (ex.pattern === 'cardio' || ex.pattern === 'finisher' ||
+  !!(ex.cardioModes && ex.cardioModes.length) || /^f_/.test(ex.id));
 function isRatable(l) {
   const ex = exById(l.exId);
   if (!ex || l.planned) return false;
-  if (ex.type === 'stretch' || (ex.cardioModes && ex.cardioModes.length) || /^f_/.test(ex.id)) return false;
+  if (ex.type === 'stretch' || isCardioEx(ex)) return false;
   return !UNRATED_GOALS.includes(l.goal);
 }
+/* Sedute distinte in un elenco di registrazioni: una seduta aerobica registra
+   lo stesso attrezzo tre volte (riscaldamento, parte centrale, defaticamento),
+   e contarle come tre sedute era sbagliato. */
+const sessionKey = l => l.sid != null ? 's' + l.sid : 'd' + new Date(l.ts || 0).toDateString();
+const sessionsCount = logs => new Set(logs.map(sessionKey)).size;
 const isDeloadLog = l => l && l.sIdx != null && isDeloadWeek(l.sIdx);
 function ratingRef(cur, candidates) {
   const test = TEST_GOALS.includes(cur.goal);
@@ -2650,11 +2662,8 @@ function trendFor() {
 function exerciseTrend() {
   const since = Date.now() - 56 * 86400000;
   const byEx = {};
-  S.logs.forEach(l => {
-    const ex = exById(l.exId);
-    if (!ex || ex.type === 'stretch' || ex.pattern === 'cardio' || ex.pattern === 'finisher') return;
-    (byEx[l.exId] = byEx[l.exId] || []).push(l);
-  });
+  // solo prestazioni vere: niente aerobico, allungamenti, sedute segnate come fatte
+  S.logs.forEach(l => { if (isRatable(l)) (byEx[l.exId] = byEx[l.exId] || []).push(l); });
   let up = 0, flat = 0, down = 0;
   const detail = [];
   Object.keys(byEx).forEach(k => {
@@ -4367,6 +4376,14 @@ function openSheet(ex, it, ctx) {
     </div>
     ${it ? `<p class="small muted">Oggi: ${doseText(it)}, recupero ${it.rest}s, RPE ${esc(it.rpe)}. ${esc(it.source)}</p>` : ''}
     ${(() => {
+      // aerobico e allungamenti: si mostra l'ultima seduta con le sue fasi,
+      // non un carico, delle ripetizioni o delle stelle
+      if (ex.type === 'stretch' || isCardioEx(ex)) {
+        const mine = S.logs.filter(l => l.exId === ex.id);
+        if (!mine.length) return `<div class="notice" style="margin-top:10px">Nessuna seduta precedente: intensità e durata le indica il programma.</div>`;
+        const k = sessionKey(mine[mine.length - 1]), sess = mine.filter(l => sessionKey(l) === k);
+        return `<div class="notice" style="margin-top:10px"><b>Ultima seduta</b> (${new Date(sess[0].ts).toLocaleDateString('it-IT')}): ${sess.map(phaseText).join(' · ')}</div>`;
+      }
       const sug = suggestLoad(ex), last = sug && sug.last;
       if (!last) return `<div class="notice" style="margin-top:10px">Nessuna registrazione precedente per questo esercizio: parti prudente e annota ${loadWord(ex)} e ripetizioni.</div>`;
       const det = [];
@@ -4429,19 +4446,34 @@ function renderHistory() {
     return;
   }
 
-  const rows = keys.map(k => {
-    const logs = byEx[k], last = logs[logs.length - 1];
+  // (6.6) le linee di andamento solo per gli esercizi con una prestazione da
+  // misurare; aerobico e allungamenti in un elenco a parte, senza grafico né stelle
+  const perfKeys = keys.filter(k => { const ex = exById(k); return ex && ex.type !== 'stretch' && !isCardioEx(ex); });
+  const planKeys = keys.filter(k => !perfKeys.includes(k));
+  const rows = perfKeys.map(k => {
+    const all = byEx[k], last = all[all.length - 1];
+    const logs = all.filter(l => !l.planned);
     // la linea segue il massimale stimato: così migliorare le ripetizioni a
     // parità di carico si vede, mentre prima il grafico restava piatto
     // la linea mostra le ultime 24 registrazioni: oltre non si legge nulla di
     // più e il calcolo cresce con lo storico, che a fine programma è lungo
     const nums = seriesValues(logs.slice(-24)).vals.filter(n => isFinite(n));
     const e = e1rm(last);
+    const nS = sessionsCount(all);
     return `<li data-ex="${k}">
       <div class="spark">${sparkline(nums)}</div>
       <div class="nm" style="flex:1"><b>${esc(last.name)}</b>
-        <div class="small muted">${logs.length} sedute · ultima ${new Date(last.ts).toLocaleDateString('it-IT')}${e ? ' · max stimato ' + e.toFixed(1) + ' kg' : ''}</div></div>
+        <div class="small muted">${nS} ${nS === 1 ? 'seduta' : 'sedute'} · ultima ${new Date(last.ts).toLocaleDateString('it-IT')}${e ? ' · max stimato ' + e.toFixed(1) + ' kg' : ''}</div></div>
       <div class="val">${esc(last.load || '—')}${isAssist(exById(k)) ? ' <span class="small muted">aiuto</span>' : ''} ${arrow(last.feedback)}<br>${starsHtml(last.stars)}</div></li>`;
+  }).join('');
+  const planRows = planKeys.map(k => {
+    const logs = byEx[k], last = logs[logs.length - 1], ex = exById(k);
+    const nS = sessionsCount(logs);
+    const lastSess = logs.filter(l => sessionKey(l) === sessionKey(last));
+    const min = Math.round(lastSess.reduce((a, l) => a + (l.sets || 1) * (l.hold || 0) + Math.max(0, (l.sets || 1) - 1) * (l.rest || 0), 0) / 60);
+    return `<li data-ex="${k}"><div class="nm" style="flex:1"><b>${esc(last.name)}</b>
+        <div class="small muted">${nS} ${nS === 1 ? 'seduta' : 'sedute'} · ultima ${new Date(last.ts).toLocaleDateString('it-IT')}</div></div>
+      <div class="val">${isCardioEx(ex) ? (min ? min + ' min' : '') : ''}</div><div class="chev">›</div></li>`;
   }).join('');
 
   const sess = S.sessionLog.map((x, i) => [x, i]).slice(-10).reverse().map(pair => {
@@ -4472,9 +4504,12 @@ function renderHistory() {
       ${volAna.advice.length ? `<ul class="small" style="margin-top:12px;padding-left:18px">${volAna.advice.map(t => `<li style="margin-top:6px">${esc(t)}</li>`).join('')}</ul>` : ''}</div>` : ''}
     ${wks ? `<div class="card"><h2>Riepilogo settimanale</h2>
       <p class="small muted">Traguardi migliori e punti a cui fare attenzione, dalla valutazione automatica dei progressi.</p>${wks}</div>` : ''}
-    <div class="card" id="loadsCard"><h2>Carichi per esercizio</h2>
-      <p class="small muted">La linea segue il massimale stimato, non il solo peso: migliorare le ripetizioni a parità di carico si vede.</p>
-      <ul class="hist">${rows}</ul></div>
+    ${rows ? `<div class="card" id="loadsCard"><h2>Carichi per esercizio</h2>
+      <p class="small muted">La linea segue il massimale stimato, non il solo peso: migliorare le ripetizioni a parità di carico si vede. Le sedute segnate come fatte alle dosi previste non entrano nella linea.</p>
+      <ul class="hist">${rows}</ul></div>` : ''}
+    ${planRows ? `<div class="card"><h2>Aerobico e allungamenti</h2>
+      <p class="small muted">Qui intensità e durata le decide il programma (riscaldamento, parte centrale, defaticamento; tenute degli allungamenti): non sono prestazioni da confrontare, quindi niente linea di andamento e niente stelle. Contano i minuti, nel riquadro dell'attività aerobica.</p>
+      <ul class="hist">${planRows}</ul></div>` : ''}
     ${sess ? `<div class="card"><h2>Ultime sedute</h2><ul class="hist">${sess}</ul></div>` : ''}`;
 
   bindMeasures();
@@ -4963,12 +4998,42 @@ function sparkline(vals) {
   return `<svg viewBox="0 0 86 34"><polyline points="${pts}" fill="none" stroke="#F5A524" stroke-width="2.4" stroke-linejoin="round"/></svg>`;
 }
 
+/* Dettaglio di aerobico e allungamenti: le sedute una per una, con le fasi
+   previste dal programma, senza grafico e senza stelle. */
+const PHASE_LABEL = { cardioWarm: 'Riscaldamento', cardioCool: 'Defaticamento', cardioHiit: 'Intervalli',
+                      cardioSteady: 'Ritmo costante', finisher: 'Finale metabolico', stretch: 'Allungamento', mobility: 'Mobilità' };
+function phaseText(l) {
+  const sets = l.sets || 1, hold = l.hold || 0, rest = l.rest || 0;
+  const lab = PHASE_LABEL[l.goal] || 'Lavoro';
+  if (sets > 1 && rest) return `${lab} ${sets}× ${hold}″ / ${rest}″`;
+  if (sets > 1) return `${lab} ${sets}× ${hold}″`;
+  return hold >= 60 ? `${lab} ${Math.round(hold / 60)}′` : `${lab} ${hold}″`;
+}
+function detailPlanned(exId, logs) {
+  const ex = exById(exId);
+  const bySess = [];
+  logs.forEach(l => { const k = sessionKey(l); let g = bySess.find(x => x.k === k); if (!g) bySess.push(g = { k, logs: [] }); g.logs.push(l); });
+  const rows = bySess.slice().reverse().map(g => {
+    const min = Math.round(g.logs.reduce((a, l) => a + (l.sets || 1) * (l.hold || 0) + Math.max(0, (l.sets || 1) - 1) * (l.rest || 0), 0) / 60);
+    return `<li><div class="nm" style="flex:1"><b>${new Date(g.logs[0].ts).toLocaleDateString('it-IT')}</b>
+      <div class="small muted">${g.logs.map(phaseText).join(' · ')}</div></div>
+      <div class="val">${min ? min + ' min' : ''}</div></li>`;
+  }).join('');
+  openModal(`<h2>${esc(ex.name)}</h2>
+    <p class="small muted">${isCardioEx(ex) ? 'Riscaldamento, parte centrale e defaticamento seguono il programma: sono fasi della stessa seduta, non prestazioni da confrontare fra loro.' : 'Le tenute seguono il programma: niente valutazione a stelle.'}</p>
+    <ul class="hist">${rows}</ul>
+    <button class="btn secondary" id="closeModal" style="margin-top:16px">Chiudi</button>`);
+  $('#closeModal').onclick = closeModal;
+}
+
 function detailFor(exId, logs) {
   const ex = exById(exId);
+  if (!ex || ex.type === 'stretch' || isCardioEx(ex)) return detailPlanned(exId, logs);
   const rows = logs.slice().reverse().map(l => {
     const r = isFinite(l.repsDone) ? l.repsDone : l.reps;
     const e = e1rm(l);
     const extra = [`${l.sets}×${r}`];
+    if (l.planned) extra.push('segnata come fatta');
     if (isFinite(l.rir) && l.rir !== null) extra.push(`RIR ${l.rir}`);
     if (e) extra.push(`max ${e.toFixed(1)} kg`);
     extra.push(l.setup === 'gym' ? 'palestra' : 'casa');
@@ -4978,7 +5043,7 @@ function detailFor(exId, logs) {
       <div class="val">${arrow(l.feedback)}<br>${starsHtml(l.stars)}</div></li>`;
   }).join('');
   openModal(`<h2>${esc(ex.name)}</h2>
-    <div style="height:110px;margin:10px 0">${bigChart(logs)}</div>
+    <div style="height:110px;margin:10px 0">${bigChart(logs.filter(l => !l.planned))}</div>
     <ul class="hist">${rows}</ul>
     <button class="btn secondary" id="closeModal" style="margin-top:16px">Chiudi</button>
     <button class="btn ghost" id="wipeEx" style="margin-top:10px">Cancella lo storico di questo esercizio</button>`);
@@ -5059,7 +5124,7 @@ function renderCatalog() {
       <div class="fig">${figureFor(ex, 1, { ground: false })}</div>
       <div class="nm"><b>${esc(ex.name)}</b>
         <div class="small muted">${esc(ex.group)} · ${esc((ex.equipment || []).join(', ') || 'corpo libero')}</div>
-        ${last ? `<div class="why">ultima volta ${esc(last.load || '—')} · ${new Date(last.ts).toLocaleDateString('it-IT')}</div>` : ''}</div>
+        ${last ? `<div class="why">${ex.type === 'stretch' || isCardioEx(ex) ? 'ultima seduta' : `ultima volta ${esc(last.load || '—')} ·`} ${new Date(last.ts).toLocaleDateString('it-IT')}</div>` : ''}</div>
       <div class="chev">›</div></li>`;
   }).join('');
 
