@@ -34,7 +34,7 @@ const DEFAULT_STATE = {
   sessionIndex: 0,         // numero progressivo della prossima sessione da fare
   kneeCare: true,          // dà priorità agli esercizi a basso impatto sul ginocchio
   shoulderCare: true,      // evita gli esercizi di solito dolorosi con la tendinopatia della cuffia
-  pullupGoal: true,        // preparazione alle trazioni nelle sedute di forza (accessoria)
+  pullupGoal: true,        // trazioni e muscle-up nelle sedute di forza (obiettivo del programma, dalla 6.4)
   perms: {},               // ordine delle 5 sedute all'interno di ciascuna settimana
   mobilityWeeks: [],       // settimane in cui si fa solo mobilità (il programma slitta)
   sound: true,             // campanella del timer
@@ -53,7 +53,8 @@ const DEFAULT_STATE = {
   snapshots: [],            // ultime 3 istantanee settimanali, ripristinabili
   sessPick: {},             // seduta aerobica o di mobilità scelta al posto di quella prevista
   resume: null,             // seduta interrotta, recuperabile dopo la chiusura dell'app
-  lastRecap: 0              // ultima settimana di cui è stato mostrato il riepilogo
+  lastRecap: 0,             // ultima settimana di cui è stato mostrato il riepilogo
+  pullSelf: null            // massimo di trazioni e muscle-up dichiarato: { n, mu, ts }
 };
 
 function load() {
@@ -65,6 +66,7 @@ function load() {
   S.sessionIndex = Math.max(0, Math.round(S.sessionIndex) || 0);
   if (!Array.isArray(S.mobilityWeeks)) S.mobilityWeeks = [];
   if (!Array.isArray(S.measures)) S.measures = [];
+  if (S.pullSelf && (typeof S.pullSelf !== 'object' || !isFinite(S.pullSelf.ts))) S.pullSelf = null;
   if (!S.perms || typeof S.perms !== 'object') S.perms = {};
   if (!Array.isArray(S.snapshots)) S.snapshots = [];
 }
@@ -1370,22 +1372,96 @@ function pickFrom(pool, rotation, used) {
 }
 
 /* ---------------------------------------------------------------------------
-   BLOCCO TRAZIONI
-   Tre sedute a settimana. Obiettivo accessorio: dalla 4.8 il lavoro principale
-   segue i due esercizi fondamentali del giorno, e l'attivazione (sospensione o
-   attivazione scapolare) chiude la seduta solo se resta tempo.
-   L'onda settimanale segue le evidenze sulla progressione alla trazione:
-     giorno A → eccentriche lente (il lavoro che trasferisce di più)
-     giorno B → tenute isometriche nell'angolo in cui si cede
-     giorno C → volume con assistenza elastica o macchina
-   Ogni blocco si apre con attivazione scapolare o sospensione, la fase che
-   quasi tutti saltano e che insegna l'avvio della trazione.
-   Criterio di avanzamento: quando tieni 5 secondi con il mento sopra la sbarra
-   e scendi in 5 secondi controllati, prova la trazione completa; riduci la band
-   (viola → rossa → gialla → azzurra) appena le ripetizioni diventano facili.
+   BLOCCO TRAZIONI E MUSCLE-UP (dalla 6.4)
+   Obiettivo del programma: 15 trazioni pulite di fila e 10 muscle-up al
+   30 maggio 2027. Tre sedute a settimana, sempre dopo i due esercizi
+   fondamentali; attivazione scapolare o sospensione in chiusura se resta tempo.
+   Il lavoro non cambia per calendario ma per TAPPE, secondo il massimo di
+   trazioni pulite (pullMax) e di muscle-up (muMax) registrato:
+     0      → prima trazione: negative, tenute isometriche, volume assistito;
+     1-5    → prime ripetizioni: tante serie brevi pulite, negative, assistite;
+     6-11   → volume a corpo libero: serie pulite, trazioni esplosive al petto;
+     12+    → verso il muscle-up: dip e transizione alla sbarra bassa;
+     12 + 1 muscle-up → serie di muscle-up.
+   Le soglie sono regole operative dell'app: nessuna fonte verificata fissa
+   prerequisiti numerici per il muscle-up. Le tappe del muscle-up richiedono
+   anche che "evita gli esercizi dolorosi per la spalla" sia spento: il
+   muscle-up è fra i gesti ginnici indicati come causa di infortuni alla spalla
+   (Summitt et al. 2016) e va iniziato solo senza dolore.
+   Serie pulite: massimo − 2 ripetizioni (sempre 2 di margine), mai a cedimento
+   (Sánchez-Moreno et al. 2020: oltre una fatica moderata nessun guadagno in
+   più). Il massimo si misura con un test nella settimana di scarico (Forza A;
+   muscle-up in Forza B) ed è aggiornato anche dalle serie pulite registrate.
 --------------------------------------------------------------------------- */
 const PULL_GOALS = { activation: 'pullupActivation', eccentric: 'pullupStrength',
-                     isometric: 'pullupIso', volume: 'pullupVolume', row: 'pullupVolume' };
+                     isometric: 'pullupIso', volume: 'pullupVolume', row: 'pullupVolume',
+                     strict: 'pullupStrict', power: 'pullupPower', dip: 'dipStrength',
+                     skill: 'muSkill', mu: 'muPractice' };
+const STRICT_LEVELS = ['Completa', 'Completa con tenuta di 2 s in alto', 'Completa con tempo lento'];
+const PULL_RECENT_MS = 42 * 864e5;     // sei settimane: oltre, il dato è vecchio
+
+/* Ripetizioni migliori di una registrazione (serie per serie se ci sono). */
+function bestRepsOf(l) {
+  const rows = setRows(l);
+  const vals = rows ? rows.map(r => +r.reps) : [+(l.repsDone != null ? l.repsDone : l.reps)];
+  return Math.max(0, ...vals.filter(isFinite));
+}
+/* Ripetizioni migliori di una registrazione contando solo le serie al livello
+   richiesto (una serie annotata come assistita non vale come pulita). */
+function bestAtLevels(l, okLevels) {
+  const rows = setRows(l);
+  if (rows) {
+    const ok = rows.filter(r => okLevels.includes(r.load || l.load)).map(r => +r.reps).filter(isFinite);
+    return ok.length ? Math.max(...ok) : 0;
+  }
+  return okLevels.includes(l.load) ? bestRepsOf(l) : 0;
+}
+/* Massimo attuale: il migliore fra test, serie registrate e valore dichiarato
+   delle ultime sei settimane; se non c'è nulla di recente, l'ultimo dato. */
+function liftMax(exId, okLevels, selfKey) {
+  const cand = [];
+  (S.logs || []).forEach(l => {
+    if (l.exId !== exId || l.planned) return;
+    const n = bestAtLevels(l, okLevels);
+    if (n > 0 || l.goal === 'pullupTest' || l.goal === 'muTest')
+      cand.push({ n, ts: l.ts || 0, src: (l.goal === 'pullupTest' || l.goal === 'muTest') ? 'test' : 'serie' });
+  });
+  if (S.pullSelf && isFinite(S.pullSelf[selfKey]))
+    cand.push({ n: Math.max(0, Math.round(S.pullSelf[selfKey])), ts: S.pullSelf.ts, src: 'dichiarato' });
+  if (!cand.length) return { n: 0, ts: 0, src: 'nessuno' };
+  const now = Date.now();
+  const recent = cand.filter(c => now - c.ts <= PULL_RECENT_MS);
+  if (recent.length) return recent.reduce((a, b) => (b.n > a.n || (b.n === a.n && b.ts > a.ts)) ? b : a);
+  return cand.reduce((a, b) => b.ts > a.ts ? b : a);
+}
+const pullMax = () => liftMax('g_pullup', STRICT_LEVELS, 'n');
+const muMax = () => liftMax('g_muscleup', ['Completo'], 'mu');
+
+/* Tappa attuale del blocco trazioni. blocked = la tappa che spetterebbe ma
+   resta chiusa per la precauzione sulla spalla. */
+function pullStage() {
+  const st = PROG.pullupBlock && PROG.pullupBlock.stages;
+  if (!st || !st.length) return null;
+  const m = pullMax().n, mu = muMax().n;
+  let pick = st[0], blocked = null;
+  st.forEach(x => {
+    if (m >= x.min && mu >= (x.minMu || 0)) {
+      if (x.needsShoulder && S.shoulderCare) { if (!blocked) blocked = x; return; }
+      pick = x;
+    }
+  });
+  const next = st[st.indexOf(pick) + 1] || null;
+  return { stage: pick, idx: st.indexOf(pick), next, blocked, m, mu };
+}
+/* Il test cade nella settimana di scarico: trazioni in Forza A, muscle-up in
+   Forza B quando sono già in programma. */
+function pullTestFor(meta, ps) {
+  if (!meta.profile || meta.profile.label !== 'Scarico' || S.setup !== 'gym' || !ps) return null;
+  if (meta.tmplIdx === 0) return 'pull';
+  if (meta.tmplIdx === 1 && ps.stage.id === 'mu') return 'mu';
+  return null;
+}
+const clampN = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
 function pullPool(role) {
   let pool = DB.exercises.filter(e => e.pattern === 'pullup' && e.setup.includes(S.setup) &&
@@ -1400,16 +1476,45 @@ function pullPool(role) {
 function buildPullBlock(meta, used) {
   const cfg = PROG.pullupBlock;
   if (!cfg || !S.pullupGoal) return [];
-  const roles = cfg.days[meta.tmplIdx % cfg.days.length];
+  const ps = pullStage();
+  const days = ps ? ps.stage.days : cfg.days;
+  const roles = days[meta.tmplIdx % days.length];
+  const test = pullTestFor(meta, ps);
   const items = [];
   roles.forEach((role, i) => {
-    const pool = pullPool(role);
-    const ex = pickFrom(pool, (meta.mesocycle - 1) + i, used);
+    let ex = null;
+    if (role === 'strict' && S.setup === 'gym') ex = exById('g_pullup');
+    if (!ex) ex = pickFrom(pullPool(role === 'strict' ? 'volume' : role), (meta.mesocycle - 1) + i, used);
     if (!ex) return;
-    const goalKey = PULL_GOALS[ex.pullRole] || PULL_GOALS[role];
-    items.push({ exId: ex.id, note: 'Obiettivo trazioni', goalKey, block: 'pullup', role: role === 'activation' ? 'activation' : 'pull',
-                 alt: { patterns: ['pullup'], types: ['strength'], roles: [role] },
-                 ...dose(goalKey, meta.profile, ex) });
+    used.add(ex.id);
+    const own = ex.id === 'g_pullup' && role === 'strict';
+    const goalKey = (own || ex.pullRole === role) ? PULL_GOALS[role] : (PULL_GOALS[ex.pullRole] || PULL_GOALS[role]);
+    const d = dose(goalKey, meta.profile, ex);
+    let note = ps ? `Trazioni · ${ps.stage.label}` : 'Obiettivo trazioni', level = null, gk = goalKey;
+    if (own) {
+      level = 'Completa';
+      if (test === 'pull') {
+        gk = 'pullupTest';
+        Object.assign(d, { goal: gk, goalLabel: PROG.goals.pullupTest.label, rpe: PROG.goals.pullupTest.rpe,
+                           source: PROG.goals.pullupTest.source, sets: 1, rest: 0, reps: Math.max(1, ps.m + 1) });
+        note = `Test del mese · prova a superare ${ps.m} ${ps.m === 1 ? 'trazione' : 'trazioni'}`;
+      } else {
+        // sempre due ripetizioni di margine rispetto al massimo
+        d.reps = clampN(ps.m - 2, 1, 12);
+        d.sets = clampN((ps.m <= 5 ? 5 : 4) + (meta.profile.setsDelta || 0), 2, 6);
+      }
+    }
+    if (ex.id === 'g_muscleup') {
+      level = 'Completo';
+      if (test === 'mu') {
+        gk = 'muTest';
+        Object.assign(d, { goal: gk, goalLabel: PROG.goals.muTest.label, rpe: PROG.goals.muTest.rpe,
+                           source: PROG.goals.muTest.source, sets: 1, rest: 0, reps: ps.mu + 1 });
+        note = `Test del mese · prova a superare ${ps.mu} muscle-up`;
+      } else d.reps = clampN(ps.mu - 1, 1, 5);
+    }
+    items.push(Object.assign({ exId: ex.id, note, goalKey: gk, block: 'pullup', role: role === 'activation' ? 'activation' : 'pull',
+                 alt: { patterns: ['pullup'], types: ['strength'], roles: [role] } }, d, level ? { level } : {}));
   });
   return items;
 }
@@ -1456,8 +1561,9 @@ function finisherItem(meta, forceId) {
    SEDUTA DI FORZA
    Ordine e priorità (dalla 4.8):
      1. i due esercizi principali del giorno, a fresco;
-     2. il lavoro principale per le trazioni (eccentriche, isometria o volume
-        assistito): obiettivo accessorio, quindi dopo i fondamentali;
+     2. il blocco trazioni e muscle-up, per tappe (vedi buildPullBlock):
+        dopo i fondamentali; dalla 6.4 quando si accorcia la seduta si tagliano
+        prima i complementari;
      3. gli altri esercizi del giorno;
      4. se resta tempo: esercizi supplementari, il finale metabolico e, per
         ultima, la sospensione alla sbarra. Dalla 6.3 i supplementari non
@@ -1791,10 +1897,12 @@ function fitToTime(items, maxMin, tail) {
   const over = () => estimateMinutes(items) > maxMin;
   if (tail && tail.length && over()) { tail.length = 0; trimmed = true; }
   while (over() && guard++ < 60) {
-    const pull = items.find(it => it.role === 'pull' && it.sets > 3);
-    if (pull) { minus(pull); continue; }
+    // dalla 6.4 trazioni e muscle-up sono un obiettivo del programma: prima si
+    // accorciano i complementari, poi le serie in più del blocco trazioni
     const acc = items.slice().reverse().find(it => (it.role === 'main' || !it.role) && it.sets > 2);
     if (acc) { minus(acc); continue; }
+    const pull = items.find(it => it.role === 'pull' && it.sets > 3);
+    if (pull) { minus(pull); continue; }
     const pull2 = items.find(it => it.role === 'pull' && it.sets > 2);
     if (pull2) { minus(pull2); continue; }
     const key = items.slice().reverse().find(it => it.role === 'key' && it.sets > 2);
@@ -2217,7 +2325,7 @@ function bindMorning() {
 let sessMemo = new Map(), sessMemoKey = null;
 function planSignature() {
   return [S.programId, S.setup, S.durPref || 35, S.finisher || '', S.kneeCare, S.shoulderCare,
-          S.pullupGoal, S.week6From || 0, logsRev, (S.mobilityWeeks || []).join('.'),
+          S.pullupGoal, JSON.stringify(S.pullSelf || null), S.week6From || 0, logsRev, (S.mobilityWeeks || []).join('.'),
           JSON.stringify(S.perms || {}), JSON.stringify(S.sessPick || {})].join('|');
 }
 function sessionFor(idx, kind) {
@@ -2643,6 +2751,7 @@ function renderProg() {
     ${tile('path', 'Il percorso', pBody)}
     ${tile('upcoming', 'Le prossime settimane', `<div class="dstat">Cosa ti aspetta</div>
       <p class="small muted">Tipo di seduta giorno per giorno, con fasi, scarichi e settimane di sola mobilità.</p>`)}
+    ${S.pullupGoal ? tile('pull', 'Trazioni e muscle-up', pullTileBody()) : ''}
     ${tile('trend', 'Progressione negli esercizi', eBody)}
     ${tile('body', 'Misure corporee', bBody)}
     ${tile('history', 'Volume e storico', vBody)}`;
@@ -2651,10 +2760,76 @@ function renderProg() {
     const k = el.dataset.prog;
     if (k === 'path') openPath();
     else if (k === 'upcoming') openUpcoming();
+    else if (k === 'pull') openPullGoal();
     else if (k === 'trend') { go('history'); scrollToId('loadsCard'); }
     else if (k === 'body') { go('history'); scrollToId('bodyCard'); }
     else go('history');
   });
+}
+
+/* ---------------------------------------------------------------------------
+   OBIETTIVO TRAZIONI E MUSCLE-UP (dalla 6.4)
+   Riquadro in Progressi e scheda di dettaglio: massimo attuale e da dove
+   viene, tappa del blocco trazioni e criterio per la successiva, ritmo che
+   serve per arrivare all'obiettivo, test registrati, aggiornamento a mano del
+   massimo (per esempio dopo una prova fuori programma).
+--------------------------------------------------------------------------- */
+function pullTarget() {
+  const t = (PROG.pullupBlock && PROG.pullupBlock.target) || {};
+  return { n: t.pullups || 15, mu: t.muscleUps || 10 };
+}
+function pullTileBody() {
+  const ps = pullStage(), t = pullTarget();
+  if (!ps) return '<p class="small muted">Blocco trazioni non configurato.</p>';
+  const pct = Math.min(100, Math.round((Math.min(ps.m, t.n) / t.n * 0.6 + Math.min(ps.mu, t.mu) / t.mu * 0.4) * 100));
+  return `<div class="dstat">${ps.m} ${ps.m === 1 ? 'trazione' : 'trazioni'} · ${ps.mu} muscle-up</div>
+    <div class="dbar"><i style="width:${pct}%"></i></div>
+    <p class="small">Obiettivo: ${t.n} trazioni pulite di fila e ${t.mu} muscle-up · tappa: ${esc(ps.stage.label)}</p>`;
+}
+function openPullGoal() {
+  const ps = pullStage(), t = pullTarget(), path = pathStatus();
+  if (!ps) return;
+  const pm = pullMax(), mm = muMax();
+  // la data dell'obiettivo è quella fissa del programma, non la fine stimata
+  const goalEnd = path.p.target ? new Date(path.p.target + 'T12:00:00') : path.end;
+  const weeksToGoal = Math.max(1, Math.round((goalEnd - Date.now()) / (7 * 864e5)));
+  const srcTxt = r => r.src === 'nessuno' ? 'nessun dato ancora'
+    : `${r.src === 'test' ? 'test' : r.src === 'serie' ? 'serie registrata' : 'valore inserito da te'} del ${dateIt(r.ts)}`;
+  const weeks = weeksToGoal;
+  const perMonth = Math.max(0, (t.n - ps.m) / weeks * 4);
+  const next = ps.next;
+  let nextTxt = '';
+  if (ps.blocked) nextTxt = `<p class="small"><b>${esc(ps.blocked.label)}</b> ti spetterebbe già, ma resta chiusa perché in <i>Programma</i> è attiva «evita gli esercizi dolorosi per la spalla». Il muscle-up è fra i gesti ginnici più spesso indicati come causa di infortuni alla spalla, e in quasi quattro casi su dieci si trattava di un problema già presente. Togli la spunta solo se trazioni, trazioni al petto e dip non ti danno dolore, meglio dopo una valutazione del fisioterapista.</p>`;
+  else if (next) nextTxt = `<p class="small">Tappa successiva, <b>${esc(next.label)}</b>: ${next.minMu ? 'il primo muscle-up completo' : `${next.min} trazioni pulite di fila`}${next.needsShoulder ? ', senza dolore alla spalla' : ''}.</p>`;
+  const tests = S.logs.filter(l => l.goal === 'pullupTest' || l.goal === 'muTest').slice(-8).reverse();
+  const testRows = tests.length ? `<ul class="small">${tests.map(l => `<li>${dateIt(l.ts)} · ${l.goal === 'muTest' ? 'muscle-up' : 'trazioni'}: <b>${bestRepsOf(l)}</b></li>`).join('')}</ul>`
+    : '<p class="small muted">Nessun test ancora: il primo cade nella prossima settimana di scarico, in Forza A.</p>';
+  openModal(`<h2>Trazioni e muscle-up</h2>
+    <p class="small muted">Obiettivo al ${dateIt(goalEnd)}: <b>${t.n} trazioni pulite di fila</b> e <b>${t.mu} muscle-up</b>.</p>
+    <div class="card" style="margin:10px 0">
+      <div class="dstat">${ps.m} ${ps.m === 1 ? 'trazione' : 'trazioni'} · ${ps.mu} muscle-up</div>
+      <p class="small muted">Trazioni: ${srcTxt(pm)}. Muscle-up: ${srcTxt(mm)}.</p>
+      <p class="small">Tappa attuale: <b>${esc(ps.stage.label)}</b> — ${esc(ps.stage.why)}</p>
+      ${nextTxt}
+      <p class="small muted">Per arrivare a ${t.n} servono in media circa ${kg1(perMonth)} ripetizioni in più ogni quattro settimane, per ${weeks} settimane. È un obiettivo ambizioso: negli adulti già allenati studiati da Sánchez-Moreno e colleghi le ripetizioni massime sono salite del 15% in 12 settimane; chi parte da poche ripetizioni di solito progredisce più in fretta in proporzione, ma non esistono dati su adulti di 50 anni che permettano una previsione affidabile. Il test mensile dirà se il ritmo regge.</p>
+    </div>
+    <h3>Test registrati</h3>${testRows}
+    <h3>Aggiorna il massimo</h3>
+    <p class="small muted">Se hai provato fuori programma, inserisci quante ripetizioni pulite di fila hai fatto: il blocco trazioni si adegua da subito. Le registrazioni non vengono toccate.</p>
+    <div class="row" style="gap:8px;margin:6px 0">
+      <label class="small">Trazioni <input id="pmN" type="number" inputmode="numeric" min="0" max="40" value="${ps.m}" style="width:70px"></label>
+      <label class="small">Muscle-up <input id="pmMu" type="number" inputmode="numeric" min="0" max="30" value="${ps.mu}" style="width:70px"></label>
+    </div>
+    <button class="btn" id="pmSave">Salva il massimo</button>
+    <p class="small muted" style="margin-top:12px">Fonti: Sánchez-Moreno et al. 2020, J Strength Cond Res 34(4):911-917 (serie con fatica moderata); Sánchez-Moreno et al. 2017, Int J Sports Physiol Perform 12(10):1378-1384; Walker et al. 2023, Int J Exerc Sci 16(1):1451-1460 (muscle-up: prima la sbarra); McKenzie et al. 2022, IJERPH 19(21):14390 (dip); Summitt et al. 2016, Sports Health 8(6):541-546 (spalla); Desmeules et al. 2025, JOSPT 55(4):235-274. Le soglie delle tappe sono regole operative dell'app.</p>
+    <button class="btn secondary" id="pmClose" style="margin-top:10px">Chiudi</button>`);
+  $('#pmClose').onclick = () => closeModal();
+  $('#pmSave').onclick = () => {
+    const n = Math.round(+$('#pmN').value), mu = Math.round(+$('#pmMu').value);
+    if (!isFinite(n) || n < 0 || n > 40 || !isFinite(mu) || mu < 0 || mu > 30) return;
+    S.pullSelf = { n, mu, ts: Date.now() };
+    planCache = null; save(); closeModal(); renderProg();
+  };
 }
 
 function scrollToId(id) {
@@ -3296,7 +3471,10 @@ function startSession(sess) {
 
 function renderSession() {
   const c = current, s = c.sess, it = s.items[c.pos], ex = exById(it.exId);
-  const sug = suggestLoad(ex);
+  // nel blocco trazioni il livello è fissato e si progredisce con le
+  // ripetizioni: resta il richiamo all'ultima volta, non il consiglio di gradino
+  const sug0 = suggestLoad(ex);
+  const sug = (it.level && sug0) ? Object.assign({}, sug0, { value: '', reason: '' }) : sug0;
   refreshDeload();
   $('#topTitle').textContent = s.type === 'stretch' ? 'Mobilità' : s.type === 'cardio' ? 'Aerobico' : 'Sessione';
   $('#topChip').textContent = `${c.pos + 1}/${s.items.length}`;
@@ -3310,7 +3488,7 @@ function renderSession() {
 
   // --- carico: numerico, band o gradino della progressione a corpo libero ---
   const steps = ex.load === 'band' ? BANDS : levelsOf(ex);
-  const curLoad = c.loads[c.pos] || (sug && sug.value) || '';
+  const curLoad = c.loads[c.pos] || it.level || (sug && sug.value) || '';
   let loadCtl;
   if (steps) {
     loadCtl = `<select id="loadIn" aria-label="Livello">${steps.map(b =>
@@ -5000,7 +5178,7 @@ function renderSettings() {
         subacromiale — l'esercizio attivo contro resistenza è raccomandato con prove forti, senza un elenco di movimenti da
         evitare (linea guida JOSPT 2025). Qui l'app sceglie per primi gli esercizi che di solito danno meno fastidio; se un
         movimento non ti dà dolore, togli la spunta e torna disponibile.</p>
-      <div class="switch"><span>Obiettivo trazioni alla sbarra<br><span class="small muted">Lavoro dedicato dopo i due esercizi principali; sospensione alla sbarra in chiusura, se resta tempo</span></span>
+      <div class="switch"><span>Obiettivo trazioni e muscle-up<br><span class="small muted">15 trazioni pulite di fila e 10 muscle-up a fine programma: lavoro per tappe dopo i due esercizi principali, test nella settimana di scarico, sospensione in chiusura se resta tempo. Dettagli in Progressi.</span></span>
         <input type="checkbox" id="pullChk" ${S.pullupGoal ? 'checked' : ''}></div>
       <div class="switch"><span>Campanella del timer</span>
         <input type="checkbox" id="soundChk" ${S.sound !== false ? 'checked' : ''}></div>

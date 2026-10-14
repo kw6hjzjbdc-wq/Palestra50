@@ -298,28 +298,33 @@ Dentro ogni fase si lavora a blocchi di quattro settimane, con la quarta di scar
 
 **Cambiando programma non si perde nulla**: storico dei carichi, valutazioni a stelle, riepiloghi e backup sono indipendenti dal programma attivo, e gli altri programmi (3, 4 e 6 settimane) restano disponibili in Programma.
 
-### Blocco trazioni alla sbarra
+### Trazioni e muscle-up: obiettivo del programma (dalla 6.4)
 
-Obiettivo attivabile da Programma (predefinito: attivo). È un obiettivo **accessorio** rispetto a tono, ipertrofia, forza e mobilità: dalla 4.8 il lavoro principale per le trazioni (eccentriche, isometria o volume assistito) segue i due esercizi fondamentali del giorno, e la **sospensione alla sbarra** o l'attivazione scapolare chiudono la seduta solo se resta tempo. Nel giorno B la tirata del programma lascia il posto a un secondo esercizio di spinta, per riequilibrare petto e dorso.
+**Obiettivo al 30 maggio 2027: 15 trazioni pulite di fila a corpo libero e 10 muscle-up.** Attivabile da *Programma* (predefinito: attivo). Il lavoro resta dopo i due esercizi fondamentali del giorno, con la **sospensione alla sbarra** o l'attivazione scapolare in chiusura se resta tempo; ma quando la seduta va accorciata per stare nei minuti scelti, ora si riducono prima i complementari e poi le serie del blocco trazioni.
 
-L'onda settimanale non è casuale, segue le evidenze sulla progressione:
+**Tappe guidate dai progressi, non dal calendario.** Il blocco cambia secondo il massimo di trazioni pulite (`pullMax`) e di muscle-up (`muMax`):
 
-| Giorno | Blocco | Dose |
-|---|---|---|
-| A | attivazione + **eccentriche** (trazioni negative, discesa 4-5 s) | 4× 3-5, recupero 2 min |
-| B | attivazione + **isometria** (mento sopra la sbarra) | 4× 8-12 s, recupero 90 s |
-| C | attivazione + **volume assistito** (band o macchina) | 3× 5-8, recupero 90 s |
+| Massimo | Tappa | Forza A | Forza B | Forza C |
+|---|---|---|---|---|
+| 0 | Prima trazione | negative | tenuta isometrica | volume assistito |
+| 1-5 | Prime ripetizioni | serie pulite brevi | negative | volume assistito |
+| 6-11 | Volume a corpo libero | serie pulite | trazioni esplosive al petto | negative lente |
+| 12+ | Verso il muscle-up | serie pulite | trazioni al petto + dip | transizione alla sbarra bassa |
+| 12+ e 1 muscle-up | Muscle-up | serie pulite | muscle-up + dip | transizione |
 
-L'attivazione è sospensione alla sbarra o trazioni scapolari: è la fase iniziale del movimento, quella che quasi tutti saltano. A casa, senza sbarra, il blocco si traduce in attivazione scapolare, pulldown con band a eccentrica lenta di 5 secondi e tenuta isometrica con band.
+- **Serie pulite**: ripetizioni = massimo − 2, fino a 12 (sempre due di margine, mai a cedimento), 5 serie fino a 5 trazioni, 4 oltre; livello «Completa» preimpostato. Il riferimento è Sánchez-Moreno et al. 2020 (J Strength Cond Res 34(4):911-917): in 29 uomini allenati, 8 settimane di trazioni a corpo libero con fatica moderata (perdita di velocità del 25%) hanno migliorato forza e prestazione più delle serie spinte verso il cedimento (50%), che non hanno dato guadagni.
+- **Il massimo** è il migliore fra test, serie pulite registrate (le serie annotate come assistite o a mezza escursione non contano) e il valore inserito a mano, nelle ultime sei settimane; le sedute segnate come fatte alle dosi previste non contano.
+- **Test**: nella settimana di scarico, in Forza A, una serie di trazioni pulite al massimo (obiettivo: il massimo + 1); in Forza B il test di muscle-up quando sono già in programma. È un test di massime ripetizioni a corpo libero come quelli di Sánchez-Moreno et al. 2017 (Int J Sports Physiol Perform 12(10):1378-1384).
+- **Spalla**: le tappe del muscle-up restano chiuse finché in *Programma* è attiva «evita gli esercizi dolorosi per la spalla». In un'indagine su praticanti di CrossFit (Summitt et al. 2016, Sports Health 8(6):541-546) muscle-up agli anelli e alla sbarra, dip agli anelli e trazioni con slancio erano fra i gesti indicati come causa di infortuni alla spalla, e il 38,6% degli infortuni era la riacutizzazione di un problema già presente. La linea guida JOSPT 2025 (Desmeules et al., 55(4):235-274) raccomanda l'esercizio progressivo adattato alla tolleranza al dolore, senza elencare movimenti vietati: per questo la scelta resta all'utente, con l'indicazione di passare prima da una valutazione del fisioterapista.
+- **Dip**: fino a 90° di gomito e mai a cedimento. In McKenzie et al. 2022 (IJERPH 19(21):14390) la spalla nel dip alla sbarra arriva a circa 67° di estensione, il 76% della sua escursione passiva; due partecipanti l'hanno superata nell'ultima ripetizione fallita.
+- **Muscle-up prima alla sbarra**: Walker et al. 2023 (Int J Exerc Sci 16(1):1451-1460) indicano di costruire forza degli arti superiori e di imparare il muscle-up alla sbarra prima di quello agli anelli, che richiede più attivazione a bicipiti, tricipiti e trapezio superiore.
+- **Soglie delle tappe** (1, 6, 12 trazioni; primo muscle-up): **regole operative dell'app**. Nessuna fonte verificata fissa prerequisiti numerici per il muscle-up.
+- **Quanto è realistico**: per gli uomini di 46-50 anni la tabella del test fisico dei Marines assegna il punteggio massimo a 19 trazioni (fonte secondaria: tabelle USMC PFT riportate da Military.com), quindi 15 è un livello alto. In Sánchez-Moreno et al. 2017 le ripetizioni massime di uomini già allenati sono salite del 15% in 12 settimane; chi parte da poche ripetizioni progredisce di solito più in fretta in proporzione, ma non esistono dati su adulti di 50 anni per una previsione affidabile. La scheda in *Progressi* mostra il ritmo necessario e i test registrati.
+- **A casa**, senza sbarra, il blocco resta quello di sempre: attivazione scapolare, pulldown con band a eccentrica lenta e tenuta isometrica con band.
 
-**Perché eccentriche e non solo band.** Uno studio del Journal of Strength and Conditioning Research ha confrontato per otto settimane tre gruppi di principianti — assistenza elastica, macchina a contrappeso e lavoro solo eccentrico: il gruppo con la band ha avuto il minor miglioramento nelle trazioni libere, quello eccentrico il maggiore, pur non eseguendo mai una trazione completa in allenamento. Il motivo è meccanico: la band assiste al massimo in basso, dove sei più debole, e quasi per nulla in alto. Le band restano utili come accumulo di volume, perché l'analisi EMG mostra che l'assistenza elastica riproduce il pattern della trazione libera meglio della macchina, core e stabilizzatori scapolari inclusi: il corpo resta sospeso e deve stabilizzarsi. La lat machine è un complemento, non il lavoro centrale: tre sedute settimanali di trazioni assistite con riduzione progressiva della band hanno prodotto in dieci settimane 4-5 ripetizioni strict in più contro 1-2 di un gruppo che usava solo la lat machine.
+**Riquadro in Progressi**: massimo attuale e da dove viene, tappa e criterio per la successiva, ritmo necessario, test registrati, aggiornamento a mano del massimo (le registrazioni non vengono toccate).
 
-**Presa e spalla.** Le trazioni riducono lo spazio subacromiale, e in uno studio biomeccanico la presa prona a larghezza spalle è risultata a minor rischio di conflitto rispetto alle altre varianti; la presa neutra mantiene la spalla in rotazione più esterna ed è di norma la più tollerata. Le schede indicano presa neutra o prona a larghezza spalle e sconsigliano la presa larga, coerentemente con il filtro spalla del profilo.
-
-**Criteri di avanzamento** (per checkpoint, non per calendario):
-- riduci la band (viola → rossa → gialla → azzurra) quando completi le ripetizioni previste con due di margine;
-- passa alla trazione completa quando tieni 5 secondi con il mento sopra la sbarra e scendi in 5 secondi controllati;
-- non portare mai a cedimento il blocco: è lavoro di forza e di tecnica, non di esaurimento.
+**Fonti tolte.** Le versioni precedenti citavano uno studio JSCR su band, macchina ed eccentriche nei principianti, un'analisi EMG sull'assistenza elastica, uno studio di dieci settimane con 4-5 ripetizioni in più e uno studio biomeccanico sulla presa. Nessuno è stato rintracciato su una fonte verificabile: le affermazioni sono state tolte e le scelte corrispondenti (eccentriche e tenute nella prima tappa, band come volume, presa a larghezza spalle) sono indicate come regole operative dell'app.
 
 ### Parametri e fonti
 

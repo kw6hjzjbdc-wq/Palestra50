@@ -74,7 +74,7 @@
    "repsHigh": 5,
    "rest": 120,
    "rpe": "7-8, mai a cedimento",
-   "source": "Evidenza JSCR – lavoro eccentrico 4-5 s, recupero pieno"
+   "source": "Progressione trazioni: eccentriche lente 4-5 s, recupero pieno (regola operativa dell'app)"
   },
   "pullupIso": {
    "label": "Trazioni · isometria",
@@ -93,7 +93,7 @@
    "repsHigh": 8,
    "rest": 90,
    "rpe": "7, due ripetizioni di margine",
-   "source": "Evidenza EMG – band come accumulo di volume, non lavoro principale"
+   "source": "Progressione trazioni: volume assistito, band o macchina (regola operativa dell'app)"
   },
   "finisher": {
    "label": "Finale metabolico",
@@ -124,6 +124,69 @@
    "hold": 1200,
    "rpe": "5-6/10, frasi brevi",
    "source": "WHO 2020: 150-300 min/settimana di attività aerobica moderata; ACSM: 20-60 min continui"
+  },
+  "pullupStrict": {
+   "label": "Trazioni · serie pulite",
+   "sets": 5,
+   "repsLow": 1,
+   "repsHigh": 1,
+   "rest": 120,
+   "rpe": "sempre 2 ripetizioni di margine, mai a cedimento",
+   "source": "Sánchez-Moreno et al. 2020, J Strength Cond Res 34(4):911-917: serie con fatica moderata (perdita di velocità 25%) migliorano forza e ripetizioni più delle serie spinte verso il cedimento"
+  },
+  "pullupTest": {
+   "label": "Test · massimo di trazioni pulite",
+   "sets": 1,
+   "repsLow": 1,
+   "repsHigh": 1,
+   "rest": 0,
+   "rpe": "massimo con tecnica pulita: ti fermi quando la ripetizione si sporca",
+   "source": "Test di massime ripetizioni a corpo libero, come in Sánchez-Moreno et al. 2017, Int J Sports Physiol Perform 12(10):1378-1384"
+  },
+  "pullupPower": {
+   "label": "Trazioni · esplosive al petto",
+   "sets": 4,
+   "repsLow": 2,
+   "repsHigh": 4,
+   "rest": 150,
+   "rpe": "7, ogni ripetizione veloce",
+   "source": "Preparazione al muscle-up – Walker et al. 2023, Int J Exerc Sci 16(1):1451-1460"
+  },
+  "dipStrength": {
+   "label": "Dip · forza di spinta",
+   "sets": 3,
+   "repsLow": 5,
+   "repsHigh": 8,
+   "rest": 120,
+   "rpe": "7, mai a cedimento",
+   "source": "McKenzie et al. 2022, IJERPH 19(21):14390"
+  },
+  "muSkill": {
+   "label": "Muscle-up · tecnica",
+   "sets": 4,
+   "repsLow": 3,
+   "repsHigh": 5,
+   "rest": 120,
+   "rpe": "6-7, lavoro tecnico, mai a fatica",
+   "source": "Walker et al. 2023, Int J Exerc Sci 16(1):1451-1460"
+  },
+  "muPractice": {
+   "label": "Muscle-up · serie",
+   "sets": 4,
+   "repsLow": 1,
+   "repsHigh": 1,
+   "rest": 180,
+   "rpe": "sempre 1-2 ripetizioni di margine",
+   "source": "Walker et al. 2023; Summitt et al. 2016, Sports Health 8(6):541-546"
+  },
+  "muTest": {
+   "label": "Test · massimo di muscle-up",
+   "sets": 1,
+   "repsLow": 1,
+   "repsHigh": 1,
+   "rest": 0,
+   "rpe": "massimo con tecnica pulita, senza slancio di gambe",
+   "source": "Test di massime ripetizioni; Walker et al. 2023, Int J Exerc Sci 16(1):1451-1460"
   }
  },
  "programs": [
@@ -818,20 +881,117 @@
   "goal": "core"
  },
  "pullupBlock": {
-  "note": "Preparazione alle trazioni, obiettivo accessorio: il lavoro principale (eccentriche, isometria o volume assistito) segue i primi due esercizi della seduta; sospensione o attivazione scapolare chiudono la seduta solo se resta tempo.",
-  "days": [
-   [
-    "activation",
-    "eccentric"
-   ],
-   [
-    "activation",
-    "isometric"
-   ],
-   [
-    "activation",
-    "volume"
-   ]
+  "note": "Trazioni e muscle-up, obiettivo del programma: 15 trazioni pulite di fila e 10 muscle-up al 30 maggio 2027. Il lavoro cambia per tappe secondo il massimo di trazioni pulite registrato (test nella settimana di scarico), non per calendario.",
+  "target": {
+   "pullups": 15,
+   "muscleUps": 10
+  },
+  "stages": [
+   {
+    "id": "first",
+    "min": 0,
+    "label": "Prima trazione",
+    "why": "Negative, tenute e volume assistito finché non arriva la prima ripetizione pulita.",
+    "days": [
+     [
+      "activation",
+      "eccentric"
+     ],
+     [
+      "activation",
+      "isometric"
+     ],
+     [
+      "activation",
+      "volume"
+     ]
+    ]
+   },
+   {
+    "id": "reps",
+    "min": 1,
+    "label": "Prime ripetizioni",
+    "why": "Tante serie brevi di trazioni pulite, sempre con margine, più negative e volume assistito.",
+    "days": [
+     [
+      "activation",
+      "strict"
+     ],
+     [
+      "activation",
+      "eccentric"
+     ],
+     [
+      "activation",
+      "volume"
+     ]
+    ]
+   },
+   {
+    "id": "volume",
+    "min": 6,
+    "label": "Volume a corpo libero",
+    "why": "Serie pulite più lunghe, trazioni esplosive al petto e negative lente.",
+    "days": [
+     [
+      "activation",
+      "strict"
+     ],
+     [
+      "activation",
+      "power"
+     ],
+     [
+      "activation",
+      "eccentric"
+     ]
+    ]
+   },
+   {
+    "id": "muprep",
+    "min": 12,
+    "label": "Verso il muscle-up",
+    "why": "Trazioni pulite e al petto, dip e transizione alla sbarra bassa.",
+    "days": [
+     [
+      "activation",
+      "strict"
+     ],
+     [
+      "activation",
+      "power",
+      "dip"
+     ],
+     [
+      "activation",
+      "skill"
+     ]
+    ],
+    "needsShoulder": true
+   },
+   {
+    "id": "mu",
+    "min": 12,
+    "minMu": 1,
+    "label": "Muscle-up",
+    "why": "Serie di muscle-up con margine, trazioni pulite e dip.",
+    "days": [
+     [
+      "activation",
+      "strict"
+     ],
+     [
+      "activation",
+      "mu",
+      "dip"
+     ],
+     [
+      "activation",
+      "skill"
+     ]
+    ],
+    "needsShoulder": true
+   }
   ]
  },
  "finisherOptions": [

@@ -4457,7 +4457,7 @@
    "safety": [
     "Spalla: presa neutra o prona a larghezza spalle, mai larghissima. Fermati quando la discesa scende sotto i 3 secondi: è il segnale che la serie è finita."
    ],
-   "source": "Evidenza JSCR: il lavoro eccentrico trasferisce alla trazione libera più dell'assistenza elastica",
+   "source": "Progressione trazioni: lavoro eccentrico controllato (regola operativa dell'app; lo studio JSCR citato in passato non è stato rintracciato su fonte verificabile)",
    "levels": [
     "Discesa 3 s",
     "Discesa 5 s",
@@ -4553,7 +4553,7 @@
    "safety": [
     "La band aiuta molto in basso e poco in alto: serve per accumulare volume, non come lavoro principale. Cambia band (viola → rossa → gialla → azzurra) ogni volta che superi le ripetizioni previste con facilità."
    ],
-   "source": "Evidenza EMG: l'assistenza elastica riproduce il pattern della trazione libera meglio della macchina",
+   "source": "Progressione trazioni: assistenza elastica per accumulare volume (regola operativa dell'app; l'analisi EMG citata in passato non è stata rintracciata su fonte verificabile)",
    "assist": true,
    "assistNote": "La band aiuta: più è dura, più solleva il tuo peso. Progredire significa passare a una band più leggera."
   },
@@ -4598,7 +4598,7 @@
    "safety": [
     "Utile per il volume con tecnica pulita, ma il carico costante rende il lavoro meno simile alla trazione libera rispetto alla band: alternalo, non usarlo da solo."
    ],
-   "source": "Evidenza: il contrappeso costante riduce la richiesta di stabilizzazione rispetto alla sospensione libera",
+   "source": "Progressione trazioni: macchina assistita come complemento (regola operativa dell'app)",
    "assist": true,
    "assistNote": "Contrappeso della macchina: più alto, più aiuto. Progredire significa ridurlo.",
    "rack": "machine"
@@ -4646,13 +4646,320 @@
    "safety": [
     "Spalla: la presa neutra o prona a larghezza spalle è la meno critica per lo spazio subacromiale; la presa larghissima è quella più a rischio. Ferma la serie quando la tecnica si sporca, non al cedimento."
    ],
-   "source": "Presa a larghezza spalle: minor rischio di conflitto subacromiale fra le varianti studiate",
+   "source": "Presa a larghezza spalle, mai larghissima (regola operativa dell'app); serie con margine: Sánchez-Moreno et al. 2020, J Strength Cond Res 34(4):911-917",
    "levels": [
     "Assistita con band",
     "Mezza escursione",
     "Completa",
     "Completa con tenuta di 2 s in alto",
     "Completa con tempo lento"
+   ]
+  },
+  {
+   "id": "g_c2b",
+   "name": "Trazioni al petto, salita esplosiva",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Trazioni",
+   "pattern": "pullup",
+   "pullRole": "power",
+   "load": "bodyweight",
+   "kneeFriendly": true,
+   "primary": [
+    "Gran dorsale",
+    "Bicipiti"
+   ],
+   "secondary": [
+    "Trapezio",
+    "Romboidi",
+    "Core",
+    "Presa"
+   ],
+   "equipment": [
+    "Sbarra"
+   ],
+   "art": {
+    "frames": [
+     "hangLow",
+     "hangHigh"
+    ],
+    "implement": "bar"
+   },
+   "steps": [
+    "Presa prona a larghezza spalle, partenza da braccia tese e spalle attive.",
+    "Sali il più rapidamente possibile, senza slancio delle gambe, portando il petto verso la sbarra.",
+    "Scendi in 2-3 secondi fino a braccia tese prima della ripetizione successiva."
+   ],
+   "errors": [
+    "Slanciare le gambe o inarcare la schiena per guadagnare altezza.",
+    "Continuare quando la salita rallenta: la serie è finita."
+   ],
+   "safety": [
+    "Serve a rendere la trazione più alta e più veloce, la base della fase di tirata del muscle-up. Poche ripetizioni, tutte rapide: se la salita rallenta, fermati."
+   ],
+   "source": "Preparazione al muscle-up – Walker et al. 2023, Int J Exerc Sci 16(1):1451-1460: costruire prima forza degli arti superiori",
+   "levels": [
+    "Mento sopra la sbarra, salita rapida",
+    "Petto alla sbarra",
+    "Petto alla sbarra con pausa di 1 s"
+   ]
+  },
+  {
+   "id": "g_dip",
+   "name": "Dip alle parallele",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Trazioni",
+   "pattern": "pullup",
+   "pullRole": "dip",
+   "load": "bodyweight",
+   "kneeFriendly": true,
+   "shoulderRisk": true,
+   "primary": [
+    "Tricipite",
+    "Petto"
+   ],
+   "secondary": [
+    "Deltoide anteriore",
+    "Core"
+   ],
+   "equipment": [
+    "Parallele"
+   ],
+   "art": {
+    "frames": [
+     "supportTop",
+     "supportBottom"
+    ],
+    "implement": "bar"
+   },
+   "steps": [
+    "In appoggio sulle parallele a braccia tese, spalle basse e lontane dalle orecchie.",
+    "Scendi piegando i gomiti con il busto appena inclinato in avanti, fino a circa 90° al gomito.",
+    "Spingi fino a braccia tese senza bloccare di colpo i gomiti."
+   ],
+   "errors": [
+    "Scendere oltre i 90° lasciando cadere le spalle in avanti.",
+    "Fare le ultime ripetizioni a cedimento: è lì che la spalla arriva più vicina al suo limite."
+   ],
+   "safety": [
+    "Spalla: nel dip la spalla va in estensione (circa 67° in media, tre quarti della sua escursione passiva). Fermati a 90° di gomito e mai a cedimento. Se compare dolore anteriore alla spalla, torna al gradino precedente."
+   ],
+   "source": "McKenzie et al. 2022, IJERPH 19(21):14390 – escursione della spalla nel dip, rischio nelle ripetizioni fallite",
+   "levels": [
+    "Con band sotto le ginocchia",
+    "Escursione fino a 90°",
+    "Completi con pausa di 1 s in basso"
+   ]
+  },
+  {
+   "id": "g_straightdip",
+   "name": "Dip alla sbarra dritta",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Trazioni",
+   "pattern": "pullup",
+   "pullRole": "dip",
+   "load": "bodyweight",
+   "kneeFriendly": true,
+   "shoulderRisk": true,
+   "primary": [
+    "Tricipite",
+    "Petto"
+   ],
+   "secondary": [
+    "Deltoide anteriore",
+    "Core"
+   ],
+   "equipment": [
+    "Sbarra bassa (multipower)"
+   ],
+   "art": {
+    "frames": [
+     "supportTop",
+     "supportBottom"
+    ],
+    "implement": "bar"
+   },
+   "steps": [
+    "In appoggio sopra la sbarra a braccia tese, sbarra all'altezza dei fianchi.",
+    "Scendi inclinando il busto in avanti, gomiti indietro, fino a portare il petto vicino alla sbarra.",
+    "Spingi fino a braccia tese: è la spinta finale del muscle-up."
+   ],
+   "errors": [
+    "Tenere il busto verticale: la sbarra urta e la spalla si chiude.",
+    "Scendere più del necessario a inizio percorso."
+   ],
+   "safety": [
+    "È il gesto della seconda metà del muscle-up. Si comincia solo quando il dip alle parallele è comodo e senza dolore; la sbarra bassa del multipower permette di appoggiare i piedi."
+   ],
+   "source": "McKenzie et al. 2022, IJERPH 19(21):14390; Walker et al. 2023, Int J Exerc Sci 16(1):1451-1460",
+   "levels": [
+    "Piedi a terra, aiuto delle gambe",
+    "Escursione parziale",
+    "Completi"
+   ]
+  },
+  {
+   "id": "g_mutransition",
+   "name": "Transizione del muscle-up alla sbarra bassa",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Trazioni",
+   "pattern": "pullup",
+   "pullRole": "skill",
+   "load": "bodyweight",
+   "kneeFriendly": true,
+   "shoulderRisk": true,
+   "primary": [
+    "Gran dorsale",
+    "Tricipite"
+   ],
+   "secondary": [
+    "Petto",
+    "Bicipiti",
+    "Core",
+    "Presa"
+   ],
+   "equipment": [
+    "Sbarra bassa (multipower)"
+   ],
+   "art": {
+    "frames": [
+     "lowBarPull",
+     "muTransitionLow"
+    ],
+    "implement": "bar"
+   },
+   "steps": [
+    "Sbarra del multipower all'altezza del petto, piedi a terra davanti a te, presa prona a larghezza spalle.",
+    "Tira la sbarra verso il basso, verso i fianchi, e ruota i polsi sopra la sbarra portando il petto oltre.",
+    "Spingi fino al supporto a braccia tese aiutandoti con le gambe quanto serve, poi torna indietro controllato."
+   ],
+   "errors": [
+    "Tirare verso il mento invece che verso i fianchi: il busto non riesce a passare sopra.",
+    "Lasciare che i gomiti si aprano larghi nel passaggio."
+   ],
+   "safety": [
+    "È la fase che il muscle-up aggiunge alla trazione e quella che più impegna la spalla. Si impara qui, con le gambe che tolgono peso, molto prima di provarla sospesi. Lavoro tecnico: mai a fatica."
+   ],
+   "source": "Progressione tecnica del muscle-up (regola operativa dell'app); Walker et al. 2023, Int J Exerc Sci 16(1):1451-1460: partire dalla sbarra",
+   "levels": [
+    "Piedi a terra, gambe piegate",
+    "Piedi a terra, gambe tese",
+    "Con piccolo salto"
+   ]
+  },
+  {
+   "id": "g_muneg",
+   "name": "Muscle-up negativo",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Trazioni",
+   "pattern": "pullup",
+   "pullRole": "skill",
+   "load": "bodyweight",
+   "kneeFriendly": true,
+   "shoulderRisk": true,
+   "primary": [
+    "Gran dorsale",
+    "Tricipite"
+   ],
+   "secondary": [
+    "Petto",
+    "Bicipiti",
+    "Core"
+   ],
+   "equipment": [
+    "Sbarra",
+    "Rialzo"
+   ],
+   "art": {
+    "frames": [
+     "supportTop",
+     "supportBottom"
+    ],
+    "implement": "bar"
+   },
+   "steps": [
+    "Con un rialzo portati in appoggio sopra la sbarra a braccia tese.",
+    "Scendi lentamente nella transizione, petto sopra la sbarra e gomiti indietro.",
+    "Continua controllato fino alla sospensione a braccia tese, poi appoggia i piedi."
+   ],
+   "errors": [
+    "Cadere di colpo dalla transizione alla sospensione.",
+    "Farlo quando le trazioni pulite non bastano ancora."
+   ],
+   "safety": [
+    "La discesa controllata insegna la transizione con meno carico per la spalla rispetto alla salita. Se il passaggio è doloroso, fermati e torna alla sbarra bassa."
+   ],
+   "source": "Progressione tecnica del muscle-up (regola operativa dell'app); Summitt et al. 2016, Sports Health 8(6):541-546: prudenza nei gesti ginnici sopra la testa",
+   "levels": [
+    "Discesa in 3 s",
+    "Discesa in 5 s"
+   ]
+  },
+  {
+   "id": "g_muscleup",
+   "name": "Muscle-up alla sbarra",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Trazioni",
+   "pattern": "pullup",
+   "pullRole": "mu",
+   "load": "bodyweight",
+   "kneeFriendly": true,
+   "shoulderRisk": true,
+   "primary": [
+    "Gran dorsale",
+    "Tricipite",
+    "Petto"
+   ],
+   "secondary": [
+    "Bicipiti",
+    "Trapezio",
+    "Deltoide anteriore",
+    "Core",
+    "Presa"
+   ],
+   "equipment": [
+    "Sbarra"
+   ],
+   "art": {
+    "frames": [
+     "hangHigh",
+     "supportTop"
+    ],
+    "implement": "bar"
+   },
+   "steps": [
+    "Presa prona a larghezza spalle, partenza da braccia tese e spalle attive.",
+    "Trazione esplosiva verso i fianchi, poi rotazione rapida dei polsi sopra la sbarra con il petto che passa oltre.",
+    "Spingi fino al supporto a braccia tese; scendi controllato fino alla sospensione."
+   ],
+   "errors": [
+    "Ricorrere a un forte slancio di gambe (kipping) per compensare la trazione.",
+    "Passare un gomito alla volta: carica una sola spalla."
+   ],
+   "safety": [
+    "Fra i gesti ginnici indicati dai praticanti come causa di infortuni alla spalla, e nel 39% dei casi si trattava di un problema già presente prima. Con un sospetto conflitto subacromiale va iniziato solo senza dolore in trazioni e dip, meglio dopo una valutazione del fisioterapista."
+   ],
+   "source": "Walker et al. 2023, Int J Exerc Sci 16(1):1451-1460 (prima la sbarra, poi gli anelli); Summitt et al. 2016, Sports Health 8(6):541-546",
+   "levels": [
+    "Con band",
+    "Completo"
    ]
   },
   {
@@ -4792,7 +5099,7 @@
    "safety": [
     "Sostituisce a casa le trazioni negative: il lavoro utile è nella risalita lenta."
    ],
-   "source": "Evidenza: la fase eccentrica lenta è la parte che trasferisce di più alla trazione"
+   "source": "Progressione trazioni: fase eccentrica lenta (regola operativa dell'app)"
   },
   {
    "id": "h_bandiso",
