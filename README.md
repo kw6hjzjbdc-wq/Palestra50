@@ -102,6 +102,21 @@ Due sedute di fila portate al limite vengono segnalate solo se non è arrivato n
 - **L'attesa non cresce all'infinito.** Il confronto si aspetta circa +2,5% a settimana dall'ultima volta che hai fatto quell'esercizio. Con la rotazione degli esercizi potevano passare quattro settimane, e l'app pretendeva +10%: un miglioramento reale del 5% prendeva due stelle. Ora l'attesa si ferma a +5%.
 - **Il motivo è visibile.** In *Progressi → Ultime sedute*, aprendo una seduta, ogni esercizio mostra le sue stelle e la frase che le spiega («in linea con la progressione prevista», «calo del 4% sul massimale stimato», «obiettivo diverso dalla volta scorsa»), con margine o RIR dichiarati.
 
+### Supplementari decisi dalla settimana, non da una lista (dalla 6.3)
+
+**Principio**: nessun gruppo muscolare ha un posto obbligato fuori da quanto il programma prevede. Le sedute seguono il programma; gli esercizi *supplementari* ("se resta tempo") vanno ai gruppi che, **in base al programma e a quanto hai fatto davvero**, restano indietro nella settimana.
+
+Fino alla 6.0 ogni seduta di forza aveva una lista fissa di supplementari (ad esempio polpacci e quadricipiti isolati in Forza B) che entravano ogni volta che il tempo bastava, anche nelle settimane di scarico. La 6.1 li ha condizionati al volume previsto; la 6.2 aveva dato ai polpacci un posto fisso, poi tolto su indicazione dell'utente. Dalla 6.3 (`weekNeeds`, `buildStrength`):
+
+- per ogni gruppo l'app stima dove arriverà la settimana: per le sedute **già passate** conta le serie **registrate** (quindi una seduta saltata o accorciata pesa), per la seduta in esame e le successive le serie che il programma **prevede**;
+- i supplementari (al massimo due) vanno ai gruppi che restano **sotto le 10 serie settimanali** (minimo ACSM 2026), prima al più indietro, con un esercizio mirato per quel gruppo; dopo averne scelto uno il conteggio si aggiorna;
+- le liste fisse `extras` sono state tolte da `programs.json`;
+- **nelle settimane di scarico non entra nessun supplementare**: il volume più basso è voluto;
+- la nota spiega il motivo, ad esempio "Supplementare · Polpacci a 2,5 serie su 10 questa settimana · se resta tempo";
+- le registrazioni della seduta del giorno non entrano nel calcolo, quindi la seduta non cambia mentre la si registra;
+- gli **esercizi in più a fine seduta** (dalla 5.8) usano la stessa stima, compreso quanto fatto oggi;
+- il **volume previsto** nell'analisi settimanale non conta più i supplementari: è quello del programma, e il confronto con il fatto resta onesto.
+
 ### Verifica completa, razionalizzazione e ottimizzazione (6.0)
 
 La 6.0 non aggiunge funzioni: controlla quelle che ci sono, le rende più veloci e rimette in ordine le fonti.
@@ -253,7 +268,7 @@ In Home, dopo aver scelto la seduta (mobilità oppure forza A, B o C), si scegli
 
 **Se il tempo è poco** (`fitToTime`), si taglia nell'ordine: sospensione alla sbarra → una serie del lavoro per le trazioni (non sotto 3) → serie dei complementari, dall'ultimo (non sotto 2) → trazioni fino a 2 serie → i due esercizi principali fino a 2 serie (ACSM 2026: 2-3 serie per esercizio) → l'ultimo complementare, lasciandone almeno quattro.
 
-**Se il tempo c'è** (`fillToTime`), si aggiunge nell'ordine: esercizi supplementari per i gruppi che restano indietro (polpacci, femorali, quadricipiti) → **finale metabolico** (con 50 minuti una decina di minuti sono riservati a lui) → **sospensione alla sbarra** in chiusura → una serie in più a petto e gambe, fino a 4. Nelle sedute di mobilità: altri allungamenti, poi tenute da 45 secondi (30-60 s è l'indicazione ACSM negli adulti più anziani), poi una tenuta in più.
+**Se il tempo c'è** (`fillToTime`), si aggiunge nell'ordine: esercizi supplementari per i gruppi che la settimana lascia sotto le 10 serie, in base al programma e a quanto fatto, mai in settimana di scarico (vedi 6.3) → **finale metabolico** (con 50 minuti una decina di minuti sono riservati a lui) → **sospensione alla sbarra** in chiusura → una serie in più a petto e gambe, fino a 4. Nelle sedute di mobilità: altri allungamenti, poi tenute da 45 secondi (30-60 s è l'indicazione ACSM negli adulti più anziani), poi una tenuta in più.
 
 ### Grasso addominale senza corsa, nuoto o ellittico
 

@@ -1459,12 +1459,86 @@ function finisherItem(meta, forceId) {
      2. il lavoro principale per le trazioni (eccentriche, isometria o volume
         assistito): obiettivo accessorio, quindi dopo i fondamentali;
      3. gli altri esercizi del giorno;
-     4. se resta tempo: esercizi supplementari per i gruppi che il programma
-        tende a lasciare indietro (polpacci, femorali, quadricipiti), il finale
-        metabolico e, per ultima, la sospensione alla sbarra.
+     4. se resta tempo: esercizi supplementari, il finale metabolico e, per
+        ultima, la sospensione alla sbarra. Dalla 6.3 i supplementari non
+        vengono da una lista fissa: li sceglie weekNeeds, per i gruppi che
+        nella settimana restano sotto le 10 serie (minimo ACSM 2026) tenendo
+        conto di quanto il programma prevede e di quanto hai fatto davvero.
+        Mai nelle settimane di scarico.
    La durata scelta in Home (35-50 minuti) decide quanto di tutto questo entra:
    vedi fitToTime e fillToTime.
 --------------------------------------------------------------------------- */
+/* ---------------------------------------------------------------------------
+   DI COSA HA BISOGNO LA SETTIMANA (dalla 6.3)
+   Per ogni gruppo muscolare si stima dove arriverà la settimana:
+     · sedute già passate (prima della seduta corrente del programma): le
+       serie REGISTRATE, quindi anche quelle saltate o accorciate;
+     · seduta in esame e successive: le serie che il programma PREVEDE, senza
+       supplementari.
+   Ai gruppi che restano sotto VOL_TARGET (10 serie) vanno i supplementari,
+   prima ai più indietro. Le registrazioni della seduta in esame non entrano
+   (salvo includeSelf, per gli esercizi in più a fine seduta): così la seduta
+   di oggi non cambia mentre la si registra.
+   Le sedute di base si costruiscono con volProbe attivo, che spegne i
+   supplementari: nessuna ricorsione.
+--------------------------------------------------------------------------- */
+let volProbe = false, baseVolMemo = new Map(), baseVolKey = null;
+function baseSessionVolumes(weekAbs) {
+  const sig = planSignature();
+  if (sig !== baseVolKey) { baseVolMemo.clear(); baseVolKey = sig; }
+  if (baseVolMemo.has(weekAbs)) return baseVolMemo.get(weekAbs);
+  const out = [];
+  const was = volProbe;
+  volProbe = true;
+  try {
+    for (let k = 0; k < weekLen(weekAbs); k++) {
+      const idx = weekStart(weekAbs) + k, acc = {};
+      let sess = null;
+      try { sess = buildSession(idx); } catch (e) { sess = null; }
+      if (sess && sess.type === 'strength')
+        sess.items.forEach(it => addInto(acc, groupSetsOf(exById(it.exId), it.sets)));
+      out.push({ idx, acc });
+    }
+  } finally { volProbe = was; }
+  baseVolMemo.set(weekAbs, out);
+  return out;
+}
+/* Volume previsto dal programma per la settimana, senza supplementari. */
+function weekBaseVolume(weekAbs) {
+  const acc = {};
+  baseSessionVolumes(weekAbs).forEach(x => addInto(acc, x.acc));
+  return acc;
+}
+/* Serie registrate per gruppo nella seduta idx. */
+function doneInSession(idx) {
+  const acc = {};
+  S.logs.forEach(l => { if (l.sIdx === idx) addInto(acc, groupSetsOf(exById(l.exId), l.sets || 0)); });
+  return acc;
+}
+/* Proiezione della settimana vista dalla seduta idx e gruppi sotto il minimo,
+   dal più indietro. */
+function weekNeeds(idx, opt) {
+  const o = opt || {};
+  const proj = {};
+  baseSessionVolumes(weekOfIdx(idx)).forEach(x => {
+    const past = x.idx < idx && x.idx < S.sessionIndex;
+    const self = x.idx === idx && o.includeSelf;
+    addInto(proj, past || self ? doneInSession(x.idx) : x.acc);
+  });
+  const groups = VOL_GROUPS.filter(g => (proj[g] || 0) < VOL_TARGET)
+    .sort((a, b) => (proj[a] || 0) - (proj[b] || 0));
+  return { proj, groups };
+}
+/* Gruppi principali di un esercizio (solo i muscoli primari). */
+const primaryGroups = ex => [...new Set((ex.primary || []).map(muscleGroup).filter(Boolean))];
+/* Schemi di movimento con cui si allena in modo mirato ciascun gruppo. */
+const EXTRA_PATTERNS = {
+  'Petto': ['pushH'], 'Dorso': ['pullH', 'pullV'], 'Spalle': ['shoulderIso', 'pushV'],
+  'Braccia': ['arms'], 'Quadricipiti': ['quadIso', 'squat'], 'Glutei e femorali': ['hamIso', 'hinge'],
+  'Polpacci': ['calf'], 'Core': ['coreAnti', 'coreFlex']
+};
+const MAX_EXTRAS = 2;
+
 function buildStrength(meta, budget) {
   const tmpl = meta.program.strengthDays[meta.tmplIdx];
   const used = new Set(), items = [];
@@ -1490,18 +1564,30 @@ function buildStrength(meta, budget) {
   main.slice(2).forEach(it => items.push(it));
 
   // riserva per il tempo in più: supplementari, finale, sospensione
+  // i supplementari vanno ai gruppi che la settimana lascia sotto il minimo,
+  // tenendo conto del programma e di quanto è stato fatto; mai in scarico,
+  // dove il volume più basso è voluto
   const extras = [];
-  (tmpl.extras || []).forEach((pats, i) => {
-    const pats2 = Array.isArray(pats) ? pats : [pats];
-    const ex = pickFrom(slotPool(pats2).filter(e => !used.has(e.id)), (meta.mesocycle - 1) + i, used);
-    if (!ex) return;
-    const goalKey = dayGoal === 'strength' ? 'hypertrophy' : dayGoal;   // i complementari restano a ripetizioni medie
-    const d = dose(goalKey, meta.profile, ex);
-    d.sets = Math.max(2, d.sets - 1);
-    if (d.perSide && d.sets % 2) d.sets++;
-    extras.push({ exId: ex.id, note: 'Supplementare · se resta tempo', goalKey, role: 'extra',
-                  alt: { patterns: pats2.slice(), types: ['strength'] }, ...d });
-  });
+  const deloadWeek = meta.profile && meta.profile.label === 'Scarico';
+  if (!volProbe && !deloadWeek) {
+    const need = weekNeeds(meta.idx);
+    const p = Object.assign({}, need.proj);
+    need.groups.forEach(g => {
+      if (extras.length >= MAX_EXTRAS || (p[g] || 0) >= VOL_TARGET) return;
+      const pats = EXTRA_PATTERNS[g] || [];
+      const pool = slotPool(pats).filter(e => !used.has(e.id) && e.type === 'strength' && primaryGroups(e).includes(g));
+      const ex = pickFrom(pool, (meta.mesocycle - 1) + extras.length, used);
+      if (!ex) return;
+      const goalKey = dayGoal === 'strength' ? 'hypertrophy' : dayGoal;   // i complementari restano a ripetizioni medie
+      const d = dose(goalKey, meta.profile, ex);
+      d.sets = Math.max(2, d.sets - 1);
+      if (d.perSide && d.sets % 2) d.sets++;
+      const why = `${g} a ${fmtSets(p[g] || 0)} serie su ${VOL_TARGET} questa settimana`;
+      addInto(p, groupSetsOf(ex, d.sets));   // il prossimo supplementare tiene conto di questo
+      extras.push({ exId: ex.id, note: `Supplementare · ${why} · se resta tempo`, goalKey, role: 'extra',
+                    alt: { patterns: pats.slice(), types: ['strength'] }, ...d });
+    });
+  }
   const fin = finisherItem(meta);
   pullTail.forEach(it => { it.note = 'Trazioni · in chiusura, se resta tempo'; });
 
@@ -1721,8 +1807,8 @@ function fitToTime(items, maxMin, tail) {
 }
 
 /* Con tempo in più (40-50 minuti) la seduta si allunga nell'ordine:
-     1. esercizi supplementari per i gruppi che restano sotto le 10 serie
-        settimanali (polpacci, femorali, quadricipiti);
+     1. esercizi supplementari, solo per i gruppi che il programma lascia
+        sotto le 10 serie settimanali (scelti in buildStrength);
      2. una serie in più agli esercizi di petto e gambe (fino a 4);
      3. il finale metabolico per il grasso addominale;
      4. per ultima, la sospensione alla sbarra. */
@@ -3952,23 +4038,17 @@ function endSession() {
    esercizi si aggiungono alla seduta in corso: contano nel volume e nello
    storico come tutti gli altri.
 --------------------------------------------------------------------------- */
-const EXTRA_PATTERNS = {
-  'Petto': ['pushH'], 'Dorso': ['pullH', 'pullV'], 'Spalle': ['shoulderIso', 'pushV'],
-  'Braccia': ['arms'], 'Quadricipiti': ['quadIso', 'squat'], 'Glutei e femorali': ['hamIso', 'hinge'],
-  'Polpacci': ['calf'], 'Core': ['coreAnti', 'coreFlex']
-};
-
 function extraCandidates(minutes) {
   const c = current;
   if (!c) return [];
   const meta = sessionMeta(c.sess.idx);
   const inSession = new Set(c.sess.items.map(it => it.exId));
-  const week = weekOfIdx(c.sess.idx);
-  const done = weeklyVolume(week), plan = plannedVolume(week).acc;
-  // i gruppi più indietro rispetto a quanto previsto per la settimana
+  // stessa logica dei supplementari (weekNeeds), ma con quanto già fatto oggi:
+  // prima i gruppi che la settimana lascia più indietro
+  const proj = weekNeeds(c.sess.idx, { includeSelf: true }).proj;
   const groups = Object.keys(EXTRA_PATTERNS)
-    .map(g => ({ g, gap: (plan[g] || 0) - (done[g] || 0), done: done[g] || 0 }))
-    .sort((a, b) => (b.gap - a.gap) || (a.done - b.done));
+    .map(g => ({ g, have: proj[g] || 0 }))
+    .sort((a, b) => a.have - b.have);
   const out = [], used = new Set(inSession);
   const stretchDay = c.sess.type === 'stretch';
   groups.forEach(({ g }) => {
@@ -4547,7 +4627,9 @@ function plannedVolume(weekAbs) {
     try { sess = sessionFor(idx); } catch (e) { continue; }
     if (sess.type !== 'strength') continue;
     strength++;
-    sess.items.forEach(it => addInto(acc, groupSetsOf(exById(it.exId), it.sets)));
+    // i supplementari "se resta tempo" non sono previsti dal programma: dipendono
+    // da quanto è stato fatto, quindi non entrano nel confronto
+    sess.items.forEach(it => { if (it.role !== 'extra') addInto(acc, groupSetsOf(exById(it.exId), it.sets)); });
   }
   return { acc, strength };
 }
