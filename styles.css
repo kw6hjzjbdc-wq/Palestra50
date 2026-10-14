@@ -656,7 +656,7 @@ body.in-session.mini-on #view-session{padding-bottom:176px}
 /* ============================================================
    HOME a riquadri (dalla 5.3)
    ============================================================ */
-#view-dash{padding-bottom:calc(110px + env(safe-area-inset-bottom))}
+#view-home{padding-bottom:calc(110px + env(safe-area-inset-bottom))}
 .dtile{display:block;position:relative;width:100%;text-align:left;margin:0 0 12px;padding:16px 40px 16px 16px;
   background:var(--surface);border:1px solid var(--line);border-radius:18px;color:var(--text)}
 .dtile:active{transform:scale(.99);opacity:.9}

@@ -75,17 +75,13 @@ Le tre sedute di forza mantengono il lavoro per le trazioni (tre volte a settima
 
 **Minuti aerobici.** Progressi mostra i minuti della settimana nel conto dell'OMS (un minuto di scatto vale due moderati) rispetto al riferimento di 150; il riepilogo settimanale indica come arrivarci. Il finale metabolico nelle sedute di forza resta disponibile e, con due sedute aerobiche in settimana, ha riservati i suoi 10 minuti solo quando scegli 50 minuti (con 40-45 entra se avanza tempo).
 
-### Home a riquadri (dalla 5.3)
+### L'app si apre su Oggi (dalla 6.5)
 
-Dopo l'intro — «Forza · Mobilità · Linea», con sotto la riga del percorso («Settimana 3 di 37 · 242 giorni alla meta», calcolata sul programma attivo) e una frase del giorno — si apre la **Home**, con tre riquadri: *Mattino*, *Pranzo* e *Progressi*. Il terzo è un riassunto (fase, settimana, esercizi in crescita, ultima misura) e apre la pagina **Progressi**, che contiene gli altri riquadri — *Il percorso*, *Progressione negli esercizi*, *Misure corporee* e *Volume e storico*. Così la Home resta concentrata su cosa fare oggi. Toccando un riquadro si apre la schermata completa.
+Fino alla 6.4 dopo l'intro si apriva una **Home** con tre riquadri — *Mattino*, *Pranzo* e un riassunto del percorso — quasi identica alla schermata di scelta di *Oggi*. La Home è stata tolta: dopo l'intro — «Forza · Mobilità · Linea», con la riga del percorso e una frase del giorno — si apre direttamente **Oggi**, con le due scelte *Mattino · mobilità* e *Pranzo · allenamento del giorno*. Le informazioni sul percorso (fase, settimana, settimane mancanti, data di fine) stanno nel riquadro *Il percorso* di **Progressi**, insieme a *Le prossime settimane*, *Trazioni e muscle-up*, *Progressione negli esercizi*, *Misure corporee* e *Volume e storico*.
 
-1. **Mattino**: la mobilità del mattino di oggi — da fare (durata, distretti, esercizi) oppure fatta, con la valutazione: completamento delle tenute previste, minuti, mattine fatte nella settimana. Apre la card del mattino nella schermata *Oggi*.
-2. **Pranzo**: l'allenamento principale di oggi — da fare (seduta, durata, tipo) oppure fatto, con completamento delle serie previste, minuti e stelle medie. Apre la seduta nella schermata *Oggi* (o la sessione in corso).
-3. **Il percorso**: fase, settimana nella fase e nel piano, barra di avanzamento, settimane mancanti e **data di fine stimata**, che si sposta se aggiungi settimane di sola mobilità. Apre la cronologia di tutte le fasi con la posizione attuale e il punto del blocco di 4 settimane.
-4. **Progressione negli esercizi**: quanti esercizi crescono, sono stabili o calano nelle ultime 8 settimane (media delle ultime due registrazioni contro le prime due, sul massimale stimato o sul gradino) e l'andamento delle stelle nelle ultime due settimane. Apre *Progressi → Carichi per esercizio*.
-5. **Misure corporee**: ultimo girovita e peso e l'**obiettivo ragionevole alla fine del piano**. Peso: 0,25-0,5 kg a settimana (sotto lo 0,5-1% del peso a settimana oltre il quale si rischia di perdere muscolo, Helms et al. 2014), con un tetto prudente del 5-10% del peso (nota: la posizione ACSM attuale, Jakicic et al. 2024, non fissa più obiettivi percentuali di perdita di peso; il tetto resta come freno alla proiezione). Girovita: tendenza delle tue misure (almeno due, a 2 settimane di distanza), con tetto di 0,5 cm a settimana e 8 cm in tutto; confronto con le soglie OMS per gli uomini (94 e 102 cm). Apre *Progressi → Girovita e peso*, con il ragionamento completo.
-
-La barra in basso ha ora cinque voci: **Home**, **Oggi** (sedute del giorno e calendario), Progressi, Esercizi, Programma.
+- Con una seduta in corso, il riquadro *Pranzo* riporta direttamente dentro la seduta, come faceva quello della Home.
+- Fine seduta, interruzione, «salta» e chiusura di una seduta rimasta aperta riportano tutti a *Oggi* (`goToday`).
+- La barra in basso ha quattro voci: **Oggi**, Progressi, Esercizi, Programma.
 
 ### Esercizi a tempo: riserva in secondi (dalla 5.9)
 
@@ -216,6 +212,23 @@ Da *Oggi* (sotto il calendario), dalla pagina *Progressi* e dal riquadro *Il per
 ### Esercizi in più a fine seduta (dalla 5.8)
 
 Nel riepilogo di fine seduta, *Ho ancora tempo: aggiungi esercizi*. Si dichiara quanto tempo resta (5, 10 o 15 minuti) e l'app propone quattro esercizi sui **gruppi più indietro** rispetto al volume previsto per la settimana, con le serie che stanno davvero in quei minuti (tempo di preparazione compreso). Toccandone uno si torna nella seduta, che riprende da quell'esercizio e si chiude normalmente.
+
+### Stelle: verifica di congruenza (6.5)
+
+Le stelle sono un giudizio dell'app, ricalcolato. Una verifica su casi costruiti — stessa prestazione o prestazione migliore, che devono dare un giudizio coerente — ha trovato otto incongruenze, ora corrette:
+
+| Caso | Prima | Ora |
+|---|---|---|
+| Stesse ripetizioni per serie, ma 2 serie (35′) dopo 4 (50′) | 1-2★ «calo del 33%» | confronto **per serie**: il numero di serie lo decide il programma |
+| Settimana di scarico: stesso carico, ripetizioni ridotte come previsto | 1★ «calo» | 3★ «riduzione in linea con lo scarico»; salire di carico o di gradino resta segnalato |
+| Prima seduta dopo lo scarico | confronto con lo scarico, progresso gonfiato (5★) | confronto con l'ultima seduta normale; le settimane di scarico non contano nel progresso atteso |
+| Seduta segnata come fatta alle dosi previste | stelle calcolate su numeri non reali | nessuna stella, e non fa da riferimento per le successive |
+| Aerobico e finale metabolico | stelle sulla durata, decisa dal programma | nessuna stella (come allungamenti e mobilità) |
+| Test di trazioni e serie pulite | confrontati fra loro (5×1 dopo un test da 3 = 4★) | test con test, serie con serie |
+| Cambio di tappa (da trazioni con band a serie pulite) | «salto di due livelli» | 5★ «gradino più difficile con il nuovo obiettivo del programma» |
+| Fascia delle 4 stelle con +5% atteso (due settimane) | inesistente: da 3★ si passava a 5★ | segue l'atteso: fino a +5 punti sopra l'atteso |
+
+Inoltre: stesso gradino su esercizi a corpo libero o con band ora usa la stessa regola degli esercizi a carico (con l'attesa di +2,5% a settimana), invece di un giudizio fisso a 3 stelle; un piccolo calo nella stessa settimana non viene più descritto come «atteso +0%». Tutti i punti che assegnano stelle — seduta dal vivo, seduta segnata come fatta, esercizio aggiunto a mano, ricalcolo dello storico — passano ora da una sola funzione (`rateFor`), con lo stesso riferimento e lo stesso riconoscimento dello scarico; aggiungendo a mano una registrazione nel passato, le stelle delle successive dello stesso esercizio si ricalcolano. All'aggiornamento le stelle dello storico vengono **ricalcolate una volta** con le regole nuove: nessun'altra informazione viene toccata, nessuna registrazione si perde.
 
 ### Valutazione a stelle: metriche confrontabili (corretto nella 5.8)
 

@@ -976,8 +976,18 @@ function volValue(l) {
    Ordine di preferenza: massimale stimato (se calcolabile per entrambe) →
    lavoro totale, cioè carico per serie per ripetizioni (o merito per volume
    sugli esercizi assistiti) → volume semplice. */
+/* Numero di serie di una registrazione (righe serie per serie, se ci sono). */
+const setsOf = l => { const rows = setRows(l); return Math.max(1, rows ? rows.length : (l.sets || 1)); };
+
+/* Dalla 6.5 le grandezze di volume (tenuta, lavoro totale, ripetizioni) si
+   confrontano PER SERIE: il numero di serie lo decide il programma (durata
+   scelta in Oggi, settimana di scarico), non la prestazione. Prima una seduta
+   da 35 minuti dopo una da 50, con le stesse ripetizioni in ogni serie,
+   risultava un calo del 33% e prendeva una stella. Il massimale stimato è già
+   per serie (la migliore) e non cambia. */
 function comparePair(cur, prev) {
   const ex = exById(cur.exId);
+  const per = (v, l) => v / setsOf(l);
   // esercizi a tempo: conta quanto hai tenuto, più metà del margine dichiarato
   // (la riserva è capacità, non lavoro svolto)
   if (ex && ex.load === 'time' && ex.type !== 'stretch') {
@@ -987,22 +997,22 @@ function comparePair(cur, prev) {
       return (l.sets || 0) * ((l.hold || 0) + 0.5 * (l.rirUnit === 's' && isFinite(l.rir) ? l.rir : 0));
     };
     const a = cap(cur), b = cap(prev);
-    if (a && b) return { a, b, what: 'tenuta complessiva' };
+    if (a && b) return { a: per(a, cur), b: per(b, prev), what: 'tenuta per serie' };
   }
   const ea = e1rm(cur), eb = e1rm(prev);
   if (ea && eb) return { a: ea, b: eb, what: 'massimale stimato' };
   if (ex && ex.load === 'weight') {
     const ta = tonnage(cur), tb = tonnage(prev);
-    if (ta && tb) return { a: ta, b: tb, what: isAssist(ex) ? 'lavoro totale (aiuto e ripetizioni)' : 'lavoro totale (carico per ripetizioni)' };
+    if (ta && tb) return { a: per(ta, cur), b: per(tb, prev), what: isAssist(ex) ? 'lavoro per serie (aiuto e ripetizioni)' : 'lavoro per serie (carico per ripetizioni)' };
     const ma = meritValue(cur), mb = meritValue(prev);
     if (ma !== null && mb !== null && ma > 0 && mb > 0) {
       const va = volValue(cur), vb = volValue(prev);
-      if (va && vb) return { a: ma * va, b: mb * vb, what: isAssist(ex) ? 'lavoro totale (aiuto e ripetizioni)' : 'lavoro totale (carico per ripetizioni)' };
+      if (va && vb) return { a: per(ma * va, cur), b: per(mb * vb, prev), what: isAssist(ex) ? 'lavoro per serie (aiuto e ripetizioni)' : 'lavoro per serie (carico per ripetizioni)' };
       return { a: ma, b: mb, what: isAssist(ex) ? 'assistenza' : 'carico' };
     }
   }
   const va = volValue(cur), vb = volValue(prev);
-  if (va && vb) return { a: va, b: vb, what: (ex && ex.load === 'time') ? 'secondi totali' : 'volume' };
+  if (va && vb) return { a: per(va, cur), b: per(vb, prev), what: (ex && ex.load === 'time') ? 'secondi per serie' : 'ripetizioni per serie' };
   return null;
 }
 
@@ -1072,23 +1082,31 @@ function rateLog(cur, prev, deload) {
 
   // scale a gradini (band e progressioni a corpo libero): un gradino in più è
   // già la progressione prevista, due insieme sono un salto da segnalare
-  const steps = ex ? (ex.load === 'band' ? BANDS : levelsOf(ex)) : null;
+  const steps = ex && !cur._sameStep ? (ex.load === 'band' ? BANDS : levelsOf(ex)) : null;
   if (steps) {
     const ia = steps.indexOf(cur.load), ib = steps.indexOf(prev.load);
     if (ia >= 0 && ib >= 0) {
       // sugli esercizi assistiti il verso è invertito: scendere di band è un progresso
       const step = (ia - ib) * progressDir(ex);
       const nome = ex.load === 'band' ? 'band' : 'livelli';
+      const shifted = cur.goal && prev.goal && cur.goal !== prev.goal;
+      // in scarico il gradino resta quello: salire è un errore, scendere è tollerato
+      if (deload) {
+        if (step >= 1) return { stars: 3, warn: 'scarico', text: 'Settimana di scarico: sei salito di gradino invece di restare dov\'eri.',
+          advice: 'Lo scarico serve al recupero di tendini e articolazioni: il gradino nuovo lo provi la settimana prossima.' };
+        if (step === 0) return { stars: 3, text: 'Settimana di scarico: stesso gradino, volume ridotto come previsto.' };
+        return { stars: 2, text: 'Settimana di scarico: gradino più facile del solito; bastava ridurre le serie.' };
+      }
+      // un gradino più difficile imposto dal programma (nuovo obiettivo, per
+      // esempio dalle trazioni assistite alle serie pulite) non è un salto
+      if (step >= 1 && shifted) return { stars: 5, text: 'Gradino più difficile con il nuovo obiettivo del programma.' };
       if (step >= 2) return { stars: 3, warn: 'salto',
         text: `Due ${nome} più difficili in una volta sola: è un salto di carico importante.`,
         advice: 'Torna al gradino intermedio per una seduta e sali solo quando superi l\'obiettivo di due ripetizioni per due sedute.' };
       if (step === 1) return { stars: 5, text: 'Sei passato al gradino successivo: progressione riuscita.' };
-      if (step === 0) {
-        const va = volValue(cur), vb = volValue(prev);
-        if (vb && va / vb > 1.02) return { stars: 4, text: `Stesso gradino, ${va - vb} ripetizioni in più completate.` };
-        if (vb && va / vb < 0.9) return { stars: 2, text: 'Stesso gradino, ma meno ripetizioni della volta scorsa.' };
-        return { stars: 3, text: 'Stesso gradino della volta scorsa: consolidamento.' };
-      }
+      // stesso gradino: si confrontano le ripetizioni (o i secondi) per serie
+      // con la stessa regola degli esercizi a carico, attesa compresa
+      if (step === 0) return rateLog(Object.assign({}, cur, { _sameStep: true }), Object.assign({}, prev, { _sameStep: true }), deload);
       return { stars: 1, text: 'Sei sceso a un gradino più facile rispetto alla volta scorsa.' };
     }
   }
@@ -1102,7 +1120,11 @@ function rateLog(cur, prev, deload) {
   // crollo o un balzo che non c'è
   const goalShift = cur.goal && prev.goal && cur.goal !== prev.goal
     ? ` Obiettivo diverso dalla volta scorsa (${(PROG.goals[prev.goal] || {}).label || prev.goal} → ${(PROG.goals[cur.goal] || {}).label || cur.goal}).` : '';
-  const weeks = Math.max(0, weekOfIdx(cur.sIdx || 0) - weekOfIdx(prev.sIdx || 0));
+  // settimane di allenamento passate dall'ultima volta: quelle di scarico non
+  // contano, perché lì la progressione è sospesa per scelta
+  const w0 = weekOfIdx(prev.sIdx || 0), w1 = weekOfIdx(cur.sIdx || 0);
+  let weeks = 0;
+  for (let w = w0 + 1; w <= w1 && weeks < 2; w++) if (!isDeloadWeek(weekStart(w))) weeks++;
   // l'attesa cresce col tempo passato dall'ultima volta, ma si ferma a +5%:
   // un esercizio ripreso dopo un mese non deve pretendere un salto del 10%
   const expected = weeks > 0 ? 1 + 0.025 * Math.min(weeks, 2) : 1;
@@ -1133,6 +1155,12 @@ function rateLog(cur, prev, deload) {
       text: `Settimana di scarico: hai aumentato del ${pct}% invece di ridurre.`,
       advice: 'Lo scarico serve al recupero di tendini e articolazioni: la settimana prossima riparti più forte.' };
   }
+  // in scarico un calo moderato è proprio quello che si chiede: carico fermo,
+  // qualche ripetizione e una serie in meno
+  if (deload) {
+    if (ratio >= 0.85) return { stars: 3, text: `Settimana di scarico: ${pct < 0 ? `${Math.abs(pct)}% in meno ${suRif(what)}, ` : ''}riduzione in linea con lo scarico.` };
+    return { stars: 2, text: `Settimana di scarico: calo del ${Math.abs(pct)}% ${suRif(what)}, più marcato del necessario.` };
+  }
   // due sedute di fila al limite: lo si segnala solo se non è arrivato nemmeno
   // un miglioramento, altrimenti si toglierebbe merito a un progresso vero
   if (cur.rir === 0 && prev.rir === 0 && ratio <= 1.02) {
@@ -1144,15 +1172,64 @@ function rateLog(cur, prev, deload) {
                   : 'Lavorare sempre al limite accumula fatica senza aggiungere stimolo: tieni 1-2 ripetizioni di margine.' };
   }
   if (ratio < 0.97) return { stars: goalShift ? 2 : 1, text: `Calo del ${Math.abs(pct)}% ${suRif(what)} rispetto alla volta scorsa.${goalShift}` };
-  if (ratio < expected - 0.005) return { stars: 2, text: `Stabile: atteso circa +${Math.round((expected - 1) * 100)}% ${suRif(what)}.${goalShift}` };
-  if (ratio <= expected + 0.02) return { stars: 3, text: `In linea con la progressione prevista (+${pct}% ${suRif(what)}).${goalShift}` };
-  if (ratio <= 1 + SAFE_STEP / 2) return { stars: 4, text: `Sopra le attese: +${pct}% ${suRif(what)}, ne era previsto +${Math.round((expected - 1) * 100)}%.${goalShift}` };
+  if (ratio < expected - 0.005) return { stars: 2, text: expected > 1
+    ? `Stabile: atteso circa +${Math.round((expected - 1) * 100)}% ${suRif(what)}.${goalShift}`
+    : `Poco sotto la volta scorsa (${pct}% ${suRif(what)}).${goalShift}` };
+  if (ratio <= expected + 0.02) return { stars: 3, text: `In linea con la progressione prevista (${pct >= 0 ? '+' : ''}${pct}% ${suRif(what)}).${goalShift}` };
+  // la fascia delle 4 stelle segue l'atteso: con +5% previsto (due settimane)
+  // prima andava da +7% a +5%, cioè non esisteva
+  if (ratio <= Math.max(expected + 0.05, 1 + SAFE_STEP / 2)) return { stars: 4, text: `Sopra le attese: +${pct}% ${suRif(what)}, ne era previsto +${Math.round((expected - 1) * 100)}%.${goalShift}` };
   return { stars: goalShift ? 4 : 5, text: `Progresso netto: +${pct}% ${suRif(what)}.${goalShift}` };
+}
+
+/* ---------------------------------------------------------------------------
+   VALUTAZIONE: UN SOLO PUNTO DI INGRESSO (dalla 6.5)
+   Prima ogni punto dell'app sceglieva a modo suo la registrazione con cui
+   confrontare e se la settimana fosse di scarico: la seduta registrata dal
+   vivo, quella segnata come fatta, l'esercizio aggiunto a mano e il ricalcolo
+   dello storico davano giudizi diversi sugli stessi numeri. Ora:
+     · niente stelle a ciò che non ha una prestazione da misurare: allungamenti,
+       aerobico, finale metabolico, sedute segnate come fatte alle dosi previste;
+     · il riferimento è l'ultima registrazione reale dello stesso esercizio,
+       mai una segnata come fatta; un test si confronta con il test precedente
+       e le serie normali con le serie normali; fuori dallo scarico si salta la
+       settimana di scarico, che altrimenti gonfierebbe il progresso successivo;
+     · lo scarico si riconosce sempre allo stesso modo (isDeloadWeek).
+--------------------------------------------------------------------------- */
+const TEST_GOALS = ['pullupTest', 'muTest'];
+const UNRATED_GOALS = ['cardio', 'finisher', 'warmup', 'cooldown', 'stretch', 'mobility'];
+function isRatable(l) {
+  const ex = exById(l.exId);
+  if (!ex || l.planned) return false;
+  if (ex.type === 'stretch' || (ex.cardioModes && ex.cardioModes.length) || /^f_/.test(ex.id)) return false;
+  return !UNRATED_GOALS.includes(l.goal);
+}
+const isDeloadLog = l => l && l.sIdx != null && isDeloadWeek(l.sIdx);
+function ratingRef(cur, candidates) {
+  const test = TEST_GOALS.includes(cur.goal);
+  let c = (candidates || []).filter(l => l !== cur && l.exId === cur.exId && !l.planned &&
+    !(cur.sid != null && l.sid === cur.sid) && TEST_GOALS.includes(l.goal) === test);
+  if (!isDeloadLog(cur)) { const nd = c.filter(l => !isDeloadLog(l)); if (nd.length) c = nd; }
+  return c.length ? c[c.length - 1] : null;
+}
+function rateFor(cur, candidates) {
+  if (!isRatable(cur)) return { stars: 0, text: cur.planned ? 'Segnata come fatta alle dosi previste: senza dati reali non c\'è valutazione.' : '' };
+  return rateLog(cur, ratingRef(cur, candidates), isDeloadLog(cur));
+}
+/* Ricalcola in ordine di data le stelle di un esercizio (per esempio dopo
+   l'aggiunta a mano di una registrazione nel passato). Tocca solo il giudizio. */
+function rerateExercise(exId) {
+  const logs = S.logs.filter(l => l.exId === exId).sort((a, b) => a.ts - b.ts);
+  logs.forEach((l, i) => {
+    const r = rateFor(l, logs.slice(0, i));
+    l.stars = r.stars; l.rateText = r.text; l.warn = r.warn || ''; l.advice = r.advice || '';
+  });
 }
 
 /* Preposizione corretta davanti al nome della metrica ("sul volume", ma
    "sull'assistenza"): l'elisione va gestita, altrimenti si legge "sul assistenza". */
 const suRif = w => /^secondi/i.test(w) ? `sui ${w}`
+  : /^ripetizioni/i.test(w) ? `sulle ${w}`
   : /^(tenuta|serie|progressione)/i.test(w) ? `sulla ${w}`
   : /^[aeiou]/i.test(w) ? `sull'${w}` : `sul ${w}`;
 
@@ -2373,15 +2450,6 @@ const $ = sel => document.querySelector(sel);
 const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 /* ---------------------------------------------------------------------------
-   HOME (dalla 5.3): la pagina che si apre dopo l'intro
-   Cinque riquadri, ciascuno toccabile per aprire la schermata completa:
-     1. mobilità del mattino di oggi: da fare, oppure com'è andata;
-     2. allenamento di pranzo di oggi: da fare, oppure com'è andato;
-     3. fase e punto del percorso fino alla data obiettivo;
-     4. progressione negli esercizi e tendenza dei risultati;
-     5. misure corporee e obiettivo ragionevole a fine piano.
---------------------------------------------------------------------------- */
-/* ---------------------------------------------------------------------------
    SEDUTE DA REGISTRARE A POSTERIORI (dalla 5.5)
    Due casi:
    · hai svolto la seduta ma non l'hai aperta nell'app ("Segna come già
@@ -2399,8 +2467,7 @@ function plannedEntry(sess, it, sid, ts) {
     repsTarget: it.reps, repsDone: it.reps, rir: null, reps: it.reps,
     goal: it.goal, week: sess.weekInCycle, hold: it.hold || 0, rest: it.rest || 0,
     setsPlanned: it.sets, planned: true };
-  const prev = S.logs.filter(g => g.exId === it.exId && g.sid !== sid).pop() || null;
-  const r = rateLog(entry, prev, false);
+  const r = rateFor(entry, S.logs);
   entry.stars = r.stars; entry.rateText = r.text; entry.warn = ''; entry.advice = r.advice || '';
   return entry;
 }
@@ -2488,7 +2555,7 @@ function fixOrphanSessions() {
     <button class="btn ghost" id="orFree" style="margin-top:10px">Era una seduta libera</button>
     <button class="btn ghost" id="orNo" style="margin-top:10px">Lascia com'è</button>
     <p class="small muted" style="margin-top:12px">Con le prime due la seduta risulta svolta per intero: gli esercizi che mancano vengono aggiunti alle dosi previste. Con «seduta libera» resta registrato soltanto quello che hai davvero fatto, e il programma non avanza: la seduta prevista rimane da svolgere. In nessun caso si cancella qualcosa.</p>`);
-  const close = fn => closeModal(() => { if (fn) fn(); go('dash'); });
+  const close = fn => closeModal(() => { if (fn) fn(); goToday(); });
   $('#orMorning').onclick = () => close(() => {
     const w = weekOfIdx(meta.idx), day2 = Math.min(posOfIdx(meta.idx) + 1, MORNING_DAYS);
     markSessionDone(buildMorning(w, day2, S.morningMin || 10), o.ts, o.sid);
@@ -2646,9 +2713,8 @@ const dateIt = d => new Date(d).toLocaleDateString('it-IT', { day: 'numeric', mo
 
 /* ---------------------------------------------------------------------------
    RIQUADRI DELLE DUE SEDUTE DI OGGI
-   Gli stessi due riquadri compaiono nella Home e nella schermata di scelta di
-   Oggi: il testo sta qui una volta sola, con una riga in più nella scelta,
-   dove c'è lo spazio per dire anche che cosa si apre toccandoli.
+   Mattino e pranzo nella schermata di scelta di Oggi, che dalla 6.5 è anche la
+   pagina d'apertura dell'app (la Home, quasi identica, è stata tolta).
 --------------------------------------------------------------------------- */
 const dashTile = (attr, id, kicker, cls, body) => `<button class="dtile ${cls}" data-${attr}="${id}">
       <div class="kicker">${kicker}</div>${body}<span class="chev">›</span></button>`;
@@ -2670,49 +2736,9 @@ function lunchTileBody(ls, full) {
        <p class="small muted">${typeWord(ls.s)} · ${ls.s.items.length} esercizi · sessione ${ls.s.pos} di ${ls.s.days} della settimana.</p>`;
 }
 
-function renderDash() {
-  $('#topTitle').textContent = 'Home';
-  const path = pathStatus();
-  $('#topChip').textContent = shortWhere(path.meta);
-  $('#topChip').className = 'chip';
-
-  const ms = morningStatus(), ls = lunchStatus();
-  const mBody = morningTileBody(ms, false), lBody = lunchTileBody(ls, false);
-
-  // un solo riquadro riassuntivo: percorso, esercizi e misure stanno nella
-  //    pagina Progressi, così la Home resta concentrata su cosa fare oggi
-  const t = trendFor();
-  const b = bodyProjection();
-  const ph = path.meta.phase;
-  const gBody = `<div class="dstat">${ph ? esc(ph.ph.name) : esc(path.p.name)}</div>
-    <p class="small">${whereText(path.meta, { cap: true })} · ${path.weeksLeft} settimane alla fine</p>
-    <div class="dbar"><i style="width:${path.pct}%"></i></div>
-    <p class="small">${t.n ? `${t.up} esercizi in crescita su ${t.n}` : 'Tendenza degli esercizi: ancora pochi dati'}${
-      b.lastC ? ` · girovita ${kg1(b.lastC.waist)} cm` : (b.lastW ? ` · peso ${kg1(b.lastW.weight)} kg` : '')}</p>
-    <p class="small muted">Percorso, progressione negli esercizi e misure corporee.</p>`;
-
-  const tile = (id, kicker, cls, body) => dashTile('dash', id, kicker, cls, body);
-  $('#view-dash').innerHTML = `
-    ${tile('morning', 'Mattino · mobilità', 'mobility', mBody)}
-    ${tile('lunch', 'Pranzo · allenamento principale', ls.done || ls.skipped ? 'strength' : typeClass(ls.s), lBody)}
-    ${tile('prog', 'Progressi', '', gBody)}`;
-
-  document.querySelectorAll('[data-dash]').forEach(el => el.onclick = () => {
-    const k = el.dataset.dash;
-    if (k === 'morning') { homeView = 'morning'; go('home'); }
-    else if (k === 'lunch') {
-      if (current && !current.finished) { go('session'); renderSession(); }
-      else { homeView = 'lunch'; go('home'); }
-    }
-    else if (k === 'prog') go('prog');
-    else if (k === 'path') openPath();
-    else if (k === 'trend') { go('history'); scrollToId('loadsCard'); }
-    else if (k === 'body') { go('history'); scrollToId('bodyCard'); }
-  });
-}
-/* Pagina Progressi: i tre approfondimenti, uno per riquadro, più l'accesso a
-   volume e storico. Stanno qui e non nella Home, che resta concentrata su cosa
-   fare oggi. */
+/* Pagina Progressi: percorso, prossime settimane, trazioni, esercizi, misure,
+   volume e storico. Dalla 6.5 non c'è più la Home: l'app si apre su Oggi, che
+   resta concentrata su cosa fare oggi; tutto il resto sta qui. */
 function renderProg() {
   $('#topTitle').textContent = 'Progressi';
   $('#topChip').textContent = `${S.logs.length} esercizi registrati`;
@@ -2911,7 +2937,11 @@ function openPath() {
   $('#pathClose').onclick = () => closeModal();
 }
 
+/* Torna alla pagina d'apertura: la scelta fra mattino e pranzo di Oggi. */
+function goToday() { homeView = null; go('home'); }
+
 function go(view) {
+  if (view === 'dash') { homeView = null; view = 'home'; }   // vecchio nome della pagina d'apertura
   // uscendo dalla schermata della sessione il timer NON si ferma: si riduce da
   // solo alla barretta in basso e continua a scorrere mentre navighi
   if (timerRunning() && view !== 'session' && $('#timer').classList.contains('on')) minimizeTimer();
@@ -2925,7 +2955,6 @@ function go(view) {
   refreshDeload();
   window.scrollTo(0, 0);
   if (view === 'home') renderHome();
-  if (view === 'dash') renderDash();
   if (view === 'prog') renderProg();
   if (view === 'history') renderHistory();
   if (view === 'settings') renderSettings();
@@ -3244,6 +3273,7 @@ function renderHomePick() {
     <p class="small muted" style="margin-top:14px">Tocca la sessione su cui vuoi lavorare: esercizi, durata e calendario della settimana si aprono lì dentro.</p>`;
 
   document.querySelectorAll('[data-pick]').forEach(el => el.onclick = () => {
+    if (el.dataset.pick === 'lunch' && current && !current.finished) { go('session'); renderSession(); return; }
     homeView = el.dataset.pick; renderHome();
   });
   bindHomeBanners(b.saved);
@@ -3854,9 +3884,9 @@ function renderSession() {
       <button class="btn ghost" id="abSkip" style="margin-top:12px">Non la faccio: salta e vai alla prossima</button>
       <p class="small muted" style="margin-top:6px">Resta nello storico come saltata e il programma avanza alla seduta successiva.</p>
       <button class="btn ghost" id="abNo" style="margin-top:12px">Annulla</button>`);
-    const leave = () => { stopTimer(); releaseWakeLock(); current = null; go('dash'); };
+    const leave = () => { stopTimer(); releaseWakeLock(); current = null; goToday(); };
     $('#abLater').onclick = () => closeModal(() => { leave(); saveResumeFromAbort(s, c); });
-    $('#abSkip').onclick = () => closeModal(() => { const sess = s; leave(); clearResume(); skipSession(sess, 'Saltata dopo aver interrotto la seduta'); go('dash'); });
+    $('#abSkip').onclick = () => closeModal(() => { const sess = s; leave(); clearResume(); skipSession(sess, 'Saltata dopo aver interrotto la seduta'); goToday(); });
     $('#abNo').onclick = () => closeModal();
   };
 }
@@ -4123,8 +4153,7 @@ function logExercise(pos) {
                   setsPlanned: it.sets };                             // per la valutazione in Home
   // valutazione automatica rispetto alla registrazione precedente dello stesso esercizio
   const ref0 = c.logRef[pos];
-  const prev = S.logs.filter((g, gi) => g.exId === it.exId && gi !== ref0).pop() || null;
-  const r = rateLog(entry, prev, s.weekInCycle >= program().cycleWeeks);
+  const r = rateFor(entry, S.logs.filter((g, gi) => gi !== ref0));
   entry.stars = r.stars; entry.rateText = r.text; entry.warn = r.warn || ''; entry.advice = r.advice || '';
   if (ref0 !== null && ref0 !== undefined && S.logs[ref0]) S.logs[ref0] = entry;
   else { c.logRef[pos] = S.logs.length; S.logs.push(entry); }
@@ -4322,7 +4351,7 @@ function celebrate(st) {
   </div>`);
 
   $('#cheerOk').onclick = () => closeModal(() => {
-    go('dash');
+    goToday();
     if (st.weekDone) setTimeout(() => openWeekReport(st.weekDone), 260);
   });
 }
@@ -4611,8 +4640,7 @@ function addMissingLog(i) {
       const entry = { ts: x.ts - 60000, sid: x.sid || null, sIdx: x.idx, exId: ex.id, name: ex.name,
         setup: S.setup, load, feedback: 'same', sets, repsTarget: reps, repsDone: reps, rir: null, reps,
         goal: ex.type === 'core' ? 'core' : 'hypertrophy', week: meta ? meta.weekInCycle : null, manual: true };
-      const prev = S.logs.filter(g => g.exId === ex.id && g.ts < entry.ts).pop() || null;
-      const r = rateLog(entry, prev, false);
+      const r = rateFor(entry, S.logs.filter(g => g.ts < entry.ts));
       entry.stars = r.stars; entry.rateText = r.text; entry.warn = ''; entry.advice = r.advice || '';
       // in ordine di tempo, così "ultima volta" e confronti restano corretti
       let at = S.logs.findIndex(g => g.ts > entry.ts);
@@ -4622,6 +4650,7 @@ function addMissingLog(i) {
       const shift = arr => (arr || []).forEach((v, k) => { if (v !== null && v >= at) arr[k] = v + 1; });
       if (current && !current.finished) { shift(current.logRef); saveResume(); }
       else if (S.resume) shift(S.resume.logRef);
+      rerateExercise(ex.id);          // le registrazioni successive si confrontano con questa
       planCache = null; save();
       closeModal(() => openSessionDetail(i));
     };
@@ -4699,17 +4728,12 @@ function realignHistory() {
    stella a una seduta migliorata. Qui vengono ricalcolate con la regola nuova,
    in ordine di data; nessun'altra informazione viene toccata. */
 function migrateRatings() {
-  if (S.ratingsFixed) return;
-  S.ratingsFixed = true;
-  const byEx = {};
-  S.logs.slice().sort((a, b) => a.ts - b.ts).forEach(l => {
-    const prev = byEx[l.exId] || null;
-    if (prev) {
-      const r = rateLog(l, prev, false);
-      l.stars = r.stars; l.rateText = r.text; l.warn = r.warn || ''; l.advice = r.advice || '';
-    }
-    byEx[l.exId] = l;
-  });
+  // 6.5: regole nuove (confronto per serie, scarico, riferimento corretto,
+  // niente stelle ad aerobico e sedute segnate come fatte): stesso ricalcolo,
+  // una volta, con il punto di ingresso unico. Solo il giudizio cambia.
+  if (S.ratingsRev >= 2) return;
+  S.ratingsFixed = true; S.ratingsRev = 2;
+  [...new Set(S.logs.map(l => l.exId))].forEach(rerateExercise);
   save();
 }
 
@@ -6130,7 +6154,7 @@ function registerServiceWorker() {
   migrateRealign();
   seedPaceFromHistory();
   migrateRatings();
-  go('dash');
+  goToday();
   // l'intro si anima per 3 secondi e resta sull'ultimo fotogramma: sparisce solo
   // quando l'utente tocca lo schermo, e solo dopo compare l'avvertenza
   const splash = document.getElementById('splash');
