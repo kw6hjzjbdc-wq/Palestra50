@@ -881,10 +881,10 @@
   "goal": "core"
  },
  "pullupBlock": {
-  "note": "Trazioni e muscle-up, obiettivo del programma: 15 trazioni pulite di fila e 10 muscle-up al 30 maggio 2027. Il lavoro cambia per tappe secondo il massimo di trazioni pulite registrato (test nella settimana di scarico), non per calendario.",
+  "note": "Trazioni e muscle-up, obiettivo del programma: 15 trazioni pulite di fila e 2 muscle-up al 30 maggio 2027. Il lavoro cambia per tappe secondo il massimo di trazioni pulite registrato (test nella settimana di scarico), non per calendario.",
   "target": {
    "pullups": 15,
-   "muscleUps": 10
+   "muscleUps": 2
   },
   "stages": [
    {
@@ -1049,7 +1049,7 @@
    10,
    15
   ],
-  "note": "Cinque sessioni brevi al mattino, a casa e senza attrezzi pesanti, nei giorni 1-5; il sesto giorno c'è solo la mobilità a pranzo.",
+  "note": "Cinque sessioni brevi, a casa e senza attrezzi pesanti, nei giorni 1-5; il sesto giorno c'è solo la seduta di mobilità del programma.",
   "source": "ACSM – flessibilità: allungare quasi ogni giorno dà i risultati migliori; tenute di 30-60 s negli adulti più anziani, ~60 s totali per muscolo. ACSM – mobilità dinamica come preparazione. Allungamenti brevi (<60 s per muscolo) ore prima dell'allenamento non riducono forza e prestazione.",
   "focus": {
    "strength-0": {

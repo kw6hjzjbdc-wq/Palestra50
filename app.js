@@ -1462,7 +1462,7 @@ function pickFrom(pool, rotation, used) {
 
 /* ---------------------------------------------------------------------------
    BLOCCO TRAZIONI E MUSCLE-UP (dalla 6.4)
-   Obiettivo del programma: 15 trazioni pulite di fila e 10 muscle-up al
+   Obiettivo del programma: 15 trazioni pulite di fila e 2 muscle-up al
    30 maggio 2027. Tre sedute a settimana, sempre dopo i due esercizi
    fondamentali; attivazione scapolare o sospensione in chiusura se resta tempo.
    Il lavoro non cambia per calendario ma per TAPPE, secondo il massimo di
@@ -2235,6 +2235,10 @@ function aerobicMinutes(weekAbs) {
    avanzare il programma e non conta nel volume dei pesi.
 --------------------------------------------------------------------------- */
 const MORNING_DAYS = 5;
+/* Etichetta mostrata di una seduta registrata: quelle salvate prima della 6.7
+   si chiamavano «Mattino · giorno N». Il registro non si tocca, cambia solo il
+   testo a schermo. */
+const sessLabel = x => String((x && x.label) || '').replace(/^Mattino · /, 'Mobilità breve · ').replace(/^Mattino saltato$/, 'Mobilità breve saltata');
 // 'skipped' vale come seduta di programma: ha consumato il suo posto in
 // calendario, quindi l'indice avanza e lo storico resta allineato
 const isProgramKind = k => k !== 'core' && k !== 'free' && k !== 'morning';
@@ -2306,7 +2310,7 @@ function buildMorning(weekAbs, day, minutes) {
     if (estimateMinutes(items) > budget) it.sets -= it.perSide ? 2 : 1;
   });
   return Object.assign({}, meta, {
-    label: `Mattino · giorno ${day}`, type: 'stretch', kind: 'morning', items,
+    label: `Mobilità breve · giorno ${day}`, type: 'stretch', kind: 'morning', items,
     minutes: estimateMinutes(items), budget, mWeek: weekAbs, mDay: day,
     focusLabel: focus.label || '', focusKey: key, lunchLabel: sessionFor(idx).label
   });
@@ -2327,10 +2331,10 @@ function morningHtml() {
   const day = morningSel.day;
   const skipped = morningsSkipped(t.w);
   const dots = Array.from({ length: MORNING_DAYS }, (_, i) => i + 1).map(d =>
-    `<button class="mdot ${done.includes(d) ? 'done' : (skipped.includes(d) ? 'skip' : '')} ${d === day ? 'sel' : ''}" data-mday="${d}" aria-label="Mattino del giorno ${d}${done.includes(d) ? ', fatto' : (skipped.includes(d) ? ', saltato' : '')}">${done.includes(d) ? '✓' : (skipped.includes(d) ? '–' : d)}</button>`).join('');
+    `<button class="mdot ${done.includes(d) ? 'done' : (skipped.includes(d) ? 'skip' : '')} ${d === day ? 'sel' : ''}" data-mday="${d}" aria-label="Mobilità breve del giorno ${d}${done.includes(d) ? ', fatto' : (skipped.includes(d) ? ', saltato' : '')}">${done.includes(d) ? '✓' : (skipped.includes(d) ? '–' : d)}</button>`).join('');
   let body;
   if (!day) {
-    body = `<p class="small muted" style="margin-top:10px">Oggi è il sesto giorno: niente sessione del mattino, c'è solo la mobilità a pranzo. Se vuoi recuperare una mattina saltata, toccane il numero.</p>`;
+    body = `<p class="small muted" style="margin-top:10px">Oggi è il sesto giorno: niente mobilità breve, c'è solo la seduta di mobilità del programma. Se vuoi recuperarne una saltata, toccane il numero.</p>`;
   } else {
     const m = buildMorning(t.w, day, S.morningMin || 10);
     // la mattina segue sempre la seduta di pranzo di quel giorno: se la cambi
@@ -2345,24 +2349,24 @@ function morningHtml() {
         <div class="dose">${doseText(it)}</div><div class="chev">›</div></li>`;
     }).join('');
     body = `
-      <p class="small muted" style="margin:10px 0 0">Giorno ${day} · pranzo: <b>${esc(m.lunchLabel)}</b>. ${m.focusLabel ? 'Focus ' + esc(m.focusLabel.replace(/^in vista d\S+ [^:]+: /, '')) + '.' : ''}
-        Se cambi la seduta di pranzo nel calendario qui sotto, questa sessione si aggiorna da sola.
-        ${changed ? `<br><span style="color:var(--amber)">Stamattina l'avevi fatta in vista di «${esc(doneEntry.mLunch || '')}»: se vuoi preparare i distretti della nuova seduta, puoi ripeterla adesso.</span>`
+      <p class="small muted" style="margin:10px 0 0">Giorno ${day} · allenamento: <b>${esc(m.lunchLabel)}</b>. ${m.focusLabel ? 'Focus ' + esc(m.focusLabel.replace(/^in vista d\S+ [^:]+: /, '')) + '.' : ''}
+        Se cambi l'allenamento del giorno nel calendario qui sotto, questa sessione si aggiorna da sola.
+        ${changed ? `<br><span style="color:var(--amber)">Oggi l'avevi fatta in vista di «${esc(doneEntry.mLunch || '')}»: se vuoi preparare i distretti della nuova seduta, puoi ripeterla adesso.</span>`
           : (done.includes(day) ? 'Già fatta: puoi ripeterla.' : '')}</p>
-      <div class="seg dur" role="group" aria-label="Durata della mobilità del mattino" style="margin-top:10px">
+      <div class="seg dur" role="group" aria-label="Durata della mobilità breve" style="margin-top:10px">
         ${((PROG.morning || {}).durations || [10, 15]).map(v => `<button data-mmin="${v}" aria-pressed="${(S.morningMin || 10) === v}">${v}′</button>`).join('')}
       </div>
       <p class="small muted" style="margin:6px 0 0">Durata stimata ${m.minutes} minuti · a casa, serve solo un tappetino.</p>
       <ul class="plan">${rows}</ul>
-      <button class="btn teal" id="morningGo" style="margin-top:10px">Inizia la mobilità del mattino</button>
+      <button class="btn teal" id="morningGo" style="margin-top:10px">Inizia la mobilità breve</button>
       ${done.includes(day) ? '' : `<button class="btn ghost" id="morningMark" style="margin-top:8px">L'ho già fatta: segnala come svolta</button>
       <button class="btn ghost" id="morningSkip" style="margin-top:8px">Non la faccio: salta</button>`}`;
   }
   return `<div class="card morning" id="mCard">
-    <div class="kicker" style="font-family:var(--cond);letter-spacing:.06em;text-transform:uppercase;font-size:13px;color:var(--teal)">Mattino · a sé stante</div>
-    <h2 style="margin-top:2px">Mobilità del mattino</h2>
-    <p class="small muted" style="margin:6px 0 0">Cinque sessioni brevi nei giorni 1-5, in aggiunta alle sedute di pranzo. Non fanno avanzare il programma.</p>
-    <div class="mdots" role="group" aria-label="Mattine della settimana">${dots}</div>
+    <div class="kicker" style="font-family:var(--cond);letter-spacing:.06em;text-transform:uppercase;font-size:13px;color:var(--teal)">A casa · a sé stante</div>
+    <h2 style="margin-top:2px">Mobilità breve</h2>
+    <p class="small muted" style="margin:6px 0 0">Cinque sessioni brevi nei giorni 1-5, in aggiunta all'allenamento del giorno. Non fanno avanzare il programma.</p>
+    <div class="mdots" role="group" aria-label="Mobilità brevi della settimana">${dots}</div>
     ${body}
   </div>`;
 }
@@ -2381,16 +2385,16 @@ function bindMorning() {
     openSheet(exById(it.exId), it, { sess: m, after: () => renderHome() });
   });
   if ($('#morningMark')) $('#morningMark').onclick = () => confirmAction(
-    'Segnare la mobilità del mattino come svolta?',
+    'Segnare la mobilità breve come svolta?',
     `Verranno registrati i ${m.items.length} esercizi alle dosi previste (${m.minutes} minuti). Serve quando l'hai fatta senza aprire l'app.`,
     'Segna come fatta', () => { markSessionDone(m); renderHome(); });
   if ($('#morningSkip')) $('#morningSkip').onclick = () => confirmAction(
-    'Saltare la mobilità del mattino?',
-    'Resta segnata come saltata nei pallini della settimana. Le sedute di pranzo non cambiano.',
-    'Sì, la salto', () => { skipSession(m, 'Mattino saltato'); renderHome(); });
+    'Saltare la mobilità breve?',
+    'Resta segnata come saltata nei pallini della settimana. L\'allenamento del giorno non cambia.',
+    'Sì, la salto', () => { skipSession(m, 'Mobilità breve saltata'); renderHome(); });
   if ($('#morningGo')) $('#morningGo').onclick = () => {
     if (current && !current.finished) {
-      confirmAction('Sessione già in corso', 'Vuoi abbandonarla e iniziare la mobilità del mattino? Gli esercizi già conclusi restano nello storico.',
+      confirmAction('Sessione già in corso', 'Vuoi abbandonarla e iniziare la mobilità breve? Gli esercizi già conclusi restano nello storico.',
         'Inizia la mobilità', () => startSession(m));
     } else startSession(m);
   };
@@ -2562,7 +2566,7 @@ function fixOrphanSessions() {
   const hour = d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
   openModal(`<h2>Una seduta è rimasta aperta</h2>
     <p class="small muted">Il ${day} alle ${hour} hai registrato ${o.logs.length} esercizi, ma la seduta non è stata chiusa: l'app si è chiusa prima del riepilogo. Com'era?</p>
-    <button class="btn" id="orMorning" style="margin-top:12px">${morningLikely ? 'Sì: era la mobilità del mattino' : 'Era la mobilità del mattino'}</button>
+    <button class="btn" id="orMorning" style="margin-top:12px">${morningLikely ? 'Sì: era la mobilità breve' : 'Era la mobilità breve'}</button>
     <button class="btn ${morningLikely ? 'ghost' : ''}" id="orLunch" style="margin-top:10px">Era la seduta del giorno (${esc(buildSession(o.idx != null ? o.idx : S.sessionIndex).label)})</button>
     <button class="btn ghost" id="orFree" style="margin-top:10px">Era una seduta libera</button>
     <button class="btn ghost" id="orNo" style="margin-top:10px">Lascia com'è</button>
@@ -2730,16 +2734,16 @@ const dashTile = (attr, id, kicker, cls, body) => `<button class="dtile ${cls}" 
 
 function morningTileBody(ms, full) {
   if (ms.done) return `<div class="dstat ok">Fatta ✓</div><p class="small">${esc(ms.verdict.text)} · ${ms.verdict.pct}% delle tenute · ${ms.verdict.minutes} min</p>
-       <p class="small muted">Mattine della settimana: ${morningsDone(weekOfIdx(S.sessionIndex)).length} di ${MORNING_DAYS}.${full ? ' Puoi ripeterla o recuperarne una.' : ''}</p>`;
-  if (ms.none) return `<div class="dstat">Oggi niente</div><p class="small muted">Sesto giorno: c'è solo la mobilità a pranzo.${full ? ' Entra se vuoi recuperare una mattina saltata.' : ''}</p>`;
+       <p class="small muted">Mobilità brevi della settimana: ${morningsDone(weekOfIdx(S.sessionIndex)).length} di ${MORNING_DAYS}.${full ? ' Puoi ripeterla o recuperarne una.' : ''}</p>`;
+  if (ms.none) return `<div class="dstat">Oggi niente</div><p class="small muted">Sesto giorno: c'è solo la seduta di mobilità del programma.${full ? ' Entra se vuoi recuperarne una saltata.' : ''}</p>`;
   return `<div class="dstat todo">Da fare · ${ms.m.minutes} min</div><p class="small">${esc(ms.m.focusLabel || '')}</p>
          <p class="small muted">Giorno ${ms.day} di ${MORNING_DAYS} · ${ms.m.items.length} esercizi a casa${full ? ', serve solo un tappetino' : ''}.</p>`;
 }
 
 function lunchTileBody(ls, full) {
-  if (ls.skipped) return `<div class="dstat">Saltata</div><p class="small"><b>${esc(ls.entry.label)}</b> non svolta.</p>
+  if (ls.skipped) return `<div class="dstat">Saltata</div><p class="small"><b>${esc(sessLabel(ls.entry))}</b> non svolta.</p>
        <p class="small muted">La prossima è «${esc(ls.s.label)}» · ${ls.s.minutes} min.</p>`;
-  if (ls.done) return `<div class="dstat ok">Fatta ✓</div><p class="small"><b>${esc(ls.entry.label)}</b></p>
+  if (ls.done) return `<div class="dstat ok">Fatta ✓</div><p class="small"><b>${esc(sessLabel(ls.entry))}</b></p>
        <p class="small">${esc(ls.verdict.text)} · ${ls.verdict.pct}% delle serie · ${ls.verdict.minutes} min${ls.verdict.avg ? ' · ' + starsHtml(Math.round(ls.verdict.avg)) : ''}</p>`;
   return `<div class="dstat todo">Da fare · ${ls.s.minutes} min</div><p class="small"><b>${esc(ls.s.label)}</b></p>
        <p class="small muted">${typeWord(ls.s)} · ${ls.s.items.length} esercizi · sessione ${ls.s.pos} di ${ls.s.days} della settimana.</p>`;
@@ -2811,7 +2815,7 @@ function renderProg() {
 --------------------------------------------------------------------------- */
 function pullTarget() {
   const t = (PROG.pullupBlock && PROG.pullupBlock.target) || {};
-  return { n: t.pullups || 15, mu: t.muscleUps || 10 };
+  return { n: t.pullups || 15, mu: t.muscleUps || 2 };
 }
 function pullTileBody() {
   const ps = pullStage(), t = pullTarget();
@@ -2887,6 +2891,80 @@ function dayLabel(meta) {
   return ((p.stretchDays || [])[meta.tmplIdx] || {}).label || 'Mobilità';
 }
 
+/* ---------------------------------------------------------------------------
+   COME E PERCHÉ CAMBIA IL PROGRAMMA (dalla 6.7)
+   In «Le prossime settimane», prima del calendario: che cosa cambia per
+   calendario (fasi, blocco di 4 settimane, rotazione degli esercizi,
+   intervalli, mobilità) e che cosa cambia secondo i risultati registrati
+   (carichi, trazioni, supplementari, tenute), più ciò che sposta il
+   calendario. Tutto è letto dai dati del programma attivo, così il testo
+   resta allineato a quello che l'app fa davvero.
+--------------------------------------------------------------------------- */
+function cyclesHtml(p, meta) {
+  const G = PROG.goals;
+  const doseOf = k => { const g = G[k]; return g ? `${g.repsLow}-${g.repsHigh} rip., recupero ${g.rest} s` : ''; };
+  const days = (p.strengthDays || []).map(d => esc(String(d.label).split('·')[0].trim()));
+  // fasi del macrociclo
+  let acc = 0;
+  const phases = (p.phases || []).map((f, i) => {
+    const a = acc + 1, b = acc + f.weeks; acc = b;
+    const cur = meta.phase && meta.phase.index === i;
+    const goals = (f.goals || []).map((k, j) => `${days[j] || 'Forza ' + 'ABC'[j]}: ${esc((G[k] || {}).label || k)}`).join(' · ');
+    return `<li class="${cur ? 'cur' : ''}"><div class="nm" style="flex:1"><b>${esc(f.name)}</b>${cur ? ' <span class="wkbadge">sei qui</span>' : ''}
+      <div class="small muted">${a === b ? `Settimana ${a}` : `Settimane ${a}-${b}`}${f.deload ? ' · tutta di scarico' : ''} · ${goals}</div>
+      <div class="small muted">${esc(f.aim || '')}</div></div></li>`;
+  }).join('');
+  const usedGoals = [...new Set((p.phases || []).flatMap(f => f.goals || []))].filter(k => G[k]);
+  const goalRows = usedGoals.map(k => `<li><b>${esc(G[k].label)}</b>: ${doseOf(k)}</li>`).join('');
+  // blocco di 4 settimane
+  const cw = p.cycleWeeks || 4;
+  const block = Array.from({ length: cw }, (_, i) => {
+    const pr = weekProfile(i + 1, cw);
+    const what = pr.label === 'Scarico' ? 'una serie in meno, ripetizioni a metà della fascia, carico fermo'
+      : pr.label === 'Picco' ? 'una serie in più, ripetizioni nella parte bassa della fascia'
+      : pr.label === 'Adattamento' ? 'ripetizioni nella parte alta della fascia, 3 di riserva'
+      : 'ripetizioni un po\' più basse della settimana prima';
+    const cur = meta.weekInCycle === i + 1 && !meta.mobilityWeek;
+    return `<li class="${cur ? 'cur' : ''}"><span class="wknum" style="flex:0 0 26px">${i + 1}</span><div class="nm" style="flex:1"><b>${esc(pr.label)}</b>${cur ? ' <span class="wkbadge">questa settimana</span>' : ''}
+      <div class="small muted">${what}</div></div></li>`;
+  }).join('');
+  const ps = (typeof pullStage === 'function' && S.pullupGoal) ? pullStage() : null;
+  const tw = meta.trainingWeek || 1;
+  const hiit = hiitScheme(meta);
+  return `<div class="block" style="margin-top:14px">
+    <h3>Come cambia il programma</h3>
+    <p class="small muted">Alcune cose cambiano <b>per calendario</b>, decise dal programma; altre <b>secondo i tuoi risultati</b>, da quello che registri. I carichi non salgono mai per calendario.</p>
+
+    <h3 style="margin-top:14px;font-size:15px">Per calendario</h3>
+    ${phases ? `<p class="small"><b>Le fasi del macrociclo.</b> Cambiano l'obiettivo di ciascuna seduta di forza, quindi ripetizioni e recuperi:</p>
+    <ul class="hist">${phases}</ul>
+    <ul class="small" style="padding-left:18px;margin-top:6px">${goalRows}</ul>` : ''}
+    <p class="small" style="margin-top:10px"><b>Il blocco di ${cw} settimane</b>, che si ripete dentro ogni fase: stessi esercizi, cambiano serie e ripetizioni.</p>
+    <ul class="hist">${block}</ul>
+    <ul class="small" style="padding-left:18px;margin-top:8px">
+      <li><b>Esercizi</b>: a ogni nuovo blocco di ${cw} settimane l'esercizio ruota, a parità di schema di movimento (per esempio un'altra spinta orizzontale al posto della precedente), quando l'attrezzatura offre alternative.</li>
+      <li><b>Intervalli</b>: crescono con le settimane di allenamento — 30″ di lavoro e 90″ di recupero fino alla 4ª, 30/60 fino alla 12ª, 45/60 fino alla 24ª, poi 60/60. Ora sei alla settimana ${tw}: ${hiit.work}″ / ${hiit.rest}″.</li>
+      <li><b>Mobilità</b>: i due schemi (anca e gambe; colonna e spalle) si alternano di settimana in settimana; la mobilità breve a casa segue i distretti dell'allenamento dello stesso giorno.</li>
+    </ul>
+
+    <h3 style="margin-top:14px;font-size:15px">Secondo i tuoi risultati</h3>
+    <ul class="small" style="padding-left:18px">
+      <li><b>Carichi</b>: salgono di un passo solo quando, per due sedute di fila, superi l'obiettivo di 2 ripetizioni nell'ultima serie (regola 2-for-2, regola operativa dell'app); scendono se segnali che era troppo pesante. Nella settimana di scarico restano fermi.</li>
+      ${ps ? `<li><b>Trazioni e muscle-up</b>: il lavoro cambia per tappe secondo il massimo di trazioni pulite, misurato con un test nella settimana di scarico. Ora: <b>${esc(ps.stage.label)}</b> (massimo ${ps.m})${ps.next ? `; la prossima tappa, ${esc(ps.next.label)}, a ${ps.next.minMu ? 'primo muscle-up' : ps.next.min + ' trazioni'}` : ''}.</li>` : ''}
+      <li><b>Esercizi supplementari</b>: entrano a fine seduta, se resta tempo, solo per i gruppi muscolari che nella settimana restano sotto le 10 serie, contando le sedute già fatte e quelle ancora previste; mai nella settimana di scarico.</li>
+      <li><b>Esercizi a tempo</b> (plank, tenute): se per due volte di fila ti restano almeno 10 secondi di margine, la tenuta si allunga di 5 secondi, fino a +30.</li>
+      <li><b>Durata</b>: la scegli ogni giorno fra 35 e 50 minuti; con più tempo entrano supplementari, finale metabolico e sospensione alla sbarra, con meno si accorciano prima i complementari.</li>
+    </ul>
+
+    <h3 style="margin-top:14px;font-size:15px">Che cosa sposta il calendario</h3>
+    <ul class="small" style="padding-left:18px">
+      <li>Una <b>settimana di sola mobilità</b> non conta nel piano: fasi, blocchi e data di fine slittano di una settimana.</li>
+      <li>Una <b>seduta saltata</b> consuma il suo posto: il programma passa alla successiva e non si allunga.</li>
+      <li>Puoi <b>scambiare le sedute</b> dentro la settimana; la mobilità resta sempre l'ultima.</li>
+    </ul>
+  </div>`;
+}
+
 function openUpcoming(fromWeek) {
   const start = fromWeek || weekOfIdx(S.sessionIndex);
   const p = program();
@@ -2910,6 +2988,8 @@ function openUpcoming(fromWeek) {
   }
   openModal(`<h2>Le prossime settimane</h2>
     <p class="small muted">${esc(p.name)}. Gli esercizi esatti vengono scelti quando apri la seduta, in base a carichi, attrezzatura e tempo che hai; qui vedi il tipo di lavoro previsto giorno per giorno.</p>
+    ${start === weekOfIdx(S.sessionIndex) ? cyclesHtml(p, sessionMeta(S.sessionIndex)) : ''}
+    <h3 style="margin-top:16px">Settimana per settimana</h3>
     ${weeks.join('')}
     <div class="btn-row" style="margin-top:14px">
       <button class="btn ghost" id="upPrev" ${start <= 1 ? 'disabled' : ''}>‹ Indietro</button>
@@ -3277,8 +3357,8 @@ function renderHomePick() {
   $('#view-home').innerHTML = `
     ${b.html}
     ${deloadCardHtml()}
-    ${tile('morning', 'Mattino · mobilità', 'mobility', mBody)}
-    ${tile('lunch', 'Pranzo · allenamento del giorno', ls.done || ls.skipped ? 'strength' : typeClass(ls.s), lBody)}
+    ${tile('morning', 'Mobilità breve · a casa', 'mobility', mBody)}
+    ${tile('lunch', 'Allenamento del giorno', ls.done || ls.skipped ? 'strength' : typeClass(ls.s), lBody)}
     <p class="small muted" style="margin-top:14px">Tocca la sessione su cui vuoi lavorare: esercizi, durata e calendario della settimana si aprono lì dentro.</p>`;
 
   document.querySelectorAll('[data-pick]').forEach(el => el.onclick = () => {
@@ -3383,7 +3463,7 @@ function renderHomeLunch() {
     <div class="card" id="lunchCard">
       <div class="session-head ${core ? 'mobility' : ({ strength: '', cardio: 'cardio' }[s.dayType] ?? 'mobility')}">
         <div>
-          <div class="kicker">${core ? 'Blocco core facoltativo' : `Pranzo · sessione ${s.pos} di ${s.days} · ${typeWord(s)}`}</div>
+          <div class="kicker">${core ? 'Blocco core facoltativo' : `Sessione ${s.pos} di ${s.days} · ${typeWord(s)}`}</div>
           <h2>${esc(s.label)}</h2>
           <p class="small muted" style="margin:6px 0 0">${core ? 'Blocco breve da aggiungere quando hai tempo: non avanza la settimana del programma.'
                  : esc(s.isStrength ? s.profile.note : mobilityNote(s.profile, s.mobilityWeek))}</p>
@@ -4478,7 +4558,7 @@ function renderHistory() {
 
   const sess = S.sessionLog.map((x, i) => [x, i]).slice(-10).reverse().map(pair => {
     const x = pair[0], i = pair[1];
-    return `<li data-sess="${i}"><div class="nm" style="flex:1"><b>${esc(x.label)}</b>${isSkipped(x) ? ' <span class="wkbadge done">saltata</span>' : ''}
+    return `<li data-sess="${i}"><div class="nm" style="flex:1"><b>${esc(sessLabel(x))}</b>${isSkipped(x) ? ' <span class="wkbadge done">saltata</span>' : ''}
       <div class="small muted">${new Date(x.ts).toLocaleDateString('it-IT')}${isSkipped(x) ? '' : ' · ' + x.minutes + ' min'}${x.note ? ' · ' + esc(x.note) : ''}</div></div>
       <div class="chev">›</div></li>`;
   }).join('');
@@ -4621,7 +4701,7 @@ function openSessionDetail(i) {
         ${l.rateText ? `<div class="small muted">${starsHtml(l.stars)} ${esc(l.rateText)}</div>` : ''}</div>
       <div class="val">${esc(l.load || '—')} ${arrow(l.feedback)}</div>
       ${l.manual ? `<button class="mini-skip" data-dellog="${S.logs.indexOf(l)}" aria-label="Elimina la registrazione aggiunta a mano">✕</button>` : ''}</li>`).join('');
-  openModal(`<h2>${esc(x.label)}</h2>
+  openModal(`<h2>${esc(sessLabel(x))}</h2>
     <p class="small muted">${d.toLocaleDateString('it-IT')} alle ${d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })} · ${x.minutes} minuti · ${logs.length} esercizi${x.kind === 'core' ? ' · blocco core' : ''}</p>
     ${x.note ? `<div class="notice" style="margin-bottom:10px">${esc(x.note)}</div>` : ''}
     <ul class="hist">${rows || '<li><span class="small muted">Nessun esercizio registrato per questa seduta.</span></li>'}</ul>
@@ -4657,7 +4737,7 @@ function addMissingLog(i) {
     else if (ex.load === 'weight') loadCtl = `<input id="mlLoad" type="number" inputmode="decimal" step="0.5" placeholder="kg">`;
     else loadCtl = `<input id="mlLoad" type="text" placeholder="nota sul carico (facoltativa)">`;
     openModal(`<h2>Esercizio non registrato</h2>
-      <p class="small muted">Viene aggiunto a «${esc(x.label)}» del ${new Date(x.ts).toLocaleDateString('it-IT')}: conterà in quella settimana, nel volume e nei suggerimenti di carico.</p>
+      <p class="small muted">Viene aggiunto a «${esc(sessLabel(x))}» del ${new Date(x.ts).toLocaleDateString('it-IT')}: conterà in quella settimana, nel volume e nei suggerimenti di carico.</p>
       <div class="field"><label>Esercizio</label><select id="mlEx">${pool.map(e =>
         `<option value="${e.id}" ${e.id === ex.id ? 'selected' : ''}>${esc(e.name)}</option>`).join('')}</select></div>
       <div class="field"><label>Serie</label><input id="mlSets" type="number" inputmode="numeric" min="1" max="10" value="3"></div>
@@ -5267,7 +5347,7 @@ function renderSettings() {
         subacromiale — l'esercizio attivo contro resistenza è raccomandato con prove forti, senza un elenco di movimenti da
         evitare (linea guida JOSPT 2025). Qui l'app sceglie per primi gli esercizi che di solito danno meno fastidio; se un
         movimento non ti dà dolore, togli la spunta e torna disponibile.</p>
-      <div class="switch"><span>Obiettivo trazioni e muscle-up<br><span class="small muted">15 trazioni pulite di fila e 10 muscle-up a fine programma: lavoro per tappe dopo i due esercizi principali, test nella settimana di scarico, sospensione in chiusura se resta tempo. Dettagli in Progressi.</span></span>
+      <div class="switch"><span>Obiettivo trazioni e muscle-up<br><span class="small muted">15 trazioni pulite di fila e 2 muscle-up a fine programma: lavoro per tappe dopo i due esercizi principali, test nella settimana di scarico, sospensione in chiusura se resta tempo. Dettagli in Progressi.</span></span>
         <input type="checkbox" id="pullChk" ${S.pullupGoal ? 'checked' : ''}></div>
       <div class="switch"><span>Campanella del timer</span>
         <input type="checkbox" id="soundChk" ${S.sound !== false ? 'checked' : ''}></div>
@@ -5360,7 +5440,7 @@ function renderSettings() {
     const alt = buildSession(n);
     confirmAction('Ricalcolare la posizione?',
       `Risultano ${n} sedute di programma registrate, quindi la prossima sarebbe "${alt.label}", ` +
-      `${whereText(sessionMeta(n))}. Blocchi core, sedute libere e mobilità del mattino non contano.`,
+      `${whereText(sessionMeta(n))}. Blocchi core, sedute libere e mobilità brevi non contano.`,
       'Allinea alla cronologia', () => { S.sessionIndex = n; realignHistory(); planCache = null; homeSel = 'session'; save(); renderSettings(); });
   };
   $('#progSel').onchange = e => { S.programId = e.target.value; save(); renderSettings(); };

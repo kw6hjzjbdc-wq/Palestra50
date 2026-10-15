@@ -213,6 +213,16 @@ Da *Oggi* (sotto il calendario), dalla pagina *Progressi* e dal riquadro *Il per
 
 Nel riepilogo di fine seduta, *Ho ancora tempo: aggiungi esercizi*. Si dichiara quanto tempo resta (5, 10 o 15 minuti) e l'app propone quattro esercizi sui **gruppi più indietro** rispetto al volume previsto per la settimana, con le serie che stanno davvero in quei minuti (tempo di preparazione compreso). Toccandone uno si torna nella seduta, che riprende da quell'esercizio e si chiude normalmente.
 
+### Senza «Mattino» e «Pranzo»; «Come cambia il programma» (6.7)
+
+- **Niente diciture legate all'ora del giorno.** La sessione breve a casa si chiama **Mobilità breve** (riquadro «Mobilità breve · a casa»), la seduta principale **Allenamento del giorno**. Cambiati tutti i testi a schermo (riquadri di Oggi, schermata della mobilità breve, conferme, chiusura di una seduta rimasta aperta, intestazione della seduta). Le sedute già registrate come «Mattino · giorno N» restano com'erano nel registro e vengono mostrate come «Mobilità breve · giorno N» (`sessLabel`).
+- **Obiettivo muscle-up: 2** (prima 10); 15 trazioni pulite confermate. Le tappe del blocco trazioni non cambiano.
+- **«Le prossime settimane» spiega come cambia il programma** (`cyclesHtml`), prima del calendario settimana per settimana:
+  - *per calendario*: le fasi del macrociclo con settimane, obiettivo di Forza A, B e C e scopo (fase attuale evidenziata), con ripetizioni e recuperi di ogni obiettivo; il blocco di 4 settimane (adattamento, costruzione, picco, scarico) con che cosa cambia in ciascuna; rotazione degli esercizi a ogni blocco; progressione degli intervalli con le settimane di allenamento (e lo schema attuale); alternanza degli schemi di mobilità;
+  - *secondo i risultati*: carichi con la regola 2-for-2 (fermi in scarico), tappe di trazioni e muscle-up con la tappa attuale e la successiva, supplementari per i gruppi sotto 10 serie, tenute che si allungano con il margine, durata scelta ogni giorno;
+  - *che cosa sposta il calendario*: settimane di sola mobilità, sedute saltate, scambio di sedute (la mobilità resta l'ultima).
+  Il testo è generato dai dati del programma attivo (fasi, obiettivi, profilo del blocco, soglie degli intervalli), quindi resta allineato a quello che l'app fa.
+
 ### Aerobico nello storico: fasi, non prestazioni (6.6)
 
 Una seduta aerobica registra lo stesso attrezzo tre volte: riscaldamento (5 minuti facili), parte centrale (intervalli o ritmo costante) e defaticamento (3 minuti). Lo storico le trattava come tre prestazioni successive dello stesso esercizio: nei *Carichi per esercizio* la bici da spinning aveva una linea che saliva (riscaldamento → parte centrale) e poi scendeva (→ defaticamento), con «3 sedute» dopo una seduta sola, e fino alla 6.4 una stella diversa per ogni fase. Intensità e durata le decide il programma e non c'era nulla di precedente da confrontare: il giudizio era senza senso.
@@ -325,7 +335,7 @@ Dentro ogni fase si lavora a blocchi di quattro settimane, con la quarta di scar
 
 ### Trazioni e muscle-up: obiettivo del programma (dalla 6.4)
 
-**Obiettivo al 30 maggio 2027: 15 trazioni pulite di fila a corpo libero e 10 muscle-up.** Attivabile da *Programma* (predefinito: attivo). Il lavoro resta dopo i due esercizi fondamentali del giorno, con la **sospensione alla sbarra** o l'attivazione scapolare in chiusura se resta tempo; ma quando la seduta va accorciata per stare nei minuti scelti, ora si riducono prima i complementari e poi le serie del blocco trazioni.
+**Obiettivo al 30 maggio 2027: 15 trazioni pulite di fila a corpo libero e 2 muscle-up** (obiettivo dei muscle-up ridotto da 10 a 2 nella 6.7, su indicazione dell'utente). Attivabile da *Programma* (predefinito: attivo). Il lavoro resta dopo i due esercizi fondamentali del giorno, con la **sospensione alla sbarra** o l'attivazione scapolare in chiusura se resta tempo; ma quando la seduta va accorciata per stare nei minuti scelti, ora si riducono prima i complementari e poi le serie del blocco trazioni.
 
 **Tappe guidate dai progressi, non dal calendario.** Il blocco cambia secondo il massimo di trazioni pulite (`pullMax`) e di muscle-up (`muMax`):
 
