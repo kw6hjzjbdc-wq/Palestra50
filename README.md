@@ -213,6 +213,20 @@ Da *Oggi* (sotto il calendario), dalla pagina *Progressi* e dal riquadro *Il per
 
 Nel riepilogo di fine seduta, *Ho ancora tempo: aggiungi esercizi*. Si dichiara quanto tempo resta (5, 10 o 15 minuti) e l'app propone quattro esercizi sui **gruppi più indietro** rispetto al volume previsto per la settimana, con le serie che stanno davvero in quei minuti (tempo di preparazione compreso). Toccandone uno si torna nella seduta, che riprende da quell'esercizio e si chiude normalmente.
 
+### Settimana di scarico fuori dalla progressione (6.8)
+
+Le prestazioni della settimana di scarico **restano nello storico** (nessuna registrazione si cancella) ma **non entrano più nei dati della progressione**:
+
+- **niente stelle**: la registrazione dice «Settimana di scarico: registrata nello storico, non entra nei dati della progressione»; se il carico è salito invece di restare fermo, l'avviso resta;
+- **mai riferimento** per il confronto: la prima seduta dopo lo scarico si confronta con l'ultima seduta normale;
+- **carico suggerito e regola 2-for-2** leggono solo le sedute normali (`lastEntry`, `lastEntries`): l'aumento guadagnato prima dello scarico scatta alla ripresa, senza che le ripetizioni ridotte dello scarico lo annullino;
+- **tenute** (allungamento di 5 s con il margine): il margine dichiarato in scarico non conta;
+- **grafici, linea dei carichi e tendenza degli esercizi**: le registrazioni di scarico non compaiono; nel dettaglio dell'esercizio restano elencate con la nota «scarico, fuori dalla progressione»;
+- **massimo di trazioni e muscle-up**: le serie dello scarico non lo aggiornano. Per questo il **test** è stato spostato dalla settimana di scarico alla **prima settimana di ogni blocco**, subito dopo lo scarico (e nella prima settimana del programma): Forza A per le trazioni, Forza B per i muscle-up;
+- restano invece nei conteggi che non misurano la progressione: volume della settimana, minuti aerobici, sedute svolte, calibrazione della durata.
+
+La fascia rossa e il riquadro della settimana di scarico lo spiegano. All'aggiornamento le stelle dello storico vengono ricalcolate una volta con questa regola; nessun altro dato cambia.
+
 ### Senza «Mattino» e «Pranzo»; «Come cambia il programma» (6.7)
 
 - **Niente diciture legate all'ora del giorno.** La sessione breve a casa si chiama **Mobilità breve** (riquadro «Mobilità breve · a casa»), la seduta principale **Allenamento del giorno**. Cambiati tutti i testi a schermo (riquadri di Oggi, schermata della mobilità breve, conferme, chiusura di una seduta rimasta aperta, intestazione della seduta). Le sedute già registrate come «Mattino · giorno N» restano com'erano nel registro e vengono mostrate come «Mobilità breve · giorno N» (`sessLabel`).
@@ -349,7 +363,7 @@ Dentro ogni fase si lavora a blocchi di quattro settimane, con la quarta di scar
 
 - **Serie pulite**: ripetizioni = massimo − 2, fino a 12 (sempre due di margine, mai a cedimento), 5 serie fino a 5 trazioni, 4 oltre; livello «Completa» preimpostato. Il riferimento è Sánchez-Moreno et al. 2020 (J Strength Cond Res 34(4):911-917): in 29 uomini allenati, 8 settimane di trazioni a corpo libero con fatica moderata (perdita di velocità del 25%) hanno migliorato forza e prestazione più delle serie spinte verso il cedimento (50%), che non hanno dato guadagni.
 - **Il massimo** è il migliore fra test, serie pulite registrate (le serie annotate come assistite o a mezza escursione non contano) e il valore inserito a mano, nelle ultime sei settimane; le sedute segnate come fatte alle dosi previste non contano.
-- **Test**: nella settimana di scarico, in Forza A, una serie di trazioni pulite al massimo (obiettivo: il massimo + 1); in Forza B il test di muscle-up quando sono già in programma. È un test di massime ripetizioni a corpo libero come quelli di Sánchez-Moreno et al. 2017 (Int J Sports Physiol Perform 12(10):1378-1384).
+- **Test**: nella prima settimana di ogni blocco, subito dopo lo scarico (dalla 6.8; prima era nella settimana di scarico), in Forza A, una serie di trazioni pulite al massimo (obiettivo: il massimo + 1); in Forza B il test di muscle-up quando sono già in programma. È un test di massime ripetizioni a corpo libero come quelli di Sánchez-Moreno et al. 2017 (Int J Sports Physiol Perform 12(10):1378-1384).
 - **Spalla**: le tappe del muscle-up restano chiuse finché in *Programma* è attiva «evita gli esercizi dolorosi per la spalla». In un'indagine su praticanti di CrossFit (Summitt et al. 2016, Sports Health 8(6):541-546) muscle-up agli anelli e alla sbarra, dip agli anelli e trazioni con slancio erano fra i gesti indicati come causa di infortuni alla spalla, e il 38,6% degli infortuni era la riacutizzazione di un problema già presente. La linea guida JOSPT 2025 (Desmeules et al., 55(4):235-274) raccomanda l'esercizio progressivo adattato alla tolleranza al dolore, senza elencare movimenti vietati: per questo la scelta resta all'utente, con l'indicazione di passare prima da una valutazione del fisioterapista.
 - **Dip**: fino a 90° di gomito e mai a cedimento. In McKenzie et al. 2022 (IJERPH 19(21):14390) la spalla nel dip alla sbarra arriva a circa 67° di estensione, il 76% della sua escursione passiva; due partecipanti l'hanno superata nell'ultima ripetizione fallita.
 - **Muscle-up prima alla sbarra**: Walker et al. 2023 (Int J Exerc Sci 16(1):1451-1460) indicano di costruire forza degli arti superiori e di imparare il muscle-up alla sbarra prima di quello agli anelli, che richiede più attivazione a bicipiti, tricipiti e trapezio superiore.

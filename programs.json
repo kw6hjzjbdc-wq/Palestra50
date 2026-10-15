@@ -881,7 +881,7 @@
   "goal": "core"
  },
  "pullupBlock": {
-  "note": "Trazioni e muscle-up, obiettivo del programma: 15 trazioni pulite di fila e 2 muscle-up al 30 maggio 2027. Il lavoro cambia per tappe secondo il massimo di trazioni pulite registrato (test nella settimana di scarico), non per calendario.",
+  "note": "Trazioni e muscle-up, obiettivo del programma: 15 trazioni pulite di fila e 2 muscle-up al 30 maggio 2027. Il lavoro cambia per tappe secondo il massimo di trazioni pulite registrato (test nella prima settimana di ogni blocco, subito dopo lo scarico), non per calendario.",
   "target": {
    "pullups": 15,
    "muscleUps": 2

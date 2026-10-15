@@ -539,7 +539,7 @@ function mobilityNote(profile, mobWeek) {
    si progredisce quando il margine c'è, non per calendario. */
 function holdBonus(ex) {
   if (!ex || ex.load !== 'time' || ex.type === 'stretch') return 0;
-  const logs = S.logs.filter(l => l.exId === ex.id);
+  const logs = S.logs.filter(l => l.exId === ex.id && !isDeloadLog(l));
   let bonus = 0;
   for (let i = 1; i < logs.length; i++) {
     const a = logs[i - 1], b = logs[i];
@@ -696,12 +696,15 @@ function minStepFor(ex, n) {
 const progressDir = ex => isAssist(ex) ? -1 : 1;
 /* Parola giusta da mostrare: "carico" oppure "assistenza". */
 const loadWord = ex => isAssist(ex) ? 'assistenza' : 'carico';
+/* Dalla 6.8 le prestazioni della settimana di scarico non sono dati di
+   progressione: restano nello storico (nulla si cancella) ma non fanno da
+   «ultima volta» per il carico suggerito, la regola 2-for-2 e le tenute. */
 function lastEntry(exId) {
-  for (let i = S.logs.length - 1; i >= 0; i--) if (S.logs[i].exId === exId) return S.logs[i];
+  for (let i = S.logs.length - 1; i >= 0; i--) if (S.logs[i].exId === exId && !isDeloadLog(S.logs[i])) return S.logs[i];
   return null;
 }
 function lastEntries(exId, n) {
-  return S.logs.filter(l => l.exId === exId).slice(-n);
+  return S.logs.filter(l => l.exId === exId && !isDeloadLog(l)).slice(-n);
 }
 
 /* Vero se in quella registrazione hai superato l'obiettivo di 2+ ripetizioni. */
@@ -748,6 +751,7 @@ function openDeloadInfo() {
     <p class="small muted">Serve a far recuperare tendini, articolazioni e sistema nervoso: è la settimana che rende possibile l'aumento di carico in quella successiva, non una settimana persa.
       Per questo l'app <b>congela il carico suggerito</b> anche dove hai soddisfatto la regola 2-for-2: l'aumento guadagnato scatta la settimana prossima.</p>
     <p class="small muted">Se oggi ti senti bene, la tentazione è alzare il peso a mano: è proprio quello che toglie senso allo scarico. Tieni i carichi della settimana scorsa e chiudi le serie con due o tre ripetizioni di riserva.</p>
+    <p class="small muted">Le prestazioni di questa settimana restano nello storico ma <b>non entrano nei dati della progressione</b>: non prendono stelle, non compaiono nei grafici e nella tendenza, non contano per il carico suggerito né per il massimo di trazioni. Il test delle trazioni cade la settimana prossima, a recupero fatto.</p>
     <button class="btn secondary" id="dlOk" style="margin-top:14px">Ho capito</button>`);
   $('#dlOk').onclick = () => closeModal();
 }
@@ -761,6 +765,7 @@ function deloadCardHtml() {
     <h2 style="margin-top:2px">Non aumentare i carichi</h2>
     <p class="small" style="margin:6px 0 0">${esc(note)}</p>
     <p class="small" style="margin:6px 0 0">Il carico suggerito resta quello della settimana scorsa anche dove hai soddisfatto la regola 2-for-2: l'aumento scatta la settimana prossima.</p>
+    <p class="small" style="margin:6px 0 0">Quello che fai questa settimana resta nello storico ma non entra nella progressione: niente stelle, niente punti nei grafici, e la prossima settimana il confronto si fa con l'ultima seduta normale.</p>
   </div>`;
 }
 
@@ -1216,17 +1221,28 @@ function isRatable(l) {
    e contarle come tre sedute era sbagliato. */
 const sessionKey = l => l.sid != null ? 's' + l.sid : 'd' + new Date(l.ts || 0).toDateString();
 const sessionsCount = logs => new Set(logs.map(sessionKey)).size;
-const isDeloadLog = l => l && l.sIdx != null && isDeloadWeek(l.sIdx);
+const isDeloadLog = l => !!l && l.sIdx != null && isDeloadWeek(l.sIdx);
 function ratingRef(cur, candidates) {
   const test = TEST_GOALS.includes(cur.goal);
-  let c = (candidates || []).filter(l => l !== cur && l.exId === cur.exId && !l.planned &&
+  // le registrazioni della settimana di scarico non fanno mai da riferimento
+  const c = (candidates || []).filter(l => l !== cur && l.exId === cur.exId && !l.planned && !isDeloadLog(l) &&
     !(cur.sid != null && l.sid === cur.sid) && TEST_GOALS.includes(l.goal) === test);
-  if (!isDeloadLog(cur)) { const nd = c.filter(l => !isDeloadLog(l)); if (nd.length) c = nd; }
   return c.length ? c[c.length - 1] : null;
 }
 function rateFor(cur, candidates) {
   if (!isRatable(cur)) return { stars: 0, text: cur.planned ? 'Segnata come fatta alle dosi previste: senza dati reali non c\'è valutazione.' : '' };
-  return rateLog(cur, ratingRef(cur, candidates), isDeloadLog(cur));
+  // (6.8) la settimana di scarico non entra nella progressione: niente stelle;
+  // resta solo l'avviso se il carico è salito invece di restare fermo
+  if (isDeloadLog(cur)) {
+    const prev = ratingRef(cur, candidates);
+    const r = prev ? rateLog(cur, prev, true) : null;
+    const base = 'Settimana di scarico: registrata nello storico, non entra nei dati della progressione.';
+    if (r && (r.warn === 'scarico' || r.warn === 'salto')) return { stars: 0, warn: 'scarico',
+      text: base + ' ' + (r.warn === 'salto' ? r.text.replace(/^Carico aumentato/, 'Carico aumentato in settimana di scarico') : r.text),
+      advice: 'Lo scarico serve al recupero di tendini e articolazioni: tieni i carichi della settimana prima, l\'aumento lo provi la settimana prossima.' };
+    return { stars: 0, text: base };
+  }
+  return rateLog(cur, ratingRef(cur, candidates), false);
 }
 /* Ricalcola in ordine di data le stelle di un esercizio (per esempio dopo
    l'aggiunta a mano di una registrazione nel passato). Tocca solo il giudizio. */
@@ -1479,8 +1495,11 @@ function pickFrom(pool, rotation, used) {
    (Summitt et al. 2016) e va iniziato solo senza dolore.
    Serie pulite: massimo − 2 ripetizioni (sempre 2 di margine), mai a cedimento
    (Sánchez-Moreno et al. 2020: oltre una fatica moderata nessun guadagno in
-   più). Il massimo si misura con un test nella settimana di scarico (Forza A;
-   muscle-up in Forza B) ed è aggiornato anche dalle serie pulite registrate.
+   più). Il massimo si misura con un test nella prima settimana di ogni blocco,
+   subito dopo lo scarico (Forza A; muscle-up in Forza B), ed è aggiornato
+   anche dalle serie pulite registrate. Dalla 6.8 le prestazioni della
+   settimana di scarico non entrano nei dati di progressione, quindi il test
+   non può più stare lì.
 --------------------------------------------------------------------------- */
 const PULL_GOALS = { activation: 'pullupActivation', eccentric: 'pullupStrength',
                      isometric: 'pullupIso', volume: 'pullupVolume', row: 'pullupVolume',
@@ -1510,7 +1529,7 @@ function bestAtLevels(l, okLevels) {
 function liftMax(exId, okLevels, selfKey) {
   const cand = [];
   (S.logs || []).forEach(l => {
-    if (l.exId !== exId || l.planned) return;
+    if (l.exId !== exId || l.planned || isDeloadLog(l)) return;
     const n = bestAtLevels(l, okLevels);
     if (n > 0 || l.goal === 'pullupTest' || l.goal === 'muTest')
       cand.push({ n, ts: l.ts || 0, src: (l.goal === 'pullupTest' || l.goal === 'muTest') ? 'test' : 'serie' });
@@ -1542,10 +1561,11 @@ function pullStage() {
   const next = st[st.indexOf(pick) + 1] || null;
   return { stage: pick, idx: st.indexOf(pick), next, blocked, m, mu };
 }
-/* Il test cade nella settimana di scarico: trazioni in Forza A, muscle-up in
-   Forza B quando sono già in programma. */
+/* Il test cade nella prima settimana del blocco, dopo lo scarico (e nella
+   prima del programma): trazioni in Forza A, muscle-up in Forza B quando sono
+   già in programma. */
 function pullTestFor(meta, ps) {
-  if (!meta.profile || meta.profile.label !== 'Scarico' || S.setup !== 'gym' || !ps) return null;
+  if (!meta.profile || meta.weekInCycle !== 1 || meta.profile.label === 'Scarico' || meta.mobilityWeek || S.setup !== 'gym' || !ps) return null;
   if (meta.tmplIdx === 0) return 'pull';
   if (meta.tmplIdx === 1 && ps.stage.id === 'mu') return 'mu';
   return null;
@@ -2667,7 +2687,7 @@ function exerciseTrend() {
   const since = Date.now() - 56 * 86400000;
   const byEx = {};
   // solo prestazioni vere: niente aerobico, allungamenti, sedute segnate come fatte
-  S.logs.forEach(l => { if (isRatable(l)) (byEx[l.exId] = byEx[l.exId] || []).push(l); });
+  S.logs.forEach(l => { if (isRatable(l) && !isDeloadLog(l)) (byEx[l.exId] = byEx[l.exId] || []).push(l); });
   let up = 0, flat = 0, down = 0;
   const detail = [];
   Object.keys(byEx).forEach(k => {
@@ -2842,7 +2862,7 @@ function openPullGoal() {
   else if (next) nextTxt = `<p class="small">Tappa successiva, <b>${esc(next.label)}</b>: ${next.minMu ? 'il primo muscle-up completo' : `${next.min} trazioni pulite di fila`}${next.needsShoulder ? ', senza dolore alla spalla' : ''}.</p>`;
   const tests = S.logs.filter(l => l.goal === 'pullupTest' || l.goal === 'muTest').slice(-8).reverse();
   const testRows = tests.length ? `<ul class="small">${tests.map(l => `<li>${dateIt(l.ts)} · ${l.goal === 'muTest' ? 'muscle-up' : 'trazioni'}: <b>${bestRepsOf(l)}</b></li>`).join('')}</ul>`
-    : '<p class="small muted">Nessun test ancora: il primo cade nella prossima settimana di scarico, in Forza A.</p>';
+    : '<p class="small muted">Nessun test ancora: il primo cade nella prima settimana del prossimo blocco, subito dopo lo scarico, in Forza A.</p>';
   openModal(`<h2>Trazioni e muscle-up</h2>
     <p class="small muted">Obiettivo al ${dateIt(goalEnd)}: <b>${t.n} trazioni pulite di fila</b> e <b>${t.mu} muscle-up</b>.</p>
     <div class="card" style="margin:10px 0">
@@ -2950,7 +2970,7 @@ function cyclesHtml(p, meta) {
     <h3 style="margin-top:14px;font-size:15px">Secondo i tuoi risultati</h3>
     <ul class="small" style="padding-left:18px">
       <li><b>Carichi</b>: salgono di un passo solo quando, per due sedute di fila, superi l'obiettivo di 2 ripetizioni nell'ultima serie (regola 2-for-2, regola operativa dell'app); scendono se segnali che era troppo pesante. Nella settimana di scarico restano fermi.</li>
-      ${ps ? `<li><b>Trazioni e muscle-up</b>: il lavoro cambia per tappe secondo il massimo di trazioni pulite, misurato con un test nella settimana di scarico. Ora: <b>${esc(ps.stage.label)}</b> (massimo ${ps.m})${ps.next ? `; la prossima tappa, ${esc(ps.next.label)}, a ${ps.next.minMu ? 'primo muscle-up' : ps.next.min + ' trazioni'}` : ''}.</li>` : ''}
+      ${ps ? `<li><b>Trazioni e muscle-up</b>: il lavoro cambia per tappe secondo il massimo di trazioni pulite, misurato con un test nella prima settimana di ogni blocco, subito dopo lo scarico. Ora: <b>${esc(ps.stage.label)}</b> (massimo ${ps.m})${ps.next ? `; la prossima tappa, ${esc(ps.next.label)}, a ${ps.next.minMu ? 'primo muscle-up' : ps.next.min + ' trazioni'}` : ''}.</li>` : ''}
       <li><b>Esercizi supplementari</b>: entrano a fine seduta, se resta tempo, solo per i gruppi muscolari che nella settimana restano sotto le 10 serie, contando le sedute già fatte e quelle ancora previste; mai nella settimana di scarico.</li>
       <li><b>Esercizi a tempo</b> (plank, tenute): se per due volte di fila ti restano almeno 10 secondi di margine, la tenuta si allunga di 5 secondi, fino a +30.</li>
       <li><b>Durata</b>: la scegli ogni giorno fra 35 e 50 minuti; con più tempo entrano supplementari, finale metabolico e sospensione alla sbarra, con meno si accorciano prima i complementari.</li>
@@ -4532,7 +4552,7 @@ function renderHistory() {
   const planKeys = keys.filter(k => !perfKeys.includes(k));
   const rows = perfKeys.map(k => {
     const all = byEx[k], last = all[all.length - 1];
-    const logs = all.filter(l => !l.planned);
+    const logs = all.filter(l => !l.planned && !isDeloadLog(l));
     // la linea segue il massimale stimato: così migliorare le ripetizioni a
     // parità di carico si vede, mentre prima il grafico restava piatto
     // la linea mostra le ultime 24 registrazioni: oltre non si legge nulla di
@@ -4585,7 +4605,7 @@ function renderHistory() {
     ${wks ? `<div class="card"><h2>Riepilogo settimanale</h2>
       <p class="small muted">Traguardi migliori e punti a cui fare attenzione, dalla valutazione automatica dei progressi.</p>${wks}</div>` : ''}
     ${rows ? `<div class="card" id="loadsCard"><h2>Carichi per esercizio</h2>
-      <p class="small muted">La linea segue il massimale stimato, non il solo peso: migliorare le ripetizioni a parità di carico si vede. Le sedute segnate come fatte alle dosi previste non entrano nella linea.</p>
+      <p class="small muted">La linea segue il massimale stimato, non il solo peso: migliorare le ripetizioni a parità di carico si vede. Non entrano nella linea le sedute segnate come fatte alle dosi previste e quelle della settimana di scarico, che restano nello storico.</p>
       <ul class="hist">${rows}</ul></div>` : ''}
     ${planRows ? `<div class="card"><h2>Aerobico e allungamenti</h2>
       <p class="small muted">Qui intensità e durata le decide il programma (riscaldamento, parte centrale, defaticamento; tenute degli allungamenti): non sono prestazioni da confrontare, quindi niente linea di andamento e niente stelle. Contano i minuti, nel riquadro dell'attività aerobica.</p>
@@ -4846,8 +4866,9 @@ function migrateRatings() {
   // 6.5: regole nuove (confronto per serie, scarico, riferimento corretto,
   // niente stelle ad aerobico e sedute segnate come fatte): stesso ricalcolo,
   // una volta, con il punto di ingresso unico. Solo il giudizio cambia.
-  if (S.ratingsRev >= 2) return;
-  S.ratingsFixed = true; S.ratingsRev = 2;
+  // 6.8: settimana di scarico fuori dalla progressione
+  if (S.ratingsRev >= 3) return;
+  S.ratingsFixed = true; S.ratingsRev = 3;
   [...new Set(S.logs.map(l => l.exId))].forEach(rerateExercise);
   save();
 }
@@ -5114,6 +5135,7 @@ function detailFor(exId, logs) {
     const e = e1rm(l);
     const extra = [`${l.sets}×${r}`];
     if (l.planned) extra.push('segnata come fatta');
+    if (isDeloadLog(l)) extra.push('scarico, fuori dalla progressione');
     if (isFinite(l.rir) && l.rir !== null) extra.push(`RIR ${l.rir}`);
     if (e) extra.push(`max ${e.toFixed(1)} kg`);
     extra.push(l.setup === 'gym' ? 'palestra' : 'casa');
@@ -5123,7 +5145,7 @@ function detailFor(exId, logs) {
       <div class="val">${arrow(l.feedback)}<br>${starsHtml(l.stars)}</div></li>`;
   }).join('');
   openModal(`<h2>${esc(ex.name)}</h2>
-    <div style="height:110px;margin:10px 0">${bigChart(logs.filter(l => !l.planned))}</div>
+    <div style="height:110px;margin:10px 0">${bigChart(logs.filter(l => !l.planned && !isDeloadLog(l)))}</div>
     <ul class="hist">${rows}</ul>
     <button class="btn secondary" id="closeModal" style="margin-top:16px">Chiudi</button>
     <button class="btn ghost" id="wipeEx" style="margin-top:10px">Cancella lo storico di questo esercizio</button>`);
@@ -5347,7 +5369,7 @@ function renderSettings() {
         subacromiale — l'esercizio attivo contro resistenza è raccomandato con prove forti, senza un elenco di movimenti da
         evitare (linea guida JOSPT 2025). Qui l'app sceglie per primi gli esercizi che di solito danno meno fastidio; se un
         movimento non ti dà dolore, togli la spunta e torna disponibile.</p>
-      <div class="switch"><span>Obiettivo trazioni e muscle-up<br><span class="small muted">15 trazioni pulite di fila e 2 muscle-up a fine programma: lavoro per tappe dopo i due esercizi principali, test nella settimana di scarico, sospensione in chiusura se resta tempo. Dettagli in Progressi.</span></span>
+      <div class="switch"><span>Obiettivo trazioni e muscle-up<br><span class="small muted">15 trazioni pulite di fila e 2 muscle-up a fine programma: lavoro per tappe dopo i due esercizi principali, test dopo ogni scarico, sospensione in chiusura se resta tempo. Dettagli in Progressi.</span></span>
         <input type="checkbox" id="pullChk" ${S.pullupGoal ? 'checked' : ''}></div>
       <div class="switch"><span>Campanella del timer</span>
         <input type="checkbox" id="soundChk" ${S.sound !== false ? 'checked' : ''}></div>
