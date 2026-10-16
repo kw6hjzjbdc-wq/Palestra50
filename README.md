@@ -213,6 +213,19 @@ Da *Oggi* (sotto il calendario), dalla pagina *Progressi* e dal riquadro *Il per
 
 Nel riepilogo di fine seduta, *Ho ancora tempo: aggiungi esercizi*. Si dichiara quanto tempo resta (5, 10 o 15 minuti) e l'app propone quattro esercizi sui **gruppi più indietro** rispetto al volume previsto per la settimana, con le serie che stanno davvero in quei minuti (tempo di preparazione compreso). Toccandone uno si torna nella seduta, che riprende da quell'esercizio e si chiude normalmente.
 
+### Progressione azzerata: si riparte dopo lo scarico (6.9)
+
+Su richiesta, tutti i conteggi della progressione sono stati **azzerati** e ripartono dalla **prima seduta dopo la settimana di scarico** (`S.progressEpoch`, fissato una volta all'aggiornamento: la settimana che segue lo scarico più recente, o il prossimo se non ce n'è ancora stato uno). Nessuna registrazione è stata cancellata.
+
+- **Prima della ripartenza**: le registrazioni restano nello storico ma non entrano nei conteggi — niente stelle, niente punti nella linea dei carichi, nel grafico di dettaglio e nella tendenza, nessuna seduta valida per la regola 2-for-2.
+- **Riferimento di partenza** (`epochBaseline`): per ogni esercizio, l'ultima seduta reale prima dello scarico. Da lì partono il carico suggerito, il confronto (e le stelle) della prima seduta dopo la ripartenza e il primo punto della linea; nello storico è indicata come «riferimento di partenza».
+- **Regola 2-for-2**: la serie di sedute sopra l'obiettivo riparte da zero; per aumentare il carico servono due sedute dopo la ripartenza.
+- **Tenute**: i secondi già guadagnati restano (sono il punto di partenza); il conteggio delle coppie di sedute con margine riparte da zero.
+- **Massimo di trazioni e muscle-up**: resta come riferimento; il test della prima settimana dopo lo scarico lo aggiorna.
+- **Non cambiano**: volume settimanale, minuti aerobici, sedute svolte, posizione nel programma, riepiloghi delle settimane passate (senza stelle).
+
+In *Progressi* (riquadro «Progressione negli esercizi») e nello storico una nota dice da quale settimana conta la progressione.
+
 ### Settimana di scarico fuori dalla progressione (6.8)
 
 Le prestazioni della settimana di scarico **restano nello storico** (nessuna registrazione si cancella) ma **non entrano più nei dati della progressione**:

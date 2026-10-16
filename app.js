@@ -539,12 +539,13 @@ function mobilityNote(profile, mobWeek) {
    si progredisce quando il margine c'è, non per calendario. */
 function holdBonus(ex) {
   if (!ex || ex.load !== 'time' || ex.type === 'stretch') return 0;
-  const logs = S.logs.filter(l => l.exId === ex.id && !isDeloadLog(l));
-  let bonus = 0;
-  for (let i = 1; i < logs.length; i++) {
-    const a = logs[i - 1], b = logs[i];
-    if (a.rirUnit === 's' && b.rirUnit === 's' && a.rir >= 10 && b.rir >= 10) { bonus += 5; i++; }
-  }
+  const all = S.logs.filter(l => l.exId === ex.id && !isDeloadLog(l));
+  // (6.9) la tenuta già guadagnata prima della ripartenza resta il punto di
+  // partenza; il conteggio delle coppie di sedute con margine riparte da zero
+  const pairs = logs => { let b = 0; for (let i = 1; i < logs.length; i++) {
+    const a = logs[i - 1], c = logs[i];
+    if (a.rirUnit === 's' && c.rirUnit === 's' && a.rir >= 10 && c.rir >= 10) { b += 5; i++; } } return b; };
+  const bonus = pairs(all.filter(isPreEpoch)) + pairs(all.filter(l => !isPreEpoch(l)));
   return Math.min(30, bonus);
 }
 
@@ -704,7 +705,8 @@ function lastEntry(exId) {
   return null;
 }
 function lastEntries(exId, n) {
-  return S.logs.filter(l => l.exId === exId && !isDeloadLog(l)).slice(-n);
+  // (6.9) la serie di sedute valide per la regola 2-for-2 riparte da zero
+  return S.logs.filter(l => l.exId === exId && !isDeloadLog(l) && !isPreEpoch(l)).slice(-n);
 }
 
 /* Vero se in quella registrazione hai superato l'obiettivo di 2+ ripetizioni. */
@@ -1222,6 +1224,56 @@ function isRatable(l) {
 const sessionKey = l => l.sid != null ? 's' + l.sid : 'd' + new Date(l.ts || 0).toDateString();
 const sessionsCount = logs => new Set(logs.map(sessionKey)).size;
 const isDeloadLog = l => !!l && l.sIdx != null && isDeloadWeek(l.sIdx);
+
+/* ---------------------------------------------------------------------------
+   RIPARTENZA DELLA PROGRESSIONE (dalla 6.9)
+   Su richiesta dell'utente i conteggi della progressione ripartono dalla
+   prima seduta DOPO la settimana di scarico (S.progressEpoch, posizione nel
+   programma). Le registrazioni precedenti restano tutte nello storico ma non
+   entrano più nei conteggi: niente stelle, niente punti nei grafici e nella
+   tendenza, nessuna seduta valida per la regola 2-for-2. Per ogni esercizio
+   l'ultima seduta normale prima dello scarico resta il RIFERIMENTO di partenza:
+   carico suggerito, confronto della prima seduta dopo la ripartenza, primo
+   punto della linea, tenute già guadagnate, massimo di trazioni.
+--------------------------------------------------------------------------- */
+const isPreEpoch = l => !!l && S.progressEpoch != null &&
+  (l.sIdx != null ? l.sIdx < S.progressEpoch : (l.ts || 0) < (S.progressEpochTs || 0));
+/* Riferimento di partenza di un esercizio: ultima seduta reale, fuori dallo
+   scarico, prima della ripartenza. */
+function epochBaseline(exId) {
+  if (S.progressEpoch == null) return null;
+  for (let i = S.logs.length - 1; i >= 0; i--) {
+    const l = S.logs[i];
+    if (l.exId === exId && isPreEpoch(l) && !l.planned && !isDeloadLog(l)) return l;
+  }
+  return null;
+}
+/* Registrazioni che entrano nella linea e nella tendenza: il riferimento più
+   quelle dopo la ripartenza, senza scarico e sedute segnate come fatte. */
+function progressLogs(exId, logs) {
+  const src = (logs || S.logs.filter(l => l.exId === exId)).filter(l => !l.planned && !isDeloadLog(l));
+  if (S.progressEpoch == null) return src;
+  const base = epochBaseline(exId);
+  return (base ? [base] : []).concat(src.filter(l => !isPreEpoch(l)));
+}
+/* Frase da mostrare: da quando conta la progressione. */
+function epochNote() {
+  if (S.progressEpoch == null) return '';
+  let w = '';
+  try { w = weekText(sessionMeta(S.progressEpoch)); } catch (e) { w = ''; }
+  const started = (S.sessionIndex || 0) >= S.progressEpoch;
+  return `Conteggio della progressione azzerato: ${started ? 'riparte' : 'ripartirà'} dalla ${w || 'settimana dopo lo scarico'}, dopo lo scarico. Riferimento di partenza: l'ultima seduta di ogni esercizio prima dello scarico.`;
+}
+
+/* Prima seduta della settimana che segue lo scarico più recente (o il
+   prossimo, se non ce n'è ancora stato uno). */
+function computeProgressEpoch() {
+  const cur = S.sessionIndex || 0, wNow = weekOfIdx(cur);
+  let d = null;
+  for (let w = wNow; w >= 1; w--) if (isDeloadWeek(weekStart(w))) { d = w; break; }
+  if (d === null) for (let w = wNow + 1; w <= wNow + 12; w++) if (isDeloadWeek(weekStart(w))) { d = w; break; }
+  return d === null ? cur : weekStart(d + 1);
+}
 function ratingRef(cur, candidates) {
   const test = TEST_GOALS.includes(cur.goal);
   // le registrazioni della settimana di scarico non fanno mai da riferimento
@@ -1231,6 +1283,13 @@ function ratingRef(cur, candidates) {
 }
 function rateFor(cur, candidates) {
   if (!isRatable(cur)) return { stars: 0, text: cur.planned ? 'Segnata come fatta alle dosi previste: senza dati reali non c\'è valutazione.' : '' };
+  // (6.9) prima della ripartenza: fuori dal conteggio, fa solo da riferimento
+  if (isPreEpoch(cur)) {
+    const base = epochBaseline(cur.exId) === cur;
+    return { stars: 0, text: base
+      ? 'Riferimento di partenza: la progressione riparte dopo lo scarico confrontandosi con questa seduta.'
+      : 'Prima della ripartenza dopo lo scarico: resta nello storico, fuori dal conteggio della progressione.' };
+  }
   // (6.8) la settimana di scarico non entra nella progressione: niente stelle;
   // resta solo l'avviso se il carico è salito invece di restare fermo
   if (isDeloadLog(cur)) {
@@ -2688,6 +2747,8 @@ function exerciseTrend() {
   const byEx = {};
   // solo prestazioni vere: niente aerobico, allungamenti, sedute segnate come fatte
   S.logs.forEach(l => { if (isRatable(l) && !isDeloadLog(l)) (byEx[l.exId] = byEx[l.exId] || []).push(l); });
+  // (6.9) dalla ripartenza: riferimento + sedute successive
+  Object.keys(byEx).forEach(k => { byEx[k] = progressLogs(k, byEx[k]); });
   let up = 0, flat = 0, down = 0;
   const detail = [];
   Object.keys(byEx).forEach(k => {
@@ -2793,6 +2854,7 @@ function renderProg() {
        <p class="small">${t.up} in crescita · ${t.flat} stabili · ${t.down} in calo (ultime 8 settimane)</p>
        ${t.recent ? `<p class="small muted">Media stelle ultime 2 settimane ${kg1(t.recent)}${trendWord ? ' · ' + trendWord : ''}</p>` : ''}`
     : `<div class="dstat">Ancora pochi dati</div><p class="small muted">Servono almeno due sedute per esercizio per vedere la tendenza.</p>`;
+  const eNote = epochNote() ? `<p class="small muted">${esc(epochNote())}</p>` : '';
 
   const bBody = (b.lastW || b.lastC)
     ? `<div class="dstat">${b.lastC ? kg1(b.lastC.waist) + ' cm' : ''}${b.lastC && b.lastW ? ' · ' : ''}${b.lastW ? kg1(b.lastW.weight) + ' kg' : ''}</div>
@@ -2811,7 +2873,7 @@ function renderProg() {
     ${tile('upcoming', 'Le prossime settimane', `<div class="dstat">Cosa ti aspetta</div>
       <p class="small muted">Tipo di seduta giorno per giorno, con fasi, scarichi e settimane di sola mobilità.</p>`)}
     ${S.pullupGoal ? tile('pull', 'Trazioni e muscle-up', pullTileBody()) : ''}
-    ${tile('trend', 'Progressione negli esercizi', eBody)}
+    ${tile('trend', 'Progressione negli esercizi', eBody + eNote)}
     ${tile('body', 'Misure corporee', bBody)}
     ${tile('history', 'Volume e storico', vBody)}`;
 
@@ -4552,7 +4614,7 @@ function renderHistory() {
   const planKeys = keys.filter(k => !perfKeys.includes(k));
   const rows = perfKeys.map(k => {
     const all = byEx[k], last = all[all.length - 1];
-    const logs = all.filter(l => !l.planned && !isDeloadLog(l));
+    const logs = progressLogs(k, all);
     // la linea segue il massimale stimato: così migliorare le ripetizioni a
     // parità di carico si vede, mentre prima il grafico restava piatto
     // la linea mostra le ultime 24 registrazioni: oltre non si legge nulla di
@@ -4605,7 +4667,7 @@ function renderHistory() {
     ${wks ? `<div class="card"><h2>Riepilogo settimanale</h2>
       <p class="small muted">Traguardi migliori e punti a cui fare attenzione, dalla valutazione automatica dei progressi.</p>${wks}</div>` : ''}
     ${rows ? `<div class="card" id="loadsCard"><h2>Carichi per esercizio</h2>
-      <p class="small muted">La linea segue il massimale stimato, non il solo peso: migliorare le ripetizioni a parità di carico si vede. Non entrano nella linea le sedute segnate come fatte alle dosi previste e quelle della settimana di scarico, che restano nello storico.</p>
+      <p class="small muted">La linea segue il massimale stimato, non il solo peso: migliorare le ripetizioni a parità di carico si vede. Non entrano nella linea le sedute segnate come fatte alle dosi previste e quelle della settimana di scarico, che restano nello storico.${epochNote() ? ' ' + esc(epochNote()) : ''}</p>
       <ul class="hist">${rows}</ul></div>` : ''}
     ${planRows ? `<div class="card"><h2>Aerobico e allungamenti</h2>
       <p class="small muted">Qui intensità e durata le decide il programma (riscaldamento, parte centrale, defaticamento; tenute degli allungamenti): non sono prestazioni da confrontare, quindi niente linea di andamento e niente stelle. Contano i minuti, nel riquadro dell'attività aerobica.</p>
@@ -4867,8 +4929,10 @@ function migrateRatings() {
   // niente stelle ad aerobico e sedute segnate come fatte): stesso ricalcolo,
   // una volta, con il punto di ingresso unico. Solo il giudizio cambia.
   // 6.8: settimana di scarico fuori dalla progressione
-  if (S.ratingsRev >= 3) return;
-  S.ratingsFixed = true; S.ratingsRev = 3;
+  // 6.9: conteggi azzerati, ripartenza dopo lo scarico
+  if (S.ratingsRev >= 4) return;
+  if (S.progressEpoch == null) { S.progressEpoch = computeProgressEpoch(); S.progressEpochTs = Date.now(); }
+  S.ratingsFixed = true; S.ratingsRev = 4;
   [...new Set(S.logs.map(l => l.exId))].forEach(rerateExercise);
   save();
 }
@@ -5136,6 +5200,7 @@ function detailFor(exId, logs) {
     const extra = [`${l.sets}×${r}`];
     if (l.planned) extra.push('segnata come fatta');
     if (isDeloadLog(l)) extra.push('scarico, fuori dalla progressione');
+    else if (isPreEpoch(l) && !l.planned) extra.push(epochBaseline(exId) === l ? 'riferimento di partenza' : 'prima della ripartenza');
     if (isFinite(l.rir) && l.rir !== null) extra.push(`RIR ${l.rir}`);
     if (e) extra.push(`max ${e.toFixed(1)} kg`);
     extra.push(l.setup === 'gym' ? 'palestra' : 'casa');
@@ -5145,7 +5210,7 @@ function detailFor(exId, logs) {
       <div class="val">${arrow(l.feedback)}<br>${starsHtml(l.stars)}</div></li>`;
   }).join('');
   openModal(`<h2>${esc(ex.name)}</h2>
-    <div style="height:110px;margin:10px 0">${bigChart(logs.filter(l => !l.planned && !isDeloadLog(l)))}</div>
+    <div style="height:110px;margin:10px 0">${bigChart(progressLogs(exId, logs))}</div>
     <ul class="hist">${rows}</ul>
     <button class="btn secondary" id="closeModal" style="margin-top:16px">Chiudi</button>
     <button class="btn ghost" id="wipeEx" style="margin-top:10px">Cancella lo storico di questo esercizio</button>`);
