@@ -62,7 +62,7 @@ Le sedute di mobilità combinano 2-3 esercizi di mobilità dinamica in apertura 
 | 3 | Forza B · parte alta e unilaterale | |
 | 4 | Aerobico · ritmo costante | lavoro moderato, non affatica i muscoli che servono il giorno dopo |
 | 5 | Forza C · full body e core | |
-| 6 | Mobilità | **sempre l'ultima**: recupero prima della settimana successiva; non si può anticipare |
+| 6 | Mobilità | **ultima di default**: recupero prima della settimana successiva; dalla 6.10 si può fare in qualunque giorno |
 
 Le tre sedute di forza mantengono il lavoro per le trazioni (tre volte a settimana) e tutti i gruppi muscolari lavorano almeno due volte (ACSM 2026). La mobilità è una sola seduta, ma ogni seduta aerobica si chiude con due allungamenti per anche e polpacci: la flessibilità viene allenata almeno 3 giorni a settimana, come indicato dall'ACSM. Le due sedute di mobilità alternano i due schemi di settimana in settimana.
 
@@ -212,6 +212,12 @@ Da *Oggi* (sotto il calendario), dalla pagina *Progressi* e dal riquadro *Il per
 ### Esercizi in più a fine seduta (dalla 5.8)
 
 Nel riepilogo di fine seduta, *Ho ancora tempo: aggiungi esercizi*. Si dichiara quanto tempo resta (5, 10 o 15 minuti) e l'app propone quattro esercizi sui **gruppi più indietro** rispetto al volume previsto per la settimana, con le serie che stanno davvero in quei minuti (tempo di preparazione compreso). Toccandone uno si torna nella seduta, che riprende da quell'esercizio e si chiude normalmente.
+
+### Mobilità in qualunque giorno; prossimo esercizio in seduta (6.10)
+
+- **Mobilità spostabile.** La seduta di mobilità resta **preimpostata come ultima** della settimana da 6, ma dal calendario di *Oggi* si può scegliere in qualunque giorno, anche prima delle altre sedute: funziona come lo scambio delle altre sedute (quella prevista oggi prende il suo posto più avanti nella settimana). La settimana successiva riparte con l'ordine predefinito. Tolto il blocco «La mobilità chiude la settimana».
+- **La mobilità breve a casa si sposta con lei** (`morningAvail`, `morningDaysOf`): nella settimana da 6 c'è nei cinque giorni che non hanno la seduta di mobilità, dovunque cada (prima era legata ai giorni 1-5 per posizione). Nelle settimane vecchie da 5 sedute e in quelle di sola mobilità restano i giorni 1-5.
+- **Prossimo esercizio.** Nella schermata dell'esercizio in corso, sotto le barre di avanzamento, una riga dice «Esercizio N di M · Prossimo: *nome* *dose*», secondo l'ordine della seduta e saltando quelli già completati; se resta solo un esercizio rimandato più indietro, «Poi torni a: … · rimasto da fare»; sull'ultimo, «ultimo esercizio della seduta».
 
 ### Progressione azzerata: si riparte dopo lo scarico (6.9)
 

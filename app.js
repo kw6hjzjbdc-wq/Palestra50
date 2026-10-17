@@ -2323,7 +2323,22 @@ const sessLabel = x => String((x && x.label) || '').replace(/^Mattino · /, 'Mob
 const isProgramKind = k => k !== 'core' && k !== 'free' && k !== 'morning';
 const isSkipped = x => x.kind === 'skipped';
 
-/* Mattine già fatte nella settimana indicata (numeri di giorno 1-5). */
+/* Giorni della settimana con la mobilità breve (dalla 6.10). Nella settimana
+   da 6 sono i cinque giorni che NON hanno la seduta di mobilità del programma:
+   la mobilità è ultima di default, ma si può spostare in qualunque giorno, e
+   la mobilità breve si sposta con lei. Nelle settimane vecchie da 5 sedute e
+   in quelle di sola mobilità restano i giorni 1-5. */
+function morningAvail(w, day) {
+  if (!(day >= 1) || day > weekLen(w)) return false;
+  if (weekLen(w) <= MORNING_DAYS) return day <= MORNING_DAYS;
+  let m;
+  try { m = sessionMeta(weekStart(w) + day - 1); } catch (e) { return day <= MORNING_DAYS; }
+  if (m.mobilityWeek) return day <= MORNING_DAYS;
+  return m.dayType !== 'stretch';
+}
+const morningDaysOf = w => Array.from({ length: weekLen(w) }, (_, i) => i + 1).filter(d => morningAvail(w, d));
+
+/* Mobilità brevi già fatte nella settimana indicata (numeri di giorno). */
 function morningsDone(weekAbs) {
   return S.sessionLog.filter(x => x.kind === 'morning' && x.mWeek === weekAbs).map(x => x.mDay);
 }
@@ -2400,7 +2415,7 @@ function buildMorning(weekAbs, day, minutes) {
 function morningToday() {
   const w = weekOfIdx(S.sessionIndex);
   const day = posOfIdx(S.sessionIndex) + 1;
-  return { w, day, available: day <= MORNING_DAYS };
+  return { w, day, available: morningAvail(w, day) };
 }
 
 function morningHtml() {
@@ -2409,11 +2424,11 @@ function morningHtml() {
   if (morningSel === null || morningSel.w !== t.w) morningSel = { w: t.w, day: t.available ? t.day : null };
   const day = morningSel.day;
   const skipped = morningsSkipped(t.w);
-  const dots = Array.from({ length: MORNING_DAYS }, (_, i) => i + 1).map(d =>
+  const dots = morningDaysOf(t.w).map(d =>
     `<button class="mdot ${done.includes(d) ? 'done' : (skipped.includes(d) ? 'skip' : '')} ${d === day ? 'sel' : ''}" data-mday="${d}" aria-label="Mobilità breve del giorno ${d}${done.includes(d) ? ', fatto' : (skipped.includes(d) ? ', saltato' : '')}">${done.includes(d) ? '✓' : (skipped.includes(d) ? '–' : d)}</button>`).join('');
   let body;
   if (!day) {
-    body = `<p class="small muted" style="margin-top:10px">Oggi è il sesto giorno: niente mobilità breve, c'è solo la seduta di mobilità del programma. Se vuoi recuperarne una saltata, toccane il numero.</p>`;
+    body = `<p class="small muted" style="margin-top:10px">Oggi c'è la seduta di mobilità del programma: niente mobilità breve. Se vuoi recuperarne una saltata, toccane il numero.</p>`;
   } else {
     const m = buildMorning(t.w, day, S.morningMin || 10);
     // la mattina segue sempre la seduta di pranzo di quel giorno: se la cambi
@@ -2640,7 +2655,7 @@ function fixOrphanSessions() {
   const o = list[0];
   const meta = (o.idx != null) ? sessionMeta(o.idx) : sessionMeta(S.sessionIndex);
   const d = new Date(o.ts);
-  const morningLikely = o.allStretch && meta.dayType !== 'stretch' && meta.pos <= MORNING_DAYS;
+  const morningLikely = o.allStretch && meta.dayType !== 'stretch' && morningAvail(weekOfIdx(meta.idx), posOfIdx(meta.idx) + 1);
   const day = new Date(o.ts).toLocaleDateString('it-IT');
   const hour = d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
   openModal(`<h2>Una seduta è rimasta aperta</h2>
@@ -2652,7 +2667,9 @@ function fixOrphanSessions() {
     <p class="small muted" style="margin-top:12px">Con le prime due la seduta risulta svolta per intero: gli esercizi che mancano vengono aggiunti alle dosi previste. Con «seduta libera» resta registrato soltanto quello che hai davvero fatto, e il programma non avanza: la seduta prevista rimane da svolgere. In nessun caso si cancella qualcosa.</p>`);
   const close = fn => closeModal(() => { if (fn) fn(); goToday(); });
   $('#orMorning').onclick = () => close(() => {
-    const w = weekOfIdx(meta.idx), day2 = Math.min(posOfIdx(meta.idx) + 1, MORNING_DAYS);
+    const w = weekOfIdx(meta.idx);
+    let day2 = posOfIdx(meta.idx) + 1;
+    if (!morningAvail(w, day2)) day2 = morningDaysOf(w).filter(d => d <= day2).pop() || morningDaysOf(w)[0] || 1;
     markSessionDone(buildMorning(w, day2, S.morningMin || 10), o.ts, o.sid);
   });
   $('#orLunch').onclick = () => close(() => {
@@ -2707,7 +2724,7 @@ function morningStatus() {
   // oggi è quello del giorno appena svolto
   const idx = lunchToday && lunchToday.idx != null ? lunchToday.idx : S.sessionIndex;
   const w = weekOfIdx(idx), day = posOfIdx(idx) + 1;
-  if (day > MORNING_DAYS) return { done: false, none: true, w, day };
+  if (!morningAvail(w, day)) return { done: false, none: true, w, day };
   const m = buildMorning(w, day, S.morningMin || 10);
   return { done: false, w, day, m };
 }
@@ -2816,9 +2833,9 @@ const dashTile = (attr, id, kicker, cls, body) => `<button class="dtile ${cls}" 
 function morningTileBody(ms, full) {
   if (ms.done) return `<div class="dstat ok">Fatta ✓</div><p class="small">${esc(ms.verdict.text)} · ${ms.verdict.pct}% delle tenute · ${ms.verdict.minutes} min</p>
        <p class="small muted">Mobilità brevi della settimana: ${morningsDone(weekOfIdx(S.sessionIndex)).length} di ${MORNING_DAYS}.${full ? ' Puoi ripeterla o recuperarne una.' : ''}</p>`;
-  if (ms.none) return `<div class="dstat">Oggi niente</div><p class="small muted">Sesto giorno: c'è solo la seduta di mobilità del programma.${full ? ' Entra se vuoi recuperarne una saltata.' : ''}</p>`;
+  if (ms.none) return `<div class="dstat">Oggi niente</div><p class="small muted">Oggi c'è la seduta di mobilità del programma.${full ? ' Entra se vuoi recuperarne una saltata.' : ''}</p>`;
   return `<div class="dstat todo">Da fare · ${ms.m.minutes} min</div><p class="small">${esc(ms.m.focusLabel || '')}</p>
-         <p class="small muted">Giorno ${ms.day} di ${MORNING_DAYS} · ${ms.m.items.length} esercizi a casa${full ? ', serve solo un tappetino' : ''}.</p>`;
+         <p class="small muted">${Math.max(1, morningDaysOf(ms.w).indexOf(ms.day) + 1)}ª di ${MORNING_DAYS} della settimana · ${ms.m.items.length} esercizi a casa${full ? ', serve solo un tappetino' : ''}.</p>`;
 }
 
 function lunchTileBody(ls, full) {
@@ -3042,7 +3059,7 @@ function cyclesHtml(p, meta) {
     <ul class="small" style="padding-left:18px">
       <li>Una <b>settimana di sola mobilità</b> non conta nel piano: fasi, blocchi e data di fine slittano di una settimana.</li>
       <li>Una <b>seduta saltata</b> consuma il suo posto: il programma passa alla successiva e non si allunga.</li>
-      <li>Puoi <b>scambiare le sedute</b> dentro la settimana; la mobilità resta sempre l'ultima.</li>
+      <li>Puoi <b>scambiare le sedute</b> dentro la settimana, mobilità compresa: è prevista per ultima, ma puoi farla in qualunque giorno.</li>
     </ul>
   </div>`;
 }
@@ -3317,7 +3334,7 @@ function openStretchPicker(sess, meta) {
         <div class="why">${i === ti ? 'in programma oggi' : `${t.dynamic} esercizi di mobilità dinamica e ${t.count} allungamenti`}</div></div>
       <button class="pick">${i === ti ? 'Mantieni' : 'Scegli'}</button></li>`).join('');
   openModal(`<h2>Cambia la seduta di mobilità</h2>
-    <p class="small muted">Due schemi, distretti diversi: scegli quello che ti serve oggi. La mobilità resta comunque l'ultima seduta della settimana — qui cambia solo il contenuto, non il posto.</p>
+    <p class="small muted">Due schemi, distretti diversi: scegli quello che ti serve oggi. Qui cambia il contenuto; il giorno lo scegli dal calendario della settimana: la mobilità è prevista per ultima, ma puoi farla quando ti conviene.</p>
     <ul class="picker" style="margin-top:12px">${rows}</ul>
     ${chosen.stretch != null ? '<button class="btn ghost" id="skReset" style="margin-top:14px">Torna alla seduta prevista</button>' : ''}
     <button class="btn secondary" id="skClose" style="margin-top:10px">Chiudi</button>`);
@@ -3492,7 +3509,7 @@ function renderHomeLunch() {
     week += `<li class="wk ${state}${(!core && q === here) ? ' sel' : ''}" data-day="${q}">
       <span class="wknum ${typeClass(alt)}">${q + 1}</span>
       <div class="nm"><b>${esc(alt.label)}</b>
-        <div class="small muted">${typeWord(alt)} · ${alt.minutes} min${alt.items.some(i => i.block === 'pullup') ? ' · trazioni' : ''}${(nDays === 6 && q === nDays - 1) ? ' · sempre l\'ultima' : ''}</div></div>
+        <div class="small muted">${typeWord(alt)} · ${alt.minutes} min${alt.items.some(i => i.block === 'pullup') ? ' · trazioni' : ''}${(nDays === 6 && alt.dayType === 'stretch' && q === nDays - 1) ? ' · di solito l\'ultima' : ''}</div></div>
       ${badge}</li>`;
   }
   const coreS = sessionFor(S.sessionIndex, 'core');
@@ -3538,7 +3555,7 @@ function renderHomeLunch() {
         ? `<p class="small muted" style="margin:6px 0 0">Tutte le sedute sono di mobilità e stretching. Il programma di forza riprende la settimana ${s.weekAbs + 1} da dove era rimasto: nessuna settimana di lavoro va persa.</p>`
         : s.phase ? `<p class="small muted" style="margin:6px 0 0">${whereText(s, { cap: true })}, ${s.phase.weekInPhase}ª della fase su ${s.phase.ph.weeks}${weeksLeftText(p, s.trainingWeek)}. ${esc(s.phase.ph.aim)}</p>` : ''}
       <ul class="week">${week}</ul>
-      <p class="small muted" style="margin-top:10px">Tocca la seduta che vuoi fare adesso: quella prevista oggi prenderà il suo posto più avanti nella settimana.</p>
+      <p class="small muted" style="margin-top:10px">Tocca la seduta che vuoi fare adesso: quella prevista oggi prenderà il suo posto più avanti nella settimana. La mobilità è prevista per ultima, ma puoi farla in qualunque giorno, anche prima delle altre; la mobilità breve a casa si sposta con lei.</p>
       <button class="btn ghost" id="upcomingBtn" style="margin-top:8px">Le prossime settimane</button>
     </div>
 
@@ -3585,14 +3602,8 @@ function renderHomeLunch() {
   document.querySelectorAll('[data-day]').forEach(li => li.onclick = () => {
     const q = +li.dataset.day;
     if (q < here) return;                       // le sedute già svolte non si riaprono
-    // nella settimana da 6 la mobilità chiude sempre la settimana: non si anticipa
-    if (nDays === 6 && q === nDays - 1 && here !== q) {
-      openModal(`<h2>La mobilità chiude la settimana</h2>
-        <p class="small muted">Nel programma da sei sedute l'ultima è sempre di mobilità: arriva dopo le altre cinque, per recuperare prima della settimana successiva. Scegli fra le sedute ancora da fare.</p>
-        <button class="btn secondary" id="mobLastOk" style="margin-top:14px">Ho capito</button>`);
-      $('#mobLastOk').onclick = closeModal;
-      return;
-    }
+    // (6.10) la mobilità è l'ultima seduta di default, ma si può fare in
+    // qualunque giorno: lo scambio funziona come per le altre sedute
     homeSel = 'session';
     if (q > here) swapDay(here, q);             // la scelta diventa la seduta di oggi
     planCache = null;
@@ -3787,8 +3798,17 @@ function renderSession() {
 
   const nota = S.exNotes[it.exId] || '';
 
+  // (6.10) sotto le barre: quale esercizio viene dopo, secondo il programma
+  // (il primo ancora da fare dopo questo, nell'ordine della seduta)
+  const nx = s.items.length > 1 ? nextOpenAfter(c, c.pos) : -1;
+  const nxIt = nx >= 0 ? s.items[nx] : null, nxEx = nxIt ? exById(nxIt.exId) : null;
+  const nextLine = `<div class="nextline small"><span class="muted">Esercizio ${c.pos + 1} di ${s.items.length}</span> · ${
+    nxEx ? `${nx < c.pos ? 'Poi torni a' : 'Prossimo'}: <b>${esc(nxEx.name)}</b> <span class="muted">${doseText(nxIt)}${nx < c.pos ? ' · rimasto da fare' : ''}</span>`
+         : '<span class="muted">ultimo esercizio della seduta</span>'}</div>`;
+
   $('#view-session').innerHTML = `
     <div class="progress">${bars}</div>
+    ${nextLine}
     ${s.items.length > 1 ? `<div class="swipehint">${c.pos > 0 ? '‹ precedente' : ''}${c.pos > 0 && c.pos < s.items.length - 1 ? ' · ' : ''}${c.pos < s.items.length - 1 ? 'successivo ›' : ''} — scorri col dito, il timer continua</div>` : ''}
     <div class="exercise">
       <div class="fig-large">${figureA11y(ex, 1)}</div>
