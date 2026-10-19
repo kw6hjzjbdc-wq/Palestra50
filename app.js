@@ -54,7 +54,10 @@ const DEFAULT_STATE = {
   sessPick: {},             // seduta aerobica o di mobilità scelta al posto di quella prevista
   resume: null,             // seduta interrotta, recuperabile dopo la chiusura dell'app
   lastRecap: 0,             // ultima settimana di cui è stato mostrato il riepilogo
-  pullSelf: null            // massimo di trazioni e muscle-up dichiarato: { n, mu, ts }
+  pullSelf: null,           // massimo di trazioni e muscle-up dichiarato: { n, mu, ts }
+  spartan: true,            // preparazione alla Spartan Race Sprint di Orte (dalla 7S 0)
+  spartanRuns: [],          // corse-camminate svolte, con il riscontro del ginocchio il giorno dopo
+  spSelf: null              // sospensione e burpees dichiarati a mano: { hang, burpee, burpeeLevel, ts }
 };
 
 function load() {
@@ -69,6 +72,9 @@ function load() {
   if (S.pullSelf && (typeof S.pullSelf !== 'object' || !isFinite(S.pullSelf.ts))) S.pullSelf = null;
   if (!S.perms || typeof S.perms !== 'object') S.perms = {};
   if (!Array.isArray(S.snapshots)) S.snapshots = [];
+  // (7S 0) preparazione Spartan: registro delle corse e valori dichiarati
+  if (!Array.isArray(S.spartanRuns)) S.spartanRuns = [];
+  if (S.spSelf && (typeof S.spSelf !== 'object' || !isFinite(S.spSelf.ts))) S.spSelf = null;
 }
 
 /* ---------------------------------------------------------------------------
@@ -1203,10 +1209,10 @@ function rateLog(cur, prev, deload) {
        settimana di scarico, che altrimenti gonfierebbe il progresso successivo;
      · lo scarico si riconosce sempre allo stesso modo (isDeloadWeek).
 --------------------------------------------------------------------------- */
-const TEST_GOALS = ['pullupTest', 'muTest'];
+const TEST_GOALS = ['pullupTest', 'muTest', 'burpeeTest', 'hangTest'];
 // (6.6) i nomi veri degli obiettivi aerobici: nella 6.5 la lista usava nomi
 // che il programma non ha, e reggeva solo grazie al controllo sull'attrezzo
-const UNRATED_GOALS = ['cardioWarm', 'cardioCool', 'cardioHiit', 'cardioSteady', 'finisher', 'stretch', 'mobility'];
+const UNRATED_GOALS = ['cardioWarm', 'cardioCool', 'cardioHiit', 'cardioSteady', 'cardioRun', 'finisher', 'stretch', 'mobility'];
 /* Aerobico e finale metabolico: intensità e durata le decide il programma
    (riscaldamento, parte centrale, defaticamento), quindi non sono prestazioni
    da confrontare. */
@@ -1663,9 +1669,13 @@ function buildPullBlock(meta, used) {
       level = 'Completa';
       if (test === 'pull') {
         gk = 'pullupTest';
+        // (7S 0) fino alla gara il test è anche lo Spartan Race check delle trazioni
+        const spc = spCheckKinds(meta).includes('pull') ? spCheckFor(meta.idx, 'pull') : null;
         Object.assign(d, { goal: gk, goalLabel: PROG.goals.pullupTest.label, rpe: PROG.goals.pullupTest.rpe,
-                           source: PROG.goals.pullupTest.source, sets: 1, rest: 0, reps: Math.max(1, ps.m + 1) });
-        note = `Test del mese · prova a superare ${ps.m} ${ps.m === 1 ? 'trazione' : 'trazioni'}`;
+                           source: PROG.goals.pullupTest.source, sets: 1, rest: 0, reps: Math.max(1, ps.m + 1, spc ? spc.goal : 0) },
+                         spc ? { spKind: 'pull', spCheck: true } : {});
+        note = spc ? `${spCheckLabel('pull', spc.goal, spc.first)} · a fine programma ${pullTarget().n}`
+                   : `Test del mese · prova a superare ${ps.m} ${ps.m === 1 ? 'trazione' : 'trazioni'}`;
       } else {
         // sempre due ripetizioni di margine rispetto al massimo
         d.reps = clampN(ps.m - 2, 1, 12);
@@ -1786,7 +1796,7 @@ function weekBaseVolume(weekAbs) {
 /* Serie registrate per gruppo nella seduta idx. */
 function doneInSession(idx) {
   const acc = {};
-  S.logs.forEach(l => { if (l.sIdx === idx) addInto(acc, groupSetsOf(exById(l.exId), l.sets || 0)); });
+  S.logs.forEach(l => { if (l.sIdx === idx && !l.spartan) addInto(acc, groupSetsOf(exById(l.exId), l.sets || 0)); });
   return acc;
 }
 /* Proiezione della settimana vista dalla seduta idx e gruppi sotto il minimo,
@@ -1961,7 +1971,7 @@ function buildCore(meta) {
    mobilità (i due tipi di seduta hanno tempi morti molto diversi).
 --------------------------------------------------------------------------- */
 const DURATIONS = [35, 40, 45, 50];
-const CHANGE_SEC = { strength: 75, stretch: 15, finisher: 60, warmup: 30, cardio: 10, cooldown: 10 };
+const CHANGE_SEC = { strength: 75, stretch: 15, finisher: 60, warmup: 30, cardio: 10, cooldown: 10, spartan: 45 };
 const CARDIO_ROLES = ['warmup', 'cardio', 'cooldown'];
 const WARMUP_SEC = 150;          // serie di avvicinamento sul primo esercizio di forza
 
@@ -1971,6 +1981,7 @@ const sessionKindOf = items => items.some(it => CARDIO_ROLES.includes(it.role)) 
 function workSecOf(it) {
   if (it.goal === 'stretch' || it.hold) return it.hold || 30;
   const ex = exById(it.exId);
+  if (ex && ex.carry) return it.reps * 1.2;        // trasporti: le ripetizioni sono passi
   return (ex && ex.load === 'time') ? 20 + it.reps : it.reps * 3.5;
 }
 function rawSeconds(items) {
@@ -2197,8 +2208,29 @@ function hiitScheme(meta) {
   return { work: 60, rest: 60 };
 }
 
+/* Due allungamenti dopo l'aerobico, per anche, polpacci e cosce: i distretti
+   più sollecitati da bici e corsa. */
+function cardioStretches(meta, used) {
+  const stretchPool = DB.exercises.filter(e => e.type === 'stretch' && e.pattern === 'static' &&
+    e.setup.includes(S.setup) && ['Anca', 'Polpacci', 'Catena posteriore', 'Quadricipiti'].includes(e.group))
+    .sort((a, b) => a.id.localeCompare(b.id));
+  const out = [];
+  for (let i = 0; i < 2; i++) {
+    const se = pickFrom(stretchPool, meta.weekAbs + i * 3, used);
+    if (!se) continue;
+    const d = dose('stretch', meta.profile, se);
+    d.sets = 2;
+    out.push({ exId: se.id, note: 'Dopo l\'aerobico', goalKey: 'stretch',
+               alt: { patterns: ['static'], types: ['stretch'] }, ...d });
+  }
+  return out;
+}
+
 function buildCardio(meta, budget) {
   const chosen = pickOf(meta.idx) || {};
+  // (7S 0) da dicembre la seduta a ritmo costante diventa corsa-camminata,
+  // salvo che per quella seduta tu abbia scelto un altro attrezzo
+  if (runDay(meta)) return buildRun(meta, budget);
   const days = PROG.cardioDays || [];
   let tmpl = days[meta.tmplIdx] || { label: 'Aerobico', mode: 'steady' };
   // modalità scelta a mano (intervalli o ritmo costante) al posto di quella del giorno
@@ -2223,22 +2255,12 @@ function buildCardio(meta, budget) {
 
   items.push(timed('warmup', 'cardioWarm', 'Riscaldamento', 1, 300, 0, 'Ritmo facile, 3-4 su 10'));
   const cool = timed('cooldown', 'cardioCool', 'Defaticamento', 1, 180, 0, 'Ritmo facile, respiro che rallenta');
-  // due allungamenti per anche e polpacci: i distretti più sollecitati
-  const stretchPool = DB.exercises.filter(e => e.type === 'stretch' && e.pattern === 'static' &&
-    e.setup.includes(S.setup) && ['Anca', 'Polpacci', 'Catena posteriore', 'Quadricipiti'].includes(e.group))
-    .sort((a, b) => a.id.localeCompare(b.id));
-  const stretches = [];
-  for (let i = 0; i < 2; i++) {
-    const se = pickFrom(stretchPool, meta.weekAbs + i * 3, used);
-    if (!se) continue;
-    const d = dose('stretch', meta.profile, se);
-    d.sets = se.perSide ? 2 : 2;
-    stretches.push({ exId: se.id, note: 'Dopo l\'aerobico', goalKey: 'stretch',
-                     alt: { patterns: ['static'], types: ['stretch'] }, ...d });
-  }
+  const stretches = cardioStretches(meta, used);
+  // (7S 0) nella seduta a intervalli, dopo il riscaldamento e a fresco:
+  // burpees, sospensione alla sbarra e (da dicembre) trasporti per la Spartan
+  const spItems = meta.tmplIdx === 0 ? spartanBlock(meta, used) : [];
 
   // parte centrale: tutto il tempo che resta
-  const others = items.concat([cool], stretches);
   const main = mode === 'hiit'
     ? (() => {
         const sch = hiitScheme(meta);
@@ -2251,9 +2273,24 @@ function buildCardio(meta, budget) {
         return timed('cardio', 'cardioSteady', 'Ritmo costante', 1, 900, 0,
           tmpl.note || '', { rpe: g.rpe, source: g.source, goalLabel: g.label });
       })();
+  const hiitOk = mode === 'hiit' && (ex.interval || {}).sets !== 1;
+  const roomOf = () => budget * 60 / paceOf('cardio') -
+    rawSeconds(items.concat(spItems, [cool], stretches, [Object.assign({}, main, { sets: 0 })]));
+  // il blocco Spartan si accorcia se toglierebbe all'aerobico più della parte
+  // minima (4 scatti o 10 minuti): prima i trasporti, poi la sospensione, poi
+  // i burpees, mai sotto 2 serie; i check non si toccano
+  const minMain = hiitOk ? 4 * main.hold + 3 * main.rest : 600;
+  let guard = 0;
+  while (spItems.length && roomOf() < minMain && guard++ < 20) {
+    const cut = ['carry', 'hang', 'burpee'].map(k => spItems.find(it => it.spKind === k && !it.spCheck && it.sets > 2)).find(Boolean);
+    if (cut) { cut.sets--; continue; }
+    const drop = spItems.findIndex(it => it.spKind === 'carry');
+    if (drop >= 0) { spItems.splice(drop, 1); continue; }
+    break;
+  }
   let tail = null;
-  const roomSec = budget * 60 / paceOf('cardio') - rawSeconds(others.concat([Object.assign({}, main, { sets: 0 })]));
-  if (mode === 'hiit' && (ex.interval || {}).sets !== 1) {
+  const roomSec = roomOf();
+  if (hiitOk) {
     let n = Math.floor((roomSec + main.rest) / (main.hold + main.rest));
     n = Math.max(4, Math.min(12, n));
     if (deload) n = Math.max(4, Math.round(n * 0.6));
@@ -2275,11 +2312,372 @@ function buildCardio(meta, budget) {
     main.goalLabel = PROG.goals.cardioSteady.label; main.rpe = PROG.goals.cardioSteady.rpe;
     main.sets = 1; main.hold = sec; main.rest = 0;
   }
+  spItems.forEach(it => items.push(it));
   items.push(main);
   if (tail) items.push(tail);
   items.push(cool);
   stretches.forEach(it => items.push(it));
-  return { label: `${tmpl.label} · ${ex.name}`, type: 'cardio', items, mode };
+  const spTag = spItems.length ? (spItems.some(it => it.spCheck) ? ' · Spartan Race check' : ' · burpees') : '';
+  return { label: `${tmpl.label} · ${ex.name}${spTag}`, type: 'cardio', items, mode };
+}
+
+/* ===========================================================================
+   SPARTAN RACE SPRINT · ORTE (dalla 7S 0)
+   Obiettivo dell'utente: arrivare alla Sprint del 24-25 aprile 2027 (5 km, 20
+   ostacoli) per divertirsi e superare gli ostacoli in sicurezza, con forma
+   corretta e disinvoltura; tempo e velocità non contano. Il giavellotto non
+   si tenta: si fanno i 30 burpees di penalità.
+   Che cosa cambia, e dove (le sedute di forza A, B e C restano com'erano):
+     · seduta a INTERVALLI: dopo il riscaldamento, burpees (per livelli),
+       sospensione alla sbarra e, da dicembre, trasporti; poi gli scatti;
+     · seduta a RITMO COSTANTE: dal 7 dicembre 2026 diventa corsa-camminata
+       all'aperto, una volta a settimana, con livelli che avanzano solo se il
+       ginocchio risponde bene il giorno dopo (criteri di Esculier et al.
+       2018: dolore entro 2/10 durante, passato entro un'ora, mattina dopo
+       come prima). Si può sempre tornare alla bici con «Cambia attrezzo»;
+     · SPARTAN RACE CHECK nella prima settimana di ogni blocco, dopo lo
+       scarico: trazioni (Forza A, è il test che c'era già), burpees e
+       sospensione (intervalli), corsa-camminata (dal blocco successivo al
+       7 dicembre). Ogni check ha un obiettivo intermedio sulla strada del
+       traguardo per la gara;
+     · settimana della gara: tutto più leggero, nessun check; dopo la gara il
+       piano torna com'era.
+   Le registrazioni del blocco Spartan non entrano nel volume dei gruppi
+   muscolari: sono condizionamento, non serie per l'ipertrofia.
+=========================================================================== */
+const SP = () => (PROG && PROG.spartan) || null;
+const spOn = () => !!SP() && S.spartan !== false;
+const DAY_MS = 864e5;
+const noonOf = d => { const x = new Date(d); x.setHours(12, 0, 0, 0); return x; };
+const isoNoon = iso => new Date(iso + 'T12:00:00');
+
+/* Data prevista di una seduta: quella reale se è già stata registrata,
+   altrimenti contata da oggi (una seduta al giorno, sette giorni per settimana
+   di calendario). */
+function sessDate(idx) {
+  const cur = S.sessionIndex || 0;
+  idx = Math.max(0, Math.round(idx) || 0);
+  const logged = (S.sessionLog || []).filter(y => y && y.idx === idx && isProgramKind(y.kind) && y.ts).pop();
+  if (idx < cur && logged) return noonOf(logged.ts);
+  const doneToday = (S.sessionLog || []).some(y => y && isProgramKind(y.kind) && sameDay(y.ts, Date.now()));
+  const base = noonOf(Date.now() + (doneToday && idx >= cur ? DAY_MS : 0));
+  const days = (weekOfIdx(idx) - weekOfIdx(cur)) * 7 + (posOfIdx(idx) - posOfIdx(cur));
+  return new Date(base.getTime() + days * DAY_MS);
+}
+const metaDate = meta => meta._date || (meta._date = sessDate(meta.idx));
+
+/* Fase della preparazione in una data: 'base' (burpees e sospensione),
+   'run' (anche corsa-camminata e trasporti), 'race' (settimana della gara,
+   tutto leggero), 'off' (preparazione spenta o gara passata). */
+function spPhase(date) {
+  const sp = SP();
+  if (!spOn()) return 'off';
+  const d = noonOf(date);
+  const race = isoNoon(sp.date), end = isoNoon(sp.dateTo || sp.date);
+  if (!(d <= end)) return 'off';
+  if (d >= new Date(race.getTime() - 6 * DAY_MS)) return 'race';
+  if (d >= isoNoon(sp.runFrom)) return 'run';
+  return 'base';
+}
+const spDateText = () => { const sp = SP(); return sp ? `${isoNoon(sp.date).getDate()}-${dateIt(isoNoon(sp.dateTo || sp.date))}` : ''; };
+const weeksToRace = () => { const sp = SP(); return sp ? Math.max(0, Math.ceil((isoNoon(sp.date) - noonOf(Date.now())) / (7 * DAY_MS))) : 0; };
+
+/* Il migliore recente (ultime sei settimane) o, se non c'è nulla di recente,
+   l'ultimo dato: stessa regola del massimo di trazioni. */
+function bestRecent(cand) {
+  if (!cand.length) return { n: 0, ts: 0, src: 'nessuno' };
+  const now = Date.now();
+  const recent = cand.filter(c => now - c.ts <= PULL_RECENT_MS);
+  if (recent.length) return recent.reduce((a, b) => (b.n > a.n || (b.n === a.n && b.ts > a.ts)) ? b : a);
+  return cand.reduce((a, b) => b.ts > a.ts ? b : a);
+}
+
+/* Sospensione: secondi migliori tenuti alla sbarra (test, serie del blocco
+   Spartan o della chiusura delle sedute di forza, valore dichiarato). */
+function hangBest() {
+  const cand = [];
+  (S.logs || []).forEach(l => {
+    if (!l || l.exId !== 'g_deadhang' || l.planned || isDeloadLog(l)) return;
+    const rows = setRows(l);
+    const v = rows ? Math.max(0, ...rows.map(r => +r.hold || 0).filter(isFinite)) : (+l.hold || 0);
+    if (v > 0) cand.push({ n: Math.round(v), ts: l.ts || 0, src: l.goal === 'hangTest' ? 'test' : 'serie' });
+  });
+  const me = S.spSelf || {};
+  if (isFinite(me.hang) && me.hang > 0) cand.push({ n: Math.round(me.hang), ts: me.ts || 0, src: 'dichiarato' });
+  return bestRecent(cand);
+}
+
+/* Burpees: livello raggiunto e massimo di fila al livello attuale.
+   Si passa al livello successivo con 15 di fila al primo e 20 al secondo; il
+   livello regolamentare (con il salto) resta chiuso con la priorità al
+   ginocchio attiva. */
+function burpeeState() {
+  const sp = SP(), ex = exById((sp && sp.burpee && sp.burpee.exId) || 'g_burpee');
+  const lv = (ex && ex.levels) || ['Burpee'];
+  const adv = (sp && sp.burpee && sp.burpee.advance) || [15, 20];
+  const jump = (sp && sp.burpee && sp.burpee.jumpLevel) || lv.length - 1;
+  const maxL = S.kneeCare ? Math.min(lv.length - 1, jump - 1) : lv.length - 1;
+  const cands = i => {
+    const out = [];
+    (S.logs || []).forEach(l => {
+      if (!l || !ex || l.exId !== ex.id || l.planned || isDeloadLog(l)) return;
+      const n = bestAtLevels(l, [lv[i]]);
+      if (n > 0) out.push({ n, ts: l.ts || 0, src: l.goal === 'burpeeTest' ? 'test' : 'serie' });
+    });
+    const me = S.spSelf || {};
+    if (isFinite(me.burpee) && me.burpee > 0 && (me.burpeeLevel || 0) === i)
+      out.push({ n: Math.round(me.burpee), ts: me.ts || 0, src: 'dichiarato' });
+    return out;
+  };
+  let L = 0;
+  for (let i = 0; i < maxL; i++) {
+    const all = cands(i);
+    if (all.length && Math.max(...all.map(c => c.n)) >= (adv[i] || 99)) L = i + 1; else break;
+  }
+  const cur = bestRecent(cands(L));
+  return { L, maxL, level: lv[L], levels: lv, n: cur.n, ts: cur.ts, src: cur.src,
+           top: L === lv.length - 1, capped: maxL < lv.length - 1, next: adv[L] || null };
+}
+
+/* Corsa-camminata: livello attuale ricavato dal registro delle corse. Si sale
+   di un livello solo dopo una corsa completa al livello attuale, fuori da
+   scarico e settimana della gara, con il ginocchio tranquillo il giorno dopo;
+   si scende di uno se la mattina dopo il ginocchio andava peggio; senza
+   risposta il livello resta fermo. */
+function runState() {
+  const sp = SP();
+  const lv = (sp && sp.run && sp.run.levels) || [{ run: 60, walk: 120, reps: 6 }];
+  const max = lv.length - 1;
+  const runs = (Array.isArray(S.spartanRuns) ? S.spartanRuns : []).filter(r => r && isFinite(r.ts)).slice().sort((a, b) => a.ts - b.ts);
+  let L = 0, worse = 0;
+  runs.forEach(r => {
+    if (r.knee === 2) { L = Math.max(0, L - 1); worse++; }
+    else {
+      if (r.knee === 0) worse = 0;
+      if (r.knee === 0 && r.full && !r.light && (r.level == null || r.level === L)) L = Math.min(max, L + 1);
+    }
+  });
+  const kms = runs.filter(r => r.knee !== 2 && isFinite(r.km) && r.km > 0).map(r => +r.km);
+  const now = Date.now();
+  const pending = runs.filter(r => r.knee == null && !sameDay(r.ts, now) && now - r.ts < 4 * DAY_MS).pop() || null;
+  return { L, max, spec: lv[L], levels: lv, runs, km: kms.length ? Math.max(...kms) : 0, pending, worse };
+}
+const runSpecText = sp => {
+  const m = v => v % 60 ? `${Math.floor(v / 60) ? Math.floor(v / 60) + '′' : ''}${v % 60}″` : `${v / 60}′`;
+  return `${sp.reps} × ${m(sp.run)} di corsa e ${m(sp.walk)} di camminata`;
+};
+
+/* La seduta idx è quella di corsa-camminata? Seduta a ritmo costante (la
+   seconda aerobica), da dicembre fino alla gara, salvo un attrezzo scelto a
+   mano per quella seduta. */
+function runDay(meta) {
+  if (!meta || !meta.isCardio || meta.tmplIdx !== 1 || meta.mobilityWeek) return false;
+  const ph = spPhase(metaDate(meta));
+  if (ph !== 'run' && ph !== 'race') return false;
+  const p = pickOf(meta.idx);
+  if (p && ((p.exId && p.exId !== (SP().run || {}).exId) || (p.mode && p.mode !== 'run'))) return false;
+  return true;
+}
+
+/* Settimana dei check: la prima del blocco, dopo lo scarico. */
+const spCheckWeek = meta => meta.weekInCycle === 1 && meta.profile && meta.profile.label !== 'Scarico' && !meta.mobilityWeek;
+
+/* Quali Spartan Race check cadono nella seduta. */
+function spCheckKinds(meta, date) {
+  if (!spOn() || !meta) return [];
+  const ph = spPhase(date || metaDate(meta));
+  if ((ph !== 'base' && ph !== 'run') || !spCheckWeek(meta)) return [];
+  const out = [];
+  // il check delle trazioni è il test di Forza A: c'è quando la tappa prevede
+  // già le trazioni pulite (dalla prima trazione in poi)
+  if (meta.isStrength && meta.tmplIdx === 0 && S.pullupGoal && S.setup === 'gym') {
+    const ps = pullStage();
+    if (ps && ((ps.stage.days || [])[0] || []).includes('strict')) out.push('pull');
+  }
+  if (meta.isCardio && meta.tmplIdx === 0) { out.push('burpee'); if (S.setup === 'gym') out.push('hang'); }
+  if (meta.isCardio && meta.tmplIdx === 1 && ph === 'run' && runDay(meta)) out.push('run');
+  return out;
+}
+
+/* Valore attuale e traguardo per la gara di ciascuna qualità. */
+function spMetric(kind) {
+  const sp = SP(), t = (sp && sp.targets) || {};
+  if (kind === 'pull') { const r = pullMax(); return { n: r.n, T: t.pullups || 8, unit: 'trazioni pulite di fila', src: r.src, ts: r.ts }; }
+  if (kind === 'hang') { const r = hangBest(); return { n: r.n, T: t.hang || 60, unit: 'secondi', src: r.src, ts: r.ts }; }
+  if (kind === 'burpee') { const b = burpeeState(); return { n: b.n, T: t.burpees || 30, unit: 'di fila in forma corretta', src: b.src, ts: b.ts, b }; }
+  const rs = runState();
+  return { n: rs.L, T: rs.max, unit: 'livello', km: rs.km, rs };
+}
+
+/* Calendario dei check da oggi alla gara, con l'obiettivo intermedio di
+   ciascuno: il traguardo si divide in parti uguali fra i check rimasti
+   (almeno una ripetizione, o 5 secondi, in più del valore attuale). */
+let spPlanMemo = null;
+function spCheckPlan() {
+  const key = planSignature() + '|' + spSig();
+  if (spPlanMemo && spPlanMemo.key === key) return spPlanMemo.list;
+  const list = [];
+  const sp = SP();
+  if (spOn()) {
+    const end = isoNoon(sp.dateTo || sp.date);
+    for (let idx = S.sessionIndex || 0, g = 0; g < 400; idx++, g++) {
+      const d = sessDate(idx);
+      if (d > end) break;
+      const meta = sessionMeta(idx);
+      spCheckKinds(meta, d).forEach(kind => list.push({ idx, date: d, kind }));
+    }
+    ['pull', 'hang', 'burpee', 'run'].forEach(kind => {
+      const mine = list.filter(c => c.kind === kind);
+      const m = spMetric(kind), k = mine.length;
+      mine.forEach((c, i) => {
+        if (kind === 'run') { c.goal = Math.min(m.T, m.n + i); return; }
+        c.first = !m.n && i === 0;          // nessun dato ancora: il primo check misura il punto di partenza
+        const step = kind === 'hang' ? 5 : 1;
+        let g = m.n >= m.T ? m.T : m.n + (m.T - m.n) * (i + 1) / k;
+        g = Math.ceil(g / step) * step;
+        if (m.n < m.T) g = Math.max(g, m.n + step);
+        c.goal = Math.min(Math.max(g, step), Math.max(m.T, m.n + step));
+      });
+    });
+  }
+  spPlanMemo = { key, list };
+  return list;
+}
+function spCheckFor(idx, kind) {
+  const c = spCheckPlan().find(x => x.idx === idx && x.kind === kind);
+  if (c) return c;
+  const m = spMetric(kind);
+  return { idx, kind, goal: kind === 'run' ? m.n : Math.max(m.n + (kind === 'hang' ? 5 : 1), 1), first: kind !== 'run' && !m.n };
+}
+/* «Spartan Race check», seguito dal dettaglio dell'obiettivo. */
+function spCheckLabel(kind, goal, first) {
+  const sp = SP(), t = (sp && sp.targets) || {};
+  if (kind === 'pull') return first ? `Spartan Race check · trazioni: primo check, quante pulite di fila (per la gara ${t.pullups || 8})`
+    : `Spartan Race check · trazioni: obiettivo ${goal} pulite di fila (per la gara ${t.pullups || 8})`;
+  if (kind === 'hang') return first ? `Spartan Race check · sospensione alla sbarra: primo check, quanti secondi tieni (per la gara ${t.hang || 60})`
+    : `Spartan Race check · sospensione alla sbarra: obiettivo ${goal} secondi (per la gara ${t.hang || 60})`;
+  if (kind === 'burpee') {
+    const b = burpeeState();
+    return first ? `Spartan Race check · burpees: primo check, quanti di fila in forma corretta, livello «${b.level}» (per la gara ${t.burpees || 30})`
+      : `Spartan Race check · burpees: obiettivo ${goal} di fila in forma corretta, livello «${b.level}» (per la gara ${t.burpees || 30})`;
+  }
+  const rs = runState(), lv = rs.levels[Math.min(rs.max, goal)] || rs.spec;
+  return `Spartan Race check · corsa-camminata: obiettivo ${runSpecText(lv)}, ginocchio tranquillo il giorno dopo (per la gara circa ${(SP().targets || {}).runKm || 5} km)`;
+}
+const spSig = () => [S.spartan !== false, new Date().toDateString(),
+  (Array.isArray(S.spartanRuns) ? S.spartanRuns : []).map(r => `${r && r.knee}${r && r.full ? 1 : 0}${r && r.level}`).join(','),
+  JSON.stringify(S.spSelf || null)].join('|');
+
+/* Blocco Spartan della seduta a intervalli. */
+function spItem(ex, goalKey, d, extra) {
+  const g = PROG.goals[goalKey];
+  return Object.assign({ exId: ex.id, goalKey, goal: goalKey, goalLabel: g.label, perSide: false,
+    rpe: g.rpe, source: g.source, role: 'spartan', block: 'spartan',
+    alt: { patterns: [ex.pattern], types: ['strength'] } }, d, extra || {});
+}
+function spartanBlock(meta, used) {
+  const sp = SP();
+  if (!sp || meta.mobilityWeek) return [];
+  const date = metaDate(meta), ph = spPhase(date);
+  if (ph === 'off') return [];
+  const deload = meta.profile && meta.profile.label === 'Scarico';
+  const light = deload || ph === 'race';
+  const checks = spCheckKinds(meta, date);
+  const out = [];
+  // burpees
+  const bx = exById(sp.burpee.exId);
+  if (bx) {
+    used.add(bx.id);
+    const b = burpeeState();
+    if (checks.includes('burpee')) {
+      const c = spCheckFor(meta.idx, 'burpee');
+      out.push(spItem(bx, 'burpeeTest', { sets: 1, reps: c.goal, rest: 0, hold: 0 },
+        { level: b.level, spKind: 'burpee', spCheck: true, note: spCheckLabel('burpee', c.goal, c.first) }));
+    } else {
+      let reps = b.n ? clampN(Math.round(b.n * (b.n >= 20 ? 0.7 : 0.6)), 5, 20) : 6;
+      let sets = b.n && b.n >= 10 ? 3 : 4;
+      sets = Math.max(2, Math.min(sets, Math.floor(45 / reps)));
+      if (light) { sets = 2; reps = Math.max(4, Math.min(8, Math.round(reps * 0.7))); }
+      const why = ph === 'race' ? 'settimana della gara: pochi e facili'
+        : deload ? 'settimana di scarico: meno serie'
+        : b.n ? `${Math.round(reps / b.n * 100)}% del tuo massimo di ${b.n}, livello «${b.level}»`
+        : `livello «${b.level}»: ancora nessun massimo, si parte prudenti`;
+      out.push(spItem(bx, 'burpee', { sets, reps, rest: PROG.goals.burpee.rest, hold: 0 },
+        { level: b.level, spKind: 'burpee', note: `Spartan · ${why}` }));
+    }
+  }
+  // sospensione alla sbarra (solo in palestra)
+  const hx = exById('g_deadhang');
+  if (S.setup === 'gym' && hx && !hx.retired) {
+    used.add(hx.id);
+    const h = hangBest();
+    if (checks.includes('hang')) {
+      const c = spCheckFor(meta.idx, 'hang');
+      out.push(spItem(hx, 'hangTest', { sets: 1, reps: 1, rest: 0, hold: c.goal, holdBonus: 0 },
+        { spKind: 'hang', spCheck: true, workLabel: 'Sospensione',
+          note: spCheckLabel('hang', c.goal, c.first) + ' · usa «Cronometro: tieni finché riesci»' }));
+    } else {
+      const hold = h.n ? clampN(Math.round(h.n * 0.6 / 5) * 5, 15, 45) : 20;
+      out.push(spItem(hx, 'spHang', { sets: light ? 2 : 3, reps: 1, rest: PROG.goals.spHang.rest, hold, holdBonus: 0 },
+        { spKind: 'hang', workLabel: 'Sospensione',
+          alt: { patterns: ['pullup'], types: ['strength'], roles: ['activation'] },
+          note: `Spartan · presa per monkey bars, multi-rig e fune${h.n ? ` · 60% del tuo massimo di ${h.n} s` : ''}` }));
+    }
+  }
+  // trasporti: da dicembre, in palestra, fuori da scarico e settimana della gara
+  if (S.setup === 'gym' && ph === 'run' && !deload) {
+    const pool = (sp.carries || []).map(exById).filter(e => e && !e.retired && e.setup.includes(S.setup));
+    const cx = pool.length ? pool[(meta.weekAbs || 0) % pool.length] : null;
+    if (cx) {
+      used.add(cx.id);
+      const d = dose('carry', meta.profile, cx);
+      out.push(spItem(cx, 'carry', { sets: 3, reps: d.reps, rest: d.rest, hold: 0 },
+        { spKind: 'carry', note: `Spartan · le ripetizioni sono i passi${cx.id === 'g_farmercarry' ? ' (un manubrio per mano: simula taniche e secchi)' : ' (simula il sacco e la pietra)'}` }));
+    }
+  }
+  return out;
+}
+
+/* Seduta di corsa-camminata (al posto del ritmo costante, da dicembre). */
+function buildRun(meta, budget) {
+  const sp = SP(), ex = exById(sp.run.exId);
+  if (!ex) return { label: 'Corsa-camminata', type: 'cardio', items: [], mode: 'run' };
+  const date = metaDate(meta), ph = spPhase(date);
+  const rs = runState(), spec = rs.spec;
+  const deload = meta.profile.label === 'Scarico';
+  const light = deload || ph === 'race';
+  const check = spCheckKinds(meta, date).includes('run');
+  const used = new Set([ex.id]);
+  const alt = { patterns: ['cardio', 'finisher'], types: ['strength'], modes: ['run'] };
+  const timed = (role, goalKey, label, sets, hold, rest, note, extra) => Object.assign({
+    exId: ex.id, role, goal: goalKey, goalKey, goalLabel: label, sets, reps: 1, perSide: false,
+    hold, rest, rpe: '', source: ex.source, note, workLabel: label, restLabel: 'Camminata', alt
+  }, extra || {});
+  const g = PROG.goals.cardioRun;
+  const warm = timed('warmup', 'cardioWarm', 'Camminata svelta', 1, 300, 0, 'Passo svelto, braccia che accompagnano');
+  const cool = timed('cooldown', 'cardioCool', 'Camminata lenta', 1, 180, 0, 'Respiro che rallenta');
+  let reps = light ? Math.max(2, Math.round(spec.reps * 0.6)) : spec.reps;
+  const main = timed('cardio', 'cardioRun', 'Corsa', reps, spec.run, spec.walk,
+    check ? spCheckLabel('run', rs.L)
+      : `Livello ${rs.L + 1} di ${rs.max + 1}: ${runSpecText(spec)}${light ? (ph === 'race' ? ' · settimana della gara: accorciata' : ' · scarico: accorciata') : ''}`,
+    { rpe: g.rpe, source: g.source, goalLabel: g.label, spKind: 'run', spCheck: check });
+  const stretches = cardioStretches(meta, used);
+  const items = [warm, main, cool].concat(stretches);
+  // nel tempo scelto: si tolgono ripetute, mai sotto 2 (e allora il livello
+  // non avanza, perché la corsa non è completa)
+  let guard = 0;
+  while (estimateMinutes(items) > budget && main.sets > 2 && guard++ < 20) main.sets--;
+  // con i primi livelli la corsa dura poco: il tempo che avanza diventa
+  // camminata svelta (minuti aerobici moderati, carico basso sul ginocchio)
+  const leftSec = budget * 60 / paceOf('cardio') - rawSeconds(items) - CHANGE_SEC.cardio;
+  if (leftSec >= 300 && !light) {
+    const gs = PROG.goals.cardioSteady;
+    items.splice(2, 0, timed('cardio', 'cardioSteady', 'Camminata svelta', 1, Math.min(1200, Math.floor(leftSec / 60) * 60), 0,
+      'Dopo la corsa, passo svelto in piano', { rpe: gs.rpe, source: gs.source, goalLabel: 'Camminata svelta', restLabel: 'Camminata' }));
+  }
+  const full = !light && main.sets >= spec.reps;
+  return { label: `Corsa-camminata · Spartan${check ? ' · Spartan Race check' : ''}`, type: 'cardio', items, mode: 'run',
+           run: { level: rs.L, planned: main.sets, full, light, check } };
 }
 
 /* Minuti aerobici della settimana, nel conto dell'OMS: un minuto vigoroso
@@ -2320,7 +2718,9 @@ const MORNING_DAYS = 5;
 const sessLabel = x => String((x && x.label) || '').replace(/^Mattino · /, 'Mobilità breve · ').replace(/^Mattino saltato$/, 'Mobilità breve saltata');
 // 'skipped' vale come seduta di programma: ha consumato il suo posto in
 // calendario, quindi l'indice avanza e lo storico resta allineato
-const isProgramKind = k => k !== 'core' && k !== 'free' && k !== 'morning';
+// 'extra': attività fuori programma registrate con la 6.11 (funzione poi tolta
+// nella 6.12). Restano nello storico ma non sono sedute del programma.
+const isProgramKind = k => k !== 'core' && k !== 'free' && k !== 'morning' && k !== 'extra';
 const isSkipped = x => x.kind === 'skipped';
 
 /* Giorni della settimana con la mobilità breve (dalla 6.10). Nella settimana
@@ -2513,7 +2913,7 @@ let sessMemo = new Map(), sessMemoKey = null;
 function planSignature() {
   return [S.programId, S.setup, S.durPref || 35, S.finisher || '', S.kneeCare, S.shoulderCare,
           S.pullupGoal, JSON.stringify(S.pullSelf || null), S.week6From || 0, logsRev, (S.mobilityWeeks || []).join('.'),
-          JSON.stringify(S.perms || {}), JSON.stringify(S.sessPick || {})].join('|');
+          JSON.stringify(S.perms || {}), JSON.stringify(S.sessPick || {}), spSig()].join('|');
 }
 function sessionFor(idx, kind) {
   const sig = planSignature();
@@ -2576,7 +2976,7 @@ function plannedEntry(sess, it, sid, ts) {
     setup: S.setup, load: '', feedback: 'same', sets: it.sets,
     repsTarget: it.reps, repsDone: it.reps, rir: null, reps: it.reps,
     goal: it.goal, week: sess.weekInCycle, hold: it.hold || 0, rest: it.rest || 0,
-    setsPlanned: it.sets, planned: true };
+    setsPlanned: it.sets, planned: true, ...(it.block === 'spartan' ? { spartan: true } : {}) };
   const r = rateFor(entry, S.logs);
   entry.stars = r.stars; entry.rateText = r.text; entry.warn = ''; entry.advice = r.advice || '';
   return entry;
@@ -2598,9 +2998,23 @@ function markSessionDone(sess, when, sid) {
       ...(sess.kind === 'morning' ? { mWeek: sess.mWeek, mDay: sess.mDay, mFocus: sess.focusKey, mLunch: sess.lunchLabel } : {}),
       note: 'Registrata a posteriori' });
     if (isProgramKind(sess.kind)) S.sessionIndex++;
+    // (7S 0) corsa-camminata dichiarata fatta: entra nel registro delle corse,
+    // il giorno dopo l'app chiede del ginocchio come per le altre
+    if (sess.run) recordRun(sess, (sess.run || {}).planned || 0, sid, ts);
   }
   planCache = null;
   save();
+}
+
+/* (7S 0) Registro delle corse-camminate: livello, se è stata completa e, il
+   giorno dopo, come ha risposto il ginocchio. Non si cancella mai nulla. */
+function recordRun(sess, done, sid, ts) {
+  const r = sess.run || {};
+  S.spartanRuns = Array.isArray(S.spartanRuns) ? S.spartanRuns : [];
+  if (S.spartanRuns.some(x => x && x.sid === sid)) return;
+  S.spartanRuns.push({ ts: ts || Date.now(), sid, idx: sess.idx, level: r.level || 0,
+    planned: r.planned || 0, done: done || 0, full: !!r.full && (done || 0) >= (r.planned || 0),
+    light: !!r.light, check: !!r.check, knee: null, km: null });
 }
 
 /* ---------------------------------------------------------------------------
@@ -2889,6 +3303,7 @@ function renderProg() {
     ${tile('path', 'Il percorso', pBody)}
     ${tile('upcoming', 'Le prossime settimane', `<div class="dstat">Cosa ti aspetta</div>
       <p class="small muted">Tipo di seduta giorno per giorno, con fasi, scarichi e settimane di sola mobilità.</p>`)}
+    ${SP() && (S.spartan !== false || spPhase(Date.now()) !== 'off') ? tile('spartan', 'Spartan Race · Sprint di Orte', spartanTileBody()) : ''}
     ${S.pullupGoal ? tile('pull', 'Trazioni e muscle-up', pullTileBody()) : ''}
     ${tile('trend', 'Progressione negli esercizi', eBody + eNote)}
     ${tile('body', 'Misure corporee', bBody)}
@@ -2899,6 +3314,7 @@ function renderProg() {
     if (k === 'path') openPath();
     else if (k === 'upcoming') openUpcoming();
     else if (k === 'pull') openPullGoal();
+    else if (k === 'spartan') openSpartan();
     else if (k === 'trend') { go('history'); scrollToId('loadsCard'); }
     else if (k === 'body') { go('history'); scrollToId('bodyCard'); }
     else go('history');
@@ -2970,6 +3386,197 @@ function openPullGoal() {
   };
 }
 
+/* ---------------------------------------------------------------------------
+   SPARTAN RACE IN OGGI E IN PROGRESSI (dalla 7S 0)
+   In Oggi: il promemoria «Spartan Race check» quando la seduta del giorno (o
+   la prossima, se quella di oggi è già fatta) contiene un check, la domanda
+   sul ginocchio il giorno dopo una corsa e l'avviso della settimana della
+   gara. In Progressi: riquadro con i quattro traguardi e scheda completa
+   (check in calendario, ostacoli, corse, aggiornamento a mano).
+--------------------------------------------------------------------------- */
+const SP_NAMES = { pull: 'Trazioni', hang: 'Sospensione', burpee: 'Burpees', run: 'Corsa-camminata' };
+function spValueText(kind, m) {
+  if (kind === 'pull') return `${m.n} di ${m.T}`;
+  if (kind === 'hang') return `${m.n} s di ${m.T}`;
+  if (kind === 'burpee') return `${m.n} di ${m.T}`;
+  return spPhase(Date.now()) === 'base' ? 'da dicembre' : `livello ${m.n + 1} di ${m.T + 1}`;
+}
+function spPct(kind, m) {
+  if (kind === 'run') return m.rs.runs.length || m.n ? Math.round(m.n / Math.max(1, m.T) * 100) : 0;
+  if (kind === 'burpee') {
+    const b = m.b, part = Math.min(1, m.n / m.T);
+    return Math.round((b.L >= b.maxL ? part : (b.L + Math.min(1, m.n / (b.next || m.T))) / (b.maxL + 1)) * 100);
+  }
+  return Math.round(Math.min(1, m.n / m.T) * 100);
+}
+function kneeAskHtml(r) {
+  return `<div class="card spcard" id="kneeCard">
+    <div class="kicker">Spartan · ginocchio dopo la corsa</div>
+    <h3 style="margin:4px 0 6px">Com'è andata la corsa-camminata di ${esc(new Date(r.ts).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' }))}?</h3>
+    <p class="small muted">Da questa risposta dipende il livello della prossima corsa (criteri di Esculier et al. 2018).</p>
+    <div class="spknee">
+      <button class="btn ghost" data-knee="0">Tutto tranquillo: durante al massimo 2 su 10, passato entro un'ora, stamattina come prima</button>
+      <button class="btn ghost" data-knee="1">Più di 2 su 10, o più di un'ora per passare, ma stamattina come prima</button>
+      <button class="btn ghost" data-knee="2">Stamattina il ginocchio va peggio del solito</button>
+    </div>
+    <label class="small" style="display:flex;align-items:center;gap:8px;margin-top:10px">Distanza dal Garmin (facoltativa)
+      <input id="kneeKm" type="text" inputmode="decimal" placeholder="km" style="width:80px"></label>
+  </div>`;
+}
+function bindKneeAsk(after) {
+  document.querySelectorAll('[data-knee]').forEach(b => b.onclick = () => {
+    const rs = runState(), r = rs.pending;
+    if (!r) return;
+    const km = parseFloat(String(($('#kneeKm') || {}).value || '').replace(',', '.'));
+    r.knee = +b.dataset.knee;
+    r.kneeTs = Date.now();
+    if (isFinite(km) && km > 0 && km <= 50) r.km = Math.round(km * 100) / 100;
+    planCache = null; save();
+    const now = runState();
+    const msg = r.knee === 0
+      ? (r.full && !r.light ? `Bene: la prossima corsa sale al livello ${now.L + 1} di ${now.max + 1}.` : `Bene. Il livello resta ${now.L + 1}: la corsa non era completa o era una settimana leggera.`)
+      : r.knee === 1 ? `Il livello resta ${now.L + 1}: si ripete finché il ginocchio non resta tranquillo.`
+      : `La prossima corsa torna al livello ${now.L + 1}. Se preferisci, quel giorno scegli la bici con «Cambia attrezzo».${now.worse >= 2 ? ' È la seconda volta di fila: fermati con la corsa e senti il fisioterapista prima di riprendere.' : ''}`;
+    openModal(`<h2>Ginocchio registrato</h2><p>${esc(msg)}</p><button class="btn" id="kaOk" style="margin-top:12px">Ok</button>`);
+    $('#kaOk').onclick = () => closeModal(after);
+  });
+}
+/* Riquadro per Oggi: domanda sul ginocchio, check della seduta, settimana della gara. */
+function spartanTodayHtml(s) {
+  if (!spOn()) return '';
+  let html = '';
+  const rs = runState();
+  if (rs.pending) html += kneeAskHtml(rs.pending);
+  const ph = spPhase(Date.now());
+  if (ph === 'race') html += `<div class="card spcard"><div class="kicker">Spartan Race · ${esc(SP().place || '')}</div>
+      <h3 style="margin:4px 0 6px">È la settimana della gara</h3>
+      <p class="small">Sedute più leggere e nessun check: arrivi riposato. Il giorno della gara e quello prima, salta pure la seduta prevista («Non la faccio: salta»). Obiettivo: divertirti e superare gli ostacoli in sicurezza, con calma; il giavellotto lo salti e fai i 30 burpees.</p></div>`;
+  if (s && s.items) {
+    const checks = s.items.filter(it => it.spCheck);
+    if (checks.length) {
+      const doneToday = (S.sessionLog || []).some(y => isProgramKind(y.kind) && sameDay(y.ts, Date.now()));
+      html += `<div class="card spcard">
+        <div class="kicker">${doneToday ? 'Nella prossima seduta' : 'Oggi'} · ${esc(s.label)}</div>
+        ${checks.map(it => `<p class="spcheck"><b>${esc(it.note.split(' · usa')[0])}</b></p>`).join('')}
+        <p class="small muted">Riscaldati bene e misura con calma: ti fermi quando la forma si sporca. Il risultato aggiorna i traguardi in Progressi.</p></div>`;
+    }
+  }
+  if (rs.worse >= 2 && (ph === 'run' || ph === 'race')) html += `<div class="notice" style="margin-top:12px">Il ginocchio è peggiorato dopo due corse di fila: sospendi la corsa (nella seduta di corsa scegli la bici con «Cambia attrezzo») e senti il fisioterapista prima di riprendere.</div>`;
+  return html;
+}
+
+function spartanTileBody() {
+  const sp = SP();
+  const ph = spPhase(Date.now());
+  if (ph === 'off') return `<div class="dstat">${S.spartan === false ? 'Preparazione spenta' : 'Gara passata'}</div>
+      <p class="small muted">${S.spartan === false ? 'La riattivi in Impostazioni.' : `La Sprint di ${esc(sp.place)} era il ${spDateText()}: il piano è tornato quello di prima.`}</p>`;
+  const rows = ['pull', 'hang', 'burpee', 'run'].map(k => {
+    const m = spMetric(k);
+    return `<div class="sprow"><span>${SP_NAMES[k]}</span><div class="dbar sp"><i style="width:${spPct(k, m)}%"></i></div><b>${spValueText(k, m)}</b></div>`;
+  }).join('');
+  const next = spCheckPlan()[0];
+  return `<div class="dstat">${weeksToRace()} settimane alla gara</div>
+    <p class="small">Sprint di ${esc(sp.place)}, ${spDateText()} · ${sp.distanceKm} km e ${sp.obstacles} ostacoli</p>
+    ${rows}
+    <p class="small muted" style="margin-top:8px">${next ? `Prossimo Spartan Race check: ${dateIt(next.date)} · ${SP_NAMES[next.kind].toLowerCase()}` : 'Nessun altro check prima della gara.'}</p>`;
+}
+
+/* Stato di ciascun ostacolo rispetto ai traguardi raggiunti. */
+function spObstacleStatus(keys) {
+  if (!keys || !keys.length) return { cls: 'tip', txt: 'consiglio' };
+  const rank = k => {
+    if (k === 'carry') {
+      const logs = S.logs.filter(l => (SP().carries || []).includes(l.exId) && !l.planned);
+      const heavy = logs.some(l => numLoad(l.load) >= (l.exId === 'g_farmercarry' ? 20 : 26));
+      return heavy ? 2 : logs.length ? 1 : 0;
+    }
+    const m = spMetric(k);
+    if (k === 'run') return m.n >= m.T ? 2 : m.n >= m.T - 2 ? 1 : 0;
+    if (k === 'burpee') return m.b.L >= m.b.maxL && m.n >= m.T ? 2 : m.n >= 20 ? 1 : 0;
+    const q = k === 'pull' ? 5 : 40;
+    return m.n >= m.T ? 2 : m.n >= q ? 1 : 0;
+  };
+  const r = Math.min(...keys.map(rank));
+  return r === 2 ? { cls: 'ok', txt: 'pronto' } : r === 1 ? { cls: 'mid', txt: 'quasi' } : { cls: 'todo', txt: 'in corso' };
+}
+
+function openSpartan() {
+  const sp = SP();
+  if (!sp) return;
+  const ph = spPhase(Date.now());
+  const srcTxt = m => m.src === 'nessuno' || !m.src ? 'nessun dato ancora'
+    : `${m.src === 'test' ? 'check' : m.src === 'serie' ? 'serie registrata' : 'valore inserito da te'} del ${dateIt(m.ts)}`;
+  const mP = spMetric('pull'), mH = spMetric('hang'), mB = spMetric('burpee'), mR = spMetric('run');
+  const b = mB.b, rs = mR.rs;
+  const goalRow = (k, m, extra) => `<li><div class="nm" style="flex:1"><b>${SP_NAMES[k]}</b> · ${spValueText(k, m)}
+      <div class="dbar sp"><i style="width:${spPct(k, m)}%"></i></div>
+      <div class="small muted">${extra}</div></div></li>`;
+  const plan = spCheckPlan();
+  const planRows = plan.length ? plan.slice(0, 16).map(c => `<li><div class="nm" style="flex:1"><span class="small muted">${dateIt(c.date)} · ${esc(dayLabel(sessionMeta(c.idx)))}</span>
+      <div class="small">${esc(spCheckLabel(c.kind, c.goal, c.first))}</div></div></li>`).join('')
+    : '<li><div class="small muted">Nessun check fino alla gara.</div></li>';
+  const obs = (sp.obstacles_list || []).map(o => {
+    const st = spObstacleStatus(o.keys);
+    return `<li><div class="nm" style="flex:1"><b>${esc(o.name)}</b> <span class="sptag ${st.cls}">${st.txt}</span>
+      <div class="small muted">${esc(o.need)}${o.tip ? ' · ' + esc(o.tip) : ''}</div></div></li>`;
+  }).join('');
+  const runRows = rs.runs.slice(-6).reverse().map(r => `<li><div class="nm" style="flex:1">${dateIt(r.ts)} · livello ${(r.level || 0) + 1}${r.full ? '' : ' (non completa)'}${r.light ? ' · leggera' : ''}${r.check ? ' · check' : ''}
+      <div class="small muted">Ginocchio: ${r.knee === 0 ? 'tranquillo' : r.knee === 1 ? 'oltre 2/10 o lento a passare' : r.knee === 2 ? 'peggio la mattina dopo' : 'risposta mancante'}${isFinite(r.km) && r.km ? ` · ${String(r.km).replace('.', ',')} km` : ''}</div></div></li>`).join('');
+  const runFrom = isoNoon(sp.runFrom);
+  openModal(`<h2>Spartan Race · Sprint di ${esc(sp.place)}</h2>
+    <p class="small muted">${spDateText()} · ${sp.distanceKm} km e ${sp.obstacles} ostacoli · ${weeksToRace()} settimane.</p>
+    <p class="small">${esc(sp.aim)}</p>
+    ${ph === 'off' ? `<p class="notice">${S.spartan === false ? 'Preparazione spenta: la riattivi in Impostazioni.' : 'La gara è passata: il piano è tornato quello di prima.'}</p>` : ''}
+
+    <h3>Traguardi per la gara</h3>
+    <ul class="hist">
+      ${goalRow('pull', mP, `Traguardo ${mP.T} trazioni pulite di fila (fune, muri, Hercules hoist) · ${srcTxt(mP)}. L'obiettivo del programma resta ${pullTarget().n} a fine maggio.`)}
+      ${goalRow('hang', mH, `Traguardo ${mH.T} secondi appeso con le spalle attive (monkey bars, multi-rig) · ${srcTxt(mH)}.`)}
+      ${goalRow('burpee', mB, `Traguardo ${mB.T} di fila in forma corretta, la penalità del giavellotto e di ogni ostacolo fallito. Livello «${esc(b.level)}»${b.L < b.maxL ? `: con ${b.next} di fila passi al livello successivo` : ''}${b.capped ? '. Il livello regolamentare, con il salto, resta chiuso finché è attiva la priorità al ginocchio: per la gara decidi tu, meglio sentito il fisioterapista' : ''} · ${srcTxt(mB)}.`)}
+      ${goalRow('run', mR, ph === 'base' ? `Dal ${dateIt(runFrom)} la seduta a ritmo costante diventa corsa-camminata all'aperto, una volta a settimana. Traguardo: ${runSpecText(rs.levels[rs.max])}, circa ${sp.targets.runKm} km per chi corre piano.`
+        : `Ora: ${runSpecText(rs.spec)}. Traguardo: ${runSpecText(rs.levels[rs.max])}, circa ${sp.targets.runKm} km${rs.km ? ` · distanza migliore registrata ${String(rs.km).replace('.', ',')} km` : ''}. Il livello sale solo se il giorno dopo il ginocchio è tranquillo.`)}
+    </ul>
+
+    <h3>Spartan Race check in calendario</h3>
+    <p class="small muted">Nella prima settimana di ogni blocco, subito dopo lo scarico. Le date sono stimate: si spostano se salti sedute o fai una settimana di sola mobilità. L'obiettivo di ogni check divide in parti uguali la strada che manca al traguardo.</p>
+    <ul class="hist">${planRows}</ul>
+
+    <h3>Come cambia il piano</h3>
+    <ul class="small" style="padding-left:18px">
+      <li><b>Forza A, B e C</b>: invariate. Il test delle trazioni in Forza A, fino alla gara, è anche lo Spartan Race check.</li>
+      <li><b>Seduta a intervalli</b>: dopo il riscaldamento, a fresco, burpees per livelli e sospensione alla sbarra${S.setup === 'gym' ? '' : ' (a casa solo burpees)'}; dal ${dateIt(runFrom)} anche un trasporto (contadino o in abbraccio, a settimane alterne). Poi gli scatti, nel tempo che resta.</li>
+      <li><b>Seduta a ritmo costante</b>: dal ${dateIt(runFrom)} corsa-camminata all'aperto, una volta a settimana, con il timer che suona ai cambi. Se piove o il ginocchio protesta, «Cambia attrezzo» riporta la bici.</li>
+      <li><b>Settimane di scarico</b>: blocco Spartan e corsa più corti, nessun aumento di livello.</li>
+      <li><b>Settimana della gara</b>: tutto leggero, nessun check. Dopo la gara il piano torna com'era.</li>
+      <li>Le serie del blocco Spartan non contano nel volume dei gruppi muscolari: sono condizionamento.</li>
+    </ul>
+
+    <h3>Gli ostacoli</h3>
+    <ul class="hist">${obs}</ul>
+
+    ${rs.runs.length ? `<h3>Corse registrate</h3><ul class="hist">${runRows}</ul>` : ''}
+    ${rs.pending ? kneeAskHtml(rs.pending) : ''}
+
+    <h3>Aggiorna a mano</h3>
+    <p class="small muted">Se hai provato fuori programma: secondi di sospensione e burpees di fila in forma corretta. Le registrazioni non vengono toccate.</p>
+    <div class="row" style="gap:8px;margin:6px 0;flex-wrap:wrap">
+      <label class="small">Sospensione (s) <input id="spH" type="number" inputmode="numeric" min="0" max="600" value="${mH.n || ''}" style="width:70px"></label>
+      <label class="small">Burpees <input id="spB" type="number" inputmode="numeric" min="0" max="200" value="${mB.n || ''}" style="width:70px"></label>
+      <label class="small">Livello <select id="spBL">${b.levels.map((x, i) => `<option value="${i}" ${i === b.L ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>
+    </div>
+    <button class="btn" id="spSave">Salva</button>
+    <p class="small muted" style="margin-top:12px">Fonti: ${esc((sp.sources || []).join(' · '))}. Traguardi, livelli e dosi del blocco Spartan sono regole operative dell'app.</p>
+    <button class="btn secondary" id="spClose" style="margin-top:10px">Chiudi</button>`);
+  bindKneeAsk(() => openSpartan());
+  $('#spClose').onclick = () => closeModal();
+  $('#spSave').onclick = () => {
+    const h = Math.round(+$('#spH').value), bn = Math.round(+$('#spB').value), bl = Math.round(+$('#spBL').value);
+    if (!isFinite(h) || h < 0 || h > 600 || !isFinite(bn) || bn < 0 || bn > 200 || !isFinite(bl) || bl < 0 || bl >= b.levels.length) return;
+    S.spSelf = { hang: h, burpee: bn, burpeeLevel: bl, ts: Date.now() };
+    planCache = null; save(); closeModal(); renderProg();
+  };
+}
+
 function scrollToId(id) {
   requestAnimationFrame(() => { const el = document.getElementById(id); if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
 }
@@ -2986,7 +3593,12 @@ function dayLabel(meta) {
   const p = meta.program;
   if (meta.mobilityWeek) return ((p.stretchDays || [])[meta.tmplIdx] || {}).label || 'Mobilità';
   if (meta.isStrength) return ((p.strengthDays || [])[meta.tmplIdx] || {}).label || 'Potenziamento';
-  if (meta.isCardio) return ((PROG.cardioDays || [])[meta.tmplIdx] || {}).label || 'Aerobico';
+  if (meta.isCardio) {
+    // (7S 0) preparazione Spartan: corsa-camminata e burpees
+    if (runDay(meta)) return 'Corsa-camminata · Spartan';
+    const base = ((PROG.cardioDays || [])[meta.tmplIdx] || {}).label || 'Aerobico';
+    return meta.tmplIdx === 0 && spPhase(metaDate(meta)) !== 'off' ? base + ' + burpees' : base;
+  }
   return ((p.stretchDays || [])[meta.tmplIdx] || {}).label || 'Mobilità';
 }
 
@@ -3061,7 +3673,21 @@ function cyclesHtml(p, meta) {
       <li>Una <b>seduta saltata</b> consuma il suo posto: il programma passa alla successiva e non si allunga.</li>
       <li>Puoi <b>scambiare le sedute</b> dentro la settimana, mobilità compresa: è prevista per ultima, ma puoi farla in qualunque giorno.</li>
     </ul>
+    ${spCyclesHtml()}
   </div>`;
+}
+
+/* (7S 0) La preparazione Spartan dentro «Come cambia il programma». */
+function spCyclesHtml() {
+  const sp = SP();
+  if (!sp || spPhase(Date.now()) === 'off') return '';
+  const runFrom = dateIt(isoNoon(sp.runFrom));
+  return `<h3 style="margin-top:14px;font-size:15px">Preparazione Spartan Race (fino al ${spDateText()})</h3>
+    <ul class="small" style="padding-left:18px">
+      <li><b>Per calendario</b>: da ora burpees e sospensione alla sbarra nella seduta a intervalli; dal ${runFrom} la seduta a ritmo costante diventa corsa-camminata (una volta a settimana) e si aggiunge un trasporto; settimana della gara leggera; dopo la gara il piano torna com'era. Forza A, B e C non cambiano.</li>
+      <li><b>Secondo i tuoi risultati</b>: il livello dei burpees sale con ${(sp.burpee.advance || []).join(' e ')} di fila; le ripetizioni sono circa il 60-70% del tuo massimo; la sospensione il 60% del tuo massimo; la corsa sale di un livello solo se il giorno dopo il ginocchio è tranquillo, resta ferma se ha dato fastidio, scende se la mattina dopo andava peggio.</li>
+      <li><b>Spartan Race check</b> nella prima settimana di ogni blocco: trazioni (Forza A), burpees e sospensione (intervalli), corsa-camminata (dal ${runFrom}). Dettagli e date in Progressi › Spartan Race.</li>
+    </ul>`;
 }
 
 function openUpcoming(fromWeek) {
@@ -3075,10 +3701,11 @@ function openUpcoming(fromWeek) {
     for (let k = 0; k < n; k++) {
       const meta = sessionMeta(weekStart(w) + k);
       const cur = weekStart(w) + k === S.sessionIndex;
+      const ck = spCheckKinds(meta);
       days.push(`<li${cur ? ' class="cur"' : ''}>
         <span class="wknum ${typeClass(meta)}" style="flex:0 0 26px">${k + 1}</span>
-        <div class="nm" style="flex:1"><b>${esc(dayLabel(meta))}</b>${cur ? ' <span class="wkbadge">oggi</span>' : ''}
-          <div class="small muted">${typeWord(meta)}</div></div></li>`);
+        <div class="nm" style="flex:1"><b>${esc(dayLabel(meta))}</b>${cur ? ' <span class="wkbadge">oggi</span>' : ''}${ck.length ? ' <span class="wkbadge sp">Spartan Race check</span>' : ''}
+          <div class="small muted">${typeWord(meta)}${ck.length ? ' · ' + ck.map(x => SP_NAMES[x].toLowerCase()).join(', ') : ''}</div></div></li>`);
     }
     weeks.push(`<div class="block" style="margin-top:14px">
       <h3 style="font-size:16px;color:var(--muted)">${weekText(first, { cap: true })}${first.phase ? ' · ' + esc(first.phase.ph.name) : ''}${
@@ -3171,7 +3798,10 @@ function alternativesFor(item, sess) {
     (alt.types || ['strength']).includes(e.type) &&
     (alt.patterns || []).includes(e.pattern) &&
     (!alt.groups || alt.groups.includes(e.group)) &&
-    (!alt.roles || alt.roles.includes(e.pullRole)));
+    (!alt.roles || alt.roles.includes(e.pullRole)) &&
+    // (7S 0) la corsa-camminata non è un'alternativa alla bici: si sceglie solo
+    // nella seduta di corsa della preparazione Spartan
+    (!(e.cardioModes || []).includes('run') || (alt.modes || []).includes('run')));
   if (alt.roles && pool.length < 2) {
     pool = DB.exercises.filter(e => e.setup.includes(S.setup) && e.pattern === 'pullup');
   }
@@ -3258,7 +3888,7 @@ function openExercisePicker(item, sess, after, opts) {
    Aerobico: si sceglie l'attrezzo e, se serve, il tipo di lavoro (intervalli o
    ritmo costante). Mobilità: si sceglie quale dei due schemi svolgere.
 --------------------------------------------------------------------------- */
-const cardioModeWord = m => m === 'hiit' ? 'intervalli' : 'ritmo costante';
+const cardioModeWord = m => m === 'hiit' ? 'intervalli' : m === 'run' ? 'corsa-camminata' : 'ritmo costante';
 
 function openSessionPicker(sess) {
   const meta = sessionMeta(sess.idx);
@@ -3278,8 +3908,12 @@ function openCardioPicker(sess, meta) {
   const base = days[meta.tmplIdx] || { label: 'Aerobico', mode: 'steady' };
   const mode = chosen.mode || base.mode;
   const curId = (sess.items.filter(i => i.role === 'cardio')[0] || {}).exId;
+  // (7S 0) la corsa-camminata si sceglie solo nella seduta a ritmo costante,
+  // da dicembre alla gara
+  const runOk = meta.tmplIdx === 1 && !meta.mobilityWeek && ['run', 'race'].includes(spPhase(metaDate(meta)));
   const pool = DB.exercises.filter(e => (e.pattern === 'cardio' || e.pattern === 'finisher') &&
-      !e.retired && e.setup.includes(S.setup) && (e.cardioModes || []).length)
+      !e.retired && e.setup.includes(S.setup) && (e.cardioModes || []).length &&
+      (!(e.cardioModes || []).includes('run') || runOk))
     .sort((a, b) => a.name.localeCompare(b.name));
   const modes = days.map(t =>
     `<button data-cmode="${t.mode}" aria-pressed="${t.mode === mode}">${esc(cardioModeWord(t.mode))}</button>`).join('');
@@ -3288,6 +3922,7 @@ function openCardioPicker(sess, meta) {
     const isCur = ex.id === curId;
     const care = S.kneeCare && ex.kneeFriendly === false;
     const why = isCur ? 'in programma oggi'
+      : ms.includes('run') ? 'preparazione Spartan: la corsa della settimana, livelli guidati dal ginocchio'
       : care ? 'flessione profonda sotto carico: non viene proposto da solo con la priorità al ginocchio'
       : ms.includes(mode) ? 'adatto al lavoro a ' + cardioModeWord(mode)
       : 'si può fare solo a ' + ms.map(cardioModeWord).join(' o ');
@@ -3383,7 +4018,7 @@ function weeksLeftText(p, weekAbs) {
 }
 
 function todaySession(kind) {
-  const key = `${S.programId}|${S.setup}|${S.sessionIndex}|${kind || ''}|${S.durPref || 35}|${S.finisher || ''}|${pickKey(S.sessionIndex)}`;
+  const key = `${S.programId}|${S.setup}|${S.sessionIndex}|${kind || ''}|${S.durPref || 35}|${S.finisher || ''}|${pickKey(S.sessionIndex)}|${spSig()}`;
   if (!planCache || planCache.key !== key) planCache = { key, sess: buildSession(S.sessionIndex, kind) };
   return planCache.sess;
 }
@@ -3456,6 +4091,7 @@ function renderHomePick() {
   $('#view-home').innerHTML = `
     ${b.html}
     ${deloadCardHtml()}
+    ${spartanTodayHtml(ls.done || ls.skipped ? todaySession(null) : ls.s)}
     ${tile('morning', 'Mobilità breve · a casa', 'mobility', mBody)}
     ${tile('lunch', 'Allenamento del giorno', ls.done || ls.skipped ? 'strength' : typeClass(ls.s), lBody)}
     <p class="small muted" style="margin-top:14px">Tocca la sessione su cui vuoi lavorare: esercizi, durata e calendario della settimana si aprono lì dentro.</p>`;
@@ -3465,6 +4101,7 @@ function renderHomePick() {
     homeView = el.dataset.pick; renderHome();
   });
   bindHomeBanners(b.saved);
+  bindKneeAsk(() => renderHome());
 }
 
 /* Schermata del mattino. */
@@ -3540,6 +4177,7 @@ function renderHomeLunch() {
     <button class="btn ghost" id="homeBack" style="margin-top:14px">‹ Torna alla scelta</button>
     ${b.html}
     ${deloadCardHtml()}
+    ${core ? '' : spartanTodayHtml(s)}
     <div class="seg" role="group" aria-label="Attrezzatura">
       <button data-setup="gym" aria-pressed="${S.setup === 'gym'}">Palestra</button>
       <button data-setup="home" aria-pressed="${S.setup === 'home'}">Casa</button>
@@ -3565,7 +4203,7 @@ function renderHomeLunch() {
           <div class="kicker">${core ? 'Blocco core facoltativo' : `Sessione ${s.pos} di ${s.days} · ${typeWord(s)}`}</div>
           <h2>${esc(s.label)}</h2>
           <p class="small muted" style="margin:6px 0 0">${core ? 'Blocco breve da aggiungere quando hai tempo: non avanza la settimana del programma.'
-                 : esc(s.isStrength ? s.profile.note : mobilityNote(s.profile, s.mobilityWeek))}</p>
+                 : esc(s.isStrength ? s.profile.note : s.run ? `Preparazione Spartan: livello ${s.run.level + 1} di ${runState().max + 1}${s.run.light ? ', accorciata' : ''}. Corsa lenta, ginocchio al massimo 2 su 10; il giorno dopo l'app ti chiede come sta, e da lì dipende il livello successivo.` : s.dayType === 'cardio' ? (PROG.cardioDays[s.tmplIdx] || {}).note || '' : mobilityNote(s.profile, s.mobilityWeek))}</p>
         </div>
       </div>
       ${core ? '' : `<div class="durrow">
@@ -3621,6 +4259,7 @@ function renderHomeLunch() {
     openSheet(exById(it.exId), it, { sess: s, after: () => renderHome() });
   });
   bindHomeBanners(b.saved);
+  bindKneeAsk(() => renderHome());
   if ($('#upcomingBtn')) $('#upcomingBtn').onclick = () => openUpcoming();
   if ($('#swapKind')) $('#swapKind').onclick = () => openSessionPicker(s);
   if ($('#markBtn')) $('#markBtn').onclick = () => confirmAction(
@@ -3844,7 +4483,9 @@ function renderSession() {
       ${chainHasWork() ? `<p class="small muted" style="margin-top:14px">Sequenza in corso: il timer avanza da solo fra tenute e pause e conta le serie.</p>` : ''}
       ${timed && !chainHasWork() && c.setsDone[c.pos] < it.sets ? `<p class="small muted" style="margin-top:14px">${
         it.sets - c.setsDone[c.pos] > 1
-          ? (it.role === 'finisher' || it.role === 'cardio')
+          ? it.goal === 'cardioRun'
+            ? `Un solo tocco avvia tutta la corsa-camminata: 3 secondi di preparazione, poi ${it.sets - c.setsDone[c.pos]} tratti di corsa da ${hold} secondi alternati a ${it.rest} secondi di camminata. Rintocchi nei 3 secondi prima di ogni cambio, colpo acuto alla fine: puoi tenere il telefono in tasca. Corsa lenta, in cui riesci a parlare; dolore al ginocchio al massimo 2 su 10, altrimenti cammina.`
+          : (it.role === 'finisher' || it.role === 'cardio')
             ? `Un solo tocco avvia tutti gli intervalli: 3 secondi di preparazione, poi ${it.sets - c.setsDone[c.pos]} scatti da ${hold} secondi alternati a ${it.rest} secondi a ritmo tranquillo, senza fermarti. Rintocchi nei 3 secondi prima di ogni scatto e negli ultimi 3, colpo acuto alla fine.`
             : `Un solo tocco avvia tutta la sequenza: 3 secondi di preparazione, poi ${it.sets - c.setsDone[c.pos]} tenute da ${hold} secondi con ${it.rest} secondi di pausa fra una e l'altra${c.pos < s.items.length - 1 ? ', infine il recupero prima dell\'esercizio successivo' : ''}. Il timer avanza da solo: rintocchi nei 3 secondi prima di ogni tenuta e negli ultimi 3 secondi di ciascuna, colpo acuto alla fine.`
           : ['finisher', 'cardio', 'warmup', 'cooldown'].includes(it.role)
@@ -4256,7 +4897,7 @@ function saveResume() {
     kind: c.sess.kind, idx: c.sess.idx,
     items: c.sess.items,                      // la seduta può essere stata riordinata
     label: c.sess.label, type: c.sess.type, mWeek: c.sess.mWeek, mDay: c.sess.mDay,
-    focusKey: c.sess.focusKey, lunchLabel: c.sess.lunchLabel,
+    focusKey: c.sess.focusKey, lunchLabel: c.sess.lunchLabel, run: c.sess.run || null, mode: c.sess.mode || null,
     setsDone: c.setsDone, loads: c.loads, feedback: c.feedback,
     repsDone: c.repsDone, rir: c.rir, logRef: c.logRef, setLog: c.setLog
   };
@@ -4277,6 +4918,7 @@ function restoreSession(r) {
   const sess = Object.assign({}, meta, {
     label: r.label, type: r.type, kind: r.kind, items: r.items,
     mWeek: r.mWeek, mDay: r.mDay, focusKey: r.focusKey, lunchLabel: r.lunchLabel,
+    ...(r.run ? { run: r.run } : {}), ...(r.mode ? { mode: r.mode } : {}),
     minutes: estimateMinutes(r.items)
   });
   current = { sess, pos: r.pos, setsDone: r.setsDone, loads: r.loads,
@@ -4341,7 +4983,8 @@ function logExercise(pos) {
                   goal: it.goal, week: s.weekInCycle,
                   hold: rows.length && timed0 ? Math.round(rows.reduce((a, r) => a + (r.hold || 0), 0) / rows.length) : (it.hold || 0),
                   rest: it.rest || 0,                                 // per i minuti aerobici
-                  setsPlanned: it.sets };                             // per la valutazione in Home
+                  setsPlanned: it.sets,                               // per la valutazione in Home
+                  ...(it.block === 'spartan' ? { spartan: true } : {}) };   // (7S 0) fuori dal volume dei gruppi
   // valutazione automatica rispetto alla registrazione precedente dello stesso esercizio
   const ref0 = c.logRef[pos];
   const r = rateFor(entry, S.logs.filter((g, gi) => gi !== ref0));
@@ -4400,6 +5043,10 @@ function endSession() {
       ...(s.kind === 'morning' ? { mWeek: s.mWeek, mDay: s.mDay, mFocus: s.focusKey, mLunch: s.lunchLabel } : {}),
       note: withNote ? ($('#sNote').value || '') : '' });
     if (isProgramKind(s.kind)) S.sessionIndex++;
+    if (s.run && current) {
+      const mi = s.items.findIndex(it => it.goal === 'cardioRun');
+      recordRun(s, mi >= 0 ? (current.setsDone[mi] || 0) : 0, sid, Date.now());
+    }
     planCache = null; homeSel = 'session';
     const weekDone = (isProgramKind(s.kind) && posOfIdx(S.sessionIndex) === 0) ? weekOfIdx(S.sessionIndex) - 1 : 0;
     if (weekDone) S.lastRecap = weekDone;
@@ -5019,7 +5666,7 @@ function muscleGroup(m) {
 /* Serie effettive per gruppo di un esercizio con "sets" serie registrate. */
 function groupSetsOf(ex, sets) {
   const out = {};
-  if (!ex || ex.type === 'stretch' || !sets) return out;
+  if (!ex || ex.type === 'stretch' || ex.noVolume || !sets) return out;
   const n = ex.perSide ? sets / 2 : sets;
   (ex.primary || []).forEach(m => { const g = muscleGroup(m); if (g) out[g] = n; });
   (ex.secondary || []).forEach(m => { const g = muscleGroup(m); if (g && out[g] === undefined) out[g] = n * 0.5; });
@@ -5034,7 +5681,7 @@ function weekLogs(weekAbs) {
 /* Serie effettivamente completate nella settimana. */
 function weeklyVolume(weekAbs) {
   const acc = {};
-  weekLogs(weekAbs).forEach(l => addInto(acc, groupSetsOf(exById(l.exId), l.sets || 0)));
+  weekLogs(weekAbs).forEach(l => { if (!l.spartan) addInto(acc, groupSetsOf(exById(l.exId), l.sets || 0)); });
   return acc;
 }
 
@@ -5456,6 +6103,8 @@ function renderSettings() {
         movimento non ti dà dolore, togli la spunta e torna disponibile.</p>
       <div class="switch"><span>Obiettivo trazioni e muscle-up<br><span class="small muted">15 trazioni pulite di fila e 2 muscle-up a fine programma: lavoro per tappe dopo i due esercizi principali, test dopo ogni scarico, sospensione in chiusura se resta tempo. Dettagli in Progressi.</span></span>
         <input type="checkbox" id="pullChk" ${S.pullupGoal ? 'checked' : ''}></div>
+      ${SP() ? `<div class="switch"><span>Preparazione Spartan Race<br><span class="small muted">Sprint di ${esc(SP().place)}, ${spDateText()}: burpees e sospensione nella seduta a intervalli, corsa-camminata settimanale dal ${dateIt(isoNoon(SP().runFrom))}, Spartan Race check dopo ogni scarico. Forza A, B e C invariate. Dettagli in Progressi.</span></span>
+        <input type="checkbox" id="spChk" ${S.spartan !== false ? 'checked' : ''}></div>` : ''}
       <div class="switch"><span>Campanella del timer</span>
         <input type="checkbox" id="soundChk" ${S.sound !== false ? 'checked' : ''}></div>
 
@@ -5554,6 +6203,7 @@ function renderSettings() {
   $('#setupSel').onchange = e => { S.setup = e.target.value; save(); };
   $('#kneeChk').onchange = e => { S.kneeCare = e.target.checked; save(); };
   $('#pullChk').onchange = e => { S.pullupGoal = e.target.checked; planCache = null; save(); };
+  if ($('#spChk')) $('#spChk').onchange = e => { S.spartan = e.target.checked; planCache = null; save(); };
   $('#finSel').onchange = e => { S.finisher = e.target.value; planCache = null; save(); };
   $('#shoulderChk').onchange = e => { S.shoulderCare = e.target.checked; planCache = null; save(); };
   $('#soundChk').onchange = e => { S.sound = e.target.checked; save(); if (e.target.checked) testBells(); };

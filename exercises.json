@@ -5806,6 +5806,208 @@
    ],
    "source": "ACSM 2026 (Position Stand, MSSE): tirate orizzontali per l'equilibrio spinta/tirata; Meigh et al. 2022 (BMC Geriatrics, studio BELL): 12 settimane di kettlebell hardstyle in adulti 59-79 anni, +23-25% di forza di presa, +23% al sit-to-stand, nessun infortunio serio",
    "rack": "kettlebell"
+  },
+  {
+   "id": "g_burpee",
+   "name": "Burpee",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "strength",
+   "group": "Condizionamento",
+   "pattern": "burpee",
+   "load": "bodyweight",
+   "kneeFriendly": true,
+   "noVolume": true,
+   "spartan": true,
+   "primary": [
+    "Cardio"
+   ],
+   "secondary": [
+    "Gran pettorale",
+    "Quadricipiti",
+    "Core"
+   ],
+   "equipment": [
+    "Tappetino"
+   ],
+   "art": {
+    "frames": [
+     "ohpStandEnd",
+     "mountain"
+    ],
+    "implement": null
+   },
+   "levels": [
+    "A passi, senza petto a terra",
+    "A passi, petto a terra",
+    "Regolamentare: petto a terra e salto"
+   ],
+   "steps": [
+    "In piedi, scendi in squat e appoggia le mani a terra davanti ai piedi, alla larghezza delle spalle.",
+    "Porta indietro un piede e poi l'altro fino alla posizione di plank, corpo in linea (nella versione regolamentare i piedi saltano indietro insieme).",
+    "Dal secondo livello: scendi con il petto a terra e risali spingendo come in un piegamento, senza far cedere il bacino.",
+    "Riporta i piedi verso le mani uno alla volta, poi alzati del tutto e porta le mani sopra la testa (nella versione regolamentare con un salto basso: talloni e punte si staccano da terra)."
+   ],
+   "errors": [
+    "Bacino che cede quando sei in plank: la schiena si inarca.",
+    "Correre: conta la forma, non la velocità.",
+    "Atterrare rigido dal salto, a ginocchia tese."
+   ],
+   "safety": [
+    "Ginocchio: con la priorità al ginocchio attiva l'app si ferma alla versione a passi, senza salto. Il salto basso entra solo se togli la spunta, meglio sentito il fisioterapista: atterra sull'avampiede, a ginocchia morbide.",
+    "Spalla: se il petto a terra dà fastidio, resta al primo livello e scendi solo fino al plank."
+   ],
+   "source": "Spartan Editors 2025, «5 Common Mistakes to Avoid When Doing Burpees»: petto a terra, salto con talloni e punte sollevati, mani sopra le orecchie; nelle Sprint ogni ostacolo fallito costa 30 burpees. Livelli: regola operativa dell'app"
+  },
+  {
+   "id": "o_runwalk",
+   "name": "Corsa-camminata all'aperto",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "strength",
+   "group": "Condizionamento",
+   "pattern": "cardio",
+   "load": "time",
+   "kneeFriendly": false,
+   "spartan": true,
+   "primary": [
+    "Cardio"
+   ],
+   "secondary": [
+    "Quadricipiti",
+    "Polpacci",
+    "Glutei"
+   ],
+   "equipment": [
+    "Scarpe da corsa"
+   ],
+   "art": {
+    "frames": [
+     "swingFront",
+     "swingBack"
+    ],
+    "implement": null
+   },
+   "interval": {
+    "sets": 6,
+    "work": 60,
+    "rest": 120
+   },
+   "cardioModes": [
+    "run"
+   ],
+   "steps": [
+    "All'aperto, all'inizio su terreno piano e morbido (sterrato battuto, parco): niente discese lunghe né scale.",
+    "Corsa: lenta, passi corti e frequenti, piede che appoggia sotto il corpo; devi riuscire a parlare.",
+    "Camminata: passo svelto, respiro che si calma; il timer suona al cambio.",
+    "Dagli ultimi livelli, se il ginocchio resta tranquillo, alcuni tratti su sterrato o leggeri saliscendi: in discesa passi ancora più corti."
+   ],
+   "errors": [
+    "Andare troppo forte: in gara il tempo non conta, conta arrivare bene.",
+    "Passi lunghi con il tallone che batte davanti al corpo.",
+    "Scendere di corsa le discese ripide."
+   ],
+   "safety": [
+    "Ginocchio (Esculier et al. 2018): durante la corsa il dolore resta al massimo 2 su 10, torna come prima entro un'ora e la mattina dopo non è aumentato. Se non è così il livello resta fermo o torna indietro, e la volta dopo puoi scegliere la bici.",
+    "Il giorno dopo l'app ti chiede come sta il ginocchio: da quella risposta dipende il livello successivo."
+   ],
+   "source": "Esculier et al. 2018, Br J Sports Med 52(10):659-666; Willy et al. 2019, JOSPT 49(9): aumento graduale. Livelli corsa-camminata: regola operativa dell'app"
+  },
+  {
+   "id": "g_farmercarry",
+   "name": "Trasporto del contadino",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Condizionamento",
+   "pattern": "carry",
+   "load": "weight",
+   "rack": "dumbbell",
+   "kneeFriendly": true,
+   "noVolume": true,
+   "spartan": true,
+   "carry": true,
+   "primary": [
+    "Tenuta della mano"
+   ],
+   "secondary": [
+    "Core",
+    "Trapezio"
+   ],
+   "equipment": [
+    "Manubri"
+   ],
+   "art": {
+    "frames": [
+     "stand",
+     "splitTop"
+    ],
+    "implement": "dumbbells"
+   },
+   "steps": [
+    "Un manubrio per mano, braccia lungo i fianchi, spalle basse e indietro.",
+    "Cammina in piano a passi corti e regolari: le ripetizioni sono i passi.",
+    "Fermati e appoggia i manubri piegando le anche, schiena dritta."
+   ],
+   "errors": [
+    "Spalle che salgono verso le orecchie.",
+    "Busto che si piega da un lato."
+   ],
+   "safety": [
+    "Simula taniche e secchi della gara. Parti leggero: il carico sale quando i passi previsti diventano facili."
+   ],
+   "source": "Trasporti della Sprint (guida Spartan agli ostacoli): taniche, secchi, sacchi. Esercizio e dosi: regola operativa dell'app"
+  },
+  {
+   "id": "g_gobletcarry",
+   "name": "Trasporto in abbraccio",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Condizionamento",
+   "pattern": "carry",
+   "load": "weight",
+   "rack": "dumbbell",
+   "kneeFriendly": true,
+   "noVolume": true,
+   "spartan": true,
+   "carry": true,
+   "primary": [
+    "Tenuta della mano"
+   ],
+   "secondary": [
+    "Core",
+    "Erettori spinali"
+   ],
+   "equipment": [
+    "Manubrio"
+   ],
+   "art": {
+    "frames": [
+     "stand",
+     "splitTop"
+    ],
+    "implement": "goblet"
+   },
+   "steps": [
+    "Un manubrio pesante tenuto in verticale contro il petto, gomiti stretti.",
+    "Cammina in piano a passi corti: le ripetizioni sono i passi.",
+    "Respira a fondo senza perdere la schiena dritta; appoggia piegando le anche."
+   ],
+   "errors": [
+    "Inarcare la schiena all'indietro per sostenere il peso.",
+    "Trattenere il fiato per tutto il tragitto."
+   ],
+   "safety": [
+    "Simula il sacco e la pietra della gara. Per sollevare da terra un carico pesante: piedi larghi, anche indietro, schiena dritta, come nello stacco."
+   ],
+   "source": "Trasporto del sacco (27 kg per gli uomini) e della pietra nella guida Spartan agli ostacoli. Esercizio e dosi: regola operativa dell'app"
   }
  ]
 }
