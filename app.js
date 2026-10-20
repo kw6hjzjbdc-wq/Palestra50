@@ -4279,10 +4279,6 @@ function renderHomeLunch() {
     ${b.html}
     ${deloadCardHtml()}
     ${core ? '' : spartanTodayHtml(s)}
-    <div class="seg" role="group" aria-label="Attrezzatura">
-      <button data-setup="gym" aria-pressed="${S.setup === 'gym'}">Palestra</button>
-      <button data-setup="home" aria-pressed="${S.setup === 'home'}">Casa</button>
-    </div>
 
     <div class="card">
       <div class="kicker" style="font-family:var(--cond);letter-spacing:.06em;text-transform:uppercase;font-size:13px;color:var(--muted)">
@@ -4316,6 +4312,14 @@ function renderHomeLunch() {
           s.trimmed ? ' Seduta ridotta per stare nel tempo scelto: con più minuti tornano serie ed esercizi.'
           : (s.isStrength ? ' Con più minuti si aggiungono supplementari, finale metabolico e sospensione alla sbarra.' : ' Con più minuti si aggiungono allungamenti e tenute.')}</p>
       </div>`}
+      <div class="setuprow">
+        <span class="lab">Equipaggiamento disponibile</span>
+        <div class="seg" role="group" aria-label="Equipaggiamento disponibile">
+          <button data-setup="gym" aria-pressed="${S.setup === 'gym'}">Palestra</button>
+          <button data-setup="home" aria-pressed="${S.setup === 'home'}">Casa</button>
+        </div>
+        <p class="small muted" style="margin:6px 0 0">${current && !current.finished ? 'Seduta in corso: l\'equipaggiamento si cambia quando l\'hai chiusa.' : 'Gli esercizi qui sotto cambiano secondo quello che hai a disposizione.'}</p>
+      </div>
       <ul class="plan">${rows}</ul>
       <p class="small muted" style="margin-top:10px">Tocca un esercizio per aprire la scheda con esecuzione, muscoli coinvolti ed errori da evitare.</p>
       ${swapHtml}
@@ -4334,7 +4338,10 @@ function renderHomeLunch() {
 
   document.querySelectorAll('[data-setup]').forEach(x => x.onclick = () => {
     if (current && !current.finished) return;   // non cambiare attrezzatura a sessione aperta
-    S.setup = x.dataset.setup; save(); renderHome();
+    if (S.setup === x.dataset.setup) return;
+    S.setup = x.dataset.setup; planCache = null; save(); renderHome();
+    // (7S 2) resta sull'elenco degli esercizi, che è quello che cambia
+    requestAnimationFrame(() => { const el = document.querySelector('.setuprow'); if (el && el.scrollIntoView) el.scrollIntoView({ block: 'start' }); });
   });
 
   // selezione della seduta dal calendario settimanale
