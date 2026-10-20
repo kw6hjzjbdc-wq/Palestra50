@@ -723,3 +723,12 @@ body.in-session.mini-on #view-session{padding-bottom:176px}
 .spcard input,#modalBox .row input,#modalBox .row select{min-height:44px;background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:0 10px;color:var(--text)}
 /* (7S 0) i gradini lunghi (burpee, trazioni) non allargano più la pagina */
 .loadrow input,.loadrow select{min-width:0;width:0;text-overflow:ellipsis}
+
+/* (7S 1) carico proposto nell'elenco di Oggi e revisione prima di chiudere */
+.plan .sugline{display:block;color:var(--amber2);margin-top:2px}
+.reviewnote{margin-top:12px}
+#view-session.review .setdots,#view-session.review .loadrow,#view-session.review .repsrow,
+#view-session.review .rirrow,#view-session.review .warnbox,#view-session.review #stopwatchBtn,
+#view-session.review #swapBtn,#view-session.review #orderBtn,#view-session.review #postponeBtn,
+#view-session.review #abortBtn,#view-session.review .lasttime{display:none}
+.plan .sugline b{display:inline;font-size:inherit;font-weight:700}

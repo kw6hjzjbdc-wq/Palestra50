@@ -777,18 +777,115 @@ function deloadCardHtml() {
   </div>`;
 }
 
-function suggestLoad(ex) {
+function suggestLoad(ex, it) {
   // in settimana di scarico nessun aumento: si recupera a carico invariato
   const deloadNow = isDeloadWeek();
-  const r = suggestLoadCore(ex, deloadNow);
+  const r = suggestLoadCore(ex, deloadNow, it);
   if (r && deloadNow && r.heldForDeload) {
     r.reason = 'Settimana di scarico: il carico resta fermo. L\'aumento guadagnato con la regola 2-for-2 scatta la settimana prossima.';
   }
   return r;
 }
-function suggestLoadCore(ex, deloadNow) {
+/* ---------------------------------------------------------------------------
+   CARICO COMMISURATO ALLE RIPETIZIONI (dalla 7S 1)
+   Quando le ripetizioni previste oggi sono diverse da quelle dell'ultima
+   seduta (per esempio 3×6 dopo 3×15), lo stesso carico non va bene: si stima
+   il massimale dall'ultima seduta, contando anche le ripetizioni che restavano
+   in riserva, e si ricava il carico per le ripetizioni di oggi con il margine
+   previsto dall'obiettivo. Formula di Epley (la stessa usata per il massimale
+   stimato nei grafici) con le ripetizioni in riserva della scala di Zourdos
+   et al. 2016: regola operativa dell'app. Il risultato si arrotonda PER
+   DIFETTO al carico disponibile, perché la relazione fra ripetizioni e
+   percentuale del massimale varia molto da persona a persona e da esercizio a
+   esercizio (Nuzzo et al. 2024, Sports Med 54(2):303-321: a parità di
+   percentuale nella leg press si fanno più ripetizioni che nella panca).
+   La prima serie fa da verifica: il consiglio lo dice. In settimana di
+   scarico il carico non sale mai.
+--------------------------------------------------------------------------- */
+/* Ripetizioni in riserva previste dall'obiettivo (RPE 7-8 → 2,5; 8 → 2). */
+function rirOfGoal(goalKey) {
+  const g = PROG.goals[goalKey];
+  if (!g) return 2;
+  const v = (String(g.rpe || '').match(/\d+(?:[.,]\d+)?/g) || [])
+    .map(x => parseFloat(x.replace(',', '.'))).filter(x => x >= 5 && x <= 10);
+  if (!v.length) return 2;
+  return clampN(10 - v.reduce((a, b) => a + b, 0) / v.length, 1, 4);
+}
+/* Ultima seduta vera di un esercizio: fuori scarico, non segnata come fatta,
+   con un carico annotato. */
+function lastRealEntry(exId) {
+  for (let i = S.logs.length - 1; i >= 0; i--) {
+    const l = S.logs[i];
+    if (l && l.exId === exId && !l.planned && !isDeloadLog(l) && numLoad(l.load) > 0) return l;
+  }
+  return null;
+}
+/* Massimale stimato con le ripetizioni in riserva: la serie migliore. */
+function e1rmWithRir(l) {
+  const ex = exById(l.exId);
+  if (!ex || ex.load !== 'weight' || isAssist(ex)) return null;
+  const rows = setRows(l) || [{ load: l.load, reps: isFinite(l.repsDone) ? l.repsDone : l.reps, rir: l.rir }];
+  const goalRir = rirOfGoal(l.goal);
+  const has = v => v !== null && v !== undefined && v !== '' && isFinite(v);
+  // contano le serie con la riserva annotata (di solito l'ultima); se non ce
+  // n'è nessuna, si usa la riserva prevista dall'obiettivo di quella seduta
+  const cand = [];
+  rows.forEach((r, i) => {
+    const w = numLoad(has(numLoad(r.load)) ? r.load : l.load), rp = +r.reps;
+    if (w === null || w <= 0 || !isFinite(rp) || rp <= 0) return;
+    const known = has(r.rir) ? +r.rir : (i === rows.length - 1 && has(l.rir) ? +l.rir : null);
+    const rir = known === null ? goalRir : known;
+    cand.push({ v: w * (1 + Math.min(25, rp + rir) / 30), w, rp, rir, known: known !== null });
+  });
+  const pool = cand.some(c => c.known) ? cand.filter(c => c.known) : cand;
+  return pool.reduce((a, c) => (!a || c.v > a.v) ? c : a, null);
+}
+/* Testo compatto dell'ultima seduta: «3×15 a 52,5 kg» o serie per serie. */
+function lastSetsText(l) {
+  const kg = x => String(x).replace('.', ',');
+  const rows = setRows(l);
+  if (rows) {
+    const same = rows.every(r => String(r.load) === String(rows[0].load) && r.reps === rows[0].reps);
+    if (same) return `${rows.length}×${rows[0].reps} a ${kg(rows[0].load || l.load)} kg`;
+    return rows.map(r => `${kg(r.load || l.load)}×${r.reps}`).join(' · ') + ' kg';
+  }
+  return `${l.sets}×${isFinite(l.repsDone) ? l.repsDone : l.reps} a ${kg(l.load)} kg`;
+}
+function convertedLoad(ex, it, deloadNow) {
+  if (!it || !ex || ex.load !== 'weight' || isAssist(ex) || !isFinite(it.reps) || it.reps <= 0) return null;
+  const ref = lastRealEntry(ex.id);
+  if (!ref) return null;
+  const refTarget = isFinite(ref.repsTarget) ? ref.repsTarget : ref.reps;
+  if (!isFinite(refTarget) || Math.abs(it.reps - refTarget) < 2) return null;
+  const e = e1rmWithRir(ref);
+  if (!e) return null;
+  const rirT = rirOfGoal(it.goal || it.goalKey);
+  let target = e.v / (1 + Math.min(25, it.reps + rirT) / 30);
+  const tooHard = ref.feedback === 'down';
+  if (tooHard) target *= 0.95;
+  const scale = rackOf(ex);
+  let v = scale ? snapLoad(ex, target, -1) : Math.floor(target * 2) / 2;
+  const base = scale ? snapLoad(ex, numLoad(ref.load), 0) : numLoad(ref.load);
+  let held = false;
+  if (deloadNow && v > base) { v = base; held = true; }
+  const kg = x => String(Math.round(x * 10) / 10).replace('.', ',');
+  const rirTxt = String(Math.round(rirT * 2) / 2).replace('.', ',');
+  const reason = held
+    ? `Ultima seduta ${lastSetsText(ref)}: con ${it.reps} ripetizioni il carico salirebbe a circa ${kg(target)} kg, ma in settimana di scarico resta fermo a ${kg(v)} kg.`
+    : `Ultima seduta ${lastSetsText(ref)}, ${e.known ? `${String(e.rir).replace('.', ',')} ${e.rir === 1 ? 'ripetizione' : 'ripetizioni'} di riserva` : 'riserva non annotata'}: per ${it.reps} ripetizioni con circa ${rirTxt} di riserva servono circa ${kg(target)} kg → ${kg(v)} kg, arrotondato per difetto${tooHard ? ' e ridotto perché l\'ultima volta era troppo pesante' : ''}. È una stima: se la prima serie ti lascia più margine, sali di uno scalino; se non arrivi a ${it.reps}, scendi.`;
+  return { val: v, target, ref, rirT, reason, up: v > base, held };
+}
+
+function suggestLoadCore(ex, deloadNow, it) {
   const last = lastEntry(ex.id);
   if (!last) return null;
+  // (7S 1) ripetizioni diverse dall'ultima seduta: carico ricalcolato
+  const conv = convertedLoad(ex, it, deloadNow);
+  if (conv) {
+    const v = conv.val;
+    return { last: conv.ref, twoForTwo: false, heldForDeload: false, converted: conv, reason: conv.reason,
+             value: String(v % 1 === 0 ? v : v.toFixed(1)), scale: rackOf(ex) };
+  }
   const recent = lastEntries(ex.id, 2);
   let twoForTwo = recent.length >= 2 && recent.every(beatTarget);
   const heldForDeload = twoForTwo && deloadNow;
@@ -4159,8 +4256,12 @@ function renderHomeLunch() {
   // --- elenco esercizi della seduta selezionata ---
   const rows = s.items.map((it, i) => {
     const ex = exById(it.exId);
+    // (7S 1) carico proposto per le ripetizioni di oggi e ultima seduta
+    const sg = ex && ex.load === 'weight' && !isAssist(ex) ? suggestLoad(ex, it) : null;
+    const sgTxt = sg && sg.value && sg.last && numLoad(sg.last.load) > 0
+      ? `<span class="small sugline">Proposto <b>${esc(String(sg.value).replace('.', ','))} kg</b> · ultima ${esc(lastSetsText(sg.last))}</span>` : '';
     return `<li data-plan="${i}" class="${it.block === 'pullup' ? 'pullrow' : ''}"><div class="fig">${figureFor(ex, 1, { ground: false })}</div>
-      <div class="nm"><b>${esc(ex.name)}</b><span class="small muted">${esc(ex.group)}${it.note ? ' · ' + esc(it.note) : ''}</span></div>
+      <div class="nm"><b>${esc(ex.name)}</b>${sgTxt}<span class="small muted">${esc(ex.group)}${it.note ? ' · ' + esc(it.note) : ''}</span></div>
       <div class="dose">${doseText(it)}</div><div class="chev">›</div></li>`;
   }).join('');
 
@@ -4320,11 +4421,11 @@ function startSession(sess) {
   renderSession();
 }
 
-function renderSession() {
+function renderSessionCore() {
   const c = current, s = c.sess, it = s.items[c.pos], ex = exById(it.exId);
   // nel blocco trazioni il livello è fissato e si progredisce con le
   // ripetizioni: resta il richiamo all'ultima volta, non il consiglio di gradino
-  const sug0 = suggestLoad(ex);
+  const sug0 = suggestLoad(ex, it);
   const sug = (it.level && sug0) ? Object.assign({}, sug0, { value: '', reason: '' }) : sug0;
   refreshDeload();
   $('#topTitle').textContent = s.type === 'stretch' ? 'Mobilità' : s.type === 'cardio' ? 'Aerobico' : 'Sessione';
@@ -4413,6 +4514,8 @@ function renderSession() {
     const e = e1rm(l);
     if (e) det.push(`max stimato ${e.toFixed(1)} kg`);
     lastTxt = `Ultima volta: <b>${esc(l.load || '—')}</b>${det.length ? ' · ' + det.join(' · ') : ''} · ${new Date(l.ts).toLocaleDateString('it-IT')} ${starsHtml(l.stars)}`;
+    // (7S 1) il carico proposto per oggi, scritto per esteso accanto all'ultima volta
+    if (sug.value && ex.load === 'weight') lastTxt += `<br><b>${isAssist(ex) ? 'Assistenza proposta' : 'Proposto oggi'}: ${esc(String(sug.value).replace('.', ','))} kg</b> per ${it.sets}×${it.reps}`;
     if (sug.reason) lastTxt += `<br><span class="small">${esc(sug.reason)}</span>`;
   } else {
     lastTxt = 'Prima volta con questo esercizio: parti prudente e annota carico e ripetizioni.';
@@ -4422,7 +4525,8 @@ function renderSession() {
   // (più carico, oppure meno assistenza di quanto sia prudente)
   let jump = '';
   if (sug && sug.last) {
-    const prevV = logValue(sug.last);
+    // (7S 1) con ripetizioni diverse il riferimento è il carico ricalcolato
+    const prevV = sug.converted ? numLoad(sug.value) : logValue(sug.last);
     const nowV = logValue({ exId: it.exId, load: c.loads[c.pos] });
     if (prevV && nowV !== null) {
       const d = isAssist(ex) ? (prevV - nowV) / prevV : (nowV - prevV) / prevV;
@@ -4430,7 +4534,7 @@ function renderSession() {
       if (d > SAFE_STEP && Math.abs(nowV - prevV) > minStepFor(ex, prevV) + 0.001) {
         jump = isAssist(ex)
           ? `<div class="warnbox">Stai togliendo il ${Math.round(d * 100)}% dell'assistenza rispetto alla volta scorsa. Meglio un pacco pesi alla volta: le linee guida indicano passi del 2-10%, e qui il rischio è perdere le ultime ripetizioni pulite.</div>`
-          : `<div class="warnbox">Stai salendo del ${Math.round(d * 100)}% rispetto alla volta scorsa. Le linee guida suggeriscono incrementi del 2-10% per volta: valuta un passo più piccolo, soprattutto se la tecnica peggiora nelle ultime ripetizioni.</div>`;
+          : `<div class="warnbox">Stai salendo del ${Math.round(d * 100)}% rispetto ${sug.converted ? 'al carico stimato per le ripetizioni di oggi' : 'alla volta scorsa'}. Le linee guida suggeriscono incrementi del 2-10% per volta: valuta un passo più piccolo, soprattutto se la tecnica peggiora nelle ultime ripetizioni.</div>`;
       }
     }
   }
@@ -4865,6 +4969,9 @@ function editSet(pos, i) {
     row.rir = isFinite(rr) ? rr : null;
     if ($('#esLoad')) row.load = $('#esLoad').value;
     c.setLog[pos][i] = row;
+    // (7S 1) in revisione l'esercizio è già nello storico: va riscritto alla chiusura
+    c.dirty = c.dirty || {}; c.dirty[pos] = true;
+    if (c.logRef[pos] !== null && c.logRef[pos] !== undefined) logExercise(pos);
     saveResume();
     closeModal(() => renderSession());
   };
@@ -4899,7 +5006,8 @@ function saveResume() {
     label: c.sess.label, type: c.sess.type, mWeek: c.sess.mWeek, mDay: c.sess.mDay,
     focusKey: c.sess.focusKey, lunchLabel: c.sess.lunchLabel, run: c.sess.run || null, mode: c.sess.mode || null,
     setsDone: c.setsDone, loads: c.loads, feedback: c.feedback,
-    repsDone: c.repsDone, rir: c.rir, logRef: c.logRef, setLog: c.setLog
+    repsDone: c.repsDone, rir: c.rir, logRef: c.logRef, setLog: c.setLog,
+    review: !!c.review, dirty: c.dirty || {}
   };
   save();
 }
@@ -4926,6 +5034,7 @@ function restoreSession(r) {
               repsDone: r.repsDone || r.items.map(() => null),
               rir: r.rir || r.items.map(() => null),
               setLog: r.setLog || r.items.map(() => []),
+              review: !!r.review, dirty: r.dirty || {},
               started: r.started };
   requestWakeLock(); unlockAudio();
   go('session'); renderSession();
@@ -5016,7 +5125,40 @@ function nextExercise() {
   c.sess.items.forEach((_, i) => {
     if (c.setsDone[i] > 0 && (c.logRef[i] === null || c.logRef[i] === undefined)) logExercise(i);
   });
+  // (7S 1) prima della schermata di fine allenamento: revisione, per
+  // correggere carichi e ripetizioni o aggiungere una nota
+  c.review = true; saveResume(); renderSession();
+}
+
+/* ---------------------------------------------------------------------------
+   REVISIONE PRIMA DI CHIUDERE (dalla 7S 1)
+   Chiusa l'ultima serie, la seduta non finisce subito: resta aperta la
+   schermata dell'ultimo esercizio con le serie registrate. Si tocca una riga
+   (✎) per correggere carico e ripetizioni, si aggiunge una nota
+   all'esercizio, si scorre agli altri esercizi per correggere anche quelli.
+   «Chiudi la seduta» riscrive nello storico gli esercizi corretti (lo stesso
+   record, nessun doppione) e apre la schermata di fine allenamento.
+--------------------------------------------------------------------------- */
+function finishReview() {
+  const c = current;
+  if (!c || c.finished) return;
+  Object.keys(c.dirty || {}).forEach(k => { const i = +k; if (c.setsDone[i] > 0) logExercise(i); });
+  c.review = false; c.dirty = {};
   c.finished = true; endSession();
+}
+function applyReview() {
+  const v = $('#view-session');
+  if (!v) return;
+  v.insertAdjacentHTML('afterbegin', `<div class="notice reviewnote">Seduta finita. Prima di chiuderla puoi <b>correggere carichi e ripetizioni</b> toccando le righe delle serie (✎), <b>aggiungere una nota</b> all'esercizio e scorrere agli altri esercizi per controllarli.</div>`);
+  $('#actionBar').innerHTML = `<button class="btn" id="reviewDone">Chiudi la seduta</button>`;
+  $('#actionBar').classList.add('on');
+  $('#reviewDone').onclick = () => finishReview();
+}
+function renderSession() {
+  renderSessionCore();
+  const v = $('#view-session');
+  if (v) v.classList.toggle('review', !!(current && current.review && !current.finished));
+  if (current && current.review && !current.finished) applyReview();
 }
 
 /* ---------- fine sessione: riepilogo e salvataggio ---------- */
@@ -5213,7 +5355,7 @@ function openSheet(ex, it, ctx) {
         const k = sessionKey(mine[mine.length - 1]), sess = mine.filter(l => sessionKey(l) === k);
         return `<div class="notice" style="margin-top:10px"><b>Ultima seduta</b> (${new Date(sess[0].ts).toLocaleDateString('it-IT')}): ${sess.map(phaseText).join(' · ')}</div>`;
       }
-      const sug = suggestLoad(ex), last = sug && sug.last;
+      const sug = suggestLoad(ex, it), last = sug && sug.last;
       if (!last) return `<div class="notice" style="margin-top:10px">Nessuna registrazione precedente per questo esercizio: parti prudente e annota ${loadWord(ex)} e ripetizioni.</div>`;
       const det = [];
       if (isFinite(last.repsDone)) det.push(`${last.sets}×${last.repsDone} rip`);
