@@ -213,9 +213,9 @@ Da *Oggi* (sotto il calendario), dalla pagina *Progressi* e dal riquadro *Il per
 
 Nel riepilogo di fine seduta, *Ho ancora tempo: aggiungi esercizi*. Si dichiara quanto tempo resta (5, 10 o 15 minuti) e l'app propone quattro esercizi sui **gruppi più indietro** rispetto al volume previsto per la settimana, con le serie che stanno davvero in quei minuti (tempo di preparazione compreso). Toccandone uno si torna nella seduta, che riprende da quell'esercizio e si chiude normalmente.
 
-### Equipaggiamento scelto sopra gli esercizi (7S 2)
+### Equipaggiamento: ripristinato com'era (7S 3)
 
-In Oggi, dentro la scheda della seduta selezionata, subito sopra l'elenco degli esercizi, c'è la scelta **Palestra / Casa** («Equipaggiamento disponibile»): toccandola l'elenco sotto si ricostruisce con gli esercizi adatti e la pagina resta lì. È la stessa impostazione di Programma, quindi vale per tutte le sedute finché non la cambi; con una seduta in corso resta bloccata. Il vecchio selettore in cima alla pagina è stato tolto per non averne due.
+La 7S 2 aveva spostato la scelta Palestra / Casa dentro la scheda della seduta, sopra gli esercizi. Su indicazione dell'utente («era più logica e performava meglio») la 7S 3 torna esattamente alla 7S 1: selettore in cima alla pagina dell'allenamento del giorno.
 
 ### Carico commisurato alle ripetizioni; revisione prima di chiudere (7S 1)
 

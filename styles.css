@@ -732,8 +732,3 @@ body.in-session.mini-on #view-session{padding-bottom:176px}
 #view-session.review #swapBtn,#view-session.review #orderBtn,#view-session.review #postponeBtn,
 #view-session.review #abortBtn,#view-session.review .lasttime{display:none}
 .plan .sugline b{display:inline;font-size:inherit;font-weight:700}
-
-/* (7S 2) equipaggiamento dentro la scheda della seduta, sopra gli esercizi */
-.setuprow{margin:14px 0 6px}
-.setuprow .lab{display:block;font-size:14px;color:var(--muted);margin-bottom:8px}
-.setuprow .seg{margin:0}
