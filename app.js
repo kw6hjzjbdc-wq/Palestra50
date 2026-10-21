@@ -3854,6 +3854,7 @@ function goToday() { homeView = null; go('home'); }
 
 function go(view) {
   if (view === 'dash') { homeView = null; view = 'home'; }   // vecchio nome della pagina d'apertura
+  setTimeout(() => tryApplyUpdate(), 0);                      // (7S 4) aggiornamento in attesa
   // uscendo dalla schermata della sessione il timer NON si ferma: si riduce da
   // solo alla barretta in basso e continua a scorrere mentre navighi
   if (timerRunning() && view !== 'session' && $('#timer').classList.contains('on')) minimizeTimer();
@@ -4216,6 +4217,40 @@ function renderHomeMorning() {
   bindMorning();
 }
 
+/* ---------------------------------------------------------------------------
+   ANTEPRIMA DI UNA SEDUTA DELLA SETTIMANA (dalla 7S 4)
+   Dalla pagina «La tua settimana» toccare una seduta non la sceglie più per
+   oggi: apre una schermata con gli esercizi previsti (dose e, dove c'è un
+   carico, quello proposto con l'ultima seduta), che si chiude tornando alla
+   settimana. Per sceglierla c'è «Seleziona», nella riga e qui in fondo.
+--------------------------------------------------------------------------- */
+function openDayPreview(idx, onSelect, done, kind) {
+  const sess = sessionFor(idx, kind || null);
+  const rows = sess.items.map(it => {
+    const ex = exById(it.exId);
+    if (!ex) return '';
+    const sg = ex.load === 'weight' && !isAssist(ex) ? suggestLoad(ex, it) : null;
+    const sgTxt = sg && sg.value && sg.last && numLoad(sg.last.load) > 0
+      ? `<span class="small sugline">Proposto <b>${esc(String(sg.value).replace('.', ','))} kg</b> · ultima ${esc(lastSetsText(sg.last))}</span>` : '';
+    return `<li class="${it.block === 'pullup' ? 'pullrow' : ''}"><div class="fig">${figureFor(ex, 1, { ground: false })}</div>
+      <div class="nm"><b>${esc(ex.name)}</b>${sgTxt}<span class="small muted">${esc(ex.group)}${it.note ? ' · ' + esc(it.note) : ''}</span></div>
+      <div class="dose">${doseText(it)}</div></li>`;
+  }).join('');
+  const ck = kind === 'core' ? [] : spCheckKinds(sessionMeta(idx));
+  openModal(`<div class="dayprev">
+    <button class="btn ghost" id="dpBack">‹ Torna alla settimana</button>
+    <div class="kicker" style="margin-top:12px">${kind === 'core' ? 'Blocco core facoltativo' : `Sessione ${sess.pos} di ${sess.days} · ${typeWord(sess)}`}${done ? ' · già svolta' : ''}</div>
+    <h2 style="margin-top:2px">${esc(sess.label)}</h2>
+    <p class="small muted">Durata stimata ${sess.minutes} minuti con ${sess.budget}′ a disposizione · ${S.setup === 'gym' ? 'palestra' : 'casa'}.${ck.length ? ' Contiene uno Spartan Race check.' : ''} Gli esercizi esatti possono cambiare se cambi durata o equipaggiamento.</p>
+    <ul class="plan">${rows || '<li><span class="small muted">Nessun esercizio previsto.</span></li>'}</ul>
+    ${onSelect ? '<button class="btn" id="dpSel" style="margin-top:14px">Seleziona come seduta di oggi</button>' : ''}
+    <button class="btn secondary" id="dpClose" style="margin-top:10px">Chiudi</button>
+  </div>`);
+  $('#dpBack').onclick = () => closeModal();
+  $('#dpClose').onclick = () => closeModal();
+  if ($('#dpSel')) $('#dpSel').onclick = () => closeModal(onSelect);
+}
+
 function renderHomeLunch() {
   const p = program();
   const here = posOfIdx(S.sessionIndex);          // posizione prevista dal programma
@@ -4236,10 +4271,13 @@ function renderHomeLunch() {
     // la posizione scelta per oggi è marcata a parte come "scelta per oggi".
     const isPlanned = alt.dayInWeek === here + 1;
     const state = q < here ? 'done' : (q === here ? 'now' : 'next');
+    // (7S 4) toccare la riga apre l'anteprima; si sceglie con «Seleziona»
+    const selBtn = `<button class="selbtn" data-sel="${q}" aria-label="Seleziona ${esc(alt.label)} come seduta di oggi">Seleziona</button>`;
     const badge = q < here ? '<span class="wkbadge done">svolta</span>'
+                : (q === here && core) ? selBtn
                 : isPlanned ? '<span class="wkbadge">da programma</span>'
                 : q === here ? '<span class="wkbadge alt">scelta per oggi</span>'
-                : '<span class="chev">›</span>';
+                : selBtn;
     week += `<li class="wk ${state}${(!core && q === here) ? ' sel' : ''}" data-day="${q}">
       <span class="wknum ${typeClass(alt)}">${q + 1}</span>
       <div class="nm"><b>${esc(alt.label)}</b>
@@ -4251,7 +4289,7 @@ function renderHomeLunch() {
       <span class="wknum core">+</span>
       <div class="nm"><b>Solo blocco core</b>
         <div class="small muted">facoltativo · ${coreS.minutes} min</div></div>
-      <span class="chev">›</span></li>`;
+      ${core ? '<span class="wkbadge alt">scelto</span>' : '<button class="selbtn" data-selcore="1" aria-label="Seleziona il solo blocco core">Seleziona</button>'}</li>`;
 
   // --- elenco esercizi della seduta selezionata ---
   const rows = s.items.map((it, i) => {
@@ -4294,7 +4332,7 @@ function renderHomeLunch() {
         ? `<p class="small muted" style="margin:6px 0 0">Tutte le sedute sono di mobilità e stretching. Il programma di forza riprende la settimana ${s.weekAbs + 1} da dove era rimasto: nessuna settimana di lavoro va persa.</p>`
         : s.phase ? `<p class="small muted" style="margin:6px 0 0">${whereText(s, { cap: true })}, ${s.phase.weekInPhase}ª della fase su ${s.phase.ph.weeks}${weeksLeftText(p, s.trainingWeek)}. ${esc(s.phase.ph.aim)}</p>` : ''}
       <ul class="week">${week}</ul>
-      <p class="small muted" style="margin-top:10px">Tocca la seduta che vuoi fare adesso: quella prevista oggi prenderà il suo posto più avanti nella settimana. La mobilità è prevista per ultima, ma puoi farla in qualunque giorno, anche prima delle altre; la mobilità breve a casa si sposta con lei.</p>
+      <p class="small muted" style="margin-top:10px">Tocca una seduta per vedere i suoi esercizi; con «Seleziona» diventa la seduta di oggi e quella prevista prende il suo posto più avanti nella settimana. La mobilità è prevista per ultima, ma puoi farla in qualunque giorno, anche prima delle altre; la mobilità breve a casa si sposta con lei.</p>
       <button class="btn ghost" id="upcomingBtn" style="margin-top:8px">Le prossime settimane</button>
     </div>
 
@@ -4337,9 +4375,9 @@ function renderHomeLunch() {
     S.setup = x.dataset.setup; save(); renderHome();
   });
 
-  // selezione della seduta dal calendario settimanale
-  document.querySelectorAll('[data-day]').forEach(li => li.onclick = () => {
-    const q = +li.dataset.day;
+  // (7S 4) selezione della seduta dal calendario settimanale: solo con
+  // «Seleziona»; toccare la riga apre l'anteprima degli esercizi
+  const selectDay = q => {
     if (q < here) return;                       // le sedute già svolte non si riaprono
     // (6.10) la mobilità è l'ultima seduta di default, ma si può fare in
     // qualunque giorno: lo scambio funziona come per le altre sedute
@@ -4347,12 +4385,20 @@ function renderHomeLunch() {
     if (q > here) swapDay(here, q);             // la scelta diventa la seduta di oggi
     planCache = null;
     renderHome();
+  };
+  const selectCore = () => { homeSel = 'core'; planCache = null; renderHome(); };
+  document.querySelectorAll('[data-sel]').forEach(bt => bt.onclick = e => { e.stopPropagation(); selectDay(+bt.dataset.sel); });
+  const selCoreBtn = document.querySelector('[data-selcore]');
+  if (selCoreBtn) selCoreBtn.onclick = e => { e.stopPropagation(); selectCore(); };
+  document.querySelectorAll('[data-day]').forEach(li => li.onclick = () => {
+    const q = +li.dataset.day;
+    openDayPreview(wStart + q, q < here ? null : (q === here && !core ? null : () => selectDay(q)), q < here);
   });
   document.querySelectorAll('[data-dur]').forEach(x => x.onclick = () => {
     S.durPref = +x.dataset.dur; planCache = null; save(); renderHome();
   });
   const coreLi = document.querySelector('[data-core]');
-  if (coreLi) coreLi.onclick = () => { homeSel = 'core'; planCache = null; renderHome(); };
+  if (coreLi) coreLi.onclick = () => openDayPreview(S.sessionIndex, core ? null : selectCore, false, 'core');
 
   // ogni riga dell'elenco apre la scheda illustrativa dell'esercizio
   document.querySelectorAll('[data-plan]').forEach(li => li.onclick = () => {
@@ -7011,7 +7057,9 @@ function swipeTo(dir) {
     const dx = t.clientX - x0, dy = t.clientY - y0, dt = Date.now() - t0;
     x0 = null;
     if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5 || dt > 800) return;
-    swipeTo(dx > 0 ? 1 : -1);          // verso destra: successivo; verso sinistra: precedente
+    // (7S 4) come sfogliare le pagine su iPhone: pollice verso sinistra =
+    // esercizio successivo; verso destra = precedente
+    swipeTo(dx < 0 ? 1 : -1);
   }, { passive: true });
 })();
 
@@ -7099,6 +7147,7 @@ function closeModal(then) {
     modalTimer = null;
     m.classList.remove('on', 'closing');
     if (then) then();
+    setTimeout(() => tryApplyUpdate(), 0);           // (7S 4) aggiornamento in attesa
   }, 200);
 }
 function closeSheet() {
@@ -7132,41 +7181,68 @@ function disclaimer() {
    mai a metà seduta. Prima bastava dimenticare di cambiare il numero di cache
    perché l'iPhone continuasse a servire la versione vecchia.
 --------------------------------------------------------------------------- */
-function showUpdateBanner(reg) {
-  if ($('#updBar')) return;
-  const bar = document.createElement('div');
-  bar.className = 'updbar';
-  bar.id = 'updBar';
-  bar.innerHTML = `<span>Aggiornamento pronto</span>
-    <button class="pick" id="updNow">Applica</button>
-    <button class="mini-skip" id="updLater" aria-label="Più tardi">✕</button>`;
-  document.body.appendChild(bar);
-  requestAnimationFrame(() => bar.classList.add('on'));
-  $('#updNow').onclick = () => {
-    if (current && !current.finished) {
-      confirmAction('Applicare ora l\'aggiornamento?',
-        'La seduta in corso è già salvata e la ritroverai al riavvio, ma l\'app si ricaricherà.',
-        'Applica', () => applyUpdate(reg));
-    } else applyUpdate(reg);
-  };
-  $('#updLater').onclick = () => bar.remove();
+/* ---------------------------------------------------------------------------
+   AGGIORNAMENTO AUTOMATICO (dalla 7S 4)
+   Con la rete i file dell'app arrivano già nuovi da GitHub; restava in attesa
+   solo il service worker nuovo, e serviva toccare «Aggiornamento pronto».
+   Ora si applica da solo appena non c'è una seduta in corso né una scheda
+   aperta (dove potresti star scrivendo): a metà seduta aspetta la fine.
+--------------------------------------------------------------------------- */
+let pendingSw = null;
+function tryApplyUpdate(reg) {
+  if (reg) pendingSw = reg;
+  const r = pendingSw;
+  if (!r || !r.waiting) return;
+  if (current && !current.finished) return;                       // seduta in corso: si aspetta
+  const m = document.getElementById('modal');
+  if (m && m.classList.contains('on')) return;                    // scheda aperta: si aspetta
+  try { r.waiting.postMessage('skipWaiting'); } catch (e) {}      // controllerchange → ricarica
 }
-function applyUpdate(reg) {
-  try {
-    saveResume();
-    if (reg.waiting) reg.waiting.postMessage('skipWaiting');
-    setTimeout(() => location.reload(), 400);
-  } catch (e) { location.reload(); }
+
+/* Pop-up alla prima apertura dopo un aggiornamento. La versione si legge
+   dall'intro (index.html), la stessa che scrive version.sh. */
+const APP_VER = (() => {
+  const el = document.querySelector('.splash .ver');
+  return el ? el.textContent.trim().replace(/\s+\d{4}$/, '') : '';
+})();
+function showUpdatedPopup(then) {
+  const next = typeof then === 'function' ? then : () => {};
+  if (!APP_VER || S.seenVersion === APP_VER) { next(); return false; }
+  // prima installazione: niente festa, si memorizza e basta
+  if (!S.seenVersion && !(S.logs || []).length && !(S.sessionLog || []).length) {
+    S.seenVersion = APP_VER; save(); next(); return false;
+  }
+  const colors = ['#F5A524', '#4FC3A1', '#B49CFF', '#EF8A5B', '#FFD27A'];
+  const confetti = Array.from({ length: 30 }, (_, i) => {
+    const a = (i / 30) * Math.PI * 2 + (i % 2) * 0.1, r = 50 + (i % 4) * 7;
+    return `<rect class="conf" x="${(60 + Math.cos(a) * r).toFixed(1)}" y="${(60 + Math.sin(a) * r).toFixed(1)}" width="5" height="9" rx="1.5"
+      fill="${colors[i % colors.length]}" transform="rotate(${(i * 37) % 360} ${(60 + Math.cos(a) * r).toFixed(1)} ${(60 + Math.sin(a) * r).toFixed(1)})"
+      style="animation-delay:${(0.9 + (i % 6) * 0.05).toFixed(2)}s"/>`;
+  }).join('');
+  openModal(`<div class="cheer updcheer">
+    <svg viewBox="0 0 120 120" aria-hidden="true">
+      ${confetti}
+      <circle class="ring" cx="60" cy="60" r="40" fill="none" stroke="#F5A524" stroke-width="7"
+              stroke-linecap="round" transform="rotate(-90 60 60)"/>
+      <path class="tick" d="M60 80 L60 42 M45 56 L60 41 L75 56" fill="none" stroke="#EAF1F8" stroke-width="8"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <h2>App aggiornata alla versione ${esc(APP_VER)}!</h2>
+    <p class="sub">Tutto pronto e tutti i tuoi dati al loro posto. Buon allenamento!</p>
+    <button class="btn" id="updOk" style="margin-top:18px">Andiamo!</button>
+  </div>`);
+  $('#updOk').onclick = () => { S.seenVersion = APP_VER; save(); closeModal(next); };
+  return true;
 }
 function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
   navigator.serviceWorker.register('sw.js').then(reg => {
-    if (reg.waiting) showUpdateBanner(reg);
+    if (reg.waiting) tryApplyUpdate(reg);
     reg.addEventListener('updatefound', () => {
       const w = reg.installing;
       if (!w) return;
       w.addEventListener('statechange', () => {
-        if (w.state === 'installed' && navigator.serviceWorker.controller) showUpdateBanner(reg);
+        if (w.state === 'installed' && navigator.serviceWorker.controller) tryApplyUpdate(reg);
       });
     });
     // un controllo all'apertura e uno ogni ora: l'aggiornamento non dipende
@@ -7205,8 +7281,11 @@ function registerServiceWorker() {
   const afterSplash = () => {
     const poi = () => {
       if (!S.disclaimerOk) { disclaimer(); return; }
-      askMobilityWeek();
-      if (!$('#modal').classList.contains('on')) fixOrphanSessions();
+      // (7S 4) prima apertura dopo un aggiornamento: il pop-up, poi il resto
+      showUpdatedPopup(() => {
+        askMobilityWeek();
+        if (!$('#modal').classList.contains('on')) fixOrphanSessions();
+      });
     };
     if (!splash || splash.dataset.done) { poi(); return; }
     splash.dataset.done = '1';

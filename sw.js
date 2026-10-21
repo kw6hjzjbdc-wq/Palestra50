@@ -12,11 +12,12 @@
    · RISORSE STATICHE (icone, schermate di avvio)
      cache-first: non cambiano quasi mai e non vale la pena interrogare la rete.
 
-   Alla fine dell'installazione il nuovo worker NON si attiva da solo: avvisa
-   la pagina, che mostra all'utente "aggiornamento pronto". È l'utente a
-   decidere quando applicarlo, così un aggiornamento non irrompe a metà seduta.
+   Alla fine dell'installazione il nuovo worker resta in attesa e la pagina lo
+   attiva da sola (dalla 7S 4) appena non c'è una seduta in corso né una
+   scheda aperta: niente più pulsante «Aggiornamento pronto», e nessun
+   aggiornamento irrompe a metà seduta.
    ========================================================================== */
-const CACHE = 'palestra50-v59';
+const CACHE = 'palestra50-v60';
 
 const SHELL = [
   './', './index.html', './styles.css', './app.js',
@@ -41,7 +42,7 @@ self.addEventListener('install', e => {
     await c.addAll(SHELL);
     await Promise.all(STATIC.map(u => c.add(u).catch(() => {})));
   })());
-  // niente skipWaiting: il nuovo worker resta in attesa finché l'utente accetta
+  // niente skipWaiting qui: lo chiede la pagina quando non c'è una seduta in corso
 });
 
 self.addEventListener('activate', e => {

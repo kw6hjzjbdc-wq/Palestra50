@@ -213,6 +213,13 @@ Da *Oggi* (sotto il calendario), dalla pagina *Progressi* e dal riquadro *Il per
 
 Nel riepilogo di fine seduta, *Ho ancora tempo: aggiungi esercizi*. Si dichiara quanto tempo resta (5, 10 o 15 minuti) e l'app propone quattro esercizi sui **gruppi più indietro** rispetto al volume previsto per la settimana, con le serie che stanno davvero in quei minuti (tempo di preparazione compreso). Toccandone uno si torna nella seduta, che riprende da quell'esercizio e si chiude normalmente.
 
+### Anteprima delle sedute, aggiornamento automatico, pop-up e scorrimento (7S 4)
+
+- **«La tua settimana»**: toccare una seduta non la sceglie più per oggi. Apre una schermata con gli esercizi previsti (dose e, dove c'è un carico, quello proposto con l'ultima seduta), che si chiude con «‹ Torna alla settimana» o «Chiudi» (`openDayPreview`). Per scegliere la seduta c'è il pulsante **«Seleziona»** su ogni riga (e in fondo all'anteprima); lo scambio dentro la settimana funziona come prima (`swapDay`). Anche il blocco core ha il suo «Seleziona».
+- **Scorrimento fra gli esercizi invertito** (richiesta dell'utente): pollice da destra a sinistra = esercizio successivo, da sinistra a destra = precedente, come si sfogliano le pagine su iPhone e coerente con la scritta «‹ precedente · successivo ›». Anche il movimento della schermata segue il pollice.
+- **Niente più pulsante «Aggiornamento pronto».** Con la rete i file arrivano già nuovi da GitHub; restava in attesa solo il service worker nuovo (quello che tiene la copia per l'uso senza rete). Ora la pagina lo attiva da sola (`tryApplyUpdate`) appena non c'è una seduta in corso né una scheda aperta: a metà seduta aspetta la fine, poi l'app si ricarica una volta da sola.
+- **Pop-up alla prima apertura dopo un aggiornamento** (`showUpdatedPopup`): «App aggiornata alla versione …!», con coriandoli. La versione si legge dall'intro scritta da `version.sh`; ricompare solo con la versione successiva (`S.seenVersion`, salvata quando tocchi «Andiamo!»). Alla prima installazione non compare.
+
 ### Equipaggiamento: ripristinato com'era (7S 3)
 
 La 7S 2 aveva spostato la scelta Palestra / Casa dentro la scheda della seduta, sopra gli esercizi. Su indicazione dell'utente («era più logica e performava meglio») la 7S 3 torna esattamente alla 7S 1: selettore in cima alla pagina dell'allenamento del giorno.
@@ -345,7 +352,7 @@ In più, all'avvio l'app riconosce le **sedute rimaste aperte** (esercizi regist
 
 ### Scorrere fra gli esercizi (dalla 5.3)
 
-Durante la seduta si passa da un esercizio all'altro **scorrendo lo schermo**: dito verso **destra** per il successivo, verso **sinistra** per il precedente. È solo consultazione: non registra nulla e **non ferma il timer**. Una sequenza di tenute continua a contare sull'esercizio da cui è partita anche se nel frattempo guardi un'altra schermata; se si completa mentre sei altrove, l'esercizio viene registrato senza spostarti.
+Durante la seduta si passa da un esercizio all'altro **scorrendo lo schermo**: dito verso **sinistra** per il successivo, verso **destra** per il precedente (invertito su richiesta dell'utente nella 7S 4). È solo consultazione: non registra nulla e **non ferma il timer**. Una sequenza di tenute continua a contare sull'esercizio da cui è partita anche se nel frattempo guardi un'altra schermata; se si completa mentre sei altrove, l'esercizio viene registrato senza spostarti.
 
 Il pulsante *Chiudi esercizio* registra l'esercizio così com'è e porta al successivo **ancora aperto**: se scorrendo ne hai lasciato indietro uno, l'app ci torna prima di chiudere la seduta. *Chiudi seduta* compare quando non restano esercizi aperti. Il vecchio pulsante *‹ Precedente* non c'è più.
 
