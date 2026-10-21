@@ -213,6 +213,12 @@ Da *Oggi* (sotto il calendario), dalla pagina *Progressi* e dal riquadro *Il per
 
 Nel riepilogo di fine seduta, *Ho ancora tempo: aggiungi esercizi*. Si dichiara quanto tempo resta (5, 10 o 15 minuti) e l'app propone quattro esercizi sui **gruppi più indietro** rispetto al volume previsto per la settimana, con le serie che stanno davvero in quei minuti (tempo di preparazione compreso). Toccandone uno si torna nella seduta, che riprende da quell'esercizio e si chiude normalmente.
 
+### Programma della settimana da Oggi; conteggio dei burpees corretto (7S 5)
+
+- In Oggi, sotto le due sedute del giorno, il pulsante **«Programma della settimana ›»** apre «La tua settimana» (sedute con anteprima e «Seleziona»).
+- **Burpees nei traguardi Spartan: errore corretto.** Il contatore considerava solo le serie al livello che l'app stessa avrebbe proposto (con la priorità al ginocchio, «A passi, senza petto a terra»): 10 burpees regolamentari risultavano 0. Ora una serie a un livello più difficile vale anche per quelli più facili, e se nelle ultime sei settimane hai scelto tu un livello più alto l'app resta su quello (dosi al 60-70% del massimo a quel livello). Il contatore resta «di fila»: conta la serie migliore, non il totale della seduta.
+- Burpees e sospensione registrati in **settimana di scarico** ora si vedono nei traguardi Spartan, segnalati come tali; per la regola della 6.8 restano fuori da dosi, livelli e obiettivi dei check.
+
 ### Anteprima delle sedute, aggiornamento automatico, pop-up e scorrimento (7S 4)
 
 - **«La tua settimana»**: toccare una seduta non la sceglie più per oggi. Apre una schermata con gli esercizi previsti (dose e, dove c'è un carico, quello proposto con l'ultima seduta), che si chiude con «‹ Torna alla settimana» o «Chiudi» (`openDayPreview`). Per scegliere la seduta c'è il pulsante **«Seleziona»** su ogni riga (e in fondo all'anteprima); lo scambio dentro la settimana funziona come prima (`swapDay`). Anche il blocco core ha il suo «Seleziona».

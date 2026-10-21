@@ -2492,48 +2492,74 @@ function bestRecent(cand) {
 /* Sospensione: secondi migliori tenuti alla sbarra (test, serie del blocco
    Spartan o della chiusura delle sedute di forza, valore dichiarato). */
 function hangBest() {
-  const cand = [];
+  const cand = [], deload = [];
   (S.logs || []).forEach(l => {
-    if (!l || l.exId !== 'g_deadhang' || l.planned || isDeloadLog(l)) return;
+    if (!l || l.exId !== 'g_deadhang' || l.planned) return;
     const rows = setRows(l);
     const v = rows ? Math.max(0, ...rows.map(r => +r.hold || 0).filter(isFinite)) : (+l.hold || 0);
-    if (v > 0) cand.push({ n: Math.round(v), ts: l.ts || 0, src: l.goal === 'hangTest' ? 'test' : 'serie' });
+    if (!(v > 0)) return;
+    const c = { n: Math.round(v), ts: l.ts || 0, src: l.goal === 'hangTest' ? 'test' : 'serie' };
+    (isDeloadLog(l) ? deload : cand).push(c);
   });
   const me = S.spSelf || {};
   if (isFinite(me.hang) && me.hang > 0) cand.push({ n: Math.round(me.hang), ts: me.ts || 0, src: 'dichiarato' });
-  return bestRecent(cand);
+  return withDeload(bestRecent(cand), deload);
+}
+/* (7S 5) Nei traguardi Spartan si vede anche ciò che hai fatto in settimana
+   di scarico, segnalato come tale: è una capacità dimostrata. Le dosi, i
+   livelli e gli obiettivi dei check restano calcolati senza lo scarico, che
+   per regola non entra nei dati della progressione. */
+function withDeload(best, deload) {
+  const d = bestRecent(deload);
+  const show = d.n > best.n ? d : best;
+  return Object.assign({}, best, { nShow: show.n, tsShow: show.ts, srcShow: show.src, fromDeload: d.n > best.n });
 }
 
-/* Burpees: livello raggiunto e massimo di fila al livello attuale.
-   Si passa al livello successivo con 15 di fila al primo e 20 al secondo; il
-   livello regolamentare (con il salto) resta chiuso con la priorità al
-   ginocchio attiva. */
+/* Burpees: livello e massimo di fila.
+   · Una serie a un livello più difficile vale anche per quelli più facili:
+     10 burpees regolamentari dimostrano almeno 10 burpees a passi (7S 5;
+     prima contavano solo le serie al livello esatto, e 10 regolamentari
+     risultavano 0).
+   · Livello: si sale con 15 di fila al primo e 20 al secondo; con la
+     priorità al ginocchio l'app da sola non propone il salto. Se però nelle
+     ultime sei settimane hai scelto tu un livello più alto, si resta su quello:
+     è una tua scelta, e la preferenza ginocchio non è un divieto. */
 function burpeeState() {
   const sp = SP(), ex = exById((sp && sp.burpee && sp.burpee.exId) || 'g_burpee');
   const lv = (ex && ex.levels) || ['Burpee'];
   const adv = (sp && sp.burpee && sp.burpee.advance) || [15, 20];
   const jump = (sp && sp.burpee && sp.burpee.jumpLevel) || lv.length - 1;
   const maxL = S.kneeCare ? Math.min(lv.length - 1, jump - 1) : lv.length - 1;
-  const cands = i => {
-    const out = [];
-    (S.logs || []).forEach(l => {
-      if (!l || !ex || l.exId !== ex.id || l.planned || isDeloadLog(l)) return;
-      const n = bestAtLevels(l, [lv[i]]);
-      if (n > 0) out.push({ n, ts: l.ts || 0, src: l.goal === 'burpeeTest' ? 'test' : 'serie' });
+  const lvIdx = v => Math.max(0, lv.indexOf(v));
+  // per ogni registrazione: ripetizioni migliori di fila per livello
+  const recs = [];
+  (S.logs || []).forEach(l => {
+    if (!l || !ex || l.exId !== ex.id || l.planned) return;
+    const rows = setRows(l) || [{ load: l.load, reps: isFinite(l.repsDone) ? l.repsDone : l.reps }];
+    rows.forEach(r => {
+      const n = +r.reps;
+      if (!isFinite(n) || n <= 0) return;
+      recs.push({ i: lvIdx(r.load || l.load), n, ts: l.ts || 0, dl: isDeloadLog(l), src: l.goal === 'burpeeTest' ? 'test' : 'serie' });
     });
-    const me = S.spSelf || {};
-    if (isFinite(me.burpee) && me.burpee > 0 && (me.burpeeLevel || 0) === i)
-      out.push({ n: Math.round(me.burpee), ts: me.ts || 0, src: 'dichiarato' });
-    return out;
-  };
+  });
+  const me = S.spSelf || {};
+  if (isFinite(me.burpee) && me.burpee > 0)
+    recs.push({ i: clampN(Math.round(me.burpeeLevel || 0), 0, lv.length - 1), n: Math.round(me.burpee), ts: me.ts || 0, dl: false, src: 'dichiarato' });
+  const at = (i, dl) => recs.filter(r => r.i >= i && r.dl === dl).map(r => ({ n: r.n, ts: r.ts, src: r.src }));
   let L = 0;
   for (let i = 0; i < maxL; i++) {
-    const all = cands(i);
+    const all = at(i, false);
     if (all.length && Math.max(...all.map(c => c.n)) >= (adv[i] || 99)) L = i + 1; else break;
   }
-  const cur = bestRecent(cands(L));
+  const now = Date.now();
+  const chosen = recs.filter(r => now - r.ts <= PULL_RECENT_MS).reduce((m, r) => Math.max(m, r.i), 0);
+  const byChoice = chosen > L;
+  if (byChoice) L = chosen;
+  const cur = withDeload(bestRecent(at(L, false)), at(L, true));
   return { L, maxL, level: lv[L], levels: lv, n: cur.n, ts: cur.ts, src: cur.src,
-           top: L === lv.length - 1, capped: maxL < lv.length - 1, next: adv[L] || null };
+           nShow: cur.nShow, tsShow: cur.tsShow, srcShow: cur.srcShow, fromDeload: cur.fromDeload,
+           top: L === lv.length - 1, capped: maxL < lv.length - 1 && L < lv.length - 1, byChoice,
+           next: L < lv.length - 1 ? (adv[L] || null) : null };
 }
 
 /* Corsa-camminata: livello attuale ricavato dal registro delle corse. Si sale
@@ -2600,8 +2626,8 @@ function spCheckKinds(meta, date) {
 function spMetric(kind) {
   const sp = SP(), t = (sp && sp.targets) || {};
   if (kind === 'pull') { const r = pullMax(); return { n: r.n, T: t.pullups || 8, unit: 'trazioni pulite di fila', src: r.src, ts: r.ts }; }
-  if (kind === 'hang') { const r = hangBest(); return { n: r.n, T: t.hang || 60, unit: 'secondi', src: r.src, ts: r.ts }; }
-  if (kind === 'burpee') { const b = burpeeState(); return { n: b.n, T: t.burpees || 30, unit: 'di fila in forma corretta', src: b.src, ts: b.ts, b }; }
+  if (kind === 'hang') { const r = hangBest(); return { n: r.n, T: t.hang || 60, unit: 'secondi', src: r.src, ts: r.ts, show: r.nShow, srcShow: r.srcShow, tsShow: r.tsShow, fromDeload: r.fromDeload }; }
+  if (kind === 'burpee') { const b = burpeeState(); return { n: b.n, T: t.burpees || 30, unit: 'di fila in forma corretta', src: b.src, ts: b.ts, b, show: b.nShow, srcShow: b.srcShow, tsShow: b.tsShow, fromDeload: b.fromDeload }; }
   const rs = runState();
   return { n: rs.L, T: rs.max, unit: 'livello', km: rs.km, rs };
 }
@@ -2628,7 +2654,7 @@ function spCheckPlan() {
       const m = spMetric(kind), k = mine.length;
       mine.forEach((c, i) => {
         if (kind === 'run') { c.goal = Math.min(m.T, m.n + i); return; }
-        c.first = !m.n && i === 0;          // nessun dato ancora: il primo check misura il punto di partenza
+        c.first = !(m.show || m.n) && i === 0;          // nessun dato ancora: il primo check misura il punto di partenza
         const step = kind === 'hang' ? 5 : 1;
         let g = m.n >= m.T ? m.T : m.n + (m.T - m.n) * (i + 1) / k;
         g = Math.ceil(g / step) * step;
@@ -2644,7 +2670,7 @@ function spCheckFor(idx, kind) {
   const c = spCheckPlan().find(x => x.idx === idx && x.kind === kind);
   if (c) return c;
   const m = spMetric(kind);
-  return { idx, kind, goal: kind === 'run' ? m.n : Math.max(m.n + (kind === 'hang' ? 5 : 1), 1), first: kind !== 'run' && !m.n };
+  return { idx, kind, goal: kind === 'run' ? m.n : Math.max(m.n + (kind === 'hang' ? 5 : 1), 1), first: kind !== 'run' && !(m.show || m.n) };
 }
 /* «Spartan Race check», seguito dal dettaglio dell'obiettivo. */
 function spCheckLabel(kind, goal, first) {
@@ -3494,17 +3520,17 @@ function openPullGoal() {
 const SP_NAMES = { pull: 'Trazioni', hang: 'Sospensione', burpee: 'Burpees', run: 'Corsa-camminata' };
 function spValueText(kind, m) {
   if (kind === 'pull') return `${m.n} di ${m.T}`;
-  if (kind === 'hang') return `${m.n} s di ${m.T}`;
-  if (kind === 'burpee') return `${m.n} di ${m.T}`;
+  if (kind === 'hang') return `${m.show != null ? m.show : m.n} s di ${m.T}`;
+  if (kind === 'burpee') return `${m.show != null ? m.show : m.n} di ${m.T}`;
   return spPhase(Date.now()) === 'base' ? 'da dicembre' : `livello ${m.n + 1} di ${m.T + 1}`;
 }
 function spPct(kind, m) {
   if (kind === 'run') return m.rs.runs.length || m.n ? Math.round(m.n / Math.max(1, m.T) * 100) : 0;
   if (kind === 'burpee') {
-    const b = m.b, part = Math.min(1, m.n / m.T);
-    return Math.round((b.L >= b.maxL ? part : (b.L + Math.min(1, m.n / (b.next || m.T))) / (b.maxL + 1)) * 100);
+    const b = m.b, v = m.show != null ? m.show : m.n, part = Math.min(1, v / m.T);
+    return Math.round((b.L >= b.maxL ? part : (b.L + Math.min(1, v / (b.next || m.T))) / (b.maxL + 1)) * 100);
   }
-  return Math.round(Math.min(1, m.n / m.T) * 100);
+  return Math.round(Math.min(1, (m.show != null ? m.show : m.n) / m.T) * 100);
 }
 function kneeAskHtml(r) {
   return `<div class="card spcard" id="kneeCard">
@@ -3601,8 +3627,12 @@ function openSpartan() {
   const sp = SP();
   if (!sp) return;
   const ph = spPhase(Date.now());
-  const srcTxt = m => m.src === 'nessuno' || !m.src ? 'nessun dato ancora'
-    : `${m.src === 'test' ? 'check' : m.src === 'serie' ? 'serie registrata' : 'valore inserito da te'} del ${dateIt(m.ts)}`;
+  const srcTxt = m => {
+    const src = m.srcShow || m.src, ts = m.tsShow || m.ts;
+    if (src === 'nessuno' || !src) return 'nessun dato ancora';
+    return `${src === 'test' ? 'check' : src === 'serie' ? 'serie migliore registrata' : 'valore inserito da te'} del ${dateIt(ts)}${
+      m.fromDeload ? ' (in settimana di scarico: lo vedi qui, ma per regola non entra nei conteggi della progressione né nelle dosi)' : ''}`;
+  };
   const mP = spMetric('pull'), mH = spMetric('hang'), mB = spMetric('burpee'), mR = spMetric('run');
   const b = mB.b, rs = mR.rs;
   const goalRow = (k, m, extra) => `<li><div class="nm" style="flex:1"><b>${SP_NAMES[k]}</b> · ${spValueText(k, m)}
@@ -3629,7 +3659,7 @@ function openSpartan() {
     <ul class="hist">
       ${goalRow('pull', mP, `Traguardo ${mP.T} trazioni pulite di fila (fune, muri, Hercules hoist) · ${srcTxt(mP)}. L'obiettivo del programma resta ${pullTarget().n} a fine maggio.`)}
       ${goalRow('hang', mH, `Traguardo ${mH.T} secondi appeso con le spalle attive (monkey bars, multi-rig) · ${srcTxt(mH)}.`)}
-      ${goalRow('burpee', mB, `Traguardo ${mB.T} di fila in forma corretta, la penalità del giavellotto e di ogni ostacolo fallito. Livello «${esc(b.level)}»${b.L < b.maxL ? `: con ${b.next} di fila passi al livello successivo` : ''}${b.capped ? '. Il livello regolamentare, con il salto, resta chiuso finché è attiva la priorità al ginocchio: per la gara decidi tu, meglio sentito il fisioterapista' : ''} · ${srcTxt(mB)}.`)}
+      ${goalRow('burpee', mB, `Traguardo ${mB.T} di fila in forma corretta, la penalità del giavellotto e di ogni ostacolo fallito. Livello «${esc(b.level)}»${b.byChoice ? ', scelto da te in seduta' + (S.kneeCare ? ' (con la priorità al ginocchio l\'app non lo proporrebbe da sola)' : '') : ''}${b.L < b.maxL ? `: con ${b.next} di fila passi al livello successivo` : ''}${b.capped && !b.byChoice ? '. Il livello regolamentare, con il salto, l\'app non lo propone da sola finché è attiva la priorità al ginocchio: puoi sceglierlo tu nel menu del livello, meglio sentito il fisioterapista' : ''}. Conta la serie migliore di fila, non il totale della seduta; una serie a un livello più difficile vale anche per quelli più facili · ${srcTxt(mB)}.`)}
       ${goalRow('run', mR, ph === 'base' ? `Dal ${dateIt(runFrom)} la seduta a ritmo costante diventa corsa-camminata all'aperto, una volta a settimana. Traguardo: ${runSpecText(rs.levels[rs.max])}, circa ${sp.targets.runKm} km per chi corre piano.`
         : `Ora: ${runSpecText(rs.spec)}. Traguardo: ${runSpecText(rs.levels[rs.max])}, circa ${sp.targets.runKm} km${rs.km ? ` · distanza migliore registrata ${String(rs.km).replace('.', ',')} km` : ''}. Il livello sale solo se il giorno dopo il ginocchio è tranquillo.`)}
     </ul>
@@ -4192,6 +4222,7 @@ function renderHomePick() {
     ${spartanTodayHtml(ls.done || ls.skipped ? todaySession(null) : ls.s)}
     ${tile('morning', 'Mobilità breve · a casa', 'mobility', mBody)}
     ${tile('lunch', 'Allenamento del giorno', ls.done || ls.skipped ? 'strength' : typeClass(ls.s), lBody)}
+    <button class="btn ghost" id="weekBtn">Programma della settimana ›</button>
     <p class="small muted" style="margin-top:14px">Tocca la sessione su cui vuoi lavorare: esercizi, durata e calendario della settimana si aprono lì dentro.</p>`;
 
   document.querySelectorAll('[data-pick]').forEach(el => el.onclick = () => {
@@ -4200,6 +4231,11 @@ function renderHomePick() {
   });
   bindHomeBanners(b.saved);
   bindKneeAsk(() => renderHome());
+  // (7S 5) richiama «La tua settimana»: le sei sedute con anteprima e «Seleziona»
+  $('#weekBtn').onclick = () => {
+    homeView = 'lunch'; renderHome();
+    requestAnimationFrame(() => { const el = document.querySelector('#view-home .week'); const card = el && el.closest('.card'); if (card && card.scrollIntoView) card.scrollIntoView({ block: 'start' }); });
+  };
 }
 
 /* Schermata del mattino. */
