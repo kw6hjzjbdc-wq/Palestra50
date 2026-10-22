@@ -843,8 +843,6 @@ body.light svg [fill="#B9CBDD"]{fill:#6F8498}
 .cheer .hl p{margin:4px 0}
 .cheer.big h2{font-size:30px;color:var(--amber)}
 /* (8) intro breve dopo la prima apertura del giorno */
-.splash.quick *{animation-duration:.25s!important;animation-delay:0s!important}
-.splash.quick .hint,.splash.quick .quote{display:none}
 .card.backupcard{border-color:rgba(245,165,36,.5);margin-top:12px}
 .card.backupcard .kicker{font-family:var(--cond);letter-spacing:.06em;text-transform:uppercase;font-size:13px;color:var(--amber)}
 table.cmp{width:100%;border-collapse:collapse;margin-top:10px;font-size:14px}

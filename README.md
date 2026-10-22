@@ -213,6 +213,16 @@ Da *Oggi* (sotto il calendario), dalla pagina *Progressi* e dal riquadro *Il per
 
 Nel riepilogo di fine seduta, *Ho ancora tempo: aggiungi esercizi*. Si dichiara quanto tempo resta (5, 10 o 15 minuti) e l'app propone quattro esercizi sui **gruppi più indietro** rispetto al volume previsto per la settimana, con le serie che stanno davvero in quei minuti (tempo di preparazione compreso). Toccandone uno si torna nella seduta, che riprende da quell'esercizio e si chiude normalmente.
 
+### Intro intera a ogni avvio (8.2)
+
+Su richiesta dell'utente l'intro si sviluppa per intero (animazione completa del logo, percorso, frase) **a ogni avvio**, non solo al primo della giornata, e resta finché non la tocchi. La versione breve introdotta nella 8 è stata tolta. Restano le correzioni della 8.1 (nessuna chiusura automatica, aggiornamento che aspetta la chiusura dell'intro).
+
+### Intro leggibile (8.1)
+
+- L'intro (logo animato, percorso, frase del giorno) **resta a schermo finché non la tocchi**, sempre. Nella 8 dalla seconda apertura del giorno si chiudeva da sola dopo meno di un secondo, e un aggiornamento automatico poteva ricaricare la pagina proprio mentre la leggevi.
+- Dalla seconda apertura del giorno è solo più breve: compare già completa, senza i 3 secondi di animazione. L'apertura del giorno si conta al tocco, non al caricamento.
+- L'aggiornamento automatico aspetta che l'intro sia chiusa.
+
 ### Versione 8: seduta, progressi, salute, Spartan, usabilità, estetica, dati
 
 **Seduta**

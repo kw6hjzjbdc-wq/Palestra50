@@ -8034,6 +8034,7 @@ function tryApplyUpdate(reg) {
   const r = pendingSw;
   if (!r || !r.waiting) return;
   if (current && !current.finished) return;                       // seduta in corso: si aspetta
+  if (document.getElementById('splash')) return;                  // (8.1) intro da leggere: si aspetta
   const m = document.getElementById('modal');
   if (m && m.classList.contains('on')) return;                    // scheda aperta: si aspetta
   try { r.waiting.postMessage('skipWaiting'); } catch (e) {}      // controllerchange → ricarica
@@ -8150,6 +8151,7 @@ function registerServiceWorker() {
     setTimeout(() => {
       if (splash.parentNode) splash.parentNode.removeChild(splash);
       poi();
+      setTimeout(() => tryApplyUpdate(), 0);      // (8.1) l'aggiornamento in attesa, ora che l'intro è chiusa
     }, 420);
   };
   const qEl = document.getElementById('splashQuote');
@@ -8168,12 +8170,9 @@ function registerServiceWorker() {
         (SP() && spPhase(Date.now()) !== 'off' ? ` · ${weeksToRace()} settimane alla Spartan` : '');
     } catch (e) { gEl.textContent = ''; }
   }
-  // (8) intro intera solo alla prima apertura del giorno; dopo, breve e senza tocco
-  const today = new Date().toDateString();
-  if (splash && S.splashDay === today) {
-    splash.classList.add('quick');
-    setTimeout(afterSplash, 750);
-  } else if (splash) { S.splashDay = today; save(); }
+  // (8.2) l'intro si sviluppa per intero a ogni avvio e resta a schermo
+  // finché non la tocchi: la frase e il percorso si devono poter leggere
+  // (su richiesta dell'utente; la versione breve della 8 è stata tolta)
   if (splash) splash.onclick = afterSplash; else afterSplash();
   registerServiceWorker();
 })();
