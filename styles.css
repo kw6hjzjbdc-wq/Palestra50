@@ -756,3 +756,97 @@ body.in-session.mini-on #view-session{padding-bottom:176px}
 .week li.done .wkbadge.done{color:var(--teal);border-color:var(--teal)}
 .week li.extra .wknum{color:var(--text)}
 .week li.now{border-color:rgba(245,165,36,.6);background:rgba(245,165,36,.06)}
+
+/* (8) serie di avvicinamento */
+.warmup{margin:14px 0 4px;border:1px dashed rgba(245,165,36,.45);border-radius:12px;padding:10px 12px}
+.warmup .wuhead{font-size:15px}
+.warmup ul{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:6px}
+.warmup li{display:flex;align-items:center;gap:10px;min-height:40px}
+.warmup li .n{flex:0 0 48px;font-family:var(--cond);color:var(--muted)}
+.warmup li .v{flex:1}
+.warmup li.done{opacity:.55}
+.warmup .ok{color:var(--teal);font-size:20px;padding:0 10px}
+.wubtn{min-height:40px;padding:0 14px;border-radius:10px;border:1px solid var(--amber);background:transparent;color:var(--amber);font-family:var(--cond);font-size:15px}
+.wubtn:disabled{opacity:.4}
+
+/* (8) schermo da palestra: numeri grandi in seduta */
+body.big .dose-big{font-size:46px;white-space:nowrap}
+body.big .dose-big small{font-size:18px}
+body.big #view-session .exercise h2{font-size:26px}
+body.big .repsrow .num{font-size:44px;min-width:64px;text-align:center}
+body.big .repsrow .stepper button{width:64px;height:64px;font-size:30px}
+body.big .loadrow input,body.big .loadrow select{min-height:64px;font-size:28px}
+body.big .feedback button{width:58px;height:64px}
+body.big .setdots button{min-height:56px;font-size:22px}
+body.big .timer .count{font-size:104px}
+body.big .timer.prep .count{font-size:110px}
+body.big .timer .ring{width:280px;height:280px}
+body.big .timer .count{width:280px}
+body.big .mini #miniCount{font-size:34px}
+
+/* (8) record, sensazioni */
+.toast{position:fixed;left:16px;right:16px;bottom:calc(150px + env(safe-area-inset-bottom));z-index:80;display:flex;gap:12px;align-items:center;
+  background:var(--surface2);border:1px solid var(--amber);border-radius:16px;padding:12px 14px;box-shadow:0 12px 32px rgba(0,0,0,.45);
+  transform:translateY(20px);opacity:0;pointer-events:none;transition:transform .25s ease,opacity .25s ease}
+.toast.on{transform:none;opacity:1;pointer-events:auto}
+.toast .trophy{font-size:30px}
+.toast .undo{margin-left:auto;min-height:44px;padding:0 14px;border-radius:10px;border:1px solid var(--amber);background:transparent;color:var(--amber);font-family:var(--cond);font-size:16px}
+.feel{display:grid;gap:10px;margin:6px 0 4px}
+.feelrow .lab{display:block;font-size:14px;margin-bottom:6px}
+.feelbtns{display:flex;flex-wrap:wrap;gap:4px}
+.feelbtns button{flex:1 0 26px;min-width:26px;min-height:40px;border-radius:8px;border:1px solid var(--line);background:var(--surface2);color:var(--text);font-family:var(--cond);font-size:16px;padding:0}
+.feelbtns button[aria-pressed="true"]{background:var(--amber);color:#151007;border-color:var(--amber)}
+.backbottom{margin-top:18px}
+.hist .selbtn{flex:0 0 auto;min-height:40px;padding:0 12px;border-radius:10px;border:1px solid var(--amber);background:transparent;color:var(--amber);font-family:var(--cond);font-size:15px}
+
+/* ============================================================
+   (8) TEMA CHIARO — per l'uso all'aperto, al sole
+   ============================================================ */
+body.light{
+  --ink:#F3F5F8; --surface:#FFFFFF; --surface2:#EDF1F5; --line:#D3DCE5;
+  --text:#14202B; --muted:#56687A; --amber:#B86E00; --amber2:#F0A93C;
+  --teal:#11866A; --alert:#C23A26; --coral:#C4552A; --sp:#6548D4;
+  --glow:0 6px 16px rgba(184,110,0,.22);
+  background:var(--ink);
+}
+body.light .topbar{background:linear-gradient(var(--ink) 72%,transparent)}
+body.light .card{background:#fff;border-color:var(--line);box-shadow:0 6px 18px rgba(20,32,43,.08)}
+body.light .dtile{background:#fff;box-shadow:0 4px 14px rgba(20,32,43,.06)}
+body.light .btn{color:#1a1205}
+body.light .btn.secondary{background:var(--surface2);color:var(--text);border:1px solid var(--line)}
+body.light .btn.ghost{background:#fff;color:var(--text);border:1px solid var(--line)}
+body.light .seg{background:var(--surface2)}
+body.light .notice{background:#FFF5E4;border-color:#EBC27A;color:#5A3B00}
+body.light .exercise .fig-large,body.light .splash{background:radial-gradient(70% 90% at 50% 30%,#FFFFFF 0%,#E8EDF3 80%)}
+body.light .plan li,body.light .hist li{border-color:var(--line)}
+body.light .plan .fig,body.light .picker .fig{background:var(--surface2)}
+body.light .nav{background:rgba(255,255,255,.94)}
+body.light .actionbar{background:linear-gradient(transparent, rgba(243,245,248,.95) 22%)}
+body.light .modal,body.light .sheet{background:rgba(20,32,43,.45)}
+body.light .timer{background:rgba(243,245,248,.97)}
+body.light .timer .count{text-shadow:none}
+body.light .progress span,body.light .dbar,body.light .volbar{background:#DDE4EB}
+body.light .card.deload-card{background:#FDECEE;border-color:#D9536A}
+body.light .card.deload-card .small{color:#7A1D2C}
+body.light .chip{background:#fff}
+body.light .warmup{border-color:rgba(184,110,0,.45)}
+body.light .toast{background:#fff;box-shadow:0 10px 28px rgba(20,32,43,.18)}
+body.light .feelbtns button,body.light .field input,body.light .field select,body.light .loadrow input,body.light .loadrow select{background:#fff;color:var(--text)}
+/* figure: il corpo chiaro diventa scuro sullo sfondo chiaro */
+body.light svg line[stroke="#EAF1F8"],body.light svg path[stroke="#EAF1F8"],body.light svg circle[stroke="#EAF1F8"]{stroke:#1B2733}
+body.light svg line[stroke="#2B3B4E"]{stroke:#C9D3DE}
+body.light svg [stroke="#B9CBDD"]{stroke:#6F8498}
+body.light svg [fill="#B9CBDD"]{fill:#6F8498}
+.sheet .motion{background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:6px;margin-top:12px}
+.sheet .motion svg{width:100%;height:170px}
+.cheer .hl{margin-top:10px;text-align:left;background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:8px 12px}
+.cheer .hl p{margin:4px 0}
+.cheer.big h2{font-size:30px;color:var(--amber)}
+/* (8) intro breve dopo la prima apertura del giorno */
+.splash.quick *{animation-duration:.25s!important;animation-delay:0s!important}
+.splash.quick .hint,.splash.quick .quote{display:none}
+.card.backupcard{border-color:rgba(245,165,36,.5);margin-top:12px}
+.card.backupcard .kicker{font-family:var(--cond);letter-spacing:.06em;text-transform:uppercase;font-size:13px;color:var(--amber)}
+table.cmp{width:100%;border-collapse:collapse;margin-top:10px;font-size:14px}
+table.cmp th,table.cmp td{text-align:left;padding:7px 4px;border-bottom:1px solid var(--line)}
+table.cmp th{color:var(--muted);font-weight:600}

@@ -12,6 +12,7 @@
    ============================================================================ */
 
 const KEY = 'palestra50.v1';
+const DAY_MS_8 = 864e5;
 const BANDS = ['Azzurra (leggera)', 'Gialla (media)', 'Rossa (dura)', 'Viola (molto dura)'];
 
 let DB = { exercises: [] }, PROG = null, POSES = null, QUOTES = [];
@@ -55,6 +56,8 @@ const DEFAULT_STATE = {
   resume: null,             // seduta interrotta, recuperabile dopo la chiusura dell'app
   lastRecap: 0,             // ultima settimana di cui è stato mostrato il riepilogo
   pullSelf: null,           // massimo di trazioni e muscle-up dichiarato: { n, mu, ts }
+  bigScreen: true,          // (8) numeri grandi in seduta, leggibili a un metro
+  theme: 'dark',            // (8) 'dark' | 'light' | 'auto'
   spartan: true,            // preparazione alla Spartan Race Sprint di Orte (dalla 7S 0)
   spartanRuns: [],          // corse-camminate svolte, con il riscontro del ginocchio il giorno dopo
   spSelf: null              // sospensione e burpees dichiarati a mano: { hang, burpee, burpeeLevel, ts }
@@ -463,24 +466,76 @@ function figure(frameName, implement, opts) {
   const s = `<svg viewBox="${POSES.viewBox}" xmlns="http://www.w3.org/2000/svg"${lab}>` +
             (o.label ? `<title>${esc(o.label)}</title>` : '');
   const cBack = '#5B7188', cBody = o.color || '#EAF1F8', cArm = o.accent || '#F5A524', cImp = '#B9CBDD';
+  // (8) le parti che lavorano in arancio: braccia, gambe, tronco
+  const work = o.work || { arms: true };
+  const cA = work.arms ? cArm : cBody, cL = work.legs ? cArm : cBody, cT = work.torso ? cArm : cBody;
   let g = '';
   if (o.ground !== false) g += `<line x1="4" y1="${POSES.ground}" x2="116" y2="${POSES.ground}" stroke="#2B3B4E" stroke-width="2"/>`;
   const L = (a, b, c, w) => `<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="${c}" stroke-width="${w}" stroke-linecap="round"/>`;
   if (p.knee2) { g += L(p.hip, p.knee2, cBack, 4.5) + L(p.knee2, p.ankle2 || p.knee2, cBack, 4.5) + (p.toe2 ? L(p.ankle2, p.toe2, cBack, 3.2) : ''); }
   if (p.elbow2) { g += L(p.neck, p.elbow2, cBack, 4.5) + L(p.elbow2, p.hand2, cBack, 4.5); }
   // tronco (con eventuale punto intermedio di colonna per gatto/cammello)
-  if (p.spine) g += `<path d="M ${p.hip[0]} ${p.hip[1]} Q ${p.spine[0]} ${p.spine[1]} ${p.neck[0]} ${p.neck[1]}" stroke="${cBody}" stroke-width="5.5" fill="none" stroke-linecap="round"/>`;
-  else g += L(p.hip, p.neck, cBody, 5.5);
-  g += L(p.hip, p.knee, cBody, 5) + L(p.knee, p.ankle, cBody, 5);
-  if (p.toe) g += L(p.ankle, p.toe, cBody, 3.4);
-  g += L(p.neck, p.elbow, cArm, 5) + L(p.elbow, p.hand, cArm, 5);
+  if (p.spine) g += `<path d="M ${p.hip[0]} ${p.hip[1]} Q ${p.spine[0]} ${p.spine[1]} ${p.neck[0]} ${p.neck[1]}" stroke="${cT}" stroke-width="5.5" fill="none" stroke-linecap="round"/>`;
+  else g += L(p.hip, p.neck, cT, 5.5);
+  g += L(p.hip, p.knee, cL, 5) + L(p.knee, p.ankle, cL, 5);
+  if (p.toe) g += L(p.ankle, p.toe, cL, 3.4);
+  g += L(p.neck, p.elbow, cA, 5) + L(p.elbow, p.hand, cA, 5);
   g += `<circle cx="${p.head[0]}" cy="${p.head[1]}" r="6.4" stroke="${cBody}" stroke-width="4" fill="none"/>`;
   g += implementSvg(implement, p).replace(/class="imp"/g, `stroke="${cImp}" fill="none"`)
                                 .replace(/class="impf"/g, `fill="${cImp}"`)
                                 .replace(/class="band"/g, `stroke="#4FC3A1" fill="none"`);
   return s + g + '</svg>';
 }
-const figureFor = (ex, frameIdx, opts) => figure(ex.art.frames[frameIdx || 0], ex.art.implement, opts);
+const figureFor = (ex, frameIdx, opts) => figure(ex.art.frames[frameIdx || 0], ex.art.implement, Object.assign({ work: workParts(ex) }, opts || {}));
+/* (8) Quali parti del corpo colorare: dai muscoli principali dell'esercizio. */
+function workParts(ex) {
+  const w = {};
+  ((ex && ex.primary) || []).forEach(m => {
+    const g = muscleGroup(m), t = String(m).toLowerCase();
+    if (g === 'Quadricipiti' || g === 'Glutei e femorali' || g === 'Polpacci' || /cardio/.test(t)) w.legs = true;
+    if (g === 'Braccia' || g === 'Spalle' || /presa|mano/.test(t)) w.arms = true;
+    if (g === 'Petto' || g === 'Dorso' || g === 'Core') w.torso = true;
+    if (g === 'Petto' || g === 'Dorso') w.arms = true;
+  });
+  if (!w.legs && !w.arms && !w.torso) w.arms = true;
+  return w;
+}
+/* (8) Figura animata: la stessa sagoma passa dalla posizione iniziale a quella
+   finale e ritorna, in 3 secondi, con le parti che lavorano in arancio. */
+function figureMotion(ex, opts) {
+  const fr = ex.art.frames || [];
+  const a = pose(fr[0]), b = pose(fr[1] || fr[0]), o = opts || {};
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduce || fr[0] === fr[1]) return figureFor(ex, 1, o);
+  const work = workParts(ex);
+  const cBack = '#5B7188', cBody = '#EAF1F8', cArm = '#F5A524', cImp = '#B9CBDD';
+  const cA = work.arms ? cArm : cBody, cL = work.legs ? cArm : cBody, cT = work.torso ? cArm : cBody;
+  const pt = (p, k, alt) => p[k] || p[alt] || null;
+  const anim = (attr, v1, v2) => `<animate attributeName="${attr}" values="${v1};${v2};${v1}" keyTimes="0;0.5;1" dur="3s" repeatCount="indefinite" calcMode="spline" keySplines=".45 0 .55 1;.45 0 .55 1"/>`;
+  const seg = (k1, k2, c, w, alt1, alt2) => {
+    const p1 = pt(a, k1, alt1), p2 = pt(a, k2, alt2), q1 = pt(b, k1, alt1) || p1, q2 = pt(b, k2, alt2) || p2;
+    if (!p1 || !p2) return '';
+    return `<line x1="${p1[0]}" y1="${p1[1]}" x2="${p2[0]}" y2="${p2[1]}" stroke="${c}" stroke-width="${w}" stroke-linecap="round">` +
+      anim('x1', p1[0], q1[0]) + anim('y1', p1[1], q1[1]) + anim('x2', p2[0], q2[0]) + anim('y2', p2[1], q2[1]) + '</line>';
+  };
+  let g = `<line x1="4" y1="${POSES.ground}" x2="116" y2="${POSES.ground}" stroke="#2B3B4E" stroke-width="2"/>`;
+  if (a.knee2 || b.knee2) g += seg('hip', 'knee2', cBack, 4.5, null, 'knee') + seg('knee2', 'ankle2', cBack, 4.5, 'knee', 'ankle');
+  if (a.elbow2 || b.elbow2) g += seg('neck', 'elbow2', cBack, 4.5, null, 'elbow') + seg('elbow2', 'hand2', cBack, 4.5, 'elbow', 'hand');
+  g += seg('hip', 'neck', cT, 5.5) + seg('hip', 'knee', cL, 5) + seg('knee', 'ankle', cL, 5);
+  if (a.toe || b.toe) g += seg('ankle', 'toe', cL, 3.4, null, 'ankle');
+  g += seg('neck', 'elbow', cA, 5) + seg('elbow', 'hand', cA, 5);
+  const h1 = a.head, h2 = b.head || a.head;
+  g += `<circle cx="${h1[0]}" cy="${h1[1]}" r="6.4" stroke="${cBody}" stroke-width="4" fill="none">${anim('cx', h1[0], h2[0])}${anim('cy', h1[1], h2[1])}</circle>`;
+  // attrezzo: dissolvenza fra le due posizioni
+  const imp = p => implementSvg(ex.art.implement, p).replace(/class="imp"/g, `stroke="${cImp}" fill="none"`)
+    .replace(/class="impf"/g, `fill="${cImp}"`).replace(/class="band"/g, `stroke="#4FC3A1" fill="none"`);
+  if (ex.art.implement) {
+    g += `<g opacity="1">${imp(a)}<animate attributeName="opacity" values="1;0;1" keyTimes="0;0.5;1" dur="3s" repeatCount="indefinite"/></g>`;
+    g += `<g opacity="0">${imp(b)}<animate attributeName="opacity" values="0;1;0" keyTimes="0;0.5;1" dur="3s" repeatCount="indefinite"/></g>`;
+  }
+  const lab = o.label || figureLabel(ex, 1);
+  return `<svg viewBox="${POSES.viewBox}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${esc(lab)}"><title>${esc(lab)}</title>${g}</svg>`;
+}
 
 /* Descrizione testuale della figura, ricavata dai dati già presenti nella
    scheda: nome dell'esercizio, fase e attrezzatura. */
@@ -491,7 +546,7 @@ function figureLabel(ex, frameIdx) {
 }
 const figureA11y = (ex, frameIdx, opts) =>
   figure(ex.art.frames[frameIdx || 0], ex.art.implement,
-         Object.assign({ label: figureLabel(ex, frameIdx) }, opts || {}));
+         Object.assign({ label: figureLabel(ex, frameIdx), work: workParts(ex) }, opts || {}));
 
 /* ---------------------------------------------------------------------------
    4. PERIODIZZAZIONE
@@ -781,6 +836,24 @@ function suggestLoad(ex, it) {
   // in settimana di scarico nessun aumento: si recupera a carico invariato
   const deloadNow = isDeloadWeek();
   const r = suggestLoadCore(ex, deloadNow, it);
+  // (8) dolore in aumento per due sedute di fila: l'esercizio collegato si alleggerisce
+  const part = r ? painPartFor(ex) : null;
+  if (part && r.value) {
+    const steps = ex.load === 'band' ? BANDS : levelsOf(ex);
+    const why = `${part === 'knee' ? 'Ginocchio' : 'Spalla'}: dolore in aumento nelle ultime due sedute, `;
+    if (steps && !it?.level) {
+      const i = steps.indexOf(r.value), j = i - progressDir(ex);
+      if (i >= 0 && j >= 0 && j < steps.length) { r.value = steps[j]; r.reason = why + 'un gradino più facile. ' + (r.reason || ''); }
+    } else if (ex.load === 'weight') {
+      const v = numLoad(r.value);
+      if (v > 0) {
+        const nv = isAssist(ex) ? stepOnScale(ex, v, 1) : (rackOf(ex) ? Math.max(rackOf(ex)[0], snapLoad(ex, v * 0.9, -1)) : Math.floor(v * 0.9 * 2) / 2);
+        r.value = String(nv % 1 === 0 ? nv : nv.toFixed(1));
+        r.reason = why + (isAssist(ex) ? 'più assistenza. ' : 'carico ridotto di circa il 10%. ') + (r.reason || '');
+      }
+    }
+    r.pain = part;
+  }
   if (r && deloadNow && r.heldForDeload) {
     r.reason = 'Settimana di scarico: il carico resta fermo. L\'aumento guadagnato con la regola 2-for-2 scatta la settimana prossima.';
   }
@@ -1617,7 +1690,19 @@ function sessionMeta(idx) {
      estensione e trazioni a presa larga, tipiche fonti di dolore in caso di
      conflitto subacromiale e sofferenza del capo lungo del bicipite
    Se il filtro svuoterebbe il pool, si mantiene l'elenco completo. */
+function avoidListHtml() {
+  const ids = Object.keys(S.avoid || {}).filter(isAvoided);
+  if (!ids.length) return '';
+  return `<div class="block" style="margin-top:12px"><h3 style="font-size:15px">Esercizi esclusi perché fastidiosi</h3>
+    <ul class="hist">${ids.map(id => `<li><div class="nm" style="flex:1"><b>${esc((exById(id) || {}).name || id)}</b><div class="small muted">fino al ${dateIt(S.avoid[id])}</div></div>
+      <button class="selbtn" data-unavoid="${esc(id)}">Riattiva</button></li>`).join('')}</ul></div>`;
+}
+/* (8) Esercizi segnati come fastidiosi: fuori dalle proposte per 4 settimane. */
+const AVOID_MS = 28 * DAY_MS_8;
+function isAvoided(id) { return !!(S.avoid && S.avoid[id] && S.avoid[id] > Date.now()); }
 function applyCare(pool) {
+  // (8) gli esercizi segnati «mi dà fastidio» escono, se resta un'alternativa
+  if (S.avoid) { const ok = pool.filter(e => !isAvoided(e.id)); if (ok.length) pool = ok; }
   if (S.kneeCare) {
     const safe = pool.filter(e => e.kneeFriendly);
     if (safe.length) pool = safe;
@@ -1754,7 +1839,7 @@ function buildPullBlock(meta, used) {
   const items = [];
   roles.forEach((role, i) => {
     let ex = null;
-    if (role === 'strict' && S.setup === 'gym') ex = exById('g_pullup');
+    if (role === 'strict' && S.setup === 'gym' && !isAvoided('g_pullup')) ex = exById('g_pullup');
     if (!ex) ex = pickFrom(pullPool(role === 'strict' ? 'volume' : role), (meta.mesocycle - 1) + i, used);
     if (!ex) return;
     used.add(ex.id);
@@ -1975,6 +2060,8 @@ function buildStrength(meta, budget) {
   // a 50 minuti una decina di minuti restano riservati al finale
   // metabolico: il resto della seduta si adatta al tempo che rimane
   const reserve = (fin && budget >= 50) ? FINISHER_RESERVE : 0;
+  // (8) con 35 minuti i complementari vanno in superserie
+  if (budget <= 35) pairSupersets(items);
   const trimmed = fitToTime(items, budget - reserve, pullTail);
   fillToTime(items, budget, { extras, finisher: fin, tail: pullTail, reserve });
 
@@ -2088,9 +2175,70 @@ function rawSeconds(items) {
     const ex = exById(it.exId);
     const change = CHANGE_SEC[it.role] !== undefined && it.role !== 'strength' ? CHANGE_SEC[it.role]
                  : (ex && ex.type === 'stretch') ? CHANGE_SEC.stretch : CHANGE_SEC.strength;
+    // (8) superserie: il recupero è uno solo per giro, il secondo esercizio
+    // paga solo il passaggio di pochi secondi
+    const mate = it.ss ? items.find(x => x !== it && x.ss === it.ss) : null;
+    if (mate && it.ssRole === 'B') { sec += it.sets * workSecOf(it) + it.sets * SS_TRANSFER + 20; return; }
+    if (mate && it.ssRole === 'A') {
+      const rounds = Math.max(it.sets, mate.sets);
+      sec += it.sets * workSecOf(it) + Math.max(0, rounds - 1) * Math.max(it.rest, mate.rest) + change; return;
+    }
     sec += it.sets * workSecOf(it) + Math.max(0, it.sets - 1) * it.rest + change;
   });
   return sec;
+}
+const SS_TRANSFER = 20;          // secondi per passare da un esercizio all'altro della superserie
+
+/* ---------------------------------------------------------------------------
+   SUPERSERIE FRA GRUPPI DIVERSI (dalla 8)
+   Con 35 minuti i complementari si accoppiano a due a due, alternando le
+   serie: prima l'uno, 20 secondi per spostarsi, poi l'altro, quindi il
+   recupero. Si accoppiano solo gruppi diversi, di preferenza antagonisti
+   (spinta con tirata, gambe con parte alta): Zhang et al. 2025 (Sports Med,
+   meta-analisi) trovano con le superserie lo stesso volume in meno tempo e
+   nessuna differenza su forza e ipertrofia; quelle agonista-antagonista
+   mantengono il volume, quelle sullo stesso muscolo lo riducono. Sono più
+   faticose (RPE e lattato più alti). I due esercizi principali e il blocco
+   trazioni restano con il recupero pieno. Il tempo risparmiato va ai
+   supplementari (fillToTime).
+--------------------------------------------------------------------------- */
+const SS_FAMILY = { pushH: 'push', pushV: 'push', shoulderIso: 'push', pullH: 'pull', pullV: 'pull', arms: 'arms',
+  squat: 'legs', lunge: 'legs', quadIso: 'legs', hamIso: 'legs', hinge: 'legs', calf: 'legs', coreAnti: 'core', coreFlex: 'core' };
+function pairSupersets(items) {
+  const famOf = it => SS_FAMILY[(exById(it.exId) || {}).pattern] || 'other';
+  const grpOf = it => primaryGroups(exById(it.exId) || {})[0] || '';
+  const score = (a, b) => {
+    const fa = famOf(a), fb = famOf(b);
+    if (grpOf(a) && grpOf(a) === grpOf(b)) return -1;            // stesso gruppo: mai
+    if (fa === fb && fa !== 'other') return -1;
+    if ((fa === 'push' && fb === 'pull') || (fa === 'pull' && fb === 'push')) return 3;
+    if ((fa === 'legs') !== (fb === 'legs')) return 2;
+    return 1;
+  };
+  const pool = items.filter(it => it.role === 'main' && !it.ss);
+  let n = 0;
+  for (let i = 0; i < pool.length; i++) {
+    const a = pool[i];
+    if (a.ss) continue;
+    let best = null, bs = 0;
+    for (let j = i + 1; j < pool.length; j++) {
+      const b = pool[j];
+      if (b.ss) continue;
+      const sc = score(a, b);
+      if (sc > bs) { bs = sc; best = b; }
+    }
+    if (!best) continue;
+    n++;
+    const id = 'ss' + n;
+    a.ss = id; a.ssRole = 'A'; best.ss = id; best.ssRole = 'B';
+    // il secondo esercizio subito dopo il primo
+    items.splice(items.indexOf(best), 1);
+    items.splice(items.indexOf(a) + 1, 0, best);
+    const na = (exById(best.exId) || {}).name || '', nb = (exById(a.exId) || {}).name || '';
+    a.note = `Superserie ${n} con ${na}${a.note ? ' · ' + a.note : ''}`;
+    best.note = `Superserie ${n} con ${nb}${best.note ? ' · ' + best.note : ''}`;
+  }
+  return n;
 }
 function paceOf(kind) {
   const p = S && S.pace && isFinite(S.pace[kind]) && S.pace[kind] > 0 ? S.pace[kind] : 1;
@@ -2444,7 +2592,7 @@ function buildCardio(meta, budget) {
 =========================================================================== */
 const SP = () => (PROG && PROG.spartan) || null;
 const spOn = () => !!SP() && S.spartan !== false;
-const DAY_MS = 864e5;
+const DAY_MS = DAY_MS_8;
 const noonOf = d => { const x = new Date(d); x.setHours(12, 0, 0, 0); return x; };
 const isoNoon = iso => new Date(iso + 'T12:00:00');
 
@@ -2599,6 +2747,7 @@ function runDay(meta) {
   if (ph !== 'run' && ph !== 'race') return false;
   const p = pickOf(meta.idx);
   if (p && ((p.exId && p.exId !== (SP().run || {}).exId) || (p.mode && p.mode !== 'run'))) return false;
+  if (isAvoided((SP().run || {}).exId)) return false;           // (8) segnata come fastidiosa
   return true;
 }
 
@@ -2709,7 +2858,7 @@ function spartanBlock(meta, used) {
   const out = [];
   // burpees
   const bx = exById(sp.burpee.exId);
-  if (bx) {
+  if (bx && !isAvoided(bx.id)) {
     used.add(bx.id);
     const b = burpeeState();
     if (checks.includes('burpee')) {
@@ -2731,7 +2880,7 @@ function spartanBlock(meta, used) {
   }
   // sospensione alla sbarra (solo in palestra)
   const hx = exById('g_deadhang');
-  if (S.setup === 'gym' && hx && !hx.retired) {
+  if (S.setup === 'gym' && hx && !hx.retired && !isAvoided(hx.id)) {
     used.add(hx.id);
     const h = hangBest();
     if (checks.includes('hang')) {
@@ -2749,7 +2898,7 @@ function spartanBlock(meta, used) {
   }
   // trasporti: da dicembre, in palestra, fuori da scarico e settimana della gara
   if (S.setup === 'gym' && ph === 'run' && !deload) {
-    const pool = (sp.carries || []).map(exById).filter(e => e && !e.retired && e.setup.includes(S.setup));
+    const pool = (sp.carries || []).map(exById).filter(e => e && !e.retired && e.setup.includes(S.setup) && !isAvoided(e.id));
     const cx = pool.length ? pool[(meta.weekAbs || 0) % pool.length] : null;
     if (cx) {
       used.add(cx.id);
@@ -2785,7 +2934,11 @@ function buildRun(meta, budget) {
       : `Livello ${rs.L + 1} di ${rs.max + 1}: ${runSpecText(spec)}${light ? (ph === 'race' ? ' · settimana della gara: accorciata' : ' · scarico: accorciata') : ''}`,
     { rpe: g.rpe, source: g.source, goalLabel: g.label, spKind: 'run', spCheck: check });
   const stretches = cardioStretches(meta, used);
-  const items = [warm, main, cool].concat(stretches);
+  // (8) da marzo, nella seconda settimana di ogni blocco: simulazione Spartan
+  // dopo la corsa (burpees della penalità, sospensione, trasporto in fila)
+  const sim = S.setup === 'gym' && ph === 'run' && !light && !check && meta.weekInCycle === 2 &&
+    sp.simFrom && date >= isoNoon(sp.simFrom) ? spartanSim(meta, used) : [];
+  const items = [warm, main].concat(sim, [cool], stretches);
   // nel tempo scelto: si tolgono ripetute, mai sotto 2 (e allora il livello
   // non avanza, perché la corsa non è completa)
   let guard = 0;
@@ -2798,9 +2951,34 @@ function buildRun(meta, budget) {
     items.splice(2, 0, timed('cardio', 'cardioSteady', 'Camminata svelta', 1, Math.min(1200, Math.floor(leftSec / 60) * 60), 0,
       'Dopo la corsa, passo svelto in piano', { rpe: gs.rpe, source: gs.source, goalLabel: 'Camminata svelta', restLabel: 'Camminata' }));
   }
-  const full = !light && main.sets >= spec.reps;
-  return { label: `Corsa-camminata · Spartan${check ? ' · Spartan Race check' : ''}`, type: 'cardio', items, mode: 'run',
-           run: { level: rs.L, planned: main.sets, full, light, check } };
+  // la simulazione non fa salire il livello della corsa: lì conta la sequenza
+  const full = !light && !sim.length && main.sets >= spec.reps;
+  return { label: sim.length ? 'Simulazione Spartan · corsa e ostacoli' : `Corsa-camminata · Spartan${check ? ' · Spartan Race check' : ''}`, type: 'cardio', items, mode: 'run',
+           run: { level: rs.L, planned: main.sets, full, light, check, sim: !!sim.length } };
+}
+/* (8) Mini-percorso a ostacoli: dopo la corsa-camminata, senza pause lunghe,
+   30 burpees al tuo livello (la penalità del giavellotto), una sospensione
+   lunga e un trasporto. Serve a sentire la gara in sequenza, non a fare
+   record: conta la forma. Regola operativa dell'app. */
+function spartanSim(meta, used) {
+  const sp = SP(), out = [];
+  const bx = exById(sp.burpee.exId);
+  if (bx && !isAvoided(bx.id)) {
+    const b = burpeeState();
+    out.push(spItem(bx, 'burpee', { sets: 1, reps: (sp.targets || {}).burpees || 30, rest: 0, hold: 0 },
+      { level: b.level, spKind: 'burpee', note: 'Simulazione Spartan · 30 burpees come la penalità: puoi spezzarli, conta la forma' }));
+  }
+  const hx = exById('g_deadhang');
+  if (hx && !hx.retired && !isAvoided(hx.id)) {
+    const h = hangBest();
+    out.push(spItem(hx, 'spHang', { sets: 1, reps: 1, rest: 0, hold: clampN(Math.round((h.n || 25) * 0.8 / 5) * 5, 20, 60), holdBonus: 0 },
+      { spKind: 'hang', workLabel: 'Sospensione', note: 'Simulazione Spartan · come sulle monkey bars, con il fiato corto' }));
+  }
+  const cx = (sp.carries || []).map(exById).find(e => e && !e.retired && e.setup.includes(S.setup) && !isAvoided(e.id));
+  if (cx) out.push(spItem(cx, 'carry', { sets: 2, reps: 40, rest: 60, hold: 0 },
+    { spKind: 'carry', note: 'Simulazione Spartan · le ripetizioni sono i passi' }));
+  out.forEach(it => used.add(it.exId));
+  return out;
 }
 
 /* Minuti aerobici della settimana, nel conto dell'OMS: un minuto vigoroso
@@ -3387,6 +3565,343 @@ function lunchTileBody(ls, full) {
 /* Pagina Progressi: percorso, prossime settimane, trazioni, esercizi, misure,
    volume e storico. Dalla 6.5 non c'è più la Home: l'app si apre su Oggi, che
    resta concentrata su cosa fare oggi; tutto il resto sta qui. */
+/* ===========================================================================
+   VERSIONE 8 · PROGRESSI, RECORD, SENSAZIONI E DOLORE
+=========================================================================== */
+/* ---------- record personali ----------
+   Per ogni esercizio: massimale stimato (carichi), ripetizioni migliori allo
+   stesso carico o a un carico maggiore, ripetizioni al livello (corpo libero),
+   secondi di tenuta (esercizi a tempo). Valgono le registrazioni reali, fuori
+   dalla settimana di scarico (regola 6.8); quelle prima della ripartenza della
+   6.9 restano valide come riferimento: sono record veri. */
+const prOk = l => l && !l.planned && !isDeloadLog(l) && exById(l.exId);
+function prValueOf(l) {
+  const ex = exById(l.exId);
+  if (!ex || isCardioEx(ex) || ex.type === 'stretch') return null;
+  if (ex.load === 'weight' && !isAssist(ex)) {
+    const e = e1rm(l);
+    return e ? { kind: 'e1rm', v: e } : null;
+  }
+  if (ex.load === 'time') {
+    const rows = setRows(l);
+    const v = rows ? Math.max(0, ...rows.map(r => +r.hold || 0)) : (+l.hold || 0);
+    return v > 0 ? { kind: 'hold', v } : null;
+  }
+  if (isAssist(ex)) return null;
+  const steps = levelsOf(ex);
+  const lvl = steps ? Math.max(0, steps.indexOf(l.load)) : 0;
+  const reps = bestRepsOf(l);
+  return reps > 0 ? { kind: 'reps', v: reps, lvl } : null;
+}
+/* Il nuovo record (se c'è) di una registrazione rispetto alle precedenti. */
+function detectPR(entry, others) {
+  if (!prOk(entry)) return null;
+  const cur = prValueOf(entry);
+  if (!cur) return null;
+  const prev = others.filter(l => l !== entry && l.exId === entry.exId && prOk(l) && !(entry.sid != null && l.sid === entry.sid))
+    .map(prValueOf).filter(x => x && x.kind === cur.kind && (cur.kind !== 'reps' || x.lvl === cur.lvl));
+  if (!prev.length) return null;                      // la prima volta non è un record
+  const best = Math.max(...prev.map(x => x.v));
+  if (cur.v <= best + (cur.kind === 'e1rm' ? 0.25 : 0)) return null;
+  const ex = exById(entry.exId), kg = x => (Math.round(x * 10) / 10).toString().replace('.', ',');
+  if (cur.kind === 'e1rm') return { kind: 'e1rm', v: cur.v, text: `massimale stimato ${kg(cur.v)} kg (prima ${kg(best)})` };
+  if (cur.kind === 'hold') return { kind: 'hold', v: cur.v, text: `${Math.round(cur.v)} s di tenuta (prima ${Math.round(best)})` };
+  return { kind: 'reps', v: cur.v, text: `${cur.v} ripetizioni di fila${levelsOf(ex) ? ` a «${entry.load}»` : ''} (prima ${best})` };
+}
+/* Elenco dei record attuali, esercizio per esercizio. */
+function recordsList() {
+  const by = new Map();
+  S.logs.forEach(l => {
+    if (!prOk(l)) return;
+    const v = prValueOf(l);
+    if (!v) return;
+    const key = l.exId + '|' + v.kind + '|' + (v.lvl || 0);
+    const cur = by.get(key);
+    if (!cur || v.v > cur.v.v) by.set(key, { l, v });
+  });
+  return [...by.values()].sort((a, b) => (b.l.ts || 0) - (a.l.ts || 0));
+}
+function recordText(r) {
+  const ex = exById(r.l.exId), kg = x => (Math.round(x * 10) / 10).toString().replace('.', ',');
+  if (r.v.kind === 'e1rm') {
+    const rows = setRows(r.l) || [];
+    const top = rows.length ? rows.reduce((a, x) => (numLoad(x.load) || 0) * (1 + (+x.reps || 0) / 30) > (numLoad(a.load) || 0) * (1 + (+a.reps || 0) / 30) ? x : a) : { load: r.l.load, reps: r.l.repsDone };
+    return `massimale stimato <b>${kg(r.v.v)} kg</b> · ${kg(numLoad(top.load) || 0)} kg × ${top.reps}`;
+  }
+  if (r.v.kind === 'hold') return `<b>${Math.round(r.v.v)} s</b> di tenuta`;
+  return `<b>${r.v.v}</b> di fila${levelsOf(ex) ? ` · ${esc(r.l.load || '')}` : ''}`;
+}
+/* (8) ANNULLA: per 10 secondi dopo «Salta», «Segna come svolta» o lo
+   spostamento di una seduta. Ripristina esattamente lo stato di prima:
+   toglie solo ciò che quell'azione aveva appena aggiunto. */
+let undoSnap = null;
+function snapForUndo() {
+  undoSnap = { ts: Date.now(), logsLen: S.logs.length, slLen: S.sessionLog.length, idx: S.sessionIndex,
+    perms: JSON.stringify(S.perms || {}), pick: JSON.stringify(S.sessPick || {}),
+    runsLen: Array.isArray(S.spartanRuns) ? S.spartanRuns.length : 0,
+    snapsLen: Array.isArray(S.snapshots) ? S.snapshots.length : 0, lastRecap: S.lastRecap,
+    resume: S.resume ? JSON.stringify(S.resume) : null };
+}
+function offerUndo(text) {
+  showToast(`<div style="flex:1">${esc(text)}</div><button class="undo" id="undoBtn">Annulla</button>`, 10000);
+  const bt = document.getElementById('undoBtn');
+  if (bt) bt.onclick = doUndo;
+}
+function doUndo() {
+  const u = undoSnap;
+  undoSnap = null;
+  const t = document.getElementById('toast'); if (t) t.classList.remove('on');
+  if (!u || Date.now() - u.ts > 12000) return false;
+  if (S.logs.length > u.logsLen) S.logs.length = u.logsLen;   // save() riscrive lo storico
+  if (S.sessionLog.length > u.slLen) S.sessionLog.length = u.slLen;
+  if (Array.isArray(S.spartanRuns) && S.spartanRuns.length > u.runsLen) S.spartanRuns.length = u.runsLen;
+  if (Array.isArray(S.snapshots) && S.snapshots.length > u.snapsLen) S.snapshots.length = u.snapsLen;
+  S.sessionIndex = u.idx; S.perms = JSON.parse(u.perms); S.sessPick = JSON.parse(u.pick); S.lastRecap = u.lastRecap;
+  if (u.resume && !S.resume) S.resume = JSON.parse(u.resume);
+  planCache = null; save(); renderHome();
+  showToast('<div>Annullato: tutto come prima.</div>', 2500);
+  return true;
+}
+let toastTimer = null;
+function showToast(html, ms) {
+  let t = document.getElementById('toast');
+  if (!t) { t = document.createElement('div'); t.id = 'toast'; t.className = 'toast'; document.body.appendChild(t); }
+  t.innerHTML = html;
+  t.classList.add('on');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('on'), ms || 3500);
+  return t;
+}
+
+/* ---------- massimale stimato con tendenza ---------- */
+const KEY_PATTERNS = ['squat', 'hinge', 'pushH', 'pushV', 'pullH', 'pullV', 'lunge'];
+function trendLine(pts) {
+  const n = pts.length;
+  if (n < 2) return null;
+  const mx = pts.reduce((a, p) => a + p.x, 0) / n, my = pts.reduce((a, p) => a + p.y, 0) / n;
+  let num = 0, den = 0;
+  pts.forEach(p => { num += (p.x - mx) * (p.y - my); den += (p.x - mx) ** 2; });
+  const b = den ? num / den : 0;
+  return { a: my - b * mx, b };
+}
+function e1rmSeries(exId) {
+  return progressLogs(exId).map(l => ({ x: (l.ts || 0) / DAY_MS, y: e1rm(l), ts: l.ts })).filter(p => p.y);
+}
+function e1rmChart(pts) {
+  if (pts.length < 2) return '<p class="small muted">Servono almeno due sedute con il carico annotato.</p>';
+  const tl = trendLine(pts);
+  const ys = pts.map(p => p.y).concat([tl.a + tl.b * pts[0].x, tl.a + tl.b * pts[pts.length - 1].x]);
+  const min = Math.min(...ys), max = Math.max(...ys), r = (max - min) || 1;
+  const x0 = pts[0].x, x1 = pts[pts.length - 1].x, rx = (x1 - x0) || 1;
+  const X = x => 8 + (x - x0) / rx * 284, Y = y => 96 - (y - min) / r * 78;
+  const poly = pts.map(p => `${X(p.x).toFixed(1)},${Y(p.y).toFixed(1)}`).join(' ');
+  const dots = pts.map(p => `<circle cx="${X(p.x).toFixed(1)}" cy="${Y(p.y).toFixed(1)}" r="2.6" fill="#F5A524"/>`).join('');
+  return `<svg viewBox="0 0 300 112" style="width:100%" role="img" aria-label="Massimale stimato e linea di tendenza">
+    <line x1="8" y1="100" x2="292" y2="100" stroke="#2B3B4E" stroke-width="1.5"/>
+    <line x1="${X(x0)}" y1="${Y(tl.a + tl.b * x0).toFixed(1)}" x2="${X(x1)}" y2="${Y(tl.a + tl.b * x1).toFixed(1)}" stroke="#4FC3A1" stroke-width="2" stroke-dasharray="5 4"/>
+    <polyline points="${poly}" fill="none" stroke="#F5A524" stroke-width="2.6" stroke-linejoin="round"/>${dots}
+    <text x="8" y="12" fill="#93A7BC" font-size="10">${max.toFixed(1)} kg</text>
+    <text x="8" y="94" fill="#93A7BC" font-size="10">${min.toFixed(1)}</text>
+    <text x="292" y="110" fill="#93A7BC" font-size="9" text-anchor="end">${dateIt(pts[0].ts)} → ${dateIt(pts[pts.length - 1].ts)}</text></svg>`;
+}
+function keyLifts() {
+  const ids = [...new Set(S.logs.filter(l => prOk(l)).map(l => l.exId))]
+    .filter(id => { const ex = exById(id); return ex && ex.load === 'weight' && !isAssist(ex) && KEY_PATTERNS.includes(ex.pattern); });
+  return ids.map(id => ({ ex: exById(id), pts: e1rmSeries(id) })).filter(x => x.pts.length >= 2)
+    .sort((a, b) => b.pts.length - a.pts.length);
+}
+function openE1rm() {
+  const lifts = keyLifts();
+  const rows = lifts.map(({ ex, pts }) => {
+    const tl = trendLine(pts);
+    const per4 = tl ? tl.b * 28 : 0, last = pts[pts.length - 1].y;
+    const pct = last ? per4 / last * 100 : 0;
+    return `<div class="block" style="margin-top:14px"><h3 style="font-size:16px">${esc(ex.name)}</h3>
+      <p class="small muted">Ultimo ${last.toFixed(1)} kg · tendenza ${per4 >= 0 ? '+' : ''}${per4.toFixed(1)} kg ogni 4 settimane (${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%) · ${pts.length} sedute</p>
+      ${e1rmChart(pts)}</div>`;
+  }).join('');
+  openModal(`<h2>Massimale stimato</h2>
+    <p class="small muted">Esercizi fondamentali con il carico annotato. Linea arancio: massimale stimato seduta per seduta (formula di Epley, ripetizioni fino a 15); tratteggio verde: tendenza. È una stima, utile per vedere la direzione, non un valore da provare. Senza settimane di scarico, dalla ripartenza della 6.9 (più il riferimento di partenza).</p>
+    ${rows || '<p class="small muted" style="margin-top:12px">Servono almeno due sedute con il carico annotato su squat, stacchi, spinte o tirate.</p>'}
+    <button class="btn secondary" id="e1Close" style="margin-top:14px">Chiudi</button>`);
+  $('#e1Close').onclick = () => closeModal();
+}
+function openRecords() {
+  const list = recordsList();
+  const rows = list.map(r => `<li><div class="nm" style="flex:1"><b>${esc(exById(r.l.exId).name)}</b>
+      <div class="small">${recordText(r)}</div><div class="small muted">${dateIt(r.l.ts)}</div></div></li>`).join('');
+  openModal(`<h2>Record personali</h2>
+    <p class="small muted">Il migliore di sempre per ogni esercizio, dal più recente. Le settimane di scarico non contano. Quando ne batti uno, l'app te lo dice subito in seduta.</p>
+    <ul class="hist">${rows || '<li class="small muted">Ancora nessun record: servono almeno due sedute dello stesso esercizio.</li>'}</ul>
+    <button class="btn secondary" id="prClose" style="margin-top:14px">Chiudi</button>`);
+  $('#prClose').onclick = () => closeModal();
+}
+
+/* ---------- durata reale contro stimata ---------- */
+function durationStats() {
+  const rows = S.sessionLog.filter(x => isProgramKind(x.kind) && !x.planned && x.minutes > 4 && x.est > 0).slice(-12);
+  const by = {};
+  rows.forEach(x => { const k = x.budget || x.est; (by[k] = by[k] || []).push(x); });
+  return Object.keys(by).map(k => {
+    const xs = by[k];
+    const real = xs.reduce((a, x) => a + x.minutes, 0) / xs.length;
+    const est = xs.reduce((a, x) => a + x.est, 0) / xs.length;
+    return { budget: +k, n: xs.length, real: Math.round(real), est: Math.round(est), diff: Math.round(real - est) };
+  }).sort((a, b) => a.budget - b.budget);
+}
+
+/* ---------- sensazioni e dolore ---------- */
+const feelRows = () => S.sessionLog.filter(x => x && x.feel && isProgramKind(x.kind));
+/* Il dolore è salito per due sedute di fila (tre valori in crescita). */
+function painRising(part) {
+  const v = feelRows().map(x => x.feel[part]).filter(n => isFinite(n) && n !== null);
+  if (v.length < 3) return false;
+  const [a, b, c] = v.slice(-3);
+  return c > b && b > a;
+}
+function lastPain(part) {
+  const v = feelRows().map(x => x.feel[part]).filter(n => isFinite(n) && n !== null);
+  return v.length ? v[v.length - 1] : null;
+}
+const KNEE_PATTERNS = ['squat', 'lunge', 'quadIso'];
+const SHOULDER_PATTERNS = ['pushV', 'pushH', 'shoulderIso', 'pullV', 'pullup'];
+/* Esercizio da alleggerire per il dolore in aumento: quale distretto. */
+function painPartFor(ex) {
+  if (!ex) return null;
+  if (painRising('knee') && KNEE_PATTERNS.includes(ex.pattern)) return 'knee';
+  if (painRising('shoulder') && SHOULDER_PATTERNS.includes(ex.pattern)) return 'shoulder';
+  return null;
+}
+function feelSummary() {
+  const rows = feelRows();
+  if (!rows.length) return null;
+  const last = rows[rows.length - 1].feel;
+  const starsOf = x => { const ls = S.logs.filter(l => l.sid === x.sid && l.stars > 0); return ls.length ? ls.reduce((a, l) => a + l.stars, 0) / ls.length : null; };
+  const withS = rows.map(x => ({ x, st: starsOf(x) })).filter(o => o.st !== null && isFinite(o.x.feel.sleep));
+  let link = '';
+  const lo = withS.filter(o => o.x.feel.sleep <= 2), hi = withS.filter(o => o.x.feel.sleep >= 4);
+  if (lo.length >= 2 && hi.length >= 2) {
+    const a = lo.reduce((s, o) => s + o.st, 0) / lo.length, b = hi.reduce((s, o) => s + o.st, 0) / hi.length;
+    link = Math.abs(a - b) >= 0.3
+      ? `Dopo le notti corte le stelle medie sono ${kg1(a)}, dopo quelle buone ${kg1(b)}: ${a < b ? 'il sonno pesa sulle tue sedute' : 'per ora il sonno non sembra pesare'}.`
+      : `Stelle simili dopo notti corte (${kg1(a)}) e buone (${kg1(b)}): per ora il sonno non sembra fare differenza.`;
+  }
+  return { n: rows.length, last, link };
+}
+function feelPickerHtml() {
+  const row = (key, label, from, to, hint) => `<div class="feelrow"><span class="lab">${label}<span class="small muted"> ${hint}</span></span>
+    <div class="feelbtns" data-feel="${key}">${Array.from({ length: to - from + 1 }, (_, i) => `<button type="button" data-v="${from + i}">${from + i}</button>`).join('')}</div></div>`;
+  return `<div class="feel">
+    ${row('energy', 'Energia', 1, 5, '1 a terra · 5 al massimo')}
+    ${row('sleep', 'Sonno della notte', 1, 5, '1 pessimo · 5 ottimo')}
+    ${row('knee', 'Ginocchio', 0, 10, '0 nessun dolore · 10 il peggiore')}
+    ${row('shoulder', 'Spalla', 0, 10, '0 nessun dolore · 10 il peggiore')}
+  </div>`;
+}
+function bindFeelPicker(store) {
+  document.querySelectorAll('[data-feel]').forEach(g => g.querySelectorAll('button').forEach(bt => bt.onclick = () => {
+    const k = g.dataset.feel, v = +bt.dataset.v;
+    store[k] = store[k] === v ? null : v;
+    g.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(+x.dataset.v === store[k])));
+  }));
+}
+
+/* ---------- riepilogo della settimana: cosa migliorare ---------- */
+function weekAdvice(weekAbs) {
+  const ana = volumeFor(weekAbs), a = aerobicMinutes(weekAbs), r = weekReport(weekAbs);
+  const meta = sessionMeta(weekStart(weekAbs));
+  const plan = plannedVolume(weekAbs), doneStr = strengthSessionsIn(weekAbs);
+  if (painRising('knee')) return 'Ginocchio: il dolore è salito per due sedute di fila. La prossima settimana l\'app riduce del 10% i carichi su squat, affondi e leg extension; se continua a salire, senti il fisioterapista.';
+  if (painRising('shoulder')) return 'Spalla: il dolore è salito per due sedute di fila. La prossima settimana l\'app riduce del 10% i carichi di spinte e tirate; se continua a salire, senti il fisioterapista.';
+  if (!meta.mobilityWeek && plan.strength && doneStr < plan.strength && weekAbs < weekOfIdx(S.sessionIndex))
+    return `Sono state fatte ${doneStr} sedute di forza su ${plan.strength}: la prossima settimana prova a completarle tutte, anche scegliendo 35 minuti invece di saltarle.`;
+  const fs = feelRows().filter(x => x.idx != null && weekOfIdx(x.idx) === weekAbs && isFinite(x.feel.sleep));
+  if (fs.length >= 2 && fs.reduce((s, x) => s + x.feel.sleep, 0) / fs.length <= 2.5)
+    return 'Il sonno è stato scarso in quasi tutte le sedute: è la leva più semplice per allenarti meglio la prossima settimana.';
+  if (!meta.mobilityWeek && a.eq < 150) return `Minuti aerobici ${a.eq} su 150: completa le due sedute aerobiche e, quando hai 50 minuti, lascia il finale metabolico.`;
+  const low = (ana.low || []).filter(x => x.planned >= VOL_MIN);
+  if (low.length && meta.profile.label !== 'Scarico') return `${low.map(x => x.group).join(', ')} sotto le ${VOL_MIN} serie: controlla gli esercizi chiusi in anticipo o sostituiti.`;
+  if (r.avg && r.avg < 2.5) return 'Stelle sotto la media: tieni fermi i carichi e cura recupero e sonno, la progressione riparte da sola.';
+  return 'Settimana completa: la prossima prova a guadagnare una ripetizione in più nell\'ultima serie dei fondamentali, con la stessa tecnica.';
+}
+function weekExtrasHtml(weekAbs) {
+  const parts = [];
+  if (S.pullupGoal) { const ps = pullStage(); if (ps) parts.push(`<p class="small"><b>Trazioni</b>: massimo ${ps.m} pulite di fila · tappa «${esc(ps.stage.label)}» · obiettivo ${pullTarget().n}.</p>`); }
+  if (SP() && spPhase(Date.now()) !== 'off') {
+    const t = ['pull', 'hang', 'burpee', 'run'].map(k => `${SP_NAMES[k]} ${spValueText(k, spMetric(k))}`).join(' · ');
+    parts.push(`<p class="small"><b>Spartan Race</b> (${weeksToRace()} settimane): ${esc(t)}.</p>`);
+  }
+  const ms = (S.measures || []).filter(m => m && (m.waist || m.weight)).sort((a, b) => (a.ts || 0) - (b.ts || 0));
+  if (ms.length) {
+    const l = ms[ms.length - 1], f = ms.find(m => m.waist) || {};
+    parts.push(`<p class="small"><b>Misure</b> (${dateIt(l.ts || Date.now())}): ${l.waist ? `girovita ${kg1(l.waist)} cm${f.waist && f !== l ? ` (${l.waist - f.waist >= 0 ? '+' : ''}${kg1(l.waist - f.waist)} dalla prima)` : ''}` : ''}${l.waist && l.weight ? ' · ' : ''}${l.weight ? `peso ${kg1(l.weight)} kg` : ''}.</p>`);
+  } else parts.push('<p class="small muted"><b>Misure</b>: nessuna ancora. Girovita e peso si registrano in Progressi › Misure corporee.</p>');
+  const fs = feelRows().filter(x => x.idx != null && weekOfIdx(x.idx) === weekAbs);
+  if (fs.length) {
+    const avg = k => { const v = fs.map(x => x.feel[k]).filter(n => isFinite(n) && n !== null); return v.length ? kg1(v.reduce((a, b) => a + b, 0) / v.length) : '—'; };
+    parts.push(`<p class="small"><b>Sensazioni</b> (media di ${fs.length} sedute): energia ${avg('energy')} · sonno ${avg('sleep')} · ginocchio ${avg('knee')} · spalla ${avg('shoulder')}.</p>`);
+  }
+  return parts.join('');
+}
+
+/* Settimana da riassumere: quella in corso, o la precedente se è appena finita. */
+function maybeSundayRecap() {
+  const today = new Date();
+  if (today.getDay() !== 0 || !(S.logs || []).length || S.sundayRecap === today.toDateString()) return false;
+  if (current && !current.finished) return false;
+  S.sundayRecap = today.toDateString(); save();
+  openWeekReport(recapWeek());
+  return true;
+}
+function recapWeek() {
+  const w = weekOfIdx(S.sessionIndex);
+  return posOfIdx(S.sessionIndex) === 0 && w > 1 ? w - 1 : w;
+}
+function weekRecapTile() {
+  const w = recapWeek(), r = weekReport(w);
+  return `<div class="dstat">Settimana ${w}</div>
+    <p class="small">${r.sessions} sedute · ${r.avg ? kg1(r.avg) + ' stelle medie' : 'stelle non ancora disponibili'} · ${aerobicMinutes(w).eq} minuti aerobici</p>
+    <p class="small muted">${esc(weekAdvice(w))}</p>`;
+}
+function recordsTile() {
+  const list = recordsList(), recent = S.logs.filter(l => l.pr).slice(-3).reverse();
+  return `<div class="dstat">${recent.length ? `${recent.length === 1 ? 'Ultimo' : 'Ultimi'} record` : list.length + ' esercizi con un migliore'}</div>
+    ${recent.length ? recent.map(l => `<p class="small">🏆 ${esc(l.name)} · ${esc(l.pr)}</p>`).join('') : '<p class="small muted">Quando superi il tuo massimo, il record compare qui e in seduta.</p>'}`;
+}
+function e1rmTile() {
+  const lifts = keyLifts();
+  if (!lifts.length) return '<div class="dstat">Ancora pochi dati</div><p class="small muted">Servono due sedute con il carico annotato sui fondamentali.</p>';
+  const up = lifts.filter(x => { const t = trendLine(x.pts); return t && t.b > 0; }).length;
+  return `<div class="dstat">${up} di ${lifts.length} in crescita</div><p class="small muted">Grafico per ogni fondamentale, con la linea di tendenza.</p>`;
+}
+function feelTile() {
+  const d = durationStats(), f = feelSummary();
+  const dTxt = d.length ? d.map(x => `${x.budget}′: ${x.real}′ reali${x.diff ? ` (${x.diff > 0 ? '+' : ''}${x.diff}′)` : ''}`).join(' · ') : 'durata reale: servono sedute chiuse con la versione 8';
+  const pain = painRising('knee') || painRising('shoulder');
+  return `<div class="dstat${pain ? ' todo' : ''}">${pain ? 'Dolore in aumento' : f ? 'Energia ' + (f.last.energy || '—') + ' · sonno ' + (f.last.sleep || '—') : 'Nessuna sensazione registrata'}</div>
+    <p class="small">${esc(dTxt)}</p>
+    <p class="small muted">${f ? `Ultima seduta: ginocchio ${f.last.knee ?? '—'}/10 · spalla ${f.last.shoulder ?? '—'}/10` : 'Energia, sonno e dolore si indicano a fine seduta.'}</p>`;
+}
+function openFeel() {
+  const d = durationStats(), f = feelSummary(), rows = feelRows().slice(-10).reverse();
+  const dRows = d.map(x => `<li><div class="nm" style="flex:1"><b>Sedute da ${x.budget}′</b>
+      <div class="small">${x.real}′ reali contro ${x.est}′ stimati (${x.diff > 0 ? '+' : ''}${x.diff}′) · ${x.n} sedute</div>
+      <div class="small muted">${x.diff >= 5 ? 'Il tempo si perde soprattutto nei cambi fra gli esercizi e nei recuperi allungati: con le superserie a 35′ e «Macchina occupata» si recupera qualcosa. La stima intanto impara dal tuo ritmo.' : x.diff <= -5 ? 'Finisci prima del previsto: puoi scegliere una durata più lunga e lasciare entrare supplementari e finale.' : 'Stima e realtà coincidono.'}</div></div></li>`).join('');
+  const fRows = rows.map(x => `<li><div class="nm" style="flex:1"><b>${dateIt(x.ts)}</b> · ${esc(sessLabel(x))}
+      <div class="small muted">energia ${x.feel.energy ?? '—'} · sonno ${x.feel.sleep ?? '—'} · ginocchio ${x.feel.knee ?? '—'}/10 · spalla ${x.feel.shoulder ?? '—'}/10</div></div></li>`).join('');
+  const painTxt = ['knee', 'shoulder'].filter(painRising).map(p => `<div class="notice" style="margin-top:10px">${p === 'knee' ? 'Ginocchio' : 'Spalla'}: dolore salito per due sedute di fila. Nelle prossime sedute l'app propone carichi ridotti di circa il 10% (o un gradino più facile) su ${p === 'knee' ? 'squat, affondi e leg extension' : 'spinte, alzate e tirate'}, finché il dolore non smette di salire. Se continua, senti il fisioterapista.</div>`).join('');
+  openModal(`<h2>Durata, sensazioni e dolore</h2>
+    ${painTxt}
+    <h3>Durata reale e stimata</h3>
+    <ul class="hist">${dRows || '<li class="small muted">Serve qualche seduta chiusa con questa versione: la stima viene salvata a fine seduta.</li>'}</ul>
+    <h3>Sensazioni a fine seduta</h3>
+    ${f && f.link ? `<p class="small">${esc(f.link)}</p>` : '<p class="small muted">Con qualche seduta in più l\'app confronta le stelle delle sedute dopo notti corte e dopo notti buone.</p>'}
+    <ul class="hist">${fRows || '<li class="small muted">Nessuna ancora: le indichi nella schermata di fine seduta.</li>'}</ul>
+    <p class="small muted" style="margin-top:10px">Il dolore si annota da 0 a 10. «In aumento» vuol dire tre valori di fila in crescita. Regola operativa dell'app, nello spirito delle linee guida: per il dolore femoro-rotuleo e la tendinopatia della cuffia l'esercizio va adattato alla tolleranza (Willy et al. 2019; Desmeules et al. 2025).</p>
+    <button class="btn secondary" id="flClose" style="margin-top:12px">Chiudi</button>`);
+  $('#flClose').onclick = () => closeModal();
+}
+
 function renderProg() {
   $('#topTitle').textContent = 'Progressi';
   $('#topChip').textContent = `${S.logs.length} esercizi registrati`;
@@ -3428,7 +3943,11 @@ function renderProg() {
       <p class="small muted">Tipo di seduta giorno per giorno, con fasi, scarichi e settimane di sola mobilità.</p>`)}
     ${SP() && (S.spartan !== false || spPhase(Date.now()) !== 'off') ? tile('spartan', 'Spartan Race · Sprint di Orte', spartanTileBody()) : ''}
     ${S.pullupGoal ? tile('pull', 'Trazioni e muscle-up', pullTileBody()) : ''}
+    ${tile('week', 'Riepilogo della settimana', weekRecapTile())}
     ${tile('trend', 'Progressione negli esercizi', eBody + eNote)}
+    ${tile('records', 'Record personali', recordsTile())}
+    ${tile('e1rm', 'Massimale stimato', e1rmTile())}
+    ${tile('feel', 'Durata, sensazioni e dolore', feelTile())}
     ${tile('body', 'Misure corporee', bBody)}
     ${tile('history', 'Volume e storico', vBody)}`;
 
@@ -3438,6 +3957,10 @@ function renderProg() {
     else if (k === 'upcoming') openUpcoming();
     else if (k === 'pull') openPullGoal();
     else if (k === 'spartan') openSpartan();
+    else if (k === 'week') openWeekReport(recapWeek());
+    else if (k === 'records') openRecords();
+    else if (k === 'e1rm') openE1rm();
+    else if (k === 'feel') openFeel();
     else if (k === 'trend') { go('history'); scrollToId('loadsCard'); }
     else if (k === 'body') { go('history'); scrollToId('bodyCard'); }
     else go('history');
@@ -4175,7 +4698,7 @@ function renderHome() {
    promemoria del backup. Tornano identici nelle tre schermate. */
 function homeBanners() {
   const daysSince = S.lastExport ? (Date.now() - S.lastExport) / 86400000 : Infinity;
-  const backupNag = (S.logs.length > 0 && daysSince > 7)
+  const backupNag = weekendBackupDue() ? weekendBackupHtml() : (S.logs.length > 0 && daysSince > 7)
     ? `<div class="notice" style="margin-top:14px;display:flex;align-items:center;gap:12px">
          <span style="flex:1">${S.lastExport ? 'Backup non aggiornato da un po\'' : 'Non hai ancora un backup'}: se rimuovi l'app dalla Home, i dati si perdono.</span>
          <button class="btn secondary" id="nagExport" style="width:auto;min-height:44px;font-size:15px">Esporta ora</button>
@@ -4203,8 +4726,11 @@ function bindHomeBanners(saved) {
   if ($('#dropResume')) $('#dropResume').onclick = () => confirmAction('Scartare la seduta interrotta?',
     'Gli esercizi già conclusi restano nello storico; i dati non ancora registrati vengono persi.',
     'Scarta', () => { clearResume(); renderHome(); });
-  if ($('#nagExport')) $('#nagExport').onclick = exportData;
-  if ($('#homeBack')) $('#homeBack').onclick = () => { homeView = null; renderHome(); };
+  if ($('#nagExport')) $('#nagExport').onclick = () => exportData(() => renderHome());
+  if ($('#wkBackup')) $('#wkBackup').onclick = () => exportData(() => renderHome());
+  if ($('#homeBack')) $('#homeBack').onclick = () => { homeView = null; renderHome(); window.scrollTo(0, 0); };
+  // (8) lo stesso pulsante anche in fondo alla pagina
+  if ($('#homeBack2')) $('#homeBack2').onclick = () => { homeView = null; renderHome(); window.scrollTo(0, 0); };
 }
 
 /* Schermata del mattino. */
@@ -4217,7 +4743,8 @@ function renderHomeMorning() {
     <button class="btn ghost" id="homeBack" style="margin-top:14px">‹ Torna a Oggi</button>
     ${b.html}
     ${deloadCardHtml()}
-    ${morningHtml()}`;
+    ${morningHtml()}
+    <button class="btn ghost backbottom" id="homeBack2">‹ Torna a Oggi</button>`;
   bindHomeBanners(b.saved);
   bindMorning();
 }
@@ -4330,14 +4857,17 @@ function renderHomeWeek() {
       <h2 style="margin-top:10px">Programma della settimana</h2>
       <ul class="week">${week}</ul>
       <p class="small muted" style="margin-top:10px">Tocca una seduta per aprirla; «Seleziona» la sposta a oggi e quella prevista prende il suo posto. La mobilità è prevista per ultima, ma puoi farla in qualunque giorno.</p>
-    </div>`;
+    </div>
+    <button class="btn ghost backbottom" id="homeBack2">‹ Torna a Oggi</button>`;
   const openDay = q => { daySel = q; dayFrom = 'week'; homeSel = 'session'; homeView = 'lunch'; renderHome(); window.scrollTo(0, 0); };
   document.querySelectorAll('[data-sel]').forEach(bt => bt.onclick = e => {
     e.stopPropagation();
     const q = +bt.dataset.sel;
+    snapForUndo();
     if (q > here) swapDay(here, q);
     planCache = null; homeSel = 'session';
     renderHome();
+    offerUndo('Seduta spostata a oggi.');
   });
   document.querySelectorAll('[data-day]').forEach(li => li.onclick = () => openDay(+li.dataset.day));
   $('[data-core]').onclick = () => { daySel = null; dayFrom = 'week'; homeSel = 'core'; homeView = 'lunch'; planCache = null; renderHome(); window.scrollTo(0, 0); };
@@ -4427,9 +4957,12 @@ function renderHomeLunch() {
       <button class="btn ghost" id="markBtn">${core ? 'Segna il core come svolto' : 'L\'ho già fatta: segna come svolta'}</button>
     </div>`}
     <p class="small muted" style="margin-top:16px">Programma attivo: ${esc(p.name)} · ${esc(p.periodization)}.</p>
+    <button class="btn ghost backbottom" id="dayBack2">‹ ${dayFrom === 'week' ? 'Torna al programma della settimana' : 'Torna a Oggi'}</button>
   `;
 
-  $('#dayBack').onclick = () => { const back = dayFrom === 'week' ? 'week' : null; daySel = null; homeSel = 'session'; homeView = back; renderHome(); };
+  const back = () => { const to = dayFrom === 'week' ? 'week' : null; daySel = null; homeSel = 'session'; homeView = to; renderHome(); window.scrollTo(0, 0); };
+  $('#dayBack').onclick = back;
+  $('#dayBack2').onclick = back;
   document.querySelectorAll('[data-setup]').forEach(x => x.onclick = () => {
     if (current && !current.finished) return;   // non cambiare attrezzatura a sessione aperta
     S.setup = x.dataset.setup; save(); renderHome();
@@ -4455,7 +4988,7 @@ function renderHomeLunch() {
   if ($('#markBtn')) $('#markBtn').onclick = () => confirmAction(
     'Segnare la seduta come svolta?',
     `Verranno registrati i ${s.items.length} esercizi di «${s.label}» alle dosi previste (${s.minutes} minuti), senza carichi. Serve quando l'hai svolta senza aprire l'app.`,
-    'Segna come svolta', () => { markSessionDone(commit()); homeView = dayFrom === 'week' ? 'week' : null; homeSel = 'session'; renderHome(); });
+    'Segna come svolta', () => { snapForUndo(); markSessionDone(commit()); homeView = dayFrom === 'week' ? 'week' : null; homeSel = 'session'; renderHome(); offerUndo('Seduta segnata come svolta.'); });
   const begin = () => {
     const go1 = () => startSession(commit());
     if (current && !current.finished) {
@@ -4466,7 +4999,7 @@ function renderHomeLunch() {
   if ($('#startBtn')) $('#startBtn').onclick = begin;
   if ($('#skipBtn')) $('#skipBtn').onclick = () => confirmAction('Saltare «' + s.label + '»?',
     'Resta nello storico come saltata e il programma passa alla seduta successiva. Niente viene registrato come svolto: nel volume della settimana continuerà a risultare mancante.',
-    'Sì, la salto', () => { skipSession(commit(), 'Saltata dalla schermata Oggi'); homeView = dayFrom === 'week' ? 'week' : null; renderHome(); });
+    'Sì, la salto', () => { snapForUndo(); skipSession(commit(), 'Saltata dalla schermata Oggi'); homeView = dayFrom === 'week' ? 'week' : null; renderHome(); offerUndo('Seduta saltata.'); });
 }
 
 /* ---------- sessione in corso ---------- */
@@ -4637,7 +5170,7 @@ function renderSessionCore() {
     ${nextLine}
     ${s.items.length > 1 ? `<div class="swipehint">${c.pos > 0 ? '‹ precedente' : ''}${c.pos > 0 && c.pos < s.items.length - 1 ? ' · ' : ''}${c.pos < s.items.length - 1 ? 'successivo ›' : ''} — scorri col dito, il timer continua</div>` : ''}
     <div class="exercise">
-      <div class="fig-large">${figureA11y(ex, 1)}</div>
+      <div class="fig-large">${figureMotion(ex)}</div>
       <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin-top:14px">
         <div><h2>${esc(ex.name)}</h2>
           <div class="small muted">${esc(ex.group)} · ${esc(it.goalLabel)} · RPE ${esc(it.rpe)}</div></div>
@@ -4646,6 +5179,7 @@ function renderSessionCore() {
 
       ${nota ? `<div class="exnote" id="noteShow">📌 ${esc(nota)}</div>` : ''}
 
+      ${warmupHtml(c, it, ex, sug, s)}
       <div class="setdots">${setBtns}</div>
       ${setRowsHtml(c.pos)}
 
@@ -4660,6 +5194,7 @@ function renderSessionCore() {
           <button data-fb="down" aria-pressed="${c.feedback[c.pos] === 'down'}" aria-label="Più difficile del previsto">↓</button>
         </div>
       </div>
+      ${c.setsDone[c.pos] > 0 && c.setsDone[c.pos] < it.sets && c.loads[c.pos] && ex.load === 'weight' ? `<p class="small muted" style="margin:6px 0 0">Serie ${c.setsDone[c.pos] + 1}: riparte dal carico dell'ultima serie (${esc(String(c.loads[c.pos]).replace('.', ','))} kg). Se vuoi salire o scendere, cambialo qui.</p>` : ''}
       ${repsCtl}
       ${rirCtl}
       <p class="lasttime">${lastTxt}</p>
@@ -4693,7 +5228,7 @@ function renderSessionCore() {
         <button class="btn ghost" id="orderBtn" ${c.pos === s.items.length - 1 ? 'disabled' : ''}>Ordine esercizi</button>
       </div>
       <div class="btn-row" style="margin-top:10px">
-        <button class="btn ghost" id="postponeBtn" ${c.pos === s.items.length - 1 ? 'disabled' : ''}>Rimanda a dopo</button>
+        <button class="btn ghost" id="postponeBtn" ${c.pos === s.items.length - 1 ? 'disabled' : ''}>Macchina occupata: passa a un altro</button>
       </div>
       <p class="small muted" style="margin-top:14px">${esc(it.source)}${it.note ? ' · ' + esc(it.note) : ''}</p>
       <button class="btn ghost" id="abortBtn" style="margin-top:14px">Interrompi</button>
@@ -4720,6 +5255,18 @@ function renderSessionCore() {
   // al massimo con un tocco chiede conferma, perché equivale a dichiarare
   // l'esercizio finito e prima era il modo più facile per perdere una serie.
   document.querySelectorAll('[data-setedit]').forEach(b => b.onclick = () => editSet(c.pos, +b.dataset.setedit));
+  // (8) serie di avvicinamento: non si registrano, avviano solo un breve recupero
+  document.querySelectorAll('[data-wu]').forEach(b => b.onclick = () => {
+    if (timerRunning()) return;
+    captureLoad();
+    const i = +b.dataset.wu;
+    it.wuDone = it.wuDone || [];
+    it.wuDone[i] = true;
+    saveResume();
+    const left = warmupSteps(it).length - it.wuDone.filter(Boolean).length;
+    renderSession();
+    startTimer(left > 0 ? 45 : 75, left > 0 ? `Avvicinamento · poi la serie successiva di riscaldamento` : `Avvicinamento finito · poi la prima serie di ${ex.name}`, null, 'rest', 0, { mini: true });
+  });
   document.querySelectorAll('[data-set]').forEach(b => b.onclick = () => {
     const i = +b.dataset.set;
     const now = c.setsDone[c.pos];
@@ -4762,11 +5309,25 @@ function renderSessionCore() {
     const before = c.setsDone[c.pos];
     if (before < it.sets) c.setsDone[c.pos] = before + 1;
     const done = c.setsDone[c.pos];
+    const rirNow = c.rir[c.pos];
     recordSet(c.pos);                       // carico e ripetizioni di QUESTA serie
+    // (8) la riserva si indica serie per serie: si riparte vuoti
+    c.rir[c.pos] = null;
     saveResume();
     if (done >= it.sets) { concludeExercise(); return; }
+    // (8) recupero adattivo: +30 s dopo una serie al limite, -15 s con 3 o più di riserva
+    const ad = adaptiveRest(it.rest, rirNow);
+    // (8) superserie: si passa all'altro esercizio
+    const mi = ssMateIdx(c, c.pos);
+    if (mi >= 0 && c.setsDone[mi] < s.items[mi].sets) {
+      const mate = s.items[mi], mex = exById(mate.exId);
+      const sec = it.ssRole === 'A' ? SS_TRANSFER : adaptiveRest(Math.max(it.rest, mate.rest), rirNow).sec;
+      c.pos = mi; saveResume(); renderSession();
+      startTimer(sec, `Superserie · ${mex.name} · serie ${c.setsDone[mi] + 1} di ${mate.sets}${it.ssRole === 'A' ? '' : ad.why}`, null, 'rest');
+      return;
+    }
     renderSession();
-    startTimer(it.rest, `Serie ${done + 1} di ${it.sets}${it.perSide ? ' · ' + (done % 2 ? 'Dx' : 'Sx') : ''} · ${ex.name}`, null, 'rest');
+    startTimer(ad.sec, `Serie ${done + 1} di ${it.sets}${it.perSide ? ' · ' + (done % 2 ? 'Dx' : 'Sx') : ''} · ${ex.name}${ad.why}`, null, 'rest');
   };
 
   /* Esercizi a tempo: un solo tocco avvia l'intera sequenza
@@ -4945,11 +5506,21 @@ function moveItem(from, to) {
   saveResume();
 }
 
-/* Rimanda l'esercizio corrente in fondo alla seduta. */
+/* (8) «Macchina occupata»: l'esercizio corrente va in fondo e si passa al
+   successivo ancora da fare che, se possibile, lavora un gruppo muscolare
+   diverso da quello dell'esercizio appena concluso. */
 function postponeCurrent() {
   const c = current, s = c.sess;
   if (c.pos >= s.items.length - 1) return;
   moveItem(c.pos, s.items.length - 1);
+  const mine = S.logs.filter(l => l.sid === c.started);
+  const prevEx = mine.length ? exById(mine[mine.length - 1].exId) : null;
+  const prevG = prevEx ? primaryGroups(prevEx)[0] : null;
+  const open = [];
+  for (let j = c.pos; j < s.items.length - 1; j++) if (isOpenItem(c, j)) open.push(j);
+  const pick = open.find(j => { const e = exById(s.items[j].exId); return !prevG || !e || primaryGroups(e)[0] !== prevG; });
+  const j = pick !== undefined ? pick : open[0];
+  if (j !== undefined && j !== c.pos) moveItem(j, c.pos);
   renderSession();
 }
 
@@ -5054,6 +5625,8 @@ function editSet(pos, i) {
     c.setLog[pos][i] = row;
     // (7S 1) in revisione l'esercizio è già nello storico: va riscritto alla chiusura
     c.dirty = c.dirty || {}; c.dirty[pos] = true;
+    // (8) correggendo il carico dell'ultima serie, la prossima parte da lì
+    if (i === c.setsDone[pos] - 1 && row.load !== undefined && row.load !== '') c.loads[pos] = row.load;
     if (c.logRef[pos] !== null && c.logRef[pos] !== undefined) logExercise(pos);
     saveResume();
     closeModal(() => renderSession());
@@ -5129,6 +5702,43 @@ const arrow = f => f === 'up' ? '<span class="trend-up">↑</span>' : f === 'dow
    inChain = true quando il recupero fa già parte della sequenza di tenute in
    corso (lì non va avviato un secondo timer). Sull'ultimo esercizio nessun
    recupero: si passa direttamente al riepilogo della seduta. */
+/* (8) Serie di avvicinamento sul primo esercizio fondamentale di forza:
+   percentuali del carico di lavoro proposto (regola operativa dell'app, il
+   tempo è già compreso nella stima della seduta). */
+const warmupSteps = it => it.goal === 'strength' ? [[0.5, 8], [0.7, 4], [0.85, 2]] : [[0.5, 8], [0.75, 4]];
+function warmupHtml(c, it, ex, sug, s) {
+  const firstKey = s.items.findIndex(x => x.role === 'key');
+  if (s.type !== 'strength' || c.pos !== firstKey || !ex || ex.load !== 'weight' || isAssist(ex) || c.setsDone[c.pos] > 0) return '';
+  const w = numLoad(c.loads[c.pos] || (sug && sug.value) || '');
+  const done = it.wuDone || [];
+  const kg = v => String(v).replace('.', ',');
+  const rows = warmupSteps(it).map(([p, r], i) => {
+    const load = w > 0 ? snapLoad(ex, w * p, -1) : null;
+    return `<li class="${done[i] ? 'done' : ''}"><span class="n">${Math.round(p * 100)}%</span>
+      <span class="v">${r} rip${load ? ` · <b>${kg(load)} kg</b>` : ''}</span>
+      ${done[i] ? '<span class="ok">✓</span>' : `<button class="wubtn" data-wu="${i}" ${timerRunning() ? 'disabled' : ''}>Fatta</button>`}</li>`;
+  }).join('');
+  return `<div class="warmup">
+    <div class="wuhead"><b>Avvicinamento</b> <span class="small muted">${w > 0 ? `percentuali di ${kg(w)} kg` : 'carico leggero, che senti facile'} · non si registra</span></div>
+    <ul>${rows}</ul></div>`;
+}
+
+/* (8) Recupero adattivo: dopo una serie chiusa al limite (0 ripetizioni di
+   riserva) il recupero si allunga di 30 s; con 3 o più di riserva si accorcia
+   di 15 s, mai sotto i 30 s. Regola operativa dell'app, coerente con Singer et
+   al. 2024: oltre i 60 s il recupero aiuta, oltre i 90 s non aggiunge. */
+function adaptiveRest(base, rir) {
+  if (rir === 0) return { sec: base + 30, why: ' · recupero +30 s: serie al limite' };
+  if (rir !== null && rir !== undefined && rir >= 3) return { sec: Math.max(30, base - 15), why: ' · recupero -15 s: margine ampio' };
+  return { sec: base, why: '' };
+}
+/* (8) Compagno di superserie ancora nella seduta. */
+function ssMateIdx(c, pos) {
+  const it = c.sess.items[pos];
+  if (!it || !it.ss) return -1;
+  return c.sess.items.findIndex((x, j) => j !== pos && x.ss === it.ss);
+}
+
 function concludeExercise(inChain) {
   const c = current, s = c.sess;
   const it = s.items[c.pos], ex = exById(it.exId);
@@ -5137,8 +5747,10 @@ function concludeExercise(inChain) {
   nextExercise();
   if (last || !current || current.finished) return;
   if (!inChain) {
-    const nx = exById(s.items[c.pos].exId);
-    startTimer(finalRestOf(it, ex), `Recupero · poi ${nx.name}`, null, 'rest', 0, { mini: true });
+    const nxIt = s.items[c.pos], nx = exById(nxIt.exId);
+    // (8) dentro la superserie il passaggio è breve
+    const rest = (it.ss && nxIt.ss === it.ss) ? SS_TRANSFER : finalRestOf(it, ex);
+    startTimer(rest, `${it.ss && nxIt.ss === it.ss ? 'Superserie' : 'Recupero'} · poi ${nx.name}`, null, 'rest', 0, { mini: true });
     renderSession();                             // il pulsante resta in attesa del recupero
   }
 }
@@ -5181,9 +5793,14 @@ function logExercise(pos) {
   const ref0 = c.logRef[pos];
   const r = rateFor(entry, S.logs.filter((g, gi) => gi !== ref0));
   entry.stars = r.stars; entry.rateText = r.text; entry.warn = r.warn || ''; entry.advice = r.advice || '';
+  // (8) record personale: annotato e annunciato subito
+  const pr = detectPR(entry, S.logs.filter((g, gi) => gi !== ref0));
+  const hadPr = ref0 !== null && ref0 !== undefined && S.logs[ref0] && S.logs[ref0].pr;
+  if (pr) entry.pr = pr.text;
   if (ref0 !== null && ref0 !== undefined && S.logs[ref0]) S.logs[ref0] = entry;
   else { c.logRef[pos] = S.logs.length; S.logs.push(entry); }
   save();
+  if (pr && !hadPr) showToast(`<span class="trophy">🏆</span><div><b>Nuovo record</b><br>${esc(entry.name)}: ${esc(pr.text)}</div>`, 4200);
 }
 
 /* Esercizi ancora da fare: né completati né già registrati. Scorrendo fra le
@@ -5256,15 +5873,21 @@ function endSession() {
   openModal(`
     <h2>Sessione completata</h2>
     <p class="small muted">${esc(s.label)} · ${mins} minuti effettivi.</p>
+    ${s.kind === 'core' ? '' : `<p class="small muted" style="margin:10px 0 4px">Com'è andata? Bastano due tocchi, tutto facoltativo.</p>${feelPickerHtml()}`}
     <div class="field"><label>Note</label><input id="sNote" type="text" placeholder="sensazioni, ginocchio, ecc."></div>
     <button class="btn" id="saveSession">Salva e chiudi</button>
     <button class="btn ghost" id="skipSave" style="margin-top:10px">Chiudi senza note</button>
     ${s.kind === 'core' ? '' : `<button class="btn ghost" id="addMore" style="margin-top:10px">Ho ancora tempo: aggiungi esercizi</button>`}
   `);
+  const feel = {};
+  bindFeelPicker(feel);
   const finish = (withNote) => {
     const sid = current ? current.started : 0;
+    const hasFeel = Object.keys(feel).some(k => feel[k] !== null && feel[k] !== undefined);
     S.sessionLog.push({ ts: Date.now(), sid: sid, idx: s.idx,
       label: s.label, kind: s.kind, minutes: mins,
+      est: s.minutes || estimateMinutes(s.items), budget: s.budget || null,     // (8) durata stimata
+      ...(hasFeel ? { feel: Object.assign({ energy: null, sleep: null, knee: null, shoulder: null }, feel) } : {}),
       ...(s.kind === 'morning' ? { mWeek: s.mWeek, mDay: s.mDay, mFocus: s.focusKey, mLunch: s.lunchLabel } : {}),
       note: withNote ? ($('#sNote').value || '') : '' });
     if (isProgramKind(s.kind)) S.sessionIndex++;
@@ -5286,7 +5909,12 @@ function endSession() {
     const avg = rated.length ? rated.reduce((a, l) => a + l.stars, 0) / rated.length : 0;
 
     current = null;
-    closeModal(() => celebrate({ label: s.label, mins, count: done.length, avg, weekDone }));
+    const prs = done.filter(l => l.pr).map(l => `${l.name}: ${l.pr}`);
+    // (8) traguardi speciali: prima trazione pulita, traguardi Spartan raggiunti
+    const firstPull = done.some(l => l.exId === 'g_pullup' && bestAtLevels(l, STRICT_LEVELS) >= 1) &&
+      !S.logs.some(l => l.sid !== sid && l.exId === 'g_pullup' && !l.planned && bestAtLevels(l, STRICT_LEVELS) >= 1);
+    const goals = spGoalsNewlyHit();
+    closeModal(() => celebrate({ label: s.label, mins, est: s.minutes, count: done.length, avg, weekDone, prs, kind: s.kind, firstPull, goals }));
   };
 
   $('#saveSession').onclick = () => finish(true);
@@ -5385,27 +6013,60 @@ function addExtraToSession(item) {
 /* Pop up di complimenti: cerchio che si disegna, spunta, scintille e numeri
    della seduta. Alla chiusura, se la settimana è completa, lascia il posto al
    riepilogo settimanale. */
+/* (8) Traguardi Spartan raggiunti per la prima volta (trazioni, sospensione,
+   burpees): si festeggiano una volta sola. */
+function spGoalsNewlyHit() {
+  if (!SP() || spPhase(Date.now()) === 'off') return [];
+  S.spGoalsHit = S.spGoalsHit || {};
+  const out = [];
+  ['pull', 'hang', 'burpee'].forEach(k => {
+    const m = spMetric(k), v = m.show != null ? m.show : m.n;
+    if (v >= m.T && !S.spGoalsHit[k]) { S.spGoalsHit[k] = Date.now(); out.push(`${SP_NAMES[k]}: ${spValueText(k, m)}`); }
+  });
+  if (out.length) save();
+  return out;
+}
+
 function celebrate(st) {
   const line = st.avg >= 4 ? 'Seduta sopra le attese: stai andando meglio del programma.'
     : st.avg >= 3 ? 'Progressione perfettamente in linea con il programma.'
     : st.avg >= 2 ? 'Seduta solida: il mantenimento è già un risultato.'
     : 'Fatto. Presentarsi nei giorni storti vale più di una seduta brillante.';
+  // (8) festa graduata: piccola per la seduta, grande per record, settimana
+  // completa, prima trazione e traguardi Spartan
+  const prs = st.prs || [], goals = st.goals || [];
+  const big = prs.length || st.weekDone || st.firstPull || goals.length;
+  const title = st.firstPull ? 'La prima trazione!' : goals.length ? 'Traguardo Spartan raggiunto!'
+    : prs.length ? (prs.length > 1 ? `${prs.length} nuovi record!` : 'Nuovo record!')
+    : st.weekDone ? 'Settimana completa!' : 'Seduta completata!';
+  const highlights = [
+    st.firstPull ? '🎉 Prima trazione pulita: da qui il blocco trazioni cambia tappa.' : '',
+    ...goals.map(g => `🏁 ${g}`),
+    ...prs.slice(0, 4).map(p => `🏆 ${p}`),
+    st.weekDone ? `📅 Settimana ${st.weekDone} completa.` : ''
+  ].filter(Boolean);
 
   const sparks = [[60, 8], [102, 30], [102, 90], [60, 112], [18, 90], [18, 30]]
     .map((p, i) => `<circle class="spark" cx="${p[0]}" cy="${p[1]}" r="3.4" fill="#4FC3A1" style="animation-delay:${1 + i * 0.05}s"/>`).join('');
+  const colors = ['#F5A524', '#4FC3A1', '#B49CFF', '#EF8A5B', '#FFD27A'];
+  const confetti = big ? Array.from({ length: 36 }, (_, i) => {
+    const a = (i / 36) * Math.PI * 2, r = 52 + (i % 4) * 8, x = (60 + Math.cos(a) * r).toFixed(1), y = (60 + Math.sin(a) * r).toFixed(1);
+    return `<rect class="conf" x="${x}" y="${y}" width="5" height="10" rx="1.5" fill="${colors[i % 5]}" transform="rotate(${(i * 41) % 360} ${x} ${y})" style="animation-delay:${(0.9 + (i % 6) * 0.06).toFixed(2)}s"/>`;
+  }).join('') : '';
 
-  openModal(`<div class="cheer">
+  openModal(`<div class="cheer${big ? ' updcheer big' : ''}">
     <svg viewBox="0 0 120 120" aria-hidden="true">
-      ${sparks}
+      ${confetti}${sparks}
       <circle class="ring" cx="60" cy="60" r="45" fill="none" stroke="#F5A524" stroke-width="7"
               stroke-linecap="round" transform="rotate(-90 60 60)"/>
       <path class="tick" d="M40 61 L54 75 L81 46" fill="none" stroke="#EAF1F8" stroke-width="8"
             stroke-linecap="round" stroke-linejoin="round"/>
     </svg>
-    <h2>Seduta completata!</h2>
+    <h2>${esc(title)}</h2>
     <p class="sub small muted">${esc(st.label)}</p>
+    ${highlights.length ? `<div class="sub hl">${highlights.map(h => `<p class="small">${esc(h)}</p>`).join('')}</div>` : ''}
     <div class="statline">
-      <div class="stat"><b>${st.mins}</b><span>minuti</span></div>
+      <div class="stat"><b>${st.mins}</b><span>minuti${st.est ? ` su ${st.est} previsti` : ''}</span></div>
       <div class="stat"><b>${st.count}</b><span>esercizi</span></div>
       <div class="stat"><b>${st.avg ? st.avg.toFixed(1) : '—'}</b><span>stelle medie</span></div>
     </div>
@@ -5424,6 +6085,7 @@ function openSheet(ex, it, ctx) {
   $('#sheetPanel').innerHTML = `
     <h2>${esc(ex.name)}</h2>
     <div class="small muted">${esc(ex.group)} · ${esc(ex.equipment.join(', ') || 'corpo libero')}</div>
+    <div class="motion">${figureMotion(ex)}<div class="small muted" style="text-align:center">il movimento · in arancio le parti che lavorano</div></div>
     <div class="frames">
       <div>${figureA11y(ex, 0)}<div class="small muted" style="text-align:center">posizione iniziale</div></div>
       <div>${figureA11y(ex, 1)}<div class="small muted" style="text-align:center">posizione finale</div></div>
@@ -5467,10 +6129,29 @@ function openSheet(ex, it, ctx) {
       <ul>${ex.errors.map(e => `<li>${esc(e)}</li>`).join('')}${ex.safety.map(e => `<li>${esc(e)}</li>`).join('')}</ul></div>
     <div class="block"><h3>Riferimento</h3><p class="small muted">${esc(ex.source)}</p></div>
     ${ctx ? `<button class="btn ghost" id="sheetSwap" style="margin-top:18px">Sostituisci con un altro esercizio</button>` : ''}
+    ${isAvoided(ex.id)
+      ? `<p class="small muted" style="margin-top:14px">Segnato come fastidioso: l'app non lo propone fino al ${dateIt(S.avoid[ex.id])}.</p><button class="btn ghost" id="sheetAvoid" style="margin-top:6px">Riattivalo da subito</button>`
+      : `<button class="btn ghost" id="sheetAvoid" style="margin-top:10px">Mi dà fastidio: non propormelo per 4 settimane</button>`}
     <button class="btn secondary" id="closeSheet" style="margin-top:10px">Chiudi</button>`;
   $('#sheet').classList.add('on');
   $('#sheetPanel').scrollTop = 0;                // si apre sempre dalla cima
   $('#closeSheet').onclick = closeSheet;
+  $('#sheetAvoid').onclick = () => {
+    S.avoid = Object.assign({}, S.avoid || {});
+    if (isAvoided(ex.id)) { delete S.avoid[ex.id]; save(); planCache = null; closeSheet(); showToast(`<div>«${esc(ex.name)}» di nuovo fra le proposte.</div>`); if (ctx && ctx.after) ctx.after(false); return; }
+    S.avoid[ex.id] = Date.now() + AVOID_MS;
+    save(); planCache = null;
+    // nella seduta aperta o in quella di oggi si sostituisce subito con l'alternativa più simile
+    let swapped = null;
+    if (ctx && it && ctx.sess) {
+      const alt = alternativesFor(it, ctx.sess).filter(e => e.id !== ex.id && !isAvoided(e.id))
+        .sort((a, b) => relevance(b, ex, it) - relevance(a, ex, it));
+      if (alt[0] && applyExercise(it, ctx.sess, alt[0])) swapped = alt[0];
+    }
+    closeSheet();
+    showToast(`<div>«${esc(ex.name)}» fuori dalle proposte fino al ${dateIt(S.avoid[ex.id])}${swapped ? `: al suo posto <b>${esc(swapped.name)}</b>` : ''}.</div>`, 4200);
+    if (ctx && ctx.after) ctx.after(!!swapped);
+  };
   if (ctx && $('#sheetSwap')) $('#sheetSwap').onclick = () => {
     closeSheet();
     setTimeout(() => openExercisePicker(it, ctx.sess, ctx.after), 240);
@@ -6034,6 +6715,8 @@ function openWeekReport(weekAbs) {
     <p class="small muted">${r.sessions} sedute completate · ${r.logs.length} esercizi registrati · media ${r.avg.toFixed(1)} stelle</p>
     <div style="margin:10px 0">${starsHtml(Math.round(r.avg))}</div>
     <p class="small">${tone}</p>
+    <div class="notice" style="margin-top:10px"><b>Per la prossima settimana</b>: ${esc(weekAdvice(weekAbs))}</div>
+    <div class="block" style="margin-top:16px"><h3 style="font-size:16px;color:var(--muted)">Obiettivi, misure e sensazioni</h3>${weekExtrasHtml(weekAbs)}</div>
     ${medals ? `<div class="block" style="margin-top:16px"><h3 style="font-size:16px;color:var(--muted)">Migliori traguardi</h3>${medals}</div>` : ''}
     <div class="block" style="margin-top:16px"><h3 style="font-size:16px;color:var(--muted)">Attività aerobica</h3>
       <p class="small">${(() => { const a = aerobicMinutes(weekAbs); return `${a.eq} minuti equivalenti su 150 (${a.vig} di scatti, ${a.mod} moderati).${a.eq < 150 && !isMobilityWeek(weekAbs) ? ' Per arrivarci: completa le due sedute aerobiche e, quando hai 50 minuti, lascia il finale metabolico nelle sedute di forza.' : ''}`; })()}</p></div>
@@ -6150,6 +6833,19 @@ function bigChart(logs) {
    e serve capire cosa si sa fare al suo posto.
 --------------------------------------------------------------------------- */
 let catQuery = '', catFilter = 'tutti', catSetupOnly = true;
+let catEquip = 'tutti', catPlace = 'qui', catKnee = false;   // (8) filtri per attrezzo, luogo, ginocchio
+/* (8) Famiglie di attrezzi per il filtro del catalogo. */
+const EQUIP_FAMILIES = [
+  ['Manubri', e => e.rack === 'dumbbell' || /manubri/i.test((e.equipment || []).join(' '))],
+  ['Bilanciere', e => e.rack === 'barbell' || /bilanciere|smith/i.test((e.equipment || []).join(' '))],
+  ['Macchine e cavi', e => e.rack === 'machine' || /macchina|lat machine|pulley|cavi|smith/i.test((e.equipment || []).join(' '))],
+  ['Kettlebell', e => e.rack === 'kettlebell' || /kettlebell/i.test((e.equipment || []).join(' '))],
+  ['Elastici', e => e.load === 'band' || /band|elastico/i.test((e.equipment || []).join(' '))],
+  ['Sbarra e parallele', e => /sbarra|parallele/i.test((e.equipment || []).join(' '))],
+  ['Attrezzi aerobici', e => e.pattern === 'cardio' || e.pattern === 'finisher'],
+  ['Corpo libero', e => !e.rack && e.load !== 'band' && e.pattern !== 'cardio' && e.pattern !== 'finisher' &&
+    !/manubri|bilanciere|macchina|pulley|cavi|kettlebell|band|elastico|sbarra|parallele|smith/i.test((e.equipment || []).join(' '))]
+];
 
 function catalogGroups() {
   const g = new Set(DB.exercises.map(e => e.group));
@@ -6158,9 +6854,13 @@ function catalogGroups() {
 
 function catalogList() {
   const q = catQuery.trim().toLowerCase();
+  const fam = EQUIP_FAMILIES.find(f => f[0] === catEquip);
   return DB.exercises.filter(e => {
-    if (catSetupOnly && !e.setup.includes(S.setup)) return false;
+    const place = catPlace === 'qui' ? S.setup : catPlace;
+    if (place !== 'tutti' && !e.setup.includes(place)) return false;
     if (catFilter !== 'tutti' && e.group !== catFilter) return false;
+    if (fam && !fam[1](e)) return false;
+    if (catKnee && e.kneeFriendly === false) return false;
     if (!q) return true;
     const hay = [e.name, e.group, (e.equipment || []).join(' '),
                  (e.primary || []).join(' '), (e.secondary || []).join(' ')].join(' ').toLowerCase();
@@ -6188,12 +6888,20 @@ function renderCatalog() {
   }).join('');
 
   $('#view-catalog').innerHTML = `
-    <input class="search" id="catSearch" type="search" placeholder="Cerca per nome, muscolo o attrezzo"
+    <input class="search" id="catSearch" type="search" placeholder="Cerca per nome, muscolo (es. «bicipiti») o attrezzo"
            aria-label="Cerca un esercizio" value="${esc(catQuery)}">
+    <div class="seg" role="group" aria-label="Dove" style="margin-top:10px">
+      ${[['qui', S.setup === 'gym' ? 'Palestra (oggi)' : 'Casa (oggi)'], ['gym', 'Palestra'], ['home', 'Casa'], ['tutti', 'Tutti']]
+        .filter(([k]) => !(k === S.setup))
+        .map(([k, l]) => `<button data-place="${k}" aria-pressed="${catPlace === k}">${l}</button>`).join('')}
+    </div>
+    <p class="small muted" style="margin:10px 0 4px">Attrezzo</p>
+    <div class="filters">${['tutti'].concat(EQUIP_FAMILIES.map(f => f[0])).map(k => `<button data-equip="${esc(k)}" aria-pressed="${catEquip === k}">${k === 'tutti' ? 'Tutti' : esc(k)}</button>`).join('')}</div>
+    <p class="small muted" style="margin:10px 0 4px">Gruppo muscolare</p>
     <div class="filters">${chips}</div>
     <div class="switch" style="border:0;padding-top:0">
-      <span class="small muted">Solo esercizi disponibili ${S.setup === 'gym' ? 'in palestra' : 'a casa'}</span>
-      <input type="checkbox" id="catSetup" ${catSetupOnly ? 'checked' : ''}></div>
+      <span class="small muted">Solo esercizi che rispettano il ginocchio</span>
+      <input type="checkbox" id="catKnee" ${catKnee ? 'checked' : ''}></div>
     <div class="card"><ul class="picker">${rows || '<li><span class="small muted">Nessun esercizio corrisponde alla ricerca.</span></li>'}</ul></div>`;
 
   const inp = $('#catSearch');
@@ -6204,7 +6912,9 @@ function renderCatalog() {
     const el = $('#catSearch'); el.focus(); try { el.setSelectionRange(pos, pos); } catch (e) {}
   };
   document.querySelectorAll('[data-cat]').forEach(b => b.onclick = () => { catFilter = b.dataset.cat; renderCatalog(); });
-  $('#catSetup').onchange = e => { catSetupOnly = e.target.checked; renderCatalog(); };
+  document.querySelectorAll('[data-place]').forEach(b => b.onclick = () => { catPlace = b.dataset.place; renderCatalog(); });
+  document.querySelectorAll('[data-equip]').forEach(b => b.onclick = () => { catEquip = b.dataset.equip; renderCatalog(); });
+  $('#catKnee').onchange = e => { catKnee = e.target.checked; renderCatalog(); };
   document.querySelectorAll('[data-catex]').forEach(li => li.onclick = () => openSheet(exById(li.dataset.catex), null, null));
 }
 
@@ -6330,6 +7040,17 @@ function renderSettings() {
         <input type="checkbox" id="pullChk" ${S.pullupGoal ? 'checked' : ''}></div>
       ${SP() ? `<div class="switch"><span>Preparazione Spartan Race<br><span class="small muted">Sprint di ${esc(SP().place)}, ${spDateText()}: burpees e sospensione nella seduta a intervalli, corsa-camminata settimanale dal ${dateIt(isoNoon(SP().runFrom))}, Spartan Race check dopo ogni scarico. Forza A, B e C invariate. Dettagli in Progressi.</span></span>
         <input type="checkbox" id="spChk" ${S.spartan !== false ? 'checked' : ''}></div>` : ''}
+      <div class="field" style="margin-top:12px"><label>Ultima valutazione del fisioterapista</label>
+        <input id="physioDate" type="date" value="${esc(S.physioDate || '')}"></div>
+      <p class="small muted" style="margin:4px 0 0">Prima di togliere le spunte di ginocchio e spalla (che sbloccano burpee con salto e muscle-up) l'app te la ricorda.</p>
+      ${avoidListHtml()}
+      <div class="switch"><span>Schermo da palestra<br><span class="small muted">Numeri e timer grandi in seduta, leggibili con il telefono appoggiato.</span></span>
+        <input type="checkbox" id="bigChk" ${S.bigScreen !== false ? 'checked' : ''}></div>
+      <div class="field"><label>Tema</label>
+        <select id="themeSel">
+          <option value="dark" ${(S.theme || 'dark') === 'dark' ? 'selected' : ''}>Scuro</option>
+          <option value="light" ${S.theme === 'light' ? 'selected' : ''}>Chiaro (all'aperto, al sole)</option>
+          <option value="auto" ${S.theme === 'auto' ? 'selected' : ''}>Come l'iPhone</option></select></div>
       <div class="switch"><span>Campanella del timer</span>
         <input type="checkbox" id="soundChk" ${S.sound !== false ? 'checked' : ''}></div>
 
@@ -6367,6 +7088,8 @@ function renderSettings() {
         <button class="btn ghost" id="resetBtn">Azzera tutto</button>
       </div>
       <input type="file" id="importFile" accept="application/json,.json" style="display:none">
+      <p class="small muted" style="margin-top:8px">Dove salvarlo: nella condivisione scegli «Salva in File» e la cartella ${BACKUP_PATH}. Il sabato e la domenica Oggi te lo ricorda se l'ultimo backup ha più di cinque giorni. Importando, l'app ti mostra prima che cosa contiene il file.</p>
+      ${(() => { try { return localStorage.getItem(KEY + '.prerestore') ? '<button class="btn ghost" id="undoRestoreBtn" style="margin-top:10px">Annulla il ripristino</button>' : ''; } catch (e) { return ''; } })()}
       ${(S.snapshots || []).length ? `<div style="margin-top:14px">
         <h3 style="font-size:15px;color:var(--muted);font-family:var(--sans)">Istantanee conservate</h3>
         ${S.snapshots.slice().reverse().map((sn, i) => {
@@ -6426,11 +7149,24 @@ function renderSettings() {
   };
   $('#progSel').onchange = e => { S.programId = e.target.value; save(); renderSettings(); };
   $('#setupSel').onchange = e => { S.setup = e.target.value; save(); };
-  $('#kneeChk').onchange = e => { S.kneeCare = e.target.checked; save(); };
+  // (8) togliere le spunte sblocca burpee con salto e muscle-up: prima il fisioterapista
+  const careOff = (box, key, what) => {
+    if (box.checked) { S[key] = true; planCache = null; save(); return; }
+    const when = S.physioDate ? `L'ultima valutazione che hai annotato è del ${dateIt(isoNoon(S.physioDate))}.` : 'Non hai ancora annotato una valutazione del fisioterapista.';
+    box.checked = true;
+    confirmAction('Hai il via libera del fisioterapista?',
+      `Togliendo la spunta l'app potrà proporti ${what}. ${when} Toglila solo se il movimento non ti dà dolore, meglio dopo averlo sentito.`,
+      'Sì, togli la spunta', () => { S[key] = false; planCache = null; save(); renderSettings(); });
+  };
+  $('#kneeChk').onchange = e => careOff(e.target, 'kneeCare', 'il burpee regolamentare con il salto e gli esercizi meno protettivi per il ginocchio');
+  $('#physioDate').onchange = e => { S.physioDate = e.target.value || null; save(); };
+  $('#bigChk').onchange = e => { S.bigScreen = e.target.checked; save(); applyLook(); };
+  $('#themeSel').onchange = e => { S.theme = e.target.value; save(); applyLook(); };
+  document.querySelectorAll('[data-unavoid]').forEach(b => b.onclick = () => { S.avoid = Object.assign({}, S.avoid); delete S.avoid[b.dataset.unavoid]; planCache = null; save(); renderSettings(); });
   $('#pullChk').onchange = e => { S.pullupGoal = e.target.checked; planCache = null; save(); };
   if ($('#spChk')) $('#spChk').onchange = e => { S.spartan = e.target.checked; planCache = null; save(); };
   $('#finSel').onchange = e => { S.finisher = e.target.value; planCache = null; save(); };
-  $('#shoulderChk').onchange = e => { S.shoulderCare = e.target.checked; planCache = null; save(); };
+  $('#shoulderChk').onchange = e => careOff(e.target, 'shoulderCare', 'le tappe verso il muscle-up (dip, transizione, muscle-up) e gli esercizi meno protettivi per la spalla');
   $('#soundChk').onchange = e => { S.sound = e.target.checked; save(); if (e.target.checked) testBells(); };
   $('#testSound').onclick = testBells;
   $('#backupChk').onchange = e => { S.autoBackup = e.target.checked; save(); };
@@ -6439,12 +7175,13 @@ function renderSettings() {
     'Esporta il CSV', exportCsv);
   document.querySelectorAll('[data-snap]').forEach(b => b.onclick = () => restoreSnapshot(+b.dataset.snap));
   $('#exportBtn').onclick = () => dangerAction('Esportare i tuoi dati?',
-    `Verrà creato un file con ${S.logs.length} esercizi registrati, ${S.sessionLog.length} sedute e le tue impostazioni. Il file finisce nei Download del telefono: chiunque vi acceda può leggerlo.`,
+    `Verrà creato un file con ${S.logs.length} esercizi registrati, ${S.sessionLog.length} sedute e le tue impostazioni. Nella condivisione scegli «Salva in File» e la cartella ${BACKUP_PATH}: chiunque acceda a quella cartella può leggerlo.`,
     'Esporta il backup', exportData);
   $('#importBtn').onclick = () => dangerAction('Importare un backup?',
     `Il file scelto sostituirà i dati ora presenti sul telefono: ${S.logs.length} esercizi registrati e ${S.sessionLog.length} sedute andranno persi. Se ti servono ancora, esporta prima un backup.`,
     'Scegli il file da importare', () => $('#importFile').click());
   $('#importFile').onchange = e => { if (e.target.files[0]) importData(e.target.files[0]); e.target.value = ''; };
+  if ($('#undoRestoreBtn')) $('#undoRestoreBtn').onclick = () => undoRestore();
   $('#resetBtn').onclick = () => dangerAction('Azzerare tutto?',
     `Verranno cancellati ${S.logs.length} esercizi registrati, ${S.sessionLog.length} sedute, le valutazioni e le impostazioni. L'operazione non è reversibile e nessun dato è conservato altrove.`,
     'Azzera definitivamente',
@@ -6471,11 +7208,29 @@ async function deliverFile(name, text, mime) {
   return true;
 }
 
-function exportData() {
+function exportData(after) {
   S.lastExport = Date.now(); save();
+  // (8) data e versione nel file: il ripristino guidato le mostra
   deliverFile(`palestra50-${new Date().toISOString().slice(0, 10)}.json`,
-              JSON.stringify(S, null, 2), 'application/json');
-  renderSettings();
+              JSON.stringify(Object.assign({}, S, { exportedAt: Date.now(), appVersion: APP_VER }), null, 2), 'application/json');
+  if (typeof after === 'function') after(); else if (document.getElementById('view-settings') && document.getElementById('view-settings').classList.contains('active')) renderSettings();
+}
+/* (8) BACKUP DEL FINE SETTIMANA. Sabato e domenica, se l'ultimo backup ha più
+   di cinque giorni, Oggi propone di salvarlo: un tocco apre la condivisione
+   dell'iPhone, «Salva in File» e la cartella iCloud Drive › cm › Allenamenti ›
+   palestra50 (iOS ricorda l'ultima cartella usata). Una PWA non può salvare
+   da sola senza quel tocco. */
+const BACKUP_PATH = 'iCloud Drive › cm › Allenamenti › palestra50';
+function weekendBackupDue() {
+  const d = new Date().getDay();
+  return (d === 0 || d === 6) && (S.logs || []).length > 0 && (!S.lastExport || Date.now() - S.lastExport > 5 * DAY_MS_8);
+}
+function weekendBackupHtml() {
+  if (!weekendBackupDue()) return '';
+  return `<div class="card backupcard">
+    <div class="kicker">Backup del fine settimana</div>
+    <p class="small" style="margin:6px 0 10px">${S.lastExport ? `Ultimo backup ${dateIt(S.lastExport)}.` : 'Non hai ancora un backup.'} Tocca, scegli <b>Salva in File</b> e la cartella <b>${BACKUP_PATH}</b>.</p>
+    <button class="btn" id="wkBackup">Salva in File</button></div>`;
 }
 
 /* Esportazione in CSV: una riga per esercizio registrato, apribile in Numbers
@@ -6542,6 +7297,19 @@ function restoreSnapshot(i) {
 /* Importa un backup esportato in precedenza: sostituisce i dati correnti dopo
    conferma, perché su iOS i dati di un'app rimossa dalla Home vengono
    cancellati e questo è l'unico modo per recuperarli. */
+/* (8) RIPRISTINO GUIDATO: prima di sostituire i dati si legge il backup e
+   si mostra che cosa contiene (date, sedute, esercizi, posizione nel
+   programma), confrontandolo con i dati sul telefono. I dati attuali restano
+   in una copia di sicurezza, ripristinabile con «Annulla il ripristino». */
+function backupSummary(d) {
+  const logs = Array.isArray(d.logs) ? d.logs : [], sl = Array.isArray(d.sessionLog) ? d.sessionLog : [];
+  const ts = logs.map(l => l && l.ts).concat(sl.map(x => x && x.ts)).filter(t => isFinite(t) && t > 0);
+  const prog = sl.filter(x => x && isProgramKind(x.kind) && x.kind !== 'skipped');
+  const last = sl.filter(x => x && x.ts).sort((a, b) => a.ts - b.ts).pop();
+  return { logs: logs.length, sessions: prog.length, first: ts.length ? Math.min(...ts) : null, last: ts.length ? Math.max(...ts) : null,
+           lastLabel: last ? sessLabel(last) : '', idx: Math.max(0, Math.round(d.sessionIndex) || 0),
+           exportedAt: isFinite(d.exportedAt) ? d.exportedAt : null, ver: d.appVersion || '', measures: (d.measures || []).length };
+}
 function importData(file) {
   const reader = new FileReader();
   reader.onload = () => {
@@ -6552,14 +7320,49 @@ function importData(file) {
       openModal(`<h2>File non valido</h2><p class="small muted">Il file non sembra un backup di Palestra 50.</p><button class="btn secondary" id="impClose2" style="margin-top:14px">Chiudi</button>`);
       $('#impClose2').onclick = closeModal; return;
     }
-    confirmAction('Ripristinare questo backup?',
-      `Contiene ${data.logs.length} esercizi registrati e ${(data.sessionLog || []).length} sedute. I dati attualmente sul telefono verranno sostituiti.`,
-      'Ripristina', () => {
-        S = Object.assign({}, DEFAULT_STATE, data);
-        save(); planCache = null; go('home'); renderSettings();
-      });
+    const b = backupSummary(data), now = backupSummary(S);
+    const fmt = t => t ? dateIt(t) : '—';
+    const older = now.last && b.last && b.last < now.last;
+    const lost = Math.max(0, now.sessions - b.sessions);
+    let where = '';
+    try { where = whereText(sessionMeta(b.idx)); } catch (e) { where = ''; }
+    openModal(`<h2>Controllo del backup</h2>
+      <p class="small muted">${file && file.name ? esc(file.name) : 'File scelto'}${b.exportedAt ? ` · salvato il ${fmt(b.exportedAt)}` : ''}${b.ver ? ` · versione ${esc(b.ver)}` : ''}</p>
+      <table class="cmp"><tr><th></th><th>Backup</th><th>Sul telefono</th></tr>
+        <tr><td>Sedute del programma</td><td>${b.sessions}</td><td>${now.sessions}</td></tr>
+        <tr><td>Esercizi registrati</td><td>${b.logs}</td><td>${now.logs}</td></tr>
+        <tr><td>Dal</td><td>${fmt(b.first)}</td><td>${fmt(now.first)}</td></tr>
+        <tr><td>Fino al</td><td>${fmt(b.last)}</td><td>${fmt(now.last)}</td></tr>
+        <tr><td>Misure</td><td>${b.measures}</td><td>${now.measures}</td></tr></table>
+      ${b.lastLabel ? `<p class="small" style="margin-top:10px">Ultima seduta nel backup: <b>${esc(b.lastLabel)}</b>${where ? ` · si riparte da ${esc(where)}` : ''}.</p>` : ''}
+      ${older || lost ? `<div class="notice" style="margin-top:10px">Attenzione: il backup è più vecchio dei dati sul telefono${lost ? ` e ha ${lost} ${lost === 1 ? 'seduta' : 'sedute'} in meno` : ''}. Ripristinandolo perderesti ciò che hai fatto dopo il ${fmt(b.last)}.</div>`
+        : '<p class="small muted" style="margin-top:10px">Il backup è aggiornato almeno quanto i dati sul telefono.</p>'}
+      <p class="small muted">I dati attuali restano in una copia di sicurezza: dopo il ripristino puoi tornare indietro da Programma › «Annulla il ripristino».</p>
+      <button class="btn" id="impGo" style="margin-top:12px">Ripristina questo backup</button>
+      <button class="btn ghost" id="impNo" style="margin-top:10px">Annulla</button>`);
+    $('#impNo').onclick = () => closeModal();
+    $('#impGo').onclick = () => {
+      try { localStorage.setItem(KEY + '.prerestore', JSON.stringify(Object.assign({}, S, { snapshots: [], savedAt: Date.now() }))); } catch (e) {}
+      const keep = { seenVersion: S.seenVersion, splashDay: S.splashDay };
+      S = Object.assign({}, DEFAULT_STATE, data, keep);
+      delete S.exportedAt; delete S.appVersion;
+      save(); planCache = null; closeModal(() => { go('home'); showToast('<div>Backup ripristinato.</div>', 3000); });
+    };
   };
   reader.readAsText(file);
+}
+function undoRestore() {
+  let prev = null;
+  try { prev = JSON.parse(localStorage.getItem(KEY + '.prerestore') || 'null'); } catch (e) { prev = null; }
+  if (!prev || !Array.isArray(prev.logs)) return false;
+  confirmAction('Annullare il ripristino?', `Tornano i dati che c'erano sul telefono prima del ripristino (${prev.logs.length} esercizi registrati, copia del ${dateIt(prev.savedAt || Date.now())}).`,
+    'Torna ai dati di prima', () => {
+      S = Object.assign({}, DEFAULT_STATE, prev); delete S.savedAt;
+      save(); planCache = null;
+      try { localStorage.removeItem(KEY + '.prerestore'); } catch (e) {}
+      go('home');
+    });
+  return true;
 }
 
 /* ---------------------------------------------------------------------------
@@ -7236,6 +8039,20 @@ function tryApplyUpdate(reg) {
   try { r.waiting.postMessage('skipWaiting'); } catch (e) {}      // controllerchange → ricarica
 }
 
+/* (8) Aspetto: numeri grandi in seduta e tema (scuro, chiaro, automatico). */
+function applyLook() {
+  const b = document.body;
+  b.classList.toggle('big', S.bigScreen !== false);
+  const dark = S.theme === 'light' ? false : S.theme === 'auto'
+    ? !(window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) : true;
+  b.classList.toggle('light', !dark);
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', dark ? '#0E1620' : '#F4F6F8');
+}
+try {
+  if (window.matchMedia) window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => { if (S && S.theme === 'auto') applyLook(); });
+} catch (e) {}
+
 /* Pop-up alla prima apertura dopo un aggiornamento. La versione si legge
    dall'intro (index.html), la stessa che scrive version.sh. */
 const APP_VER = (() => {
@@ -7311,6 +8128,7 @@ function registerServiceWorker() {
   migrateRealign();
   seedPaceFromHistory();
   migrateRatings();
+  applyLook();
   goToday();
   // l'intro si anima per 3 secondi e resta sull'ultimo fotogramma: sparisce solo
   // quando l'utente tocca lo schermo, e solo dopo compare l'avvertenza
@@ -7320,6 +8138,8 @@ function registerServiceWorker() {
       if (!S.disclaimerOk) { disclaimer(); return; }
       // (7S 4) prima apertura dopo un aggiornamento: il pop-up, poi il resto
       showUpdatedPopup(() => {
+        // (8) la domenica, alla prima apertura: riepilogo della settimana
+        if (maybeSundayRecap()) return;
         askMobilityWeek();
         if (!$('#modal').classList.contains('on')) fixOrphanSessions();
       });
@@ -7341,11 +8161,19 @@ function registerServiceWorker() {
     try {
       const path = pathStatus();
       const days = Math.max(0, Math.round((path.end - Date.now()) / 86400000));
-      gEl.textContent = path.weeksLeft > 0
+      gEl.textContent = (path.weeksLeft > 0
         ? `${weekText(path.meta, { cap: true })} · ${days} giorni alla meta`
-        : 'Ultima settimana del percorso: ci sei.';
+        : 'Ultima settimana del percorso: ci sei.') +
+        // (8) conto alla rovescia della Spartan Race
+        (SP() && spPhase(Date.now()) !== 'off' ? ` · ${weeksToRace()} settimane alla Spartan` : '');
     } catch (e) { gEl.textContent = ''; }
   }
+  // (8) intro intera solo alla prima apertura del giorno; dopo, breve e senza tocco
+  const today = new Date().toDateString();
+  if (splash && S.splashDay === today) {
+    splash.classList.add('quick');
+    setTimeout(afterSplash, 750);
+  } else if (splash) { S.splashDay = today; save(); }
   if (splash) splash.onclick = afterSplash; else afterSplash();
   registerServiceWorker();
 })();

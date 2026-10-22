@@ -213,6 +213,49 @@ Da *Oggi* (sotto il calendario), dalla pagina *Progressi* e dal riquadro *Il per
 
 Nel riepilogo di fine seduta, *Ho ancora tempo: aggiungi esercizi*. Si dichiara quanto tempo resta (5, 10 o 15 minuti) e l'app propone quattro esercizi sui **gruppi più indietro** rispetto al volume previsto per la settimana, con le serie che stanno davvero in quei minuti (tempo di preparazione compreso). Toccandone uno si torna nella seduta, che riprende da quell'esercizio e si chiude normalmente.
 
+### Versione 8: seduta, progressi, salute, Spartan, usabilità, estetica, dati
+
+**Seduta**
+- **Avvicinamento guidato** sul primo esercizio fondamentale con carico: 50% × 8 e 75% × 4 del carico proposto (con la forza anche 85% × 2), carichi già arrotondati all'attrezzo; «Fatta» avvia un breve recupero. Non si registra; il tempo era già nella stima. Regola operativa dell'app.
+- **Carico per serie**: la serie successiva riparte dal carico dell'ultima (anche se lo correggi toccando la riga della serie); la scritta lo ricorda.
+- **Recupero adattivo**: +30 s dopo una serie con 0 ripetizioni di riserva, -15 s con 3 o più (mai sotto 30 s). La riserva ora si indica serie per serie. Regola operativa, coerente con Singer et al. 2024.
+- **Superserie a 35 minuti** fra complementari di gruppi diversi, di preferenza antagonisti (spinta + tirata, gambe + parte alta): serie alternate, 20 s per spostarsi, un recupero per giro; fondamentali e blocco trazioni restano a recupero pieno; il tempo risparmiato va ai supplementari. Fonte: Zhang, Weakley, Li, Li, García-Ramos 2025, *Sports Med*, doi 10.1007/s40279-025-02176-8 (stesso volume in meno tempo, nessuna differenza su forza e ipertrofia; le superserie agonista-antagonista mantengono il volume, quelle sullo stesso muscolo lo riducono; più faticose).
+- **«Macchina occupata: passa a un altro»**: l'esercizio va in fondo e si passa al successivo ancora da fare che, se possibile, lavora un gruppo diverso da quello appena concluso.
+- **Schermo da palestra** (Programma, attivo di default): ripetizioni, carico, serie e timer molto più grandi.
+
+**Progressi**
+- **Riepilogo della settimana** automatico la domenica alla prima apertura (e sempre in Progressi): serie per gruppo, stelle medie, minuti aerobici, trazioni e traguardi Spartan, misure, sensazioni e una frase su cosa migliorare (`weekAdvice`).
+- **Record personali**: massimale stimato, ripetizioni al livello, secondi di tenuta; annuncio in seduta e elenco in Progressi. Fuori dalla settimana di scarico.
+- **Massimale stimato** dei fondamentali con linea di tendenza e variazione ogni 4 settimane.
+- **Durata reale contro stimata** per durata scelta (la stima ora si salva a fine seduta).
+- **Sensazioni a fine seduta**: energia e sonno da 1 a 5, ginocchio e spalla da 0 a 10, facoltativi; confronto fra stelle dopo notti corte e buone.
+
+**Ginocchio e spalla**
+- **Diario del dolore**: se ginocchio o spalla salgono per due sedute di fila (tre valori in crescita), l'app propone circa -10% di carico (o un gradino più facile, o più assistenza) sugli esercizi collegati — ginocchio: squat, affondi, leg extension; spalla: spinte, alzate, tirate — finché il dolore non smette di salire, e lo segnala in Progressi e nel riepilogo. Regola operativa, nello spirito di Willy 2019 e Desmeules 2025 (esercizio adattato alla tolleranza).
+- **«Mi dà fastidio»** dalla scheda dell'esercizio: fuori dalle proposte per 4 settimane, sostituito subito con l'alternativa più simile; elenco e «Riattiva» in Programma.
+- **Fisioterapista**: data dell'ultima valutazione in Programma; togliere le spunte di ginocchio o spalla (che sbloccano burpee con salto e muscle-up) chiede prima conferma ricordando la data.
+
+**Spartan Race**
+- **Simulazione** da marzo 2027, nella seconda settimana di ogni blocco: dopo la corsa-camminata, 30 burpees al proprio livello, sospensione lunga e trasporto in fila. Non fa salire il livello della corsa.
+- **Conto alla rovescia** nell'intro: «N settimane alla Spartan».
+
+**Usabilità**
+- **Catalogo**: filtri per attrezzo (manubri, bilanciere, macchine e cavi, kettlebell, elastici, sbarra e parallele, attrezzi aerobici, corpo libero), luogo (palestra, casa, tutti) e «solo esercizi che rispettano il ginocchio»; la ricerca trova anche i muscoli.
+- **Annulla** per 10 secondi dopo «Salta», «Segna come svolta» e «Seleziona»: toglie solo ciò che l'azione aveva appena aggiunto.
+- **«Torna a Oggi»** anche in fondo alle schermate che lo hanno in alto.
+
+**Estetica**
+- **Tema chiaro** facoltativo (o come l'iPhone), per l'uso all'aperto.
+- **Figure animate** fra posizione iniziale e finale, in seduta e nella scheda, con le parti che lavorano in arancio (anche nelle figure ferme).
+- **Celebrazioni graduate**: festa piccola per la seduta, grande con coriandoli per record, settimana completa, prima trazione e traguardi Spartan.
+- **Icona**: l'icona arancio con bilanciere e «50» provata nella prima uscita della versione 8 è stata tolta su richiesta dell'utente; restano l'icona e le schermate di avvio originali (anello arancio e barre che crescono), ripristinate dai file del suo backup. **Intro breve** dalla seconda apertura della giornata.
+
+**Dati**
+- **Backup del fine settimana**: sabato e domenica, se l'ultimo ha più di 5 giorni, Oggi propone «Salva in File» nella cartella iCloud Drive › cm › Allenamenti › palestra50 (iOS ricorda l'ultima cartella; una PWA non può salvare senza quel tocco). Il file contiene data e versione.
+- **Ripristino guidato**: prima di sostituire i dati mostra date, sedute, esercizi e misure del backup a confronto con il telefono, avvisa se è più vecchio, conserva una copia di sicurezza e permette «Annulla il ripristino».
+
+Fonte aperta e letta il 22 ottobre 2026: Zhang X, Weakley J, Li H, Li Z, García-Ramos A. 2025, *Sports Medicine*, doi 10.1007/s40279-025-02176-8 (sintesi del deposito istituzionale; titolo completo non riportato nella pagina letta).
+
 ### Oggi in tre sezioni (7S 6)
 
 - **Oggi** mostra tre riquadri: **Mobilità breve**, **Allenamento del giorno** (titolo e breve descrizione della seduta), **Programma della settimana**. Promemoria Spartan e domanda sul ginocchio stanno sotto i tre riquadri.
