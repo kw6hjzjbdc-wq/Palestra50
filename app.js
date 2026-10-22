@@ -19,7 +19,7 @@ let S = null;              // stato persistente
 let current = null;        // sessione in corso
 let planCache = null;      // sessione di oggi già generata (per mantenere le sostituzioni)
 let homeSel = 'session';   // cosa è selezionato nella home: 'session' o 'core'
-let homeView = null;       // Oggi: null = scelta, 'morning' = mattino, 'lunch' = seduta del giorno
+let homeView = null;       // Oggi: null = scelta, 'morning' = mobilità breve, 'lunch' = allenamento del giorno, 'week' = programma della settimana
 let morningSel = null;     // mattina scelta nella card della mobilità del mattino
 let wakeLock = null, timerHandle = null;
 
@@ -3880,7 +3880,7 @@ function openPath() {
 }
 
 /* Torna alla pagina d'apertura: la scelta fra mattino e pranzo di Oggi. */
-function goToday() { homeView = null; go('home'); }
+function goToday() { homeView = null; daySel = null; homeSel = 'session'; go('home'); }
 
 function go(view) {
   if (view === 'dash') { homeView = null; view = 'home'; }   // vecchio nome della pagina d'apertura
@@ -4167,6 +4167,7 @@ function renderHome() {
   refreshDeload();
   if (homeView === 'morning') return renderHomeMorning();
   if (homeView === 'lunch') return renderHomeLunch();
+  if (homeView === 'week') return renderHomeWeek();
   return renderHomePick();
 }
 
@@ -4206,7 +4207,58 @@ function bindHomeBanners(saved) {
   if ($('#homeBack')) $('#homeBack').onclick = () => { homeView = null; renderHome(); };
 }
 
-/* Schermata di scelta: due riquadri, nient'altro. */
+/* Schermata del mattino. */
+function renderHomeMorning() {
+  const s = todaySession(null);
+  $('#topChip').textContent = shortWhere(s);
+  $('#topChip').className = 'chip mobility';
+  const b = homeBanners();
+  $('#view-home').innerHTML = `
+    <button class="btn ghost" id="homeBack" style="margin-top:14px">‹ Torna a Oggi</button>
+    ${b.html}
+    ${deloadCardHtml()}
+    ${morningHtml()}`;
+  bindHomeBanners(b.saved);
+  bindMorning();
+}
+
+/* ---------------------------------------------------------------------------
+   OGGI IN TRE SEZIONI (dalla 7S 6)
+   La pagina d'apertura ha tre riquadri: Mobilità breve, Allenamento del
+   giorno, Programma della settimana.
+     · «Allenamento del giorno» apre la scheda della seduta: titolo,
+       descrizione, durata, equipaggiamento, esercizi, e i tre comandi
+       Inizia / Salta / Segna come svolta.
+     · «Programma della settimana» mostra dove sei nel programma, lo scopo
+       della fase e soltanto le sedute dei giorni della settimana: svolte
+       evidenziate, «Seleziona» per spostare una seduta a oggi (scambio come
+       prima), solo blocco core e seduta libera. Toccare una seduta apre la sua
+       scheda «Allenamento del giorno» (e nient'altro: non compare più in fondo
+       alla pagina). Se non è quella di oggi, avviarla, saltarla o segnarla la
+       porta prima a oggi con lo stesso scambio.
+--------------------------------------------------------------------------- */
+let daySel = null;          // posizione nella settimana della seduta aperta (null = quella di oggi)
+let dayFrom = 'pick';       // da dove si è aperta la scheda: 'pick' o 'week'
+
+function weekIntroHtml(s) {
+  const p = program();
+  return `<div class="kicker wkkicker">
+      ${s.mobilityWeek ? 'Settimana di sola mobilità'
+        : s.phase ? `Fase ${s.phase.index + 1} di ${p.phases.length} · ${esc(s.phase.ph.name)}`
+                  : `Blocco · settimana ${s.weekInCycle} di ${p.cycleWeeks} · ${esc(p.name)}`}</div>
+    ${s.mobilityWeek
+      ? `<p class="small muted" style="margin:6px 0 0">Tutte le sedute sono di mobilità e stretching. Il programma di forza riprende la settimana ${s.weekAbs + 1} da dove era rimasto: nessuna settimana di lavoro va persa.</p>`
+      : s.phase ? `<p class="small muted" style="margin:6px 0 0">${whereText(s, { cap: true })}, ${s.phase.weekInPhase}ª della fase su ${s.phase.ph.weeks}${weeksLeftText(p, s.trainingWeek)}. ${esc(s.phase.ph.aim)}</p>`
+      : `<p class="small muted" style="margin:6px 0 0">${whereText(s, { cap: true })}.</p>`}`;
+}
+function weekTileBody() {
+  const s = sessionMeta(S.sessionIndex), here = posOfIdx(S.sessionIndex);
+  return `<div class="dstat">${s.phase ? esc(s.phase.ph.name) : 'Settimana ' + s.weekAbs}</div>
+    <p class="small">${weekText(s, { cap: true })} · ${here} di ${s.days} sedute svolte</p>
+    <p class="small muted">Le sedute di ogni giorno: spostale, scegli il blocco core o una seduta libera.</p>`;
+}
+
+/* Schermata di scelta: tre riquadri. */
 function renderHomePick() {
   const s = todaySession(null);
   $('#topChip').textContent = shortWhere(s);
@@ -4219,115 +4271,100 @@ function renderHomePick() {
   $('#view-home').innerHTML = `
     ${b.html}
     ${deloadCardHtml()}
-    ${spartanTodayHtml(ls.done || ls.skipped ? todaySession(null) : ls.s)}
     ${tile('morning', 'Mobilità breve · a casa', 'mobility', mBody)}
     ${tile('lunch', 'Allenamento del giorno', ls.done || ls.skipped ? 'strength' : typeClass(ls.s), lBody)}
-    <button class="btn ghost" id="weekBtn">Programma della settimana ›</button>
-    <p class="small muted" style="margin-top:14px">Tocca la sessione su cui vuoi lavorare: esercizi, durata e calendario della settimana si aprono lì dentro.</p>`;
+    ${tile('week', 'Programma della settimana', 'week', weekTileBody())}
+    ${spartanTodayHtml(ls.done || ls.skipped ? todaySession(null) : ls.s)}`;
 
   document.querySelectorAll('[data-pick]').forEach(el => el.onclick = () => {
-    if (el.dataset.pick === 'lunch' && current && !current.finished) { go('session'); renderSession(); return; }
-    homeView = el.dataset.pick; renderHome();
+    const k = el.dataset.pick;
+    if (k === 'lunch' && current && !current.finished) { go('session'); renderSession(); return; }
+    if (k === 'lunch') { daySel = null; dayFrom = 'pick'; homeSel = 'session'; }
+    homeView = k; renderHome();
   });
   bindHomeBanners(b.saved);
   bindKneeAsk(() => renderHome());
-  // (7S 5) richiama «La tua settimana»: le sei sedute con anteprima e «Seleziona»
-  $('#weekBtn').onclick = () => {
-    homeView = 'lunch'; renderHome();
-    requestAnimationFrame(() => { const el = document.querySelector('#view-home .week'); const card = el && el.closest('.card'); if (card && card.scrollIntoView) card.scrollIntoView({ block: 'start' }); });
-  };
 }
 
-/* Schermata del mattino. */
-function renderHomeMorning() {
-  const s = todaySession(null);
-  $('#topChip').textContent = shortWhere(s);
-  $('#topChip').className = 'chip mobility';
-  const b = homeBanners();
-  $('#view-home').innerHTML = `
-    <button class="btn ghost" id="homeBack" style="margin-top:14px">‹ Torna alla scelta</button>
-    ${b.html}
-    ${deloadCardHtml()}
-    ${morningHtml()}`;
-  bindHomeBanners(b.saved);
-  bindMorning();
-}
-
-/* ---------------------------------------------------------------------------
-   ANTEPRIMA DI UNA SEDUTA DELLA SETTIMANA (dalla 7S 4)
-   Dalla pagina «La tua settimana» toccare una seduta non la sceglie più per
-   oggi: apre una schermata con gli esercizi previsti (dose e, dove c'è un
-   carico, quello proposto con l'ultima seduta), che si chiude tornando alla
-   settimana. Per sceglierla c'è «Seleziona», nella riga e qui in fondo.
---------------------------------------------------------------------------- */
-function openDayPreview(idx, onSelect, done, kind) {
-  const sess = sessionFor(idx, kind || null);
-  const rows = sess.items.map(it => {
-    const ex = exById(it.exId);
-    if (!ex) return '';
-    const sg = ex.load === 'weight' && !isAssist(ex) ? suggestLoad(ex, it) : null;
-    const sgTxt = sg && sg.value && sg.last && numLoad(sg.last.load) > 0
-      ? `<span class="small sugline">Proposto <b>${esc(String(sg.value).replace('.', ','))} kg</b> · ultima ${esc(lastSetsText(sg.last))}</span>` : '';
-    return `<li class="${it.block === 'pullup' ? 'pullrow' : ''}"><div class="fig">${figureFor(ex, 1, { ground: false })}</div>
-      <div class="nm"><b>${esc(ex.name)}</b>${sgTxt}<span class="small muted">${esc(ex.group)}${it.note ? ' · ' + esc(it.note) : ''}</span></div>
-      <div class="dose">${doseText(it)}</div></li>`;
-  }).join('');
-  const ck = kind === 'core' ? [] : spCheckKinds(sessionMeta(idx));
-  openModal(`<div class="dayprev">
-    <button class="btn ghost" id="dpBack">‹ Torna alla settimana</button>
-    <div class="kicker" style="margin-top:12px">${kind === 'core' ? 'Blocco core facoltativo' : `Sessione ${sess.pos} di ${sess.days} · ${typeWord(sess)}`}${done ? ' · già svolta' : ''}</div>
-    <h2 style="margin-top:2px">${esc(sess.label)}</h2>
-    <p class="small muted">Durata stimata ${sess.minutes} minuti con ${sess.budget}′ a disposizione · ${S.setup === 'gym' ? 'palestra' : 'casa'}.${ck.length ? ' Contiene uno Spartan Race check.' : ''} Gli esercizi esatti possono cambiare se cambi durata o equipaggiamento.</p>
-    <ul class="plan">${rows || '<li><span class="small muted">Nessun esercizio previsto.</span></li>'}</ul>
-    ${onSelect ? '<button class="btn" id="dpSel" style="margin-top:14px">Seleziona come seduta di oggi</button>' : ''}
-    <button class="btn secondary" id="dpClose" style="margin-top:10px">Chiudi</button>
-  </div>`);
-  $('#dpBack').onclick = () => closeModal();
-  $('#dpClose').onclick = () => closeModal();
-  if ($('#dpSel')) $('#dpSel').onclick = () => closeModal(onSelect);
-}
-
-function renderHomeLunch() {
-  const p = program();
-  const here = posOfIdx(S.sessionIndex);          // posizione prevista dal programma
+/* Programma della settimana: presentazione e sedute dei giorni. */
+function renderHomeWeek() {
+  const here = posOfIdx(S.sessionIndex);
   const wStart = S.sessionIndex - here;
   const nDays = weekLen(weekOfIdx(S.sessionIndex));
-  const core = homeSel === 'core';
-  const s = todaySession(core ? 'core' : null);
-
+  const s = sessionFor(S.sessionIndex);
   $('#topChip').textContent = shortWhere(s);
-  $('#topChip').className = 'chip ' + (core ? 'mobility' : (s.dayType || 'mobility').replace('stretch', 'mobility'));
-
-  // --- calendario della settimana: le sedute previste, più il blocco core ---
+  $('#topChip').className = 'chip';
   let week = '';
   for (let q = 0; q < nDays; q++) {
     const alt = sessionFor(wStart + q);          // sola lettura: etichetta, tipo, minuti
-    // "da programma" resta attaccata alla seduta che il programma prevede come
-    // prossima (il suo giorno di calendario), anche dopo uno scambio di ordine;
-    // la posizione scelta per oggi è marcata a parte come "scelta per oggi".
     const isPlanned = alt.dayInWeek === here + 1;
     const state = q < here ? 'done' : (q === here ? 'now' : 'next');
-    // (7S 4) toccare la riga apre l'anteprima; si sceglie con «Seleziona»
-    const selBtn = `<button class="selbtn" data-sel="${q}" aria-label="Seleziona ${esc(alt.label)} come seduta di oggi">Seleziona</button>`;
-    const badge = q < here ? '<span class="wkbadge done">svolta</span>'
-                : (q === here && core) ? selBtn
-                : isPlanned ? '<span class="wkbadge">da programma</span>'
-                : q === here ? '<span class="wkbadge alt">scelta per oggi</span>'
-                : selBtn;
-    week += `<li class="wk ${state}${(!core && q === here) ? ' sel' : ''}" data-day="${q}">
-      <span class="wknum ${typeClass(alt)}">${q + 1}</span>
+    const badge = q < here ? '<span class="wkbadge done">✓ svolta</span>'
+                : q === here ? `<span class="wkbadge${isPlanned ? '' : ' alt'}">${isPlanned ? 'di oggi' : 'scelta per oggi'}</span>`
+                : `<button class="selbtn" data-sel="${q}" aria-label="Sposta ${esc(alt.label)} a oggi">Seleziona</button>`;
+    const ck = q >= here ? spCheckKinds(sessionMeta(wStart + q)) : [];
+    week += `<li class="wk ${state}" data-day="${q}">
+      <span class="wknum ${typeClass(alt)}">${q < here ? '✓' : q + 1}</span>
       <div class="nm"><b>${esc(alt.label)}</b>
-        <div class="small muted">${typeWord(alt)} · ${alt.minutes} min${alt.items.some(i => i.block === 'pullup') ? ' · trazioni' : ''}${(nDays === 6 && alt.dayType === 'stretch' && q === nDays - 1) ? ' · di solito l\'ultima' : ''}</div></div>
+        <div class="small muted">${typeWord(alt)} · ${alt.minutes} min${alt.items.some(i => i.block === 'pullup') ? ' · trazioni' : ''}${ck.length ? ' · Spartan Race check' : ''}${(nDays === 6 && alt.dayType === 'stretch' && q === nDays - 1) ? ' · di solito l\'ultima' : ''}</div></div>
       ${badge}</li>`;
   }
   const coreS = sessionFor(S.sessionIndex, 'core');
-  week += `<li class="wk next${core ? ' sel' : ''}" data-core="1">
+  week += `<li class="wk next extra" data-core="1">
       <span class="wknum core">+</span>
       <div class="nm"><b>Solo blocco core</b>
-        <div class="small muted">facoltativo · ${coreS.minutes} min</div></div>
-      ${core ? '<span class="wkbadge alt">scelto</span>' : '<button class="selbtn" data-selcore="1" aria-label="Seleziona il solo blocco core">Seleziona</button>'}</li>`;
+        <div class="small muted">facoltativo · ${coreS.minutes} min · non fa avanzare la settimana</div></div>
+      <span class="chev">›</span></li>
+    <li class="wk next extra" data-free="1">
+      <span class="wknum core">+</span>
+      <div class="nm"><b>Seduta libera</b>
+        <div class="small muted">scegli tu gli esercizi · non fa avanzare la settimana</div></div>
+      <span class="chev">›</span></li>`;
+  const b = homeBanners();
+  $('#view-home').innerHTML = `
+    <button class="btn ghost" id="homeBack" style="margin-top:14px">‹ Torna a Oggi</button>
+    ${b.html}
+    ${deloadCardHtml()}
+    <div class="card">
+      ${weekIntroHtml(s)}
+      <h2 style="margin-top:10px">Programma della settimana</h2>
+      <ul class="week">${week}</ul>
+      <p class="small muted" style="margin-top:10px">Tocca una seduta per aprirla; «Seleziona» la sposta a oggi e quella prevista prende il suo posto. La mobilità è prevista per ultima, ma puoi farla in qualunque giorno.</p>
+    </div>`;
+  const openDay = q => { daySel = q; dayFrom = 'week'; homeSel = 'session'; homeView = 'lunch'; renderHome(); window.scrollTo(0, 0); };
+  document.querySelectorAll('[data-sel]').forEach(bt => bt.onclick = e => {
+    e.stopPropagation();
+    const q = +bt.dataset.sel;
+    if (q > here) swapDay(here, q);
+    planCache = null; homeSel = 'session';
+    renderHome();
+  });
+  document.querySelectorAll('[data-day]').forEach(li => li.onclick = () => openDay(+li.dataset.day));
+  $('[data-core]').onclick = () => { daySel = null; dayFrom = 'week'; homeSel = 'core'; homeView = 'lunch'; planCache = null; renderHome(); window.scrollTo(0, 0); };
+  $('[data-free]').onclick = () => {
+    if (current && !current.finished) {
+      confirmAction('Sessione già in corso', 'Vuoi abbandonarla e iniziare una seduta libera? Gli esercizi già conclusi restano nello storico.',
+        'Inizia la seduta libera', openFreeSession);
+    } else openFreeSession();
+  };
+  bindHomeBanners(b.saved);
+}
 
-  // --- elenco esercizi della seduta selezionata ---
+/* Allenamento del giorno: la seduta di oggi, o quella toccata nel programma
+   della settimana. */
+function renderHomeLunch() {
+  const p = program();
+  const here = posOfIdx(S.sessionIndex);
+  const wStart = S.sessionIndex - here;
+  const core = homeSel === 'core';
+  const q = core || daySel === null ? here : daySel;
+  const isToday = q === here;
+  const done = q < here;
+  const s = (core || isToday) ? todaySession(core ? 'core' : null) : sessionFor(wStart + q);
+
+  $('#topChip').textContent = shortWhere(isToday || core ? s : sessionMeta(S.sessionIndex));
+  $('#topChip').className = 'chip ' + (core ? 'mobility' : (s.dayType || 'mobility').replace('stretch', 'mobility'));
+
   const rows = s.items.map((it, i) => {
     const ex = exById(it.exId);
     // (7S 1) carico proposto per le ripetizioni di oggi e ultima seduta
@@ -4340,48 +4377,37 @@ function renderHomeLunch() {
   }).join('');
 
   const b = homeBanners();
-
-  // aerobico e mobilità: il contenuto della seduta si può cambiare
+  // aerobico e mobilità: il contenuto della seduta di oggi si può cambiare
   const chosenNow = pickOf(S.sessionIndex);
-  const swapHtml = (core || s.isStrength) ? '' : `
+  const swapHtml = (core || s.isStrength || !isToday) ? '' : `
       ${chosenNow ? `<p class="small" style="margin-top:10px">Seduta scelta da te al posto di quella prevista.</p>` : ''}
       <button class="btn ghost" id="swapKind" style="margin-top:10px">${
         s.dayType === 'cardio' ? 'Cambia attrezzo o tipo di lavoro' : 'Cambia schema di mobilità'}</button>`;
+  const notToday = !core && !isToday && !done
+    ? `<div class="notice" style="margin-top:12px">Questa seduta è prevista per il giorno ${q + 1} della settimana. Se la avvii, la salti o la segni come svolta, diventa la seduta di oggi e quella di oggi prende il suo posto.</div>` : '';
+  const doneNote = done ? `<div class="notice" style="margin-top:12px">Seduta già svolta questa settimana: qui sotto gli esercizi previsti.</div>` : '';
 
   $('#view-home').innerHTML = `
-    <button class="btn ghost" id="homeBack" style="margin-top:14px">‹ Torna alla scelta</button>
+    <button class="btn ghost" id="dayBack" style="margin-top:14px">‹ ${dayFrom === 'week' ? 'Torna al programma della settimana' : 'Torna a Oggi'}</button>
     ${b.html}
     ${deloadCardHtml()}
-    ${core ? '' : spartanTodayHtml(s)}
+    ${core || !isToday ? '' : spartanTodayHtml(s)}
+    ${notToday}${doneNote}
     <div class="seg" role="group" aria-label="Attrezzatura">
       <button data-setup="gym" aria-pressed="${S.setup === 'gym'}">Palestra</button>
       <button data-setup="home" aria-pressed="${S.setup === 'home'}">Casa</button>
     </div>
 
-    <div class="card">
-      <div class="kicker" style="font-family:var(--cond);letter-spacing:.06em;text-transform:uppercase;font-size:13px;color:var(--muted)">
-        ${s.mobilityWeek ? 'Settimana di sola mobilità'
-          : s.phase ? `Fase ${s.phase.index + 1} di ${p.phases.length} · ${esc(s.phase.ph.name)}`
-                    : `Blocco · settimana ${s.weekInCycle} di ${p.cycleWeeks} · ${esc(p.name)}`}</div>
-      <h2 style="margin-top:2px">La tua settimana</h2>
-      ${s.mobilityWeek
-        ? `<p class="small muted" style="margin:6px 0 0">Tutte le sedute sono di mobilità e stretching. Il programma di forza riprende la settimana ${s.weekAbs + 1} da dove era rimasto: nessuna settimana di lavoro va persa.</p>`
-        : s.phase ? `<p class="small muted" style="margin:6px 0 0">${whereText(s, { cap: true })}, ${s.phase.weekInPhase}ª della fase su ${s.phase.ph.weeks}${weeksLeftText(p, s.trainingWeek)}. ${esc(s.phase.ph.aim)}</p>` : ''}
-      <ul class="week">${week}</ul>
-      <p class="small muted" style="margin-top:10px">Tocca una seduta per vedere i suoi esercizi; con «Seleziona» diventa la seduta di oggi e quella prevista prende il suo posto più avanti nella settimana. La mobilità è prevista per ultima, ma puoi farla in qualunque giorno, anche prima delle altre; la mobilità breve a casa si sposta con lei.</p>
-      <button class="btn ghost" id="upcomingBtn" style="margin-top:8px">Le prossime settimane</button>
-    </div>
-
     <div class="card" id="lunchCard">
       <div class="session-head ${core ? 'mobility' : ({ strength: '', cardio: 'cardio' }[s.dayType] ?? 'mobility')}">
         <div>
-          <div class="kicker">${core ? 'Blocco core facoltativo' : `Sessione ${s.pos} di ${s.days} · ${typeWord(s)}`}</div>
+          <div class="kicker">${core ? 'Blocco core facoltativo' : `Allenamento del giorno · sessione ${s.pos} di ${s.days} · ${typeWord(s)}`}</div>
           <h2>${esc(s.label)}</h2>
           <p class="small muted" style="margin:6px 0 0">${core ? 'Blocco breve da aggiungere quando hai tempo: non avanza la settimana del programma.'
                  : esc(s.isStrength ? s.profile.note : s.run ? `Preparazione Spartan: livello ${s.run.level + 1} di ${runState().max + 1}${s.run.light ? ', accorciata' : ''}. Corsa lenta, ginocchio al massimo 2 su 10; il giorno dopo l'app ti chiede come sta, e da lì dipende il livello successivo.` : s.dayType === 'cardio' ? (PROG.cardioDays[s.tmplIdx] || {}).note || '' : mobilityNote(s.profile, s.mobilityWeek))}</p>
         </div>
       </div>
-      ${core ? '' : `<div class="durrow">
+      ${core || done ? '' : `<div class="durrow">
         <span class="lab">Tempo a disposizione oggi</span>
         <div class="seg dur" role="group" aria-label="Durata della seduta">
           ${DURATIONS.map(m => `<button data-dur="${m}" aria-pressed="${(S.durPref || 35) === m}">${m}′</button>`).join('')}
@@ -4395,47 +4421,22 @@ function renderHomeLunch() {
       ${swapHtml}
     </div>
 
-    <button class="btn ${(s.isStrength && !core) ? '' : 'teal'}" id="startBtn">${core ? 'Inizia il blocco core' : 'Inizia la sessione'}</button>
+    ${done ? '' : `<button class="btn ${(s.isStrength && !core) ? '' : 'teal'}" id="startBtn">${core ? 'Inizia il blocco core' : 'Inizia la sessione'}</button>
     <div class="btn-row" style="margin-top:10px">
-      <button class="btn ghost" id="freeBtn">Seduta libera</button>
-      <button class="btn ghost" id="skipBtn">Non la faccio: salta</button>
-    </div>
-    <div class="btn-row" style="margin-top:10px">
-      <button class="btn ghost" id="markBtn">${core ? 'Segna il core come svolto' : 'L\'ho già fatta: segnala come svolta'}</button>
-    </div>
+      ${core ? '' : '<button class="btn ghost" id="skipBtn">Non la faccio: salta</button>'}
+      <button class="btn ghost" id="markBtn">${core ? 'Segna il core come svolto' : 'L\'ho già fatta: segna come svolta'}</button>
+    </div>`}
     <p class="small muted" style="margin-top:16px">Programma attivo: ${esc(p.name)} · ${esc(p.periodization)}.</p>
   `;
 
+  $('#dayBack').onclick = () => { const back = dayFrom === 'week' ? 'week' : null; daySel = null; homeSel = 'session'; homeView = back; renderHome(); };
   document.querySelectorAll('[data-setup]').forEach(x => x.onclick = () => {
     if (current && !current.finished) return;   // non cambiare attrezzatura a sessione aperta
     S.setup = x.dataset.setup; save(); renderHome();
   });
-
-  // (7S 4) selezione della seduta dal calendario settimanale: solo con
-  // «Seleziona»; toccare la riga apre l'anteprima degli esercizi
-  const selectDay = q => {
-    if (q < here) return;                       // le sedute già svolte non si riaprono
-    // (6.10) la mobilità è l'ultima seduta di default, ma si può fare in
-    // qualunque giorno: lo scambio funziona come per le altre sedute
-    homeSel = 'session';
-    if (q > here) swapDay(here, q);             // la scelta diventa la seduta di oggi
-    planCache = null;
-    renderHome();
-  };
-  const selectCore = () => { homeSel = 'core'; planCache = null; renderHome(); };
-  document.querySelectorAll('[data-sel]').forEach(bt => bt.onclick = e => { e.stopPropagation(); selectDay(+bt.dataset.sel); });
-  const selCoreBtn = document.querySelector('[data-selcore]');
-  if (selCoreBtn) selCoreBtn.onclick = e => { e.stopPropagation(); selectCore(); };
-  document.querySelectorAll('[data-day]').forEach(li => li.onclick = () => {
-    const q = +li.dataset.day;
-    openDayPreview(wStart + q, q < here ? null : (q === here && !core ? null : () => selectDay(q)), q < here);
-  });
   document.querySelectorAll('[data-dur]').forEach(x => x.onclick = () => {
     S.durPref = +x.dataset.dur; planCache = null; save(); renderHome();
   });
-  const coreLi = document.querySelector('[data-core]');
-  if (coreLi) coreLi.onclick = () => openDayPreview(S.sessionIndex, core ? null : selectCore, false, 'core');
-
   // ogni riga dell'elenco apre la scheda illustrativa dell'esercizio
   document.querySelectorAll('[data-plan]').forEach(li => li.onclick = () => {
     const it = s.items[+li.dataset.plan];
@@ -4443,29 +4444,29 @@ function renderHomeLunch() {
   });
   bindHomeBanners(b.saved);
   bindKneeAsk(() => renderHome());
-  if ($('#upcomingBtn')) $('#upcomingBtn').onclick = () => openUpcoming();
   if ($('#swapKind')) $('#swapKind').onclick = () => openSessionPicker(s);
+
+  // una seduta di un altro giorno diventa prima quella di oggi (scambio)
+  const commit = () => {
+    if (!core && !isToday && q > here) { swapDay(here, q); planCache = null; }
+    daySel = null;
+    return todaySession(core ? 'core' : null);
+  };
   if ($('#markBtn')) $('#markBtn').onclick = () => confirmAction(
     'Segnare la seduta come svolta?',
     `Verranno registrati i ${s.items.length} esercizi di «${s.label}» alle dosi previste (${s.minutes} minuti), senza carichi. Serve quando l'hai svolta senza aprire l'app.`,
-    'Segna come svolta', () => { markSessionDone(s); renderHome(); });
-
-  const begin = kind => {
+    'Segna come svolta', () => { markSessionDone(commit()); homeView = dayFrom === 'week' ? 'week' : null; homeSel = 'session'; renderHome(); });
+  const begin = () => {
+    const go1 = () => startSession(commit());
     if (current && !current.finished) {
       confirmAction('Sessione già in corso', 'Vuoi abbandonarla e iniziarne una nuova? Gli esercizi già conclusi restano nello storico.',
-        'Inizia una nuova sessione', () => startSession(todaySession(kind)));
-    } else startSession(todaySession(kind));
+        'Inizia una nuova sessione', go1);
+    } else go1();
   };
-  $('#startBtn').onclick = () => begin(core ? 'core' : null);
-  $('#freeBtn').onclick = () => {
-    if (current && !current.finished) {
-      confirmAction('Sessione già in corso', 'Vuoi abbandonarla e iniziare una seduta libera? Gli esercizi già conclusi restano nello storico.',
-        'Inizia la seduta libera', openFreeSession);
-    } else openFreeSession();
-  };
-  $('#skipBtn').onclick = () => confirmAction('Saltare «' + s.label + '»?',
+  if ($('#startBtn')) $('#startBtn').onclick = begin;
+  if ($('#skipBtn')) $('#skipBtn').onclick = () => confirmAction('Saltare «' + s.label + '»?',
     'Resta nello storico come saltata e il programma passa alla seduta successiva. Niente viene registrato come svolto: nel volume della settimana continuerà a risultare mancante.',
-    'Sì, la salto', () => { skipSession(s, 'Saltata dalla schermata Oggi'); renderHome(); });
+    'Sì, la salto', () => { skipSession(commit(), 'Saltata dalla schermata Oggi'); homeView = dayFrom === 'week' ? 'week' : null; renderHome(); });
 }
 
 /* ---------- sessione in corso ---------- */

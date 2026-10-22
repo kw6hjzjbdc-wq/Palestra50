@@ -746,3 +746,13 @@ body.in-session.mini-on #view-session{padding-bottom:176px}
 .week .selbtn:active{background:#2a2110}
 .dayprev .kicker{font-family:var(--cond);letter-spacing:.06em;text-transform:uppercase;font-size:13px;color:var(--muted)}
 .dayprev .plan li{cursor:default}
+
+/* (7S 6) Oggi in tre sezioni */
+.dtile.week .kicker{color:var(--amber2)}
+.wkkicker{font-family:var(--cond);letter-spacing:.06em;text-transform:uppercase;font-size:13px;color:var(--muted)}
+.week li.done{opacity:1;border-color:rgba(79,195,161,.45);background:rgba(79,195,161,.07)}
+.week li.done .nm b{text-decoration:none}
+.week li.done .wknum{color:var(--teal)}
+.week li.done .wkbadge.done{color:var(--teal);border-color:var(--teal)}
+.week li.extra .wknum{color:var(--text)}
+.week li.now{border-color:rgba(245,165,36,.6);background:rgba(245,165,36,.06)}

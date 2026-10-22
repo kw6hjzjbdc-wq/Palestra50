@@ -213,6 +213,13 @@ Da *Oggi* (sotto il calendario), dalla pagina *Progressi* e dal riquadro *Il per
 
 Nel riepilogo di fine seduta, *Ho ancora tempo: aggiungi esercizi*. Si dichiara quanto tempo resta (5, 10 o 15 minuti) e l'app propone quattro esercizi sui **gruppi più indietro** rispetto al volume previsto per la settimana, con le serie che stanno davvero in quei minuti (tempo di preparazione compreso). Toccandone uno si torna nella seduta, che riprende da quell'esercizio e si chiude normalmente.
 
+### Oggi in tre sezioni (7S 6)
+
+- **Oggi** mostra tre riquadri: **Mobilità breve**, **Allenamento del giorno** (titolo e breve descrizione della seduta), **Programma della settimana**. Promemoria Spartan e domanda sul ginocchio stanno sotto i tre riquadri.
+- **Allenamento del giorno** apre la scheda della seduta: titolo, descrizione, Palestra/Casa, durata, esercizi con dose e carico proposto (come prima) e i comandi **Inizia la sessione**, **Non la faccio: salta**, **L'ho già fatta: segna come svolta**. Il calendario della settimana non c'è più qui.
+- **Programma della settimana**: dove sei nel programma e scopo della fase, poi soltanto le sedute dei giorni della settimana. Le svolte sono evidenziate (✓, bordo verde), quella di oggi in arancio; «Seleziona» sposta una seduta a oggi (stesso scambio di prima, `swapDay`); in fondo **Solo blocco core** e **Seduta libera**. Toccare una seduta apre la sua scheda «Allenamento del giorno»; se è di un altro giorno, avviarla, saltarla o segnarla la porta prima a oggi. Le sedute già svolte si aprono in sola lettura.
+- Tolta l'anteprima a finestra della 7S 4, sostituita dalla scheda del giorno.
+
 ### Programma della settimana da Oggi; conteggio dei burpees corretto (7S 5)
 
 - In Oggi, sotto le due sedute del giorno, il pulsante **«Programma della settimana ›»** apre «La tua settimana» (sedute con anteprima e «Seleziona»).
