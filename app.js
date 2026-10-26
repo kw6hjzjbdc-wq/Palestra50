@@ -46,7 +46,7 @@ const DEFAULT_STATE = {
   quoteQueue: [],           // indici delle ultime 100 frasi mostrate all'avvio
   exNotes: {},              // nota personale per esercizio (regolazioni, accorgimenti)
   pace: { strength: 1, stretch: 1, cardio: 1 },   // ritmo personale appreso dalle sedute reali
-  durPref: 35,             // durata scelta in Home per la prossima seduta
+  durPref: 45,             // durata scelta per la prossima seduta (45 dalla 8.3)
   finisher: 'a_spinning',  // finale metabolico a basso impatto per il ginocchio
   measures: [],            // girovita e peso
   morningMin: 10,          // durata della mobilità del mattino (10 o 15 minuti)
@@ -78,6 +78,10 @@ function load() {
   // (7S 0) preparazione Spartan: registro delle corse e valori dichiarati
   if (!Array.isArray(S.spartanRuns)) S.spartanRuns = [];
   if (S.spSelf && (typeof S.spSelf !== 'object' || !isFinite(S.spSelf.ts))) S.spSelf = null;
+  // (8.3) registro del dolore e durata predefinita portata a 45 minuti (una volta sola)
+  if (!Array.isArray(S.painLog)) S.painLog = [];
+  if (!S.dur45) { S.durPref = 45; S.dur45 = true; }
+  if (![35, 40, 45, 50].includes(S.durPref)) S.durPref = 45;
 }
 
 /* ---------------------------------------------------------------------------
@@ -836,23 +840,12 @@ function suggestLoad(ex, it) {
   // in settimana di scarico nessun aumento: si recupera a carico invariato
   const deloadNow = isDeloadWeek();
   const r = suggestLoadCore(ex, deloadNow, it);
-  // (8) dolore in aumento per due sedute di fila: l'esercizio collegato si alleggerisce
-  const part = r ? painPartFor(ex) : null;
-  if (part && r.value) {
-    const steps = ex.load === 'band' ? BANDS : levelsOf(ex);
-    const why = `${part === 'knee' ? 'Ginocchio' : 'Spalla'}: dolore in aumento nelle ultime due sedute, `;
-    if (steps && !it?.level) {
-      const i = steps.indexOf(r.value), j = i - progressDir(ex);
-      if (i >= 0 && j >= 0 && j < steps.length) { r.value = steps[j]; r.reason = why + 'un gradino più facile. ' + (r.reason || ''); }
-    } else if (ex.load === 'weight') {
-      const v = numLoad(r.value);
-      if (v > 0) {
-        const nv = isAssist(ex) ? stepOnScale(ex, v, 1) : (rackOf(ex) ? Math.max(rackOf(ex)[0], snapLoad(ex, v * 0.9, -1)) : Math.floor(v * 0.9 * 2) / 2);
-        r.value = String(nv % 1 === 0 ? nv : nv.toFixed(1));
-        r.reason = why + (isAssist(ex) ? 'più assistenza. ' : 'carico ridotto di circa il 10%. ') + (r.reason || '');
-      }
-    }
-    r.pain = part;
+  // (8 / 8.3) dolore segnato o in aumento: l'esercizio collegato si alleggerisce
+  const pi = r ? painInfo(ex, it) : null;
+  if (pi && r.value) {
+    const lv = lighterValue(ex, r.value, it);
+    if (lv) { r.value = lv.value; r.reason = `${PAIN_NAME[pi.part]}: ${pi.why}, ${lv.how}. ` + (r.reason || ''); }
+    r.pain = pi.part;
   }
   if (r && deloadNow && r.heldForDeload) {
     r.reason = 'Settimana di scarico: il carico resta fermo. L\'aumento guadagnato con la regola 2-for-2 scatta la settimana prossima.';
@@ -1703,11 +1696,12 @@ function isAvoided(id) { return !!(S.avoid && S.avoid[id] && S.avoid[id] > Date.
 function applyCare(pool) {
   // (8) gli esercizi segnati «mi dà fastidio» escono, se resta un'alternativa
   if (S.avoid) { const ok = pool.filter(e => !isAvoided(e.id)); if (ok.length) pool = ok; }
-  if (S.kneeCare) {
+  const pc = painCare();       // (8.3) dolore forte nell'ultima seduta: precauzioni temporanee
+  if (S.kneeCare || pc.knee) {
     const safe = pool.filter(e => e.kneeFriendly);
     if (safe.length) pool = safe;
   }
-  if (S.shoulderCare) {
+  if (S.shoulderCare || pc.shoulder) {
     const safe = pool.filter(e => !e.shoulderRisk);
     if (safe.length) pool = safe;
   }
@@ -1893,6 +1887,34 @@ function slotPool(patterns) {
   return pool;
 }
 
+/* ---------------------------------------------------------------------------
+   MUSCOLI SPECIFICI (dalla 8.3)
+   Alcuni slot non chiedono uno schema di movimento ma un muscolo preciso
+   (campo «focus» dell'esercizio): capo lungo del tricipite, bicipite,
+   brachiale, avambracci, deltoide posteriore, trapezio superiore, obliqui,
+   addome, fasci alti del petto. Le precauzioni per ginocchio e spalla qui sono
+   rigide (nessun esercizio a rischio come ripiego): se non resta nulla si passa
+   al «fallback» dello slot (per esempio dal capo lungo al push-down), poi,
+   solo se lo slot lo consente («loose»), allo schema di movimento generico.
+--------------------------------------------------------------------------- */
+function strictCare(pool) {
+  const pc = painCare();
+  return pool.filter(e => !isAvoided(e.id) && (!(S.kneeCare || pc.knee) || e.kneeFriendly) &&
+    (!(S.shoulderCare || pc.shoulder) || !e.shoulderRisk));
+}
+function focusPool(focus) {
+  const sub = DB.exercises.filter(e => e.setup.includes(S.setup) && (e.type === 'strength' || e.type === 'core') &&
+    (e.focus || []).some(f => focus.includes(f)));
+  return strictCare(sub).sort((a, b) => a.id.localeCompare(b.id));
+}
+function slotPoolFor(slot) {
+  if (!slot.focus) return slotPool(slot.patterns);
+  let pool = focusPool(slot.focus);
+  if (!pool.length && slot.fallback) pool = focusPool(slot.fallback);
+  if (!pool.length && slot.loose) pool = slotPool(slot.patterns);
+  return pool;
+}
+
 /* Finale metabolico scelto in Programma (a casa si ripiega sull'unico
    disponibile senza attrezzi). */
 /* i finali della 4.8 su attrezzi non disponibili portano al più vicino */
@@ -2014,17 +2036,33 @@ function buildStrength(meta, budget) {
   const dayGoal = (meta.phase && meta.phase.ph.goals && meta.phase.ph.goals[meta.tmplIdx]) || tmpl.goal;
 
   const main = [];
+  // (8.3) i muscoli che il giorno allena con uno slot dedicato non occupano gli
+  // slot generici (per esempio le alzate posteriori al posto del rematore)
+  const dayFocus = new Set();
+  tmpl.slots.forEach(sl => (sl.focus || []).concat(sl.fallback || []).forEach(f => dayFocus.add(f)));
   tmpl.slots.forEach((slot, i) => {
     if (slot.skipIfPullBlock && pullMain.length) return;   // la tirata verticale c'è già
-    const pool = slotPool(slot.patterns);
+    let pool = slotPoolFor(slot);
+    // (8.3) in superserie solo esercizi a ripetizioni: con le tenute a tempo
+    // il timer farebbe tutta la sequenza di fila e l'alternanza salterebbe
+    if (slot.ss) { const reps = pool.filter(e => e.load !== 'time'); if (reps.length) pool = reps; }
+    if (!slot.focus && dayFocus.size) {
+      const free = pool.filter(e => !(e.focus || []).some(f => dayFocus.has(f)));
+      if (free.length) pool = free;
+    }
     const rot = (meta.mesocycle - 1) * (meta.tmplIdx + 2) + i;   // rotazione per mesociclo
     const ex = pickFrom(pool, rot, used);
     if (!ex) return;
     const goalKey = slot.goal || dayGoal;
-    main.push({ exId: ex.id, note: slot.note || '', goalKey, role: main.length < 2 ? 'key' : 'main',
-                alt: { patterns: slot.patterns.slice(), types: ['strength', 'core'] },
+    // con un focus lo slot conta solo per il muscolo: il primo resta comunque 'key'
+    main.push({ exId: ex.id, note: slot.note || '', baseNote: slot.note || '', goalKey, role: main.length < 2 ? 'key' : 'main',
+                alt: { patterns: slot.patterns.slice(), types: ['strength', 'core'], ...(slot.focus ? { focus: slot.focus.concat(slot.fallback || []) } : {}) },
+                ...(slot.ss ? { ssSlot: slot.ss } : {}),
                 ...dose(goalKey, meta.profile, ex) });
+    main[main.length - 1].doseSets = main[main.length - 1].sets;
   });
+  // (8.3) superserie previste dal programma: i due slot con lo stesso «ss»
+  presetSupersets(main);
   main.slice(0, 2).forEach(it => items.push(it));
   pullMain.forEach(it => items.push(it));
   main.slice(2).forEach(it => items.push(it));
@@ -2064,6 +2102,7 @@ function buildStrength(meta, budget) {
   if (budget <= 35) pairSupersets(items);
   const trimmed = fitToTime(items, budget - reserve, pullTail);
   fillToTime(items, budget, { extras, finisher: fin, tail: pullTail, reserve });
+  finalizeSupersets(items);
 
   const gLabel = meta.phase && PROG.goals[(meta.phase.ph.goals || [])[meta.tmplIdx]]
     ? PROG.goals[meta.phase.ph.goals[meta.tmplIdx]].label : '';
@@ -2202,7 +2241,7 @@ const SS_TRANSFER = 20;          // secondi per passare da un esercizio all'altr
    trazioni restano con il recupero pieno. Il tempo risparmiato va ai
    supplementari (fillToTime).
 --------------------------------------------------------------------------- */
-const SS_FAMILY = { pushH: 'push', pushV: 'push', shoulderIso: 'push', pullH: 'pull', pullV: 'pull', arms: 'arms',
+const SS_FAMILY = { pushH: 'push', pushV: 'push', shoulderIso: 'push', pullH: 'pull', pullV: 'pull', arms: 'arms', forearm: 'arms', traps: 'pull',
   squat: 'legs', lunge: 'legs', quadIso: 'legs', hamIso: 'legs', hinge: 'legs', calf: 'legs', coreAnti: 'core', coreFlex: 'core' };
 function pairSupersets(items) {
   const famOf = it => SS_FAMILY[(exById(it.exId) || {}).pattern] || 'other';
@@ -2215,7 +2254,7 @@ function pairSupersets(items) {
     if ((fa === 'legs') !== (fb === 'legs')) return 2;
     return 1;
   };
-  const pool = items.filter(it => it.role === 'main' && !it.ss);
+  const pool = items.filter(it => it.role === 'main' && !it.ss && (exById(it.exId) || {}).load !== 'time');
   let n = 0;
   for (let i = 0; i < pool.length; i++) {
     const a = pool[i];
@@ -2234,11 +2273,43 @@ function pairSupersets(items) {
     // il secondo esercizio subito dopo il primo
     items.splice(items.indexOf(best), 1);
     items.splice(items.indexOf(a) + 1, 0, best);
-    const na = (exById(best.exId) || {}).name || '', nb = (exById(a.exId) || {}).name || '';
-    a.note = `Superserie ${n} con ${na}${a.note ? ' · ' + a.note : ''}`;
-    best.note = `Superserie ${n} con ${nb}${best.note ? ' · ' + best.note : ''}`;
   }
   return n;
+}
+/* (8.3) Superserie scritte nel programma: valgono a qualunque durata. */
+function presetSupersets(list) {
+  const by = {};
+  list.forEach(it => { if (it.ssSlot) (by[it.ssSlot] = by[it.ssSlot] || []).push(it); });
+  Object.keys(by).forEach(k => {
+    const g = by[k];
+    if (g.length !== 2 || g.some(it => (exById(it.exId) || {}).load === 'time')) return;
+    g[0].ss = 'p' + k; g[0].ssRole = 'A'; g[1].ss = 'p' + k; g[1].ssRole = 'B';
+  });
+}
+/* Dopo i tagli e le aggiunte: coppie ancora intere, una accanto all'altra,
+   numerate nell'ordine della seduta, con la nota che dice come si svolgono. */
+function finalizeSupersets(items, opt) {
+  const noMove = opt && opt.noMove;     // seduta in corso: le posizioni non si toccano
+  const ids = [...new Set(items.filter(it => it.ss).map(it => it.ss))];
+  ids.forEach(id => {
+    const g = items.filter(it => it.ss === id);
+    if (g.length !== 2) { g.forEach(it => { delete it.ss; delete it.ssRole; }); return; }
+    const a = g.find(it => it.ssRole === 'A') || g[0], b = g.find(it => it !== a);
+    a.ssRole = 'A'; b.ssRole = 'B';
+    if (noMove) return;
+    items.splice(items.indexOf(b), 1);
+    items.splice(items.indexOf(a) + 1, 0, b);
+  });
+  let n = 0;
+  items.forEach(it => {
+    if (it.baseNote === undefined) it.baseNote = it.note || '';
+    if (!it.ss) { it.note = it.baseNote; delete it.ssN; return; }
+    if (it.ssRole === 'A') n++;
+    it.ssN = it.ssRole === 'A' ? n : (items.find(x => x !== it && x.ss === it.ss) || {}).ssN || n;
+    const mate = items.find(x => x !== it && x.ss === it.ss);
+    const mn = (exById(mate.exId) || {}).name || '';
+    it.note = `Superserie ${it.ssN} · ${it.ssRole === 'A' ? '1°' : '2°'} esercizio, alternato con ${mn}${it.baseNote ? ' · ' + it.baseNote : ''}`;
+  });
 }
 function paceOf(kind) {
   const p = S && S.pace && isFinite(S.pace[kind]) && S.pace[kind] > 0 ? S.pace[kind] : 1;
@@ -2323,7 +2394,11 @@ function fitToTime(items, maxMin, tail) {
   while (over() && guard++ < 60) {
     // dalla 6.4 trazioni e muscle-up sono un obiettivo del programma: prima si
     // accorciano i complementari, poi le serie in più del blocco trazioni
-    const acc = items.slice().reverse().find(it => (it.role === 'main' || !it.role) && it.sets > 2);
+    // (8.3) fra i complementari si accorcia prima quello con più serie
+    // (a parità, l'ultimo): così le superserie non restano a 2 serie mentre
+    // un altro complementare ne tiene 4
+    const acc = items.slice().reverse().filter(it => (it.role === 'main' || !it.role) && it.sets > 2)
+      .reduce((a, it) => (!a || it.sets > a.sets) ? it : a, null);
     if (acc) { minus(acc); continue; }
     const pull = items.find(it => it.role === 'pull' && it.sets > 3);
     if (pull) { minus(pull); continue; }
@@ -2363,6 +2438,19 @@ function fillToTime(items, maxMin, opt) {
   }
   // 3. la sospensione alla sbarra, in chiusura
   (opt.tail || []).forEach(x => { if (fitsIn([x], maxMin)) items.push(x); });
+  // 3b. (8.3) prima di allungare petto e gambe, i complementari accorciati
+  // tornano alle serie previste (le superserie con il lavoro diretto sui
+  // muscoli piccoli)
+  let back = true, g2 = 0;
+  while (back && g2++ < 20) {
+    back = false;
+    for (const it of items) {
+      if (it.role !== 'main' || !it.doseSets || it.sets >= it.doseSets) continue;
+      it.sets += it.perSide ? 2 : 1;
+      if (estimateMinutes(items) <= maxMin) back = true;
+      else it.sets -= it.perSide ? 2 : 1;
+    }
+  }
   // 4. una serie in più a petto e gambe (fino a 4), senza toccare il finale
   const growable = items.filter(it => (it.role === 'key' || it.role === 'main' || it.role === 'extra') && it.goal !== 'core' && (() => {
     const g = muscleGroup(((exById(it.exId) || {}).primary || [])[0] || '');
@@ -3212,9 +3300,9 @@ function bindMorning() {
 --------------------------------------------------------------------------- */
 let sessMemo = new Map(), sessMemoKey = null;
 function planSignature() {
-  return [S.programId, S.setup, S.durPref || 35, S.finisher || '', S.kneeCare, S.shoulderCare,
+  return [S.programId, S.setup, S.durPref || 45, S.finisher || '', S.kneeCare, S.shoulderCare,
           S.pullupGoal, JSON.stringify(S.pullSelf || null), S.week6From || 0, logsRev, (S.mobilityWeeks || []).join('.'),
-          JSON.stringify(S.perms || {}), JSON.stringify(S.sessPick || {}), spSig()].join('|');
+          JSON.stringify(S.perms || {}), JSON.stringify(S.sessPick || {}), spSig(), painSig()].join('|');
 }
 function sessionFor(idx, kind) {
   const sig = planSignature();
@@ -3229,7 +3317,7 @@ function sessionFor(idx, kind) {
    in Home (35, 40, 45 o 50); il blocco core facoltativo resta sui 14 minuti. */
 function buildSession(idx, kind, minutes) {
   const meta = sessionMeta(idx);
-  const budget = kind === 'core' ? 14 : (minutes || S.durPref || 35);
+  const budget = kind === 'core' ? 14 : (minutes || S.durPref || 45);
   let body;
   if (kind === 'core') {
     body = buildCore(meta);
@@ -3765,12 +3853,147 @@ function lastPain(part) {
 }
 const KNEE_PATTERNS = ['squat', 'lunge', 'quadIso'];
 const SHOULDER_PATTERNS = ['pushV', 'pushH', 'shoulderIso', 'pullV', 'pullup'];
-/* Esercizio da alleggerire per il dolore in aumento: quale distretto. */
-function painPartFor(ex) {
+const PAIN_NAME = { knee: 'Ginocchio', shoulder: 'Spalla' };
+/* Distretto che un esercizio carica di più (null se nessuno dei due). */
+function partOfEx(ex) {
   if (!ex) return null;
-  if (painRising('knee') && KNEE_PATTERNS.includes(ex.pattern)) return 'knee';
-  if (painRising('shoulder') && SHOULDER_PATTERNS.includes(ex.pattern)) return 'shoulder';
+  if (KNEE_PATTERNS.includes(ex.pattern)) return 'knee';
+  if (SHOULDER_PATTERNS.includes(ex.pattern) || ex.shoulderRisk) return 'shoulder';
   return null;
+}
+/* ---------------------------------------------------------------------------
+   DOLORE E FASTIDIO (dalla 8.3)
+   Si segna in tre momenti: durante un esercizio (pulsante nella seduta), a
+   fine seduta (sensazioni) e in qualunque giorno da Oggi (per esempio la
+   mattina dopo). Le soglie sono REGOLE OPERATIVE DELL'APP: la linea guida
+   sulla tendinopatia della cuffia (Desmeules et al. 2025, JOSPT) chiede di
+   adattare l'esercizio alla tolleranza al dolore senza fissare numeri, e nel
+   dolore femoro-rotuleo lo studio di Esculier et al. 2018 (BJSM) usava un
+   tetto di 2 su 10 per la corsa.
+     0-3  lieve: si annota, si continua se non sale;
+     4-6  moderato: serie rimanenti più leggere (circa −10% o un gradino più
+          facile) e lo stesso esercizio parte più leggero la volta dopo;
+     7-10 forte: stop all'esercizio (cambiarlo, chiuderlo o escluderlo per 2
+          settimane); nella seduta successiva il distretto lavora solo con
+          esercizi «amici» (come con le precauzioni accese) e carichi −10%.
+   Un valore ≥5 a fine seduta o segnato da Oggi alleggerisce del 10% gli
+   esercizi di quel distretto nella seduta successiva. Il registro del dolore
+   (S.painLog) non si cancella mai.
+--------------------------------------------------------------------------- */
+var PAIN_LIGHT = 4, PAIN_STRONG = 7, PAIN_DISTRICT = 5;
+function lastProgramSession() {
+  const L = S.sessionLog || [];
+  for (let i = L.length - 1; i >= 0; i--) {
+    const x = L[i];
+    if (x && isProgramKind(x.kind) && !x.planned && !/ignorata/.test(x.label || '')) return x;
+  }
+  return null;
+}
+/* Valore del distretto che conta per la prossima seduta: se dopo l'ultima
+   seduta hai segnato il dolore da Oggi vale l'ultimo valore segnato; se no il
+   più alto fra fine seduta e valori segnati durante la seduta. */
+function districtPain(part) {
+  const L = lastProgramSession();
+  const log = (S.painLog || []).filter(p => p && p.part === part && isFinite(p.v));
+  const after = log.filter(p => p.when === 'day' && p.ts > (L ? L.ts : 0));
+  if (after.length) return { v: after[after.length - 1].v, src: 'segnato da Oggi' };
+  if (!L) return null;
+  const vals = [];
+  if (L.feel && isFinite(L.feel[part]) && L.feel[part] !== null) vals.push({ v: L.feel[part], src: 'a fine seduta' });
+  log.filter(p => p.when === 'set' && p.sid === L.sid).forEach(p => vals.push({ v: p.v, src: 'durante la seduta' }));
+  if (!vals.length) return null;
+  return vals.reduce((a, b) => b.v > a.v ? b : a);
+}
+/* Precauzioni temporanee decise dal dolore forte: valgono finché un nuovo
+   valore più basso non le spegne. */
+function painCare() {
+  const k = districtPain('knee'), sh = districtPain('shoulder');
+  return { knee: !!(k && k.v >= PAIN_STRONG), shoulder: !!(sh && sh.v >= PAIN_STRONG) };
+}
+function painSig() { const p = painCare(); return (p.knee ? 'k' : '') + (p.shoulder ? 's' : ''); }
+/* Perché alleggerire un esercizio (null se non serve). */
+function painInfo(ex, it) {
+  if (!ex) return null;
+  // dolore segnato oggi su questo esercizio
+  if (it && it.pain && it.pain.v >= PAIN_LIGHT)
+    return { part: it.pain.part, why: `${it.pain.v}/10 segnato in questa seduta` };
+  // l'ultima volta questo esercizio ha dato dolore moderato o forte
+  for (let i = (S.logs || []).length - 1; i >= 0; i--) {
+    const l = S.logs[i];
+    if (!l || l.exId !== ex.id || l.planned) continue;
+    if (l.pain && l.pain.v >= PAIN_LIGHT) return { part: l.pain.part, why: `${l.pain.v}/10 l'ultima volta con questo esercizio` };
+    break;
+  }
+  const part = partOfEx(ex);
+  if (!part) return null;
+  // nella seduta in corso un dolore forte alleggerisce tutto il distretto
+  if (current && !current.finished && current.sess && current.sess.items.some(x => x.pain && x.pain.part === part && x.pain.v >= PAIN_STRONG))
+    return { part, why: 'dolore forte segnato poco fa in questa seduta' };
+  if (painRising(part)) return { part, why: 'dolore in aumento nelle ultime due sedute' };
+  const d = districtPain(part);
+  if (d && d.v >= PAIN_DISTRICT) return { part, why: `${d.v}/10 ${d.src}` };
+  return null;
+}
+/* Compatibilità: distretto da alleggerire. */
+function painPartFor(ex) { const p = painInfo(ex); return p ? p.part : null; }
+/* Un passo più leggero: −10% sul carico (più assistenza se assistito) o un
+   gradino più facile. */
+function lighterValue(ex, value, it) {
+  if (!ex || value === '' || value === null || value === undefined) return null;
+  const steps = ex.load === 'band' ? BANDS : levelsOf(ex);
+  if (steps) {
+    if (it && it.level) return null;
+    const i = steps.indexOf(value), j = i - progressDir(ex);
+    return (i >= 0 && j >= 0 && j < steps.length) ? { value: steps[j], how: 'un gradino più facile' } : null;
+  }
+  if (ex.load !== 'weight') return null;
+  const v = numLoad(value);
+  if (!(v > 0)) return null;
+  const nv = isAssist(ex) ? stepOnScale(ex, v, 1) : (rackOf(ex) ? Math.max(rackOf(ex)[0], snapLoad(ex, v * 0.9, -1)) : Math.floor(v * 0.9 * 2) / 2);
+  if (nv === v) return null;
+  return { value: String(nv % 1 === 0 ? nv : nv.toFixed(1)), how: isAssist(ex) ? 'più assistenza' : 'carico ridotto di circa il 10%' };
+}
+const PAIN_HINT = v => v === null || v === undefined ? 'Scegli un valore.'
+  : v <= 3 ? 'Lieve: puoi continuare, se resta così e non sale.'
+  : v < PAIN_STRONG ? 'Moderato: le serie che restano si alleggeriscono e la prossima volta l\'esercizio parte più leggero.'
+  : 'Forte: fermati con questo esercizio. La prossima seduta il distretto lavora con esercizi più tollerabili e carichi più bassi. Se non passa in pochi giorni, senti il medico o il fisioterapista.';
+/* Finestra per segnare il dolore. onSave(part, v). */
+function openPainModal(opt) {
+  const o = opt || {};
+  let part = o.part || 'knee', val = null;
+  openModal(`<h2>${esc(o.title || 'Dolore o fastidio')}</h2>
+    <p class="small muted">${esc(o.sub || 'Dove e quanto: 0 nessun dolore, 10 il peggiore immaginabile.')}</p>
+    <div class="seg" role="group" aria-label="Dove" style="margin-top:10px">
+      <button data-ppart="knee" aria-pressed="${part === 'knee'}">Ginocchio</button>
+      <button data-ppart="shoulder" aria-pressed="${part === 'shoulder'}">Spalla</button>
+    </div>
+    <div class="feelbtns painvals" style="margin-top:12px">${Array.from({ length: 11 }, (_, i) => `<button type="button" data-pv="${i}">${i}</button>`).join('')}</div>
+    <p class="small" id="painHint" style="margin-top:10px">${PAIN_HINT(null)}</p>
+    <p class="small muted">Soglie: regola operativa dell'app. Le linee guida chiedono di adattare l'esercizio alla tolleranza al dolore, senza numeri fissi.</p>
+    <button class="btn" id="painOk" disabled style="margin-top:8px">Salva</button>
+    <button class="btn ghost" id="painNo" style="margin-top:10px">Annulla</button>`);
+  document.querySelectorAll('[data-ppart]').forEach(b => b.onclick = () => {
+    part = b.dataset.ppart;
+    document.querySelectorAll('[data-ppart]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  });
+  document.querySelectorAll('[data-pv]').forEach(b => b.onclick = () => {
+    val = +b.dataset.pv;
+    document.querySelectorAll('[data-pv]').forEach(x => x.setAttribute('aria-pressed', String(+x.dataset.pv === val)));
+    $('#painHint').textContent = PAIN_HINT(val);
+    $('#painOk').disabled = false;
+  });
+  $('#painNo').onclick = () => closeModal();
+  $('#painOk').onclick = () => { if (val === null) return; const p = part, v = val; closeModal(() => o.onSave && o.onSave(p, v)); };
+}
+/* Dolore segnato da Oggi, fuori dalla seduta. */
+function recordDayPain(part, v) {
+  S.painLog = Array.isArray(S.painLog) ? S.painLog : [];
+  S.painLog.push({ ts: Date.now(), part, v, when: 'day' });
+  planCache = null; save();
+  const msg = v >= PAIN_STRONG ? 'la prossima seduta usa esercizi più tollerabili per questo distretto e carichi −10%'
+    : v >= PAIN_DISTRICT ? 'la prossima seduta alleggerisce del 10% gli esercizi di questo distretto'
+    : 'nessuna modifica: valore lieve';
+  showToast(`<div><b>${PAIN_NAME[part]} ${v}/10</b> annotato: ${msg}.</div>`, 4200);
 }
 function feelSummary() {
   const rows = feelRows();
@@ -4456,6 +4679,12 @@ function alternativesFor(item, sess) {
   if (alt.roles && pool.length < 2) {
     pool = DB.exercises.filter(e => e.setup.includes(S.setup) && e.pattern === 'pullup');
   }
+  // (8.3) slot per un muscolo preciso: le alternative allenano lo stesso muscolo
+  if (alt.focus) {
+    const f = DB.exercises.filter(e => e.setup.includes(S.setup) && (alt.types || ['strength']).includes(e.type) &&
+      (e.focus || []).some(x => alt.focus.includes(x)));
+    if (f.length >= 2 || !pool.length) pool = f;
+  }
   pool = applyCare(pool);
   pool.sort((a, b) => a.id.localeCompare(b.id));
   return pool.filter(e => e.id === item.exId || !inUse.has(e.id));
@@ -4468,6 +4697,7 @@ function applyExercise(item, sess, ex) {
   item.exId = ex.id;
   item.sets = d.sets; item.reps = d.reps; item.rest = d.rest;
   item.hold = d.hold; item.perSide = d.perSide; item.source = d.source;
+  if (item.ss && sess && sess.items) finalizeSupersets(sess.items, { noMove: true });   // la nota del compagno cita il nuovo nome
   return true;
 }
 
@@ -4669,7 +4899,7 @@ function weeksLeftText(p, weekAbs) {
 }
 
 function todaySession(kind) {
-  const key = `${S.programId}|${S.setup}|${S.sessionIndex}|${kind || ''}|${S.durPref || 35}|${S.finisher || ''}|${pickKey(S.sessionIndex)}|${spSig()}`;
+  const key = `${S.programId}|${S.setup}|${S.sessionIndex}|${kind || ''}|${S.durPref || 45}|${S.finisher || ''}|${pickKey(S.sessionIndex)}|${spSig()}|${painSig()}`;
   if (!planCache || planCache.key !== key) planCache = { key, sess: buildSession(S.sessionIndex, kind) };
   return planCache.sess;
 }
@@ -4880,6 +5110,40 @@ function renderHomeWeek() {
   bindHomeBanners(b.saved);
 }
 
+/* (8.3) Il programma è costruito su 45 minuti: superserie e lavoro diretto
+   sui muscoli piccoli ci stanno tutti. Con meno minuti si confronta la seduta
+   con quella da 45 e si elenca cosa si perde (i supplementari, il finale e la
+   sospensione «se resta tempo» non contano: non fanno parte del programma). */
+const PROGRAM_MIN = 45;
+function durationLoss(idx, m) {
+  if (!(m < PROGRAM_MIN)) return [];
+  let a, b;
+  try { a = buildSession(idx, null, PROGRAM_MIN); b = buildSession(idx, null, m); } catch (e) { return []; }
+  if (!a || !b || a.type !== 'strength') return [];
+  const inProgram = it => !['extra', 'finisher', 'activation'].includes(it.role);
+  const out = [];
+  a.items.filter(inProgram).forEach(x => {
+    const y = b.items.find(z => z.exId === x.exId);
+    const nm = (exById(x.exId) || {}).name || x.exId;
+    if (!y) out.push(`${nm}: tolto${x.ss ? ' (era in superserie)' : ''}`);
+    else if (y.sets < x.sets) out.push(`${nm}: ${x.sets} → ${y.sets} serie`);
+  });
+  return out;
+}
+/* Riquadro del dolore in Allenamento del giorno: stato e pulsante. */
+function painStatusHtml() {
+  const lines = ['knee', 'shoulder'].map(p => {
+    const d = districtPain(p);
+    if (!d || d.v < PAIN_DISTRICT) return '';
+    return `<li>${PAIN_NAME[p]} ${d.v}/10 ${esc(d.src)}: ${d.v >= PAIN_STRONG ? 'esercizi più tollerabili per questo distretto e carichi −10%' : 'carichi −10% sugli esercizi di questo distretto'}.</li>`;
+  }).filter(Boolean);
+  return `<div class="card painstatus" style="margin-top:14px">
+    <p class="small" style="margin:0"><b>Ginocchio e spalla</b></p>
+    ${lines.length ? `<ul class="small" style="margin:6px 0 0 18px">${lines.join('')}</ul>` : '<p class="small muted" style="margin:6px 0 0">Nessun dolore segnalato che cambi la prossima seduta.</p>'}
+    <button class="btn ghost" id="painDayBtn" style="margin-top:10px">Segna dolore o fastidio</button>
+  </div>`;
+}
+
 /* Allenamento del giorno: la seduta di oggi, o quella toccata nel programma
    della settimana. */
 function renderHomeLunch() {
@@ -4901,7 +5165,8 @@ function renderHomeLunch() {
     const sg = ex && ex.load === 'weight' && !isAssist(ex) ? suggestLoad(ex, it) : null;
     const sgTxt = sg && sg.value && sg.last && numLoad(sg.last.load) > 0
       ? `<span class="small sugline">Proposto <b>${esc(String(sg.value).replace('.', ','))} kg</b> · ultima ${esc(lastSetsText(sg.last))}</span>` : '';
-    return `<li data-plan="${i}" class="${it.block === 'pullup' ? 'pullrow' : ''}"><div class="fig">${figureFor(ex, 1, { ground: false })}</div>
+    const ssHead = it.ss && it.ssRole === 'A' ? `<li class="sshead"><b>Superserie ${it.ssN || ''}</b> · alterna i due esercizi qui sotto: una serie del primo, 20 s per spostarti, una serie del secondo, poi il recupero. Ripeti per tutte le serie.</li>` : '';
+    return ssHead + `<li data-plan="${i}" class="${it.block === 'pullup' ? 'pullrow' : ''}${it.ss ? ' ssrow' : ''}"><div class="fig">${figureFor(ex, 1, { ground: false })}</div>
       <div class="nm"><b>${esc(ex.name)}</b>${sgTxt}<span class="small muted">${esc(ex.group)}${it.note ? ' · ' + esc(it.note) : ''}</span></div>
       <div class="dose">${doseText(it)}</div><div class="chev">›</div></li>`;
   }).join('');
@@ -4940,7 +5205,7 @@ function renderHomeLunch() {
       ${core || done ? '' : `<div class="durrow">
         <span class="lab">Tempo a disposizione oggi</span>
         <div class="seg dur" role="group" aria-label="Durata della seduta">
-          ${DURATIONS.map(m => `<button data-dur="${m}" aria-pressed="${(S.durPref || 35) === m}">${m}′</button>`).join('')}
+          ${DURATIONS.map(m => `<button data-dur="${m}" aria-pressed="${(S.durPref || 45) === m}">${m}′</button>`).join('')}
         </div>
         <p class="small muted" style="margin:6px 0 0">Durata stimata ${s.minutes} minuti, cambi fra gli esercizi compresi.${
           s.trimmed ? ' Seduta ridotta per stare nel tempo scelto: con più minuti tornano serie ed esercizi.'
@@ -4956,6 +5221,7 @@ function renderHomeLunch() {
       ${core ? '' : '<button class="btn ghost" id="skipBtn">Non la faccio: salta</button>'}
       <button class="btn ghost" id="markBtn">${core ? 'Segna il core come svolto' : 'L\'ho già fatta: segna come svolta'}</button>
     </div>`}
+    ${core ? '' : painStatusHtml()}
     <p class="small muted" style="margin-top:16px">Programma attivo: ${esc(p.name)} · ${esc(p.periodization)}.</p>
     <button class="btn ghost backbottom" id="dayBack2">‹ ${dayFrom === 'week' ? 'Torna al programma della settimana' : 'Torna a Oggi'}</button>
   `;
@@ -4968,8 +5234,24 @@ function renderHomeLunch() {
     S.setup = x.dataset.setup; save(); renderHome();
   });
   document.querySelectorAll('[data-dur]').forEach(x => x.onclick = () => {
-    S.durPref = +x.dataset.dur; planCache = null; save(); renderHome();
+    const m = +x.dataset.dur;
+    const apply = () => { S.durPref = m; planCache = null; save(); renderHome(); };
+    if (m === (S.durPref || 45)) return;
+    // (8.3) sotto i 45 minuti del programma: avviso se si perdono esercizi o serie
+    const loss = core || done ? [] : durationLoss(isToday ? S.sessionIndex : wStart + q, m);
+    if (!loss.length) { apply(); return; }
+    openModal(`<h2>Seduta da ${m} minuti?</h2>
+      <p class="small">Il programma è costruito su <b>${PROGRAM_MIN} minuti</b>: con ${m} minuti questa seduta perde</p>
+      <ul class="small" style="margin:6px 0 0 18px">${loss.map(t => `<li>${esc(t)}</li>`).join('')}</ul>
+      <p class="small muted" style="margin-top:10px">Questa scelta potrebbe compromettere la corretta riuscita del programma: i muscoli piccoli (braccia, avambracci, deltoidi posteriori, addome) restano senza il lavoro diretto previsto. La decisione resta tua.</p>
+      <button class="btn" id="durKeep" style="margin-top:12px">Resto a ${PROGRAM_MIN} minuti</button>
+      <button class="btn ghost" id="durGo" style="margin-top:10px">Scelgo comunque ${m} minuti</button>`);
+    $('#durKeep').onclick = () => closeModal(() => { S.durPref = PROGRAM_MIN; planCache = null; save(); renderHome(); });
+    $('#durGo').onclick = () => closeModal(apply);
   });
+  if ($('#painDayBtn')) $('#painDayBtn').onclick = () => openPainModal({
+    title: 'Dolore o fastidio', sub: 'Come stanno ginocchio e spalla oggi? 0 nessun dolore, 10 il peggiore immaginabile. La prossima seduta si regola di conseguenza.',
+    onSave: (p, v) => { recordDayPain(p, v); renderHome(); } });
   // ogni riga dell'elenco apre la scheda illustrativa dell'esercizio
   document.querySelectorAll('[data-plan]').forEach(li => li.onclick = () => {
     const it = s.items[+li.dataset.plan];
@@ -5165,9 +5447,26 @@ function renderSessionCore() {
     nxEx ? `${nx < c.pos ? 'Poi torni a' : 'Prossimo'}: <b>${esc(nxEx.name)}</b> <span class="muted">${doseText(nxIt)}${nx < c.pos ? ' · rimasto da fare' : ''}</span>`
          : '<span class="muted">ultimo esercizio della seduta</span>'}</div>`;
 
+  // (8.3) superserie: come si svolge, scritto per esteso
+  const ssMi = ssMateIdx(c, c.pos);
+  const ssMate = ssMi >= 0 ? s.items[ssMi] : null;
+  const ssBox = ssMate ? (() => {
+    const A = it.ssRole === 'A' ? it : ssMate, B = it.ssRole === 'A' ? ssMate : it;
+    const nA = exById(A.exId).name, nB = exById(B.exId).name;
+    const rounds = Math.max(A.sets, B.sets), rest = Math.max(A.rest, B.rest);
+    return `<div class="ssbox"><b>Superserie ${it.ssN || ''}</b> · ${it.ssRole === 'A' ? '1°' : '2°'} esercizio di 2
+      <ol class="small"><li>una serie di <b>${esc(nA)}</b>;</li><li>${SS_TRANSFER} secondi per spostarti;</li>
+      <li>una serie di <b>${esc(nB)}</b>;</li><li>recupero di ${rest} secondi, poi di nuovo il primo.</li></ol>
+      <span class="small muted">${rounds} giri. Il timer ti porta da solo da un esercizio all'altro: tu chiudi la serie con il pulsante in basso.</span></div>`;
+  })() : '';
+  // (8.3) dolore segnato su questo esercizio
+  const painBox = it.pain ? `<div class="${it.pain.v >= PAIN_STRONG ? 'warnbox' : 'notice'} painbox">${PAIN_NAME[it.pain.part]} ${it.pain.v}/10 segnato alla serie ${it.pain.set + 1 > it.sets ? it.sets : it.pain.set + 1}: ${
+    it.pain.v >= PAIN_STRONG ? 'fermati con questo esercizio: cambialo o chiudilo.' : it.pain.v >= PAIN_LIGHT ? 'serie rimanenti più leggere; la prossima volta l\'esercizio parte più leggero.' : 'lieve, continua se non sale.'}</div>` : '';
+
   $('#view-session').innerHTML = `
     <div class="progress">${bars}</div>
     ${nextLine}
+    ${ssBox}
     ${s.items.length > 1 ? `<div class="swipehint">${c.pos > 0 ? '‹ precedente' : ''}${c.pos > 0 && c.pos < s.items.length - 1 ? ' · ' : ''}${c.pos < s.items.length - 1 ? 'successivo ›' : ''} — scorri col dito, il timer continua</div>` : ''}
     <div class="exercise">
       <div class="fig-large">${figureMotion(ex)}</div>
@@ -5179,6 +5478,7 @@ function renderSessionCore() {
 
       ${nota ? `<div class="exnote" id="noteShow">📌 ${esc(nota)}</div>` : ''}
 
+      ${painBox}
       ${warmupHtml(c, it, ex, sug, s)}
       <div class="setdots">${setBtns}</div>
       ${setRowsHtml(c.pos)}
@@ -5229,6 +5529,9 @@ function renderSessionCore() {
       </div>
       <div class="btn-row" style="margin-top:10px">
         <button class="btn ghost" id="postponeBtn" ${c.pos === s.items.length - 1 ? 'disabled' : ''}>Macchina occupata: passa a un altro</button>
+      </div>
+      <div class="btn-row" style="margin-top:10px">
+        <button class="btn ghost painbtn" id="painBtn">Dolore o fastidio a spalla o ginocchio</button>
       </div>
       <p class="small muted" style="margin-top:14px">${esc(it.source)}${it.note ? ' · ' + esc(it.note) : ''}</p>
       <button class="btn ghost" id="abortBtn" style="margin-top:14px">Interrompi</button>
@@ -5294,6 +5597,11 @@ function renderSessionCore() {
     captureLoad(); saveResume(); renderSession();
   });
   if ($('#loadIn')) $('#loadIn').onchange = () => { captureLoad(); saveResume(); renderSession(); };
+  // (8.3) dolore durante l'esercizio
+  $('#painBtn').onclick = () => { captureLoad(); openPainModal({
+    part: partOfEx(ex) || (it.pain && it.pain.part) || 'shoulder',
+    title: `Dolore o fastidio · ${ex.name}`,
+    onSave: (p, v) => sessionPain(it, ex, p, v) }); };
 
   /* Conclude la serie in corso e avvia il recupero.
      Il conteggio avanza solo qui, di una serie per volta, e l'esercizio si
@@ -5595,6 +5903,48 @@ function setRowsHtml(pos) {
   </div>`;
 }
 
+/* (8.3) Dolore segnato durante un esercizio della seduta in corso. */
+function sessionPain(it, ex, part, v) {
+  const c = current;
+  if (!c || c.finished) return;
+  const pos = c.sess.items.indexOf(it);
+  if (pos < 0) return;
+  const prev = it.pain && it.pain.part === part ? it.pain.v : -1;
+  it.pain = { part, v: Math.max(prev, v), set: c.setsDone[pos] };
+  S.painLog = Array.isArray(S.painLog) ? S.painLog : [];
+  S.painLog.push({ ts: Date.now(), part, v, when: 'set', exId: it.exId, sid: c.started, sIdx: c.sess.idx, set: c.setsDone[pos] });
+  // esercizio già registrato: il dolore va anche sulla registrazione
+  const ref = c.logRef[pos];
+  if (ref !== null && ref !== undefined && S.logs[ref]) S.logs[ref].pain = Object.assign({}, it.pain);
+  let msg = 'annotato. Continua se resta lieve e non sale.';
+  if (v >= PAIN_LIGHT) {
+    const lv = lighterValue(ex, c.loads[pos] || (suggestLoad(ex, it) || {}).value || '', it);
+    if (lv && c.setsDone[pos] < it.sets) { c.loads[pos] = lv.value; msg = `serie che restano: ${lv.how} (${String(lv.value).replace('.', ',')}${ex.load === 'weight' ? ' kg' : ''}).`; }
+    else msg = 'la prossima volta l\'esercizio parte più leggero.';
+  }
+  saveResume(); save();
+  renderSession();
+  if (v < PAIN_STRONG) { showToast(`<div><b>${PAIN_NAME[part]} ${v}/10</b>: ${esc(msg)}</div>`, 4200); return; }
+  // dolore forte: fermarsi con questo esercizio
+  openModal(`<h2>${PAIN_NAME[part]} ${v}/10: fermati</h2>
+    <p class="small">Con un dolore forte non continuare con <b>${esc(ex.name)}</b>. Per il resto della seduta gli esercizi che caricano ${part === 'knee' ? 'il ginocchio' : 'la spalla'} propongono carichi più bassi; la prossima seduta usa esercizi più tollerabili per questo distretto.</p>
+    <p class="small muted">Se il dolore non passa in pochi giorni, o compare anche a riposo, senti il medico o il fisioterapista.</p>
+    <button class="btn" id="pSwap" style="margin-top:12px">Cambia esercizio</button>
+    <button class="btn ghost" id="pAvoid" style="margin-top:10px">Chiudi l'esercizio ed escludilo per 2 settimane</button>
+    <button class="btn ghost" id="pClose" style="margin-top:10px">Chiudi solo l'esercizio</button>
+    <button class="btn ghost" id="pStay" style="margin-top:10px">Continuo comunque, con prudenza</button>`);
+  $('#pSwap').onclick = () => closeModal(() => { const b = $('#swapBtn'); if (b) b.click(); });
+  $('#pAvoid').onclick = () => closeModal(() => {
+    S.avoid = Object.assign({}, S.avoid || {});
+    S.avoid[ex.id] = Date.now() + 14 * 864e5;
+    save(); planCache = null;
+    showToast(`<div>«${esc(ex.name)}» fuori dalle proposte fino al ${dateIt(S.avoid[ex.id])}.</div>`, 4200);
+    const b = $('#nextBtn'); if (b) b.click();
+  });
+  $('#pClose').onclick = () => closeModal(() => { const b = $('#nextBtn'); if (b) b.click(); });
+  $('#pStay').onclick = () => closeModal();
+}
+
 /* Correzione di una serie già registrata. */
 function editSet(pos, i) {
   const c = current, it = c.sess.items[pos], ex = exById(it.exId);
@@ -5788,6 +6138,7 @@ function logExercise(pos) {
                   hold: rows.length && timed0 ? Math.round(rows.reduce((a, r) => a + (r.hold || 0), 0) / rows.length) : (it.hold || 0),
                   rest: it.rest || 0,                                 // per i minuti aerobici
                   setsPlanned: it.sets,                               // per la valutazione in Home
+                  ...(it.pain ? { pain: Object.assign({}, it.pain) } : {}),   // (8.3) dolore segnato durante l'esercizio
                   ...(it.block === 'spartan' ? { spartan: true } : {}) };   // (7S 0) fuori dal volume dei gruppi
   // valutazione automatica rispetto alla registrazione precedente dello stesso esercizio
   const ref0 = c.logRef[pos];
@@ -5819,7 +6170,9 @@ function nextExercise() {
   const c = current;
   if (c.finished) return;              // evita doppie registrazioni sull'ultimo esercizio
   logExercise(c.pos);
-  const nx = nextOpenAfter(c, c.pos);
+  // (8.3) superserie: se il compagno ha ancora serie, si torna a lui
+  const mi = ssMateIdx(c, c.pos);
+  const nx = mi >= 0 && isOpenItem(c, mi) ? mi : nextOpenAfter(c, c.pos);
   if (nx >= 0) { c.pos = nx; saveResume(); renderSession(); return; }
   // fine seduta: gli esercizi iniziati ma lasciati a metà restano registrati
   c.sess.items.forEach((_, i) => {
@@ -5881,6 +6234,13 @@ function endSession() {
   `);
   const feel = {};
   bindFeelPicker(feel);
+  // (8.3) il dolore segnato durante la seduta precompila ginocchio e spalla
+  ['knee', 'shoulder'].forEach(p => {
+    const vs = s.items.filter(x => x.pain && x.pain.part === p).map(x => x.pain.v);
+    if (!vs.length) return;
+    const b = document.querySelector(`[data-feel="${p}"] [data-v="${Math.max(...vs)}"]`);
+    if (b) b.click();
+  });
   const finish = (withNote) => {
     const sid = current ? current.started : 0;
     const hasFeel = Object.keys(feel).some(k => feel[k] !== null && feel[k] !== undefined);
@@ -6237,6 +6597,8 @@ function renderHistory() {
       (Pelland et al. 2026). Sotto le 5 la barra diventa rossa.</p>
       <div style="margin-top:10px">${vol}</div>
       ${volAna.advice.length ? `<ul class="small" style="margin-top:12px;padding-left:18px">${volAna.advice.map(t => `<li style="margin-top:6px">${esc(t)}</li>`).join('')}</ul>` : ''}</div>` : ''}
+    ${(() => { const f = fineMuscleHtml(curWeek); return f ? `<div class="card"><h2>Muscoli specifici · settimana ${curWeek}</h2>
+      <p class="small muted">Serie per i muscoli che il programma allena in modo mirato (capo lungo del tricipite, bicipite, brachiale, avambracci, deltoide posteriore, trapezio superiore, obliqui, addome, petto alto).</p>${f}</div>` : ''; })()}
     ${wks ? `<div class="card"><h2>Riepilogo settimanale</h2>
       <p class="small muted">Traguardi migliori e punti a cui fare attenzione, dalla valutazione automatica dei progressi.</p>${wks}</div>` : ''}
     ${rows ? `<div class="card" id="loadsCard"><h2>Carichi per esercizio</h2>
@@ -6670,6 +7032,58 @@ function volumeAnalysis(weekAbs) {
   return { rows, advice, low, meta };
 }
 
+/* ---------------------------------------------------------------------------
+   MUSCOLI SPECIFICI (dalla 8.3)
+   I gruppi del volume sono 8 e larghi (le braccia sommano bicipiti e
+   tricipiti, il dorso dorsali e trapezi). Qui si contano anche i singoli
+   muscoli che il programma allena in modo mirato, con la stessa regola
+   (diretta 1, indiretta ½). Non c'è una soglia: le 10 serie dell'ACSM 2026
+   valgono per gruppo muscolare, non per capo o singolo muscolo, e nessuna
+   fonte verificata fissa numeri per il capo lungo del tricipite, il
+   brachiale o gli avambracci.
+--------------------------------------------------------------------------- */
+const FINE_MUSCLES = [
+  ['Petto, fasci alti', /fasci (clavicolari|alti)/],
+  ['Tricipite, capo lungo', /tricipit.*capo lungo/],
+  ['Tricipite, tutti i capi', /tricipit/],
+  ['Bicipite', /bicipit/],
+  ['Brachiale e brachioradiale', /^brachiale|brachioradial/],
+  ['Avambracci e presa', /avambracci|presa/],
+  ['Deltoide posteriore', /deltoide posteriore/],
+  ['Trapezio superiore', /trapezio superiore/],
+  ['Obliqui', /obliqu/],
+  ["Retto dell'addome", /retto dell/]
+];
+function fineSetsOf(ex, sets) {
+  const out = {};
+  if (!ex || ex.type === 'stretch' || ex.noVolume || !sets) return out;
+  const n = ex.perSide ? sets / 2 : sets;
+  const add = (m, w) => FINE_MUSCLES.forEach(([k, re]) => {
+    if (re.test(String(m).toLowerCase()) && (out[k] === undefined || out[k] < w)) out[k] = w;
+  });
+  (ex.primary || []).forEach(m => add(m, n));
+  (ex.secondary || []).forEach(m => add(m, n * 0.5));
+  return out;
+}
+function fineVolume(weekAbs) {
+  const done = {}, plan = {};
+  weekLogs(weekAbs).forEach(l => { if (!l.spartan) addInto(done, fineSetsOf(exById(l.exId), l.sets || 0)); });
+  for (let k = 0; k < weekLen(weekAbs); k++) {
+    let sess;
+    try { sess = sessionFor(weekStart(weekAbs) + k); } catch (e) { continue; }
+    if (sess.type !== 'strength') continue;
+    sess.items.forEach(it => { if (it.role !== 'extra') addInto(plan, fineSetsOf(exById(it.exId), it.sets)); });
+  }
+  return FINE_MUSCLES.map(([k]) => ({ m: k, done: done[k] || 0, plan: plan[k] || 0 }));
+}
+function fineMuscleHtml(weekAbs) {
+  const rows = fineVolume(weekAbs);
+  if (!rows.some(r => r.plan || r.done)) return '';
+  return `<table class="cmp finetab"><tr><th>Muscolo</th><th>fatte</th><th>previste</th></tr>${rows.map(r =>
+    `<tr><td>${esc(r.m)}</td><td>${fmtSets(r.done)}</td><td>${fmtSets(r.plan)}</td></tr>`).join('')}</table>
+    <p class="small muted" style="margin-top:6px">Diretta = 1, indiretta = ½. Nessuna soglia per singolo muscolo: le 10 serie del Position Stand ACSM 2026 valgono per gruppo. Il programma è pensato su 45 minuti: con meno tempo il lavoro diretto sui muscoli piccoli è il primo a ridursi.</p>`;
+}
+
 function volumeHtml(weekAbs, ana) {
   const a = ana || volumeFor(weekAbs);
   if (!a.rows.length || !a.rows.some(r => r.sets > 0)) return '';
@@ -6722,6 +7136,7 @@ function openWeekReport(weekAbs) {
       <p class="small">${(() => { const a = aerobicMinutes(weekAbs); return `${a.eq} minuti equivalenti su 150 (${a.vig} di scatti, ${a.mod} moderati).${a.eq < 150 && !isMobilityWeek(weekAbs) ? ' Per arrivarci: completa le due sedute aerobiche e, quando hai 50 minuti, lascia il finale metabolico nelle sedute di forza.' : ''}`; })()}</p></div>
     ${vol ? `<div class="block" style="margin-top:16px"><h3 style="font-size:16px;color:var(--muted)">Serie per gruppo muscolare</h3>
       <p class="small muted">Serie fatte / previste dal programma. Diretta = 1, indiretta = ½. Tacca a 10: minimo raccomandato per l'ipertrofia (plateau verso 18-20); barra rossa sotto 5.</p>${vol}</div>` : ''}
+    ${(() => { const f = fineMuscleHtml(weekAbs); return f ? `<div class="block" style="margin-top:16px"><h3 style="font-size:16px;color:var(--muted)">Muscoli specifici</h3>${f}</div>` : ''; })()}
     ${(cautions || fatigue || volAdvice) ? `<div class="block warnblock" style="margin-top:16px"><h3>Da tenere d'occhio</h3><ul>${cautions}${fatigue}${volAdvice}</ul></div>`
       : '<p class="small muted" style="margin-top:14px">Nessun incremento fuori scala e volume adeguato su tutti i gruppi.</p>'}
     ${S.autoBackup ? `<button class="btn" id="wrBackup" style="margin-top:18px">Salva il backup della settimana</button>

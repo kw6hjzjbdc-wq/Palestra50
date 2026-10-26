@@ -848,3 +848,15 @@ body.light svg [fill="#B9CBDD"]{fill:#6F8498}
 table.cmp{width:100%;border-collapse:collapse;margin-top:10px;font-size:14px}
 table.cmp th,table.cmp td{text-align:left;padding:7px 4px;border-bottom:1px solid var(--line)}
 table.cmp th{color:var(--muted);font-weight:600}
+
+/* (8.3) superserie, dolore, muscoli specifici */
+.ssbox{margin:10px 0 0;padding:10px 12px;border:1px solid var(--amber);border-radius:12px;background:rgba(245,165,36,.08)}
+.ssbox ol{margin:6px 0 4px 18px;padding:0}
+.ssbox ol li{margin-top:2px}
+ul.plan li.sshead{display:block;padding:10px 12px 4px;border-left:3px solid var(--amber);font-size:14px;color:var(--muted);cursor:default}
+ul.plan li.sshead b{color:var(--amber)}
+ul.plan li.ssrow{border-left:3px solid var(--amber)}
+.painbox{margin-top:10px}
+.painvals button{flex:1 0 24px;min-width:24px}
+.painbtn{border-color:#6b3b3b}
+.finetab td:nth-child(2),.finetab td:nth-child(3),.finetab th:nth-child(2),.finetab th:nth-child(3){text-align:right;font-family:var(--cond)}

@@ -1,6 +1,6 @@
 {
  "version": 1,
- "updated": "2026-09-08",
+ "updated": "2026-10-26",
  "exercises": [
   {
    "id": "g_legpress",
@@ -535,7 +535,10 @@
    ],
    "source": "NSCA – forza/ipertrofia parte superiore",
    "shoulderRisk": true,
-   "rack": "barbell"
+   "rack": "barbell",
+   "focus": [
+    "upperChest"
+   ]
   },
   {
    "id": "g_chestpress",
@@ -896,7 +899,10 @@
     "Spalla: esercizio di prevenzione, meglio carichi bassi e 12-15 ripetizioni."
    ],
    "source": "NSCA – salute della spalla, resistenza muscolare",
-   "rack": "machine"
+   "rack": "machine",
+   "focus": [
+    "reardelt"
+   ]
   },
   {
    "id": "g_shoulderpress",
@@ -983,7 +989,10 @@
     "Carichi leggeri e alte ripetizioni: qui il peso eccessivo peggiora solo la tecnica."
    ],
    "source": "NSCA – isolamento deltoide, ipertrofia",
-   "rack": "dumbbell"
+   "rack": "dumbbell",
+   "focus": [
+    "lateralDelt"
+   ]
   },
   {
    "id": "g_reverseflygym",
@@ -1027,7 +1036,10 @@
     "Utile per compensare il lavoro di spinta e migliorare la postura."
    ],
    "source": "ACSM – equilibrio muscolare spinta/trazione",
-   "rack": "dumbbell"
+   "rack": "dumbbell",
+   "focus": [
+    "reardelt"
+   ]
   },
   {
    "id": "g_militarypress",
@@ -1115,7 +1127,10 @@
     "Gomito: non estendere di scatto in fondo alla discesa."
    ],
    "source": "NSCA – isolamento, ipertrofia",
-   "rack": "dumbbell"
+   "rack": "dumbbell",
+   "focus": [
+    "biceps"
+   ]
   },
   {
    "id": "g_curlez",
@@ -1157,7 +1172,10 @@
     "La barra EZ riduce lo stress su polso e gomito rispetto alla barra dritta."
    ],
    "source": "NSCA – ipertrofia braccia",
-   "rack": "barbell"
+   "rack": "barbell",
+   "focus": [
+    "biceps"
+   ]
   },
   {
    "id": "g_hammer",
@@ -1200,7 +1218,10 @@
     "Presa neutra: comoda per i gomiti sensibili."
    ],
    "source": "NSCA – ipertrofia braccia",
-   "rack": "dumbbell"
+   "rack": "dumbbell",
+   "focus": [
+    "brachialis"
+   ]
   },
   {
    "id": "g_pushdown",
@@ -1243,7 +1264,10 @@
     "Gomito: evita blocchi bruschi in estensione completa."
    ],
    "source": "NSCA – isolamento tricipite",
-   "rack": "machine"
+   "rack": "machine",
+   "focus": [
+    "triceps"
+   ]
   },
   {
    "id": "g_frenchpress",
@@ -1287,7 +1311,10 @@
    ],
    "source": "NSCA – ipertrofia tricipite",
    "shoulderRisk": true,
-   "rack": "dumbbell"
+   "rack": "dumbbell",
+   "focus": [
+    "tricepsLong"
+   ]
   },
   {
    "id": "g_calfstanding",
@@ -1870,6 +1897,9 @@
     "Piedi su gradino",
     "Piedi su sedia",
     "Piedi su sedia, tempo lento"
+   ],
+   "focus": [
+    "upperChest"
    ]
   },
   {
@@ -2266,7 +2296,10 @@
    "safety": [
     "Ottimo riscaldamento per le spalle prima delle spinte."
    ],
-   "source": "ACE – salute della spalla e postura"
+   "source": "ACE – salute della spalla e postura",
+   "focus": [
+    "reardelt"
+   ]
   },
   {
    "id": "h_ohpband",
@@ -2350,7 +2383,10 @@
     "Con 1-2 kg lavora a 15-20 ripetizioni con tempo lento e pause brevi."
    ],
    "source": "ACSM – carichi leggeri ad alte ripetizioni",
-   "rack": "home"
+   "rack": "home",
+   "focus": [
+    "lateralDelt"
+   ]
   },
   {
    "id": "h_lateralband",
@@ -2391,7 +2427,10 @@
    "safety": [
     "Se senti pizzicore alla spalla, riduci l'ampiezza e ruota leggermente i pollici verso l'alto."
    ],
-   "source": "NSCA – isolamento deltoide con elastici"
+   "source": "NSCA – isolamento deltoide con elastici",
+   "focus": [
+    "lateralDelt"
+   ]
   },
   {
    "id": "h_frontraise",
@@ -2475,7 +2514,10 @@
    "safety": [
     "Movimento lento: la qualità della contrazione conta più della resistenza."
    ],
-   "source": "ACE – equilibrio muscolare della spalla"
+   "source": "ACE – equilibrio muscolare della spalla",
+   "focus": [
+    "reardelt"
+   ]
   },
   {
    "id": "h_curlband",
@@ -2516,7 +2558,10 @@
    "safety": [
     "Cambia band per progredire quando superi le 20 ripetizioni pulite."
    ],
-   "source": "NSCA – ipertrofia braccia con elastici"
+   "source": "NSCA – ipertrofia braccia con elastici",
+   "focus": [
+    "biceps"
+   ]
   },
   {
    "id": "h_hammerband",
@@ -2558,7 +2603,10 @@
    "safety": [
     "Presa neutra comoda per polsi e gomiti."
    ],
-   "source": "NSCA – ipertrofia braccia"
+   "source": "NSCA – ipertrofia braccia",
+   "focus": [
+    "brachialis"
+   ]
   },
   {
    "id": "h_pushdownband",
@@ -2598,7 +2646,10 @@
    "safety": [
     "Se non hai un ancoraggio alto sicuro, sostituisci con i dip su sedia."
    ],
-   "source": "NSCA – isolamento tricipite"
+   "source": "NSCA – isolamento tricipite",
+   "focus": [
+    "triceps"
+   ]
   },
   {
    "id": "h_dipchair",
@@ -2647,6 +2698,9 @@
     "Gambe semidistese",
     "Gambe distese",
     "Gambe distese su rialzo"
+   ],
+   "focus": [
+    "triceps"
    ]
   },
   {
@@ -2687,7 +2741,10 @@
     "Spalla: se non riesci a tenere i gomiti fermi, riduci la tensione della band."
    ],
    "source": "NSCA – ipertrofia tricipite",
-   "shoulderRisk": true
+   "shoulderRisk": true,
+   "focus": [
+    "tricepsLong"
+   ]
   },
   {
    "id": "h_calfhome",
@@ -2821,7 +2878,10 @@
    "safety": [
     "Schiena: se la lombare si inarca, appoggia le ginocchia e riduci la durata."
    ],
-   "source": "ACSM – lavoro isometrico anti-estensione"
+   "source": "ACSM – lavoro isometrico anti-estensione",
+   "focus": [
+    "abs"
+   ]
   },
   {
    "id": "c_sideplank",
@@ -2866,7 +2926,10 @@
     "Versione facilitata con ginocchia a terra se la tenuta scende sotto i 15 secondi."
    ],
    "source": "ACSM – stabilità laterale del tronco",
-   "perSide": true
+   "perSide": true,
+   "focus": [
+    "obliques"
+   ]
   },
   {
    "id": "c_deadbug",
@@ -2915,6 +2978,9 @@
     "Solo gambe",
     "Braccio e gamba opposti",
     "Braccio e gamba con gambe distese"
+   ],
+   "focus": [
+    "abs"
    ]
   },
   {
@@ -2957,7 +3023,10 @@
    "safety": [
     "Se la lombare si stacca, piega le ginocchia o avvicina le gambe."
    ],
-   "source": "NSCA – isometria del core"
+   "source": "NSCA – isometria del core",
+   "focus": [
+    "abs"
+   ]
   },
   {
    "id": "c_abwheel",
@@ -3008,6 +3077,9 @@
     "Escursione 50 cm",
     "Escursione 70 cm",
     "Escursione completa in ginocchio"
+   ],
+   "focus": [
+    "abs"
    ]
   },
   {
@@ -3056,6 +3128,9 @@
     "Ginocchia a 90° senza slancio",
     "Gambe semidistese",
     "Gambe distese"
+   ],
+   "focus": [
+    "abs"
    ]
   },
   {
@@ -3146,7 +3221,10 @@
     "Il busto resta immobile: tutto il lavoro è nel non ruotare."
    ],
    "source": "NSCA – anti-rotazione",
-   "perSide": true
+   "perSide": true,
+   "focus": [
+    "obliques"
+   ]
   },
   {
    "id": "s_catcamel",
@@ -4017,7 +4095,10 @@
     "Spalla: rispetto al bilanciere, i manubri a presa neutra lasciano libera la rotazione dell'omero e limitano lo stress sul capo lungo del bicipite."
    ],
    "source": "NSCA – spinta orizzontale, variante articolarmente conservativa",
-   "rack": "dumbbell"
+   "rack": "dumbbell",
+   "focus": [
+    "upperChest"
+   ]
   },
   {
    "id": "g_scaption",
@@ -4060,7 +4141,10 @@
     "Spalla: il piano scapolare con i pollici in su è la traiettoria più tollerata in caso di conflitto subacromiale; carichi leggeri e 12-15 ripetizioni."
    ],
    "source": "ACSM – rinforzo della cuffia dei rotatori",
-   "rack": "dumbbell"
+   "rack": "dumbbell",
+   "focus": [
+    "lateralDelt"
+   ]
   },
   {
    "id": "g_latneutral",
@@ -4236,7 +4320,10 @@
     "Spalla: traiettoria di elezione quando c'è sospetto di conflitto subacromiale."
    ],
    "source": "ACE – rinforzo della spalla a basso impatto",
-   "rack": "home"
+   "rack": "home",
+   "focus": [
+    "lateralDelt"
+   ]
   },
   {
    "id": "h_skullcrusher",
@@ -4277,7 +4364,10 @@
     "Spalla: la posizione a terra con braccia a 90° evita l'estensione sopra la testa, meglio tollerata in caso di conflitto subacromiale."
    ],
    "source": "NSCA – isolamento tricipite, variante conservativa",
-   "rack": "home"
+   "rack": "home",
+   "focus": [
+    "triceps"
+   ]
   },
   {
    "id": "g_machinepress",
@@ -6008,6 +6098,451 @@
     "Simula il sacco e la pietra della gara. Per sollevare da terra un carico pesante: piedi larghi, anche indietro, schiena dritta, come nello stacco."
    ],
    "source": "Trasporto del sacco (27 kg per gli uomini) e della pietra nella guida Spartan agli ostacoli. Esercizio e dosi: regola operativa dell'app"
+  },
+  {
+   "id": "g_ohcableext",
+   "name": "Estensioni dei tricipiti sopra la testa al cavo",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Braccia",
+   "pattern": "arms",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Tricipite (capo lungo)"
+   ],
+   "secondary": [
+    "Anconeo"
+   ],
+   "equipment": [
+    "Cavo",
+    "Corda"
+   ],
+   "art": {
+    "frames": [
+     "frenchStart",
+     "frenchEnd"
+    ],
+    "implement": "cable"
+   },
+   "steps": [
+    "Di spalle al cavo, corda agganciata in basso, un piede avanti e busto appena inclinato.",
+    "Gomiti alti e fermi accanto alla testa: estendi le braccia verso l'alto e in avanti.",
+    "Torna piano finché senti allungare il tricipite, senza dolore alla spalla."
+   ],
+   "errors": [
+    "Aprire i gomiti verso l'esterno.",
+    "Inarcare la schiena per spingere più peso."
+   ],
+   "safety": [
+    "Braccia sopra la testa: con la spalla irritata scegli il push-down. Escursione solo fin dove resta indolore."
+   ],
+   "source": "Maeo et al. 2023 (Eur J Sport Sci): le estensioni sopra la testa hanno fatto crescere il tricipite più del push-down, soprattutto il capo lungo",
+   "focus": [
+    "tricepsLong"
+   ],
+   "rack": "machine",
+   "shoulderRisk": true
+  },
+  {
+   "id": "g_preacherdb",
+   "name": "Curl stile Scott con manubrio sullo schienale inclinato",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Braccia",
+   "pattern": "arms",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Bicipite brachiale"
+   ],
+   "secondary": [
+    "Brachiale"
+   ],
+   "equipment": [
+    "Manubrio",
+    "Panca inclinabile"
+   ],
+   "art": {
+    "frames": [
+     "stand",
+     "curlUp"
+    ],
+    "implement": "dumbbells"
+   },
+   "steps": [
+    "Schienale della panca inclinato: appoggia il retro del braccio sul bordo imbottito.",
+    "Fletti il gomito senza staccare il braccio dallo schienale.",
+    "Scendi lentamente fino quasi a distendere il gomito, senza bloccarlo."
+   ],
+   "errors": [
+    "Sollevare la spalla per aiutarsi.",
+    "Lasciar cadere il peso in fondo."
+   ],
+   "safety": [
+    "In fondo il gomito è allungato sotto carico: carico moderato e discesa controllata."
+   ],
+   "source": "Zabaleta-Korta et al. 2023 (J Hum Kinet): il curl alla panca Scott ha fatto crescere il bicipite nella parte vicina al gomito. Usare lo schienale inclinato al posto della panca Scott è una regola operativa dell'app",
+   "focus": [
+    "biceps"
+   ],
+   "rack": "dumbbell",
+   "perSide": true
+  },
+  {
+   "id": "g_reversecurl",
+   "name": "Curl a presa prona con bilanciere EZ",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Braccia",
+   "pattern": "arms",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Brachioradiale",
+    "Brachiale"
+   ],
+   "secondary": [
+    "Estensori dell'avambraccio",
+    "Bicipite brachiale"
+   ],
+   "equipment": [
+    "Bilanciere EZ"
+   ],
+   "art": {
+    "frames": [
+     "stand",
+     "curlUp"
+    ],
+    "implement": "barbell"
+   },
+   "steps": [
+    "Presa dall'alto (palmi verso il basso), larghezza spalle.",
+    "Fletti i gomiti tenendoli fermi ai fianchi e i polsi dritti.",
+    "Scendi lentamente."
+   ],
+   "errors": [
+    "Piegare i polsi all'indietro.",
+    "Dondolare con il busto."
+   ],
+   "safety": [
+    "Carico più basso del curl normale: con la presa prona si solleva meno."
+   ],
+   "source": "Regola operativa dell'app: lavoro diretto aggiunto con la 8.3 (nessuno studio verificato su questo esercizio specifico). Date et al. 2021: l'attivazione del brachiale cambia poco con la posizione dell'avambraccio",
+   "focus": [
+    "brachialis",
+    "forearm"
+   ],
+   "rack": "barbell"
+  },
+  {
+   "id": "h_reversecurl",
+   "name": "Curl a presa prona con manubri leggeri",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Braccia",
+   "pattern": "arms",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Brachioradiale",
+    "Brachiale"
+   ],
+   "secondary": [
+    "Estensori dell'avambraccio"
+   ],
+   "equipment": [
+    "Manubri"
+   ],
+   "art": {
+    "frames": [
+     "stand",
+     "curlUp"
+    ],
+    "implement": "dumbbells"
+   },
+   "steps": [
+    "Palmi verso il basso, manubri davanti alle cosce.",
+    "Fletti i gomiti tenendoli fermi e i polsi dritti.",
+    "Scendi lentamente."
+   ],
+   "errors": [
+    "Piegare i polsi all'indietro."
+   ],
+   "safety": [
+    "Movimento lento: con i manubri leggeri conta il controllo."
+   ],
+   "source": "Regola operativa dell'app: lavoro diretto aggiunto con la 8.3 (nessuno studio verificato su questo esercizio specifico)",
+   "focus": [
+    "brachialis",
+    "forearm"
+   ],
+   "rack": "home"
+  },
+  {
+   "id": "g_wristcurl",
+   "name": "Flessioni dei polsi con manubri (wrist curl)",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Braccia",
+   "pattern": "forearm",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Flessori dell'avambraccio"
+   ],
+   "secondary": [],
+   "equipment": [
+    "Manubri",
+    "Panca"
+   ],
+   "art": {
+    "frames": [
+     "wristCurlDown",
+     "wristCurlUp"
+    ],
+    "implement": "dumbbells"
+   },
+   "steps": [
+    "Seduto, avambracci sulle cosce o sulla panca, palmi verso l'alto, polsi oltre il bordo.",
+    "Fletti i polsi portando il manubrio verso l'alto.",
+    "Scendi piano lasciando rotolare il manubrio verso le dita."
+   ],
+   "errors": [
+    "Staccare gli avambracci dall'appoggio.",
+    "Movimenti a scatti."
+   ],
+   "safety": [
+    "Carico leggero e ripetizioni alte: i tendini del polso si adattano lentamente."
+   ],
+   "source": "Regola operativa dell'app: lavoro diretto aggiunto con la 8.3 (nessuno studio verificato su questo esercizio specifico): la presa serve a sbarra, trasporti e ostacoli della Spartan Race",
+   "focus": [
+    "forearm"
+   ],
+   "rack": "dumbbell"
+  },
+  {
+   "id": "g_revwristcurl",
+   "name": "Estensioni dei polsi con manubri (reverse wrist curl)",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Braccia",
+   "pattern": "forearm",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Estensori dell'avambraccio"
+   ],
+   "secondary": [],
+   "equipment": [
+    "Manubri",
+    "Panca"
+   ],
+   "art": {
+    "frames": [
+     "wristCurlDown",
+     "wristCurlUp"
+    ],
+    "implement": "dumbbells"
+   },
+   "steps": [
+    "Seduto, avambracci in appoggio, palmi verso il basso, polsi oltre il bordo.",
+    "Solleva il dorso della mano estendendo il polso.",
+    "Scendi lentamente."
+   ],
+   "errors": [
+    "Usare troppo peso e muovere il gomito."
+   ],
+   "safety": [
+    "Gli estensori sono più deboli dei flessori: parti con il manubrio più leggero."
+   ],
+   "source": "Regola operativa dell'app: lavoro diretto aggiunto con la 8.3 (nessuno studio verificato su questo esercizio specifico)",
+   "focus": [
+    "forearm"
+   ],
+   "rack": "dumbbell"
+  },
+  {
+   "id": "h_wristcurl",
+   "name": "Flessioni dei polsi con manubri leggeri",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Braccia",
+   "pattern": "forearm",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Flessori dell'avambraccio"
+   ],
+   "secondary": [],
+   "equipment": [
+    "Manubri"
+   ],
+   "art": {
+    "frames": [
+     "wristCurlDown",
+     "wristCurlUp"
+    ],
+    "implement": "dumbbells"
+   },
+   "steps": [
+    "Seduto, avambracci sulle cosce, palmi verso l'alto.",
+    "Fletti i polsi verso l'alto.",
+    "Scendi piano."
+   ],
+   "errors": [
+    "Staccare gli avambracci dalle cosce."
+   ],
+   "safety": [
+    "Ripetizioni lente e controllate."
+   ],
+   "source": "Regola operativa dell'app: lavoro diretto aggiunto con la 8.3 (nessuno studio verificato su questo esercizio specifico)",
+   "focus": [
+    "forearm"
+   ],
+   "rack": "home"
+  },
+  {
+   "id": "h_revwristcurl",
+   "name": "Estensioni dei polsi con manubri leggeri",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Braccia",
+   "pattern": "forearm",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Estensori dell'avambraccio"
+   ],
+   "secondary": [],
+   "equipment": [
+    "Manubri"
+   ],
+   "art": {
+    "frames": [
+     "wristCurlDown",
+     "wristCurlUp"
+    ],
+    "implement": "dumbbells"
+   },
+   "steps": [
+    "Seduto, avambracci sulle cosce, palmi verso il basso.",
+    "Solleva il dorso della mano.",
+    "Scendi piano."
+   ],
+   "errors": [
+    "Muovere il gomito."
+   ],
+   "safety": [
+    "Parti con il manubrio più leggero."
+   ],
+   "source": "Regola operativa dell'app: lavoro diretto aggiunto con la 8.3 (nessuno studio verificato su questo esercizio specifico)",
+   "focus": [
+    "forearm"
+   ],
+   "rack": "home"
+  },
+  {
+   "id": "g_shrugdb",
+   "name": "Scrollate con manubri",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Dorso",
+   "pattern": "traps",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Trapezio superiore"
+   ],
+   "secondary": [
+    "Avambraccio"
+   ],
+   "equipment": [
+    "Manubri"
+   ],
+   "art": {
+    "frames": [
+     "stand",
+     "shrugUp"
+    ],
+    "implement": "dumbbells"
+   },
+   "steps": [
+    "In piedi, manubri lungo i fianchi, braccia distese.",
+    "Solleva le spalle dritte verso le orecchie.",
+    "Tieni un istante e scendi lentamente."
+   ],
+   "errors": [
+    "Ruotare le spalle in cerchio.",
+    "Piegare i gomiti per tirare."
+   ],
+   "safety": [
+    "Movimento solo verticale, collo rilassato."
+   ],
+   "source": "Regola operativa dell'app: lavoro diretto aggiunto con la 8.3 (nessuno studio verificato su questo esercizio specifico)",
+   "focus": [
+    "upperTrap"
+   ],
+   "rack": "dumbbell"
+  },
+  {
+   "id": "h_shrugband",
+   "name": "Scrollate con band",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Dorso",
+   "pattern": "traps",
+   "load": "band",
+   "kneeFriendly": true,
+   "primary": [
+    "Trapezio superiore"
+   ],
+   "secondary": [],
+   "equipment": [
+    "Band"
+   ],
+   "art": {
+    "frames": [
+     "stand",
+     "shrugUp"
+    ],
+    "implement": "bandVertical"
+   },
+   "steps": [
+    "In piedi sulla band, capi nelle mani, braccia distese.",
+    "Solleva le spalle verso le orecchie.",
+    "Scendi lentamente."
+   ],
+   "errors": [
+    "Ruotare le spalle."
+   ],
+   "safety": [
+    "Collo rilassato."
+   ],
+   "source": "Regola operativa dell'app: lavoro diretto aggiunto con la 8.3 (nessuno studio verificato su questo esercizio specifico)",
+   "focus": [
+    "upperTrap"
+   ]
   }
  ]
 }

@@ -2,7 +2,7 @@
 
 PWA per allenamento in palestra e a casa, costruita su un profilo specifico: uomo di 50 anni, obiettivo tono e ipertrofia, riduzione del grasso addominale, rinforzo degli arti inferiori a protezione del ginocchio, mobilità mantenuta con stretching regolare.
 
-Settimana tipo (dalla 5.0): **6 sedute a pranzo** — forza A, aerobico a intervalli, forza B, aerobico a ritmo costante, forza C, mobilità (sempre l'ultima) — di durata scelta ogni giorno fra 35, 40, 45 e 50 minuti, più un blocco core facoltativo e, dalla 5.1, cinque sessioni di mobilità del mattino da 10 o 15 minuti (giorni 1-5).
+Settimana tipo (dalla 5.0): **6 sedute a pranzo** — forza A, aerobico a intervalli, forza B, aerobico a ritmo costante, forza C, mobilità (sempre l'ultima) — di durata scelta ogni giorno fra 35, 40, 45 e 50 minuti (45 predefinita dalla 8.3), più un blocco core facoltativo e, dalla 5.1, cinque sessioni di mobilità del mattino da 10 o 15 minuti (giorni 1-5).
 
 ---
 
@@ -212,6 +212,21 @@ Da *Oggi* (sotto il calendario), dalla pagina *Progressi* e dal riquadro *Il per
 ### Esercizi in più a fine seduta (dalla 5.8)
 
 Nel riepilogo di fine seduta, *Ho ancora tempo: aggiungi esercizi*. Si dichiara quanto tempo resta (5, 10 o 15 minuti) e l'app propone quattro esercizi sui **gruppi più indietro** rispetto al volume previsto per la settimana, con le serie che stanno davvero in quei minuti (tempo di preparazione compreso). Toccandone uno si torna nella seduta, che riprende da quell'esercizio e si chiude normalmente.
+
+### Programma adattato ai muscoli specifici, superserie, dolore, 45 minuti (8.3)
+- **Forza A, B e C riscritte** (solo il programma attivo «Macrociclo → 30 maggio 2027»): i primi quattro slot restano quelli di prima (fondamentali, blocco trazioni, complementari), poi **due superserie fisse per seduta**:
+  - **A** · rinforzo gambe (leg extension, leg curl o polpacci) + **obliqui** (Pallof press); **capo lungo del tricipite** (estensioni sopra la testa; con la precauzione spalla → push-down) + **deltoide posteriore**.
+  - **B** · panca **inclinata** come primo esercizio (fasci alti del petto); **bicipite** + **tricipite**; **addome** + **avambracci** (flessioni o estensioni dei polsi).
+  - **C** · polpacci o alzate laterali + **brachiale e brachioradiale** (hammer curl, curl a presa prona); **addome/obliqui** + **trapezio superiore** (scrollate).
+- Nuovo campo `focus` negli esercizi e negli slot (`focus`, `fallback`, `loose`, `ss` in programs.json): lo slot chiede un muscolo, non uno schema; precauzioni rigide negli slot mirati (nessun esercizio a rischio come ripiego); i muscoli con uno slot dedicato non occupano gli slot generici (il rematore resta rematore). «Cambia esercizio» propone esercizi per lo stesso muscolo.
+- **Esercizi nuovi**: estensioni sopra la testa al cavo, curl stile Scott sullo schienale inclinato, curl a presa prona (bilanciere EZ e manubri leggeri), flessioni ed estensioni dei polsi (palestra e casa), scrollate con manubri e con band. Pose nuove: `shrugUp`, `wristCurlDown`, `wristCurlUp`.
+- **Superserie del programma a qualunque durata** (prima solo a 35′, automatiche): una serie del primo, 20 s per spostarsi, una serie del secondo, poi il recupero; il timer alterna da solo. Riquadro con le istruzioni in seduta e intestazione «Superserie N» nell'elenco del giorno. Solo esercizi a ripetizioni (con le tenute a tempo la sequenza andrebbe tutta di fila). Se il secondo finisce prima, si torna al primo.
+- **Tagli e aggiunte**: fra i complementari si accorcia prima quello con più serie; con tempo in avanzo i complementari tornano alle serie previste prima di allungare petto e gambe.
+- **Muscoli specifici** in Progressi e nel riepilogo settimanale: serie fatte/previste per petto alto, tricipite (capo lungo e totale), bicipite, brachiale, avambracci, deltoide posteriore, trapezio superiore, obliqui, retto dell'addome. Nessuna soglia: le 10 serie ACSM valgono per gruppo.
+- **Dolore e fastidio** (spalla, ginocchio, 0-10) in tre momenti: pulsante in seduta, sensazioni di fine seduta (precompilate con il valore segnato in seduta), riquadro «Ginocchio e spalla» in Allenamento del giorno. Effetti (regole operative dell'app): 4-6 → serie rimanenti −10% o un gradino più facile, lo stesso esercizio parte più leggero la volta dopo; ≥7 → finestra «fermati» (cambia, chiudi, escludi per 2 settimane), resto della seduta più leggero sul distretto, seduta successiva con esercizi più tollerabili (precauzioni temporanee) e −10%; ≥5 a fine seduta o da Oggi → −10% sul distretto nella seduta dopo; un valore più basso segnato da Oggi spegne le precauzioni temporanee. Registro `S.painLog`, mai cancellato; il dolore resta anche sulla registrazione dell'esercizio.
+- **Durata predefinita 45 minuti** (migrazione una tantum per chi aveva 35). Scegliendo meno di 45 l'app confronta la seduta con quella da 45 e, se si perdono esercizi o serie, avvisa con l'elenco; la decisione resta all'utente («Resto a 45» / «Scelgo comunque»).
+
+Fonti aperte e lette: Maeo, Isaka, Sugiyama, Wu, Huang, Kusagawa, Sakurai, Kanehisa, *Eur J Sport Sci*, doi 10.1080/17461391.2022.2100279 (estensioni sopra la testa: tricipite cresciuto circa 1,4 volte più che con il push-down); Chaves et al. 2020, *Int J Exerc Sci* 13(6):859-872 (panca inclinata: più spessore del petto solo al secondo spazio intercostale, cioè la parte alta; forza simile); Zabaleta-Korta et al. 2023, *J Hum Kinet* 88:259-270 (curl alla panca Scott: crescita significativa nella parte distale del bicipite; curl inclinato senza crescita significativa; campione piccolo); Date et al. 2021, *Front Physiol* 12:809422 (attivazione del brachiale simile con le diverse posizioni dell'avambraccio, n = 6: l'hammer curl non «isola» il brachiale); Zhang et al. 2025, *Sports Med* (superserie); Desmeules et al. 2025 ed Esculier et al. 2018 per il dolore (adattare alla tolleranza; 2/10 nella corsa). **Senza fonte verificata** (regole operative dell'app): soglie del dolore 4/5/7, −10%, esclusione di 2 settimane, lavoro diretto su avambracci e trapezio superiore, Scott sullo schienale inclinato al posto della panca Scott, 45 minuti come durata del programma.
 
 ### Intro intera a ogni avvio (8.2)
 
@@ -811,7 +826,6 @@ Aggiornate al 13 ottobre 2026, con verifica diretta di ciascuna fonte: dove una 
 - **OMS 2020** — raccomandazioni di attività fisica per adulti.
 - **Zourdos et al. 2016**, *Novel Resistance Training-specific Rating of Perceived Exertion Scale Measuring Repetitions in Reserve*, Journal of Strength and Conditioning Research 30(1):267-275 — scala delle ripetizioni in riserva (in precedenza qui era indicata la rivista sbagliata).
 - **Epley (1985)** — formula del massimale stimato.
-- **Journal of Strength and Conditioning Research** — assistenza elastica, macchina e lavoro eccentrico nella progressione verso le trazioni.
 - **W3C**, *WCAG 2.2*, criterio 1.4.4 — niente blocco dello zoom.
 
 ## Avvertenza
