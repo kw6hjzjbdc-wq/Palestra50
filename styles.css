@@ -860,3 +860,10 @@ ul.plan li.ssrow{border-left:3px solid var(--amber)}
 .painvals button{flex:1 0 24px;min-width:24px}
 .painbtn{border-color:#6b3b3b}
 .finetab td:nth-child(2),.finetab td:nth-child(3),.finetab th:nth-child(2),.finetab th:nth-child(3){text-align:right;font-family:var(--cond)}
+
+/* (8.4) niente zoom con il doppio tocco (i tocchi ripetuti su + e − facevano
+   ingrandire e rimpicciolire la pagina); lo zoom con due dita resta */
+html, body, button, a, input, select, label, textarea, [role="button"], li { touch-action: manipulation; }
+ul.plan li .goto{flex:0 0 auto;min-height:36px;padding:0 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface2);color:var(--text);font-size:14px}
+ul.plan li.now{border-left:3px solid var(--teal)}
+ul.plan li.isdone .nm b{color:var(--muted)}

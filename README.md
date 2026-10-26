@@ -213,6 +213,22 @@ Da *Oggi* (sotto il calendario), dalla pagina *Progressi* e dal riquadro *Il per
 
 Nel riepilogo di fine seduta, *Ho ancora tempo: aggiungi esercizi*. Si dichiara quanto tempo resta (5, 10 o 15 minuti) e l'app propone quattro esercizi sui **gruppi più indietro** rispetto al volume previsto per la settimana, con le serie che stanno davvero in quei minuti (tempo di preparazione compreso). Toccandone uno si torna nella seduta, che riprende da quell'esercizio e si chiude normalmente.
 
+### Ultime sedute in cima, «Perché queste stelle», dischi per lato, niente ora (8.5)
+- **Progressi**: «Ultime sedute» è la prima sezione (prima era in fondo alla pagina e non si trovava). Toccando una seduta: serie, carichi, stelle e motivo esercizio per esercizio.
+- **Riepilogo di fine seduta**: pulsante «Perché queste stelle», che apre lo stesso dettaglio.
+- **Bilanciere**: sotto il selettore del carico la composizione per lato con il minor numero di dischi (48 kg = bilanciere + 10 + 5 + 2 + 2 per lato). Se un disco è occupato si sceglie un carico vicino dal selettore.
+- **Stelle con obiettivo cambiato**: il confronto è con quanto l'app chiedeva (carico proposto × ripetizioni obiettivo, formula di Epley), anche se il carico usato è diverso: 50 kg × 8 al posto di 48 × 10 proposti vale «in linea». Ricalcolo una tantum (`S.ratingsRev` = 6), tocca solo il giudizio. A obiettivo invariato resta il confronto con la seduta precedente: carico e ripetizioni contano insieme nel massimale stimato.
+- **Niente ora a schermo** (regola permanente): tolta dal dettaglio della seduta, dall'avviso di seduta rimasta aperta e dal riquadro «Seduta lasciata a metà» (resta solo nel file CSV esportato).
+
+### Attrezzo aerobico, niente zoom col doppio tocco, programma in seduta, stelle (8.4)
+- **Cambio dell'attrezzo aerobico ripristinato ovunque**: «Cambia attrezzo o tipo di lavoro» compare anche per le sedute degli altri giorni della settimana (dalla 7S 6 c'era solo per quella di oggi); scambiando il giorno, la scelta segue la seduta (`swapDay` sposta anche `S.sessPick`). In seduta il pulsante diventa «Cambia attrezzo»: finché nulla è registrato si può cambiare attrezzo e tipo di lavoro (la seduta si ricostruisce), dopo cambia l'attrezzo delle parti ancora da fare. Vogatore e scalini restano sempre selezionabili a mano anche con la priorità al ginocchio (che vale solo per le proposte automatiche): prima «Cambia esercizio» in seduta li nascondeva.
+- **Doppio tocco senza zoom**: `touch-action: manipulation` su pagina e pulsanti; lo zoom con due dita resta (viewport senza blocchi, WCAG 1.4.4).
+- **«Programma di oggi» a seduta aperta**: l'elenco del giorno con superserie, dosi, note e stato di ogni esercizio; tocco sulla riga = scheda, «Vai» = passa all'esercizio (come scorrere: non registra nulla, il timer continua).
+- **Stelle, due incongruenze corrette** (ricalcolo una tantum `S.ratingsRev` = 5, tocca solo il giudizio):
+  - obiettivo cambiato dal programma (per esempio curl da 5 a 10 ripetizioni con la 8.3): chi usava il carico proposto dall'app (ricalcolato e arrotondato per difetto) e chiudeva le ripetizioni prendeva 2 stelle «stabile»; ora la prima seduta al nuovo obiettivo non deve progredire e quella prestazione è «in linea» (3);
+  - carico alleggerito per il dolore (proposto dall'app o dopo un dolore ≥4 segnato in seduta, campi `painAdj`/`pain`): prendeva 1 stella «calo»; ora è fuori dal confronto (0 stelle, se il risultato sarebbe sotto 3) e non fa da riferimento per la seduta dopo.
+  - Invariato e coerente con i criteri: stessa prestazione della settimana prima = 2 stelle (l'attesa è +2,5% a settimana), una ripetizione in più = 3, carico salito con il 2-for-2 = 4-5, meno serie a parità di ripetizioni per serie ≠ calo.
+
 ### Programma adattato ai muscoli specifici, superserie, dolore, 45 minuti (8.3)
 - **Forza A, B e C riscritte** (solo il programma attivo «Macrociclo → 30 maggio 2027»): i primi quattro slot restano quelli di prima (fondamentali, blocco trazioni, complementari), poi **due superserie fisse per seduta**:
   - **A** · rinforzo gambe (leg extension, leg curl o polpacci) + **obliqui** (Pallof press); **capo lungo del tricipite** (estensioni sopra la testa; con la precauzione spalla → push-down) + **deltoide posteriore**.

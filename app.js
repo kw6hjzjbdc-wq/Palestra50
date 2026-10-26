@@ -703,11 +703,29 @@ const RACKS = {
 };
 const rackOf = ex => (ex && RACKS[ex.rack]) ? RACKS[ex.rack] : null;
 
+/* (8.5) Dischi per lato del bilanciere, con il minor numero di dischi:
+   48 kg → 10 + 5 + 2 + 2. Se un disco è occupato, il carico vicino si sceglie
+   dal selettore e la valutazione tiene conto di carico e ripetizioni insieme. */
+function platesFor(total) {
+  const side = (numLoad(total) - 10) / 2;
+  if (!(side > 0) || Math.abs(side - Math.round(side)) > 1e-6) return side === 0 ? [] : null;
+  const n = Math.round(side), disks = [20, 10, 5, 2], best = new Array(n + 1).fill(null);
+  best[0] = [];
+  for (let v = 1; v <= n; v++) disks.forEach(d => {
+    if (d <= v && best[v - d] && (!best[v] || best[v - d].length + 1 < best[v].length)) best[v] = best[v - d].concat([d]);
+  });
+  return best[n] ? best[n].sort((a, b) => b - a) : null;
+}
+function platesText(total) {
+  const p = platesFor(total);
+  if (p === null) return '';
+  return p.length ? `${String(total).replace('.', ',')} kg = bilanciere + per lato ${p.join(' + ')} kg.` : 'Solo il bilanciere (10 kg).';
+}
 /* Riga di spiegazione della scala, mostrata sotto il selettore del carico. */
 function rackNote(ex) {
   if (!ex || ex.load !== 'weight') return '';
   switch (ex.rack) {
-    case 'barbell':  return 'Bilanciere da 10 kg con dischi da 2, 5, 10 e 20 kg a coppie: 12 e 16 kg non sono componibili.';
+    case 'barbell':  return 'Bilanciere da 10 kg con dischi da 2, 5, 10 e 20 kg a coppie: 12 e 16 kg non sono componibili.' + (arguments[1] ? ' ' + platesText(arguments[1]) : '');
     case 'dumbbell': return 'Peso del singolo manubrio, dalla rastrelliera da 2 a 40 kg.';
     case 'machine':  return 'Pacco pesi da 10 a 120 kg, a scalini di 2,5 kg.';
     case 'kettlebell': return 'Kettlebell da 8 a 24 kg, un ferro ogni 2 kg: il passo è fisso, non si compone.';
@@ -1250,6 +1268,21 @@ function seriesValues(logs) {
 }
 
 /* Confronta una registrazione con la precedente dello stesso esercizio. */
+/* (8.4) Carico che l'app propone dopo un cambio di obiettivo, ricavato dalla
+   registrazione precedente come in convertedLoad. */
+function goalShiftProposal(cur, prev) {
+  const ex = exById(cur.exId);
+  if (!ex || ex.load !== 'weight' || isAssist(ex)) return null;
+  const reps = isFinite(cur.repsTarget) ? cur.repsTarget : cur.reps;
+  if (!isFinite(reps) || reps <= 0) return null;
+  const e = e1rmWithRir(prev);
+  if (!e) return null;
+  const t = e.v / (1 + Math.min(25, reps + rirOfGoal(cur.goal)) / 30);
+  return rackOf(ex) ? snapLoad(ex, t, -1) : Math.floor(t * 2) / 2;
+}
+/* (8.4) Registrazione con carico alleggerito per il dolore. */
+const painLightened = l => !!l && (!!l.painAdj || !!(l.pain && l.pain.v >= PAIN_LIGHT));
+
 function rateLog(cur, prev, deload) {
   const ex = exById(cur.exId);
   // allungamenti e mobilità non hanno un carico da confrontare: niente punteggio
@@ -1289,7 +1322,7 @@ function rateLog(cur, prev, deload) {
 
   const cmp = comparePair(cur, prev);
   if (!cmp || !cmp.b) return { stars: 0, text: 'Dati insufficienti per il confronto.' };
-  const ratio = cmp.a / cmp.b;
+  let ratio = cmp.a / cmp.b;
   const what = cmp.what;
   // obiettivo diverso dalla volta scorsa (per esempio forza dopo resistenza):
   // il confronto si fa sul lavoro totale e va detto, altrimenti sembra un
@@ -1303,7 +1336,24 @@ function rateLog(cur, prev, deload) {
   for (let w = w0 + 1; w <= w1 && weeks < 2; w++) if (!isDeloadWeek(weekStart(w))) weeks++;
   // l'attesa cresce col tempo passato dall'ultima volta, ma si ferma a +5%:
   // un esercizio ripreso dopo un mese non deve pretendere un salto del 10%
-  const expected = weeks > 0 ? 1 + 0.025 * Math.min(weeks, 2) : 1;
+  let expected = weeks > 0 ? 1 + 0.025 * Math.min(weeks, 2) : 1;
+  // (8.4) obiettivo cambiato dal programma (per esempio da 5 a 10
+  // ripetizioni): la prima seduta al nuovo obiettivo non deve progredire, e
+  // chi usa il carico proposto dall'app (ricalcolato e arrotondato per
+  // difetto al carico disponibile) e chiude le ripetizioni è in linea, non
+  // «stabile» o «in calo» per effetto dell'arrotondamento
+  // (8.5) il confronto è con quanto l'app chiedeva (carico proposto ×
+  // ripetizioni obiettivo, formula di Epley): con un carico diverso da quello
+  // proposto, per esempio 2 kg in più e 2 ripetizioni in meno, vale lo stesso
+  if (goalShift) {
+    expected = 1;
+    const prop = goalShiftProposal(cur, prev);
+    const target = isFinite(cur.repsTarget) ? cur.repsTarget : cur.reps;
+    if (prop && cmp.what === 'massimale stimato' && isFinite(target) && target > 0 && target <= 15) {
+      const rp = cmp.a / (prop * (1 + target / 30));
+      if (rp >= 0.97 && ratio < 1) ratio = rp >= 1 ? rp : 1;
+    }
+  }
   const pct = Math.round((ratio - 1) * 100);
 
   // il salto va misurato sul carico effettivo, non sul massimale stimato:
@@ -1448,7 +1498,11 @@ function ratingRef(cur, candidates) {
   // le registrazioni della settimana di scarico non fanno mai da riferimento
   const c = (candidates || []).filter(l => l !== cur && l.exId === cur.exId && !l.planned && !isDeloadLog(l) &&
     !(cur.sid != null && l.sid === cur.sid) && TEST_GOALS.includes(l.goal) === test);
-  return c.length ? c[c.length - 1] : null;
+  // (8.4) una seduta alleggerita per il dolore non fa da riferimento (il
+  // ritorno al carico normale sembrerebbe un progresso); se è l'unica, vale lei
+  const ok = c.filter(l => !painLightened(l));
+  const src = ok.length ? ok : c;
+  return src.length ? src[src.length - 1] : null;
 }
 function rateFor(cur, candidates) {
   if (!isRatable(cur)) return { stars: 0, text: cur.planned ? 'Segnata come fatta alle dosi previste: senza dati reali non c\'è valutazione.' : '' };
@@ -1470,7 +1524,12 @@ function rateFor(cur, candidates) {
       advice: 'Lo scarico serve al recupero di tendini e articolazioni: tieni i carichi della settimana prima, l\'aumento lo provi la settimana prossima.' };
     return { stars: 0, text: base };
   }
-  return rateLog(cur, ratingRef(cur, candidates), false);
+  const r = rateLog(cur, ratingRef(cur, candidates), false);
+  // (8.4) carico alleggerito per il dolore (dall'app o segnato durante
+  // l'esercizio): il calo non è una prestazione confrontabile
+  if (painLightened(cur) && r.stars > 0 && r.stars < 3)
+    return { stars: 0, text: `Carico alleggerito per il dolore: fuori dal confronto. (${r.text})` };
+  return r;
 }
 /* Ricalcola in ordine di data le stelle di un esercizio (per esempio dopo
    l'aggiunta a mano di una registrazione nel passato). Tocca solo il giudizio. */
@@ -1563,6 +1622,14 @@ function swapDay(posA, posB) {
   const t = perm[posA]; perm[posA] = perm[posB]; perm[posB] = t;
   S.perms = S.perms || {};
   S.perms[week] = perm;
+  // (8.4) l'attrezzo scelto per una seduta la segue quando cambia giorno
+  if (S.sessPick) {
+    const a = String(weekStart(week) + posA), b = String(weekStart(week) + posB);
+    const pa = S.sessPick[a], pb = S.sessPick[b];
+    delete S.sessPick[a]; delete S.sessPick[b];
+    if (pb) S.sessPick[a] = pb;
+    if (pa) S.sessPick[b] = pa;
+  }
   planCache = null;
   save();
 }
@@ -3460,9 +3527,9 @@ function fixOrphanSessions() {
   const d = new Date(o.ts);
   const morningLikely = o.allStretch && meta.dayType !== 'stretch' && morningAvail(weekOfIdx(meta.idx), posOfIdx(meta.idx) + 1);
   const day = new Date(o.ts).toLocaleDateString('it-IT');
-  const hour = d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+  // (8.5) niente ora a schermo (regola permanente): solo il giorno
   openModal(`<h2>Una seduta è rimasta aperta</h2>
-    <p class="small muted">Il ${day} alle ${hour} hai registrato ${o.logs.length} esercizi, ma la seduta non è stata chiusa: l'app si è chiusa prima del riepilogo. Com'era?</p>
+    <p class="small muted">Il ${day} hai registrato ${o.logs.length} esercizi, ma la seduta non è stata chiusa: l'app si è chiusa prima del riepilogo. Com'era?</p>
     <button class="btn" id="orMorning" style="margin-top:12px">${morningLikely ? 'Sì: era la mobilità breve' : 'Era la mobilità breve'}</button>
     <button class="btn ${morningLikely ? 'ghost' : ''}" id="orLunch" style="margin-top:10px">Era la seduta del giorno (${esc(buildSession(o.idx != null ? o.idx : S.sessionIndex).label)})</button>
     <button class="btn ghost" id="orFree" style="margin-top:10px">Era una seduta libera</button>
@@ -4685,7 +4752,9 @@ function alternativesFor(item, sess) {
       (e.focus || []).some(x => alt.focus.includes(x)));
     if (f.length >= 2 || !pool.length) pool = f;
   }
-  pool = applyCare(pool);
+  // (8.4) attrezzi aerobici: la priorità al ginocchio vale per le proposte
+  // automatiche, ma vogatore e scalini restano selezionabili a mano
+  pool = (alt.patterns || []).includes('cardio') ? pool.filter(e => !isAvoided(e.id)) : applyCare(pool);
   pool.sort((a, b) => a.id.localeCompare(b.id));
   return pool.filter(e => e.id === item.exId || !inUse.has(e.id));
 }
@@ -4780,10 +4849,11 @@ function openSessionPicker(sess) {
 /* Riapre il pannello dopo una modifica, ricostruendo la seduta. */
 function reopenPicker(idx, fn) {
   renderHome();
-  if (idx === S.sessionIndex) fn(todaySession(), sessionMeta(idx));
+  fn(idx === S.sessionIndex ? todaySession() : sessionFor(idx), sessionMeta(idx));
 }
 
-function openCardioPicker(sess, meta) {
+function openCardioPicker(sess, meta, opt) {
+  const live = !!(opt && opt.live);
   const chosen = pickOf(meta.idx) || {};
   const days = PROG.cardioDays || [];
   const base = days[meta.tmplIdx] || { label: 'Aerobico', mode: 'steady' };
@@ -4796,9 +4866,12 @@ function openCardioPicker(sess, meta) {
       !e.retired && e.setup.includes(S.setup) && (e.cardioModes || []).length &&
       (!(e.cardioModes || []).includes('run') || runOk))
     .sort((a, b) => a.name.localeCompare(b.name));
-  const modes = days.map(t =>
+  // (8.4) in seduta: finché nulla è registrato si può cambiare tutto; dopo,
+  // solo l'attrezzo, fra quelli che reggono il tipo di lavoro già iniziato
+  const begun = live && current && current.sess.items.some((it, i) => current.setsDone[i] > 0 || (current.logRef[i] !== null && current.logRef[i] !== undefined));
+  const modes = begun ? '' : days.map(t =>
     `<button data-cmode="${t.mode}" aria-pressed="${t.mode === mode}">${esc(cardioModeWord(t.mode))}</button>`).join('');
-  const rows = pool.map(ex => {
+  const rows = pool.filter(ex => !begun || (ex.cardioModes || []).includes(mode)).map(ex => {
     const ms = ex.cardioModes || [];
     const isCur = ex.id === curId;
     const care = S.kneeCare && ex.kneeFriendly === false;
@@ -4816,9 +4889,9 @@ function openCardioPicker(sess, meta) {
   }).join('');
   openModal(`<h2>Cambia la seduta aerobica</h2>
     <p class="small muted">Il programma propone «${esc(base.label)}», ma l'attrezzo lo scegli tu: i minuti contano allo stesso modo da qualunque macchina arrivino. La scelta vale per questa seduta e resta anche se cambi la durata o chiudi l'app.</p>
-    <div class="seg" role="group" aria-label="Tipo di lavoro" style="margin-top:12px">${modes}</div>
+    ${begun ? `<p class="small" style="margin-top:10px">Seduta già iniziata: resta il lavoro a ${esc(cardioModeWord(mode))}, cambia l'attrezzo per le parti ancora da fare.</p>` : `<div class="seg" role="group" aria-label="Tipo di lavoro" style="margin-top:12px">${modes}</div>`}
     <ul class="picker" style="margin-top:12px">${rows}</ul>
-    ${(chosen.exId || chosen.mode) ? '<button class="btn ghost" id="ckReset" style="margin-top:14px">Torna alla seduta prevista</button>' : ''}
+    ${(chosen.exId || chosen.mode) && !begun ? '<button class="btn ghost" id="ckReset" style="margin-top:14px">Torna alla seduta prevista</button>' : ''}
     <button class="btn secondary" id="ckClose" style="margin-top:10px">Chiudi</button>`);
 
   document.querySelectorAll('[data-ckex]').forEach(li => li.onclick = () => {
@@ -4827,17 +4900,48 @@ function openCardioPicker(sess, meta) {
     // se l'attrezzo non regge il tipo di lavoro del giorno, si adatta il lavoro
     const m = ms.includes(mode) ? mode : ms[0];
     setPick(meta.idx, { exId: ex.id, mode: m });
-    closeModal(() => { homeSel = 'session'; renderHome(); });
+    closeModal(() => { if (live) liveCardioChange(ex.id, begun); else { homeSel = 'session'; renderHome(); } });
   });
   document.querySelectorAll('[data-cmode]').forEach(b => b.onclick = () => {
     const m = b.dataset.cmode;
     const keep = (chosen.exId && ((exById(chosen.exId) || {}).cardioModes || []).includes(m)) ? chosen.exId : null;
     setPick(meta.idx, { exId: keep, mode: m });
-    closeModal(() => reopenPicker(meta.idx, openCardioPicker));
+    closeModal(() => {
+      if (live) { liveCardioChange(null, false); openCardioPicker(current.sess, sessionMeta(current.sess.idx), { live: true }); }
+      else reopenPicker(meta.idx, openCardioPicker);
+    });
   });
   if ($('#ckReset')) $('#ckReset').onclick = () =>
-    closeModal(() => { setPick(meta.idx, null); renderHome(); });
+    closeModal(() => { setPick(meta.idx, null); if (live) liveCardioChange(null, false); else renderHome(); });
   $('#ckClose').onclick = () => closeModal();
+}
+
+/* (8.4) Attrezzo aerobico cambiato a seduta aperta. Se nulla è ancora
+   registrato la seduta si ricostruisce con la nuova scelta (anche il tipo di
+   lavoro); altrimenti cambia solo l'attrezzo delle parti ancora da fare. */
+function liveCardioChange(exId, begun) {
+  const c = current;
+  if (!c || c.finished) return;
+  const s = c.sess;
+  if (!begun) {
+    try { stopTimer(); } catch (e) {}
+    planCache = null;
+    const ns = todaySession(null);
+    if (!ns || !ns.items || !ns.items.length) return;
+    startSession(ns);
+    go('session'); renderSession();
+    return;
+  }
+  const ex = exById(exId);
+  if (!ex) return;
+  let oldName = '';
+  s.items.forEach((it, i) => {
+    if (!CARDIO_ROLES.includes(it.role) || !isOpenItem(c, i)) return;
+    oldName = oldName || (exById(it.exId) || {}).name || '';
+    it.exId = ex.id; c.loads[i] = '';
+  });
+  if (oldName && s.label) s.label = s.label.replace(oldName, ex.name);
+  saveResume(); renderSession();
 }
 
 function openStretchPicker(sess, meta) {
@@ -4942,7 +5046,7 @@ function homeBanners() {
     : saved
     ? `<div class="notice" style="margin-top:14px;display:flex;align-items:center;gap:12px">
          <span style="flex:1">Seduta lasciata a metà: ${esc(saved.label)}, esercizio ${saved.pos + 1} di ${saved.items.length}
-           (${new Date(saved.ts).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}).</span>
+           (${new Date(saved.ts).toDateString() === new Date().toDateString() ? 'oggi' : new Date(saved.ts).toLocaleDateString('it-IT')}).</span>
          <button class="btn" id="restoreBtn" style="width:auto;min-height:44px;font-size:17px">Riprendi</button>
        </div>
        <button class="btn ghost" id="dropResume" style="margin-top:8px">Scarta la seduta interrotta</button>` : '';
@@ -5174,8 +5278,9 @@ function renderHomeLunch() {
   const b = homeBanners();
   // aerobico e mobilità: il contenuto della seduta di oggi si può cambiare
   const chosenNow = pickOf(S.sessionIndex);
-  const swapHtml = (core || s.isStrength || !isToday) ? '' : `
-      ${chosenNow ? `<p class="small" style="margin-top:10px">Seduta scelta da te al posto di quella prevista.</p>` : ''}
+  // (8.4) anche per le sedute degli altri giorni della settimana, non ancora fatte
+  const swapHtml = (core || s.isStrength || done) ? '' : `
+      ${pickOf(isToday ? S.sessionIndex : wStart + q) ? `<p class="small" style="margin-top:10px">Seduta scelta da te al posto di quella prevista.</p>` : ''}
       <button class="btn ghost" id="swapKind" style="margin-top:10px">${
         s.dayType === 'cardio' ? 'Cambia attrezzo o tipo di lavoro' : 'Cambia schema di mobilità'}</button>`;
   const notToday = !core && !isToday && !done
@@ -5485,7 +5590,7 @@ function renderSessionCore() {
 
       ${noLoad ? '' : `
       ${isAssist(ex) ? `<div class="assistnote">Il numero è <b>l'aiuto</b>, non il peso sollevato: più è basso, più sei forte. Progredire significa ridurlo.</div>` : ''}
-      ${rackNote(ex) ? `<p class="small muted" style="margin-top:10px">${esc(rackNote(ex))}</p>` : ''}
+      ${rackNote(ex) ? `<p class="small muted" style="margin-top:10px">${esc(rackNote(ex, ex.rack === 'barbell' ? (c.loads[c.pos] || curLoad) : null))}</p>` : ''}
       <div class="loadrow">
         ${loadCtl}
         <div class="feedback">
@@ -5521,7 +5626,7 @@ function renderSessionCore() {
 
       <div class="btn-row" style="margin-top:14px">
         <button class="btn ghost" id="infoBtn">Scheda esercizio</button>
-        <button class="btn ghost" id="swapBtn">Cambia esercizio${nAlt > 1 ? ` (${nAlt - 1})` : ''}</button>
+        <button class="btn ghost" id="swapBtn">${s.type === 'cardio' && CARDIO_ROLES.includes(it.role) ? 'Cambia attrezzo' : `Cambia esercizio${nAlt > 1 ? ` (${nAlt - 1})` : ''}`}</button>
       </div>
       <div class="btn-row" style="margin-top:10px">
         <button class="btn ghost" id="noteBtn">${nota ? 'Modifica nota' : 'Aggiungi nota'}</button>
@@ -5529,6 +5634,9 @@ function renderSessionCore() {
       </div>
       <div class="btn-row" style="margin-top:10px">
         <button class="btn ghost" id="postponeBtn" ${c.pos === s.items.length - 1 ? 'disabled' : ''}>Macchina occupata: passa a un altro</button>
+      </div>
+      <div class="btn-row" style="margin-top:10px">
+        <button class="btn ghost" id="dayPlanBtn">Programma di oggi</button>
       </div>
       <div class="btn-row" style="margin-top:10px">
         <button class="btn ghost painbtn" id="painBtn">Dolore o fastidio a spalla o ginocchio</button>
@@ -5597,6 +5705,7 @@ function renderSessionCore() {
     captureLoad(); saveResume(); renderSession();
   });
   if ($('#loadIn')) $('#loadIn').onchange = () => { captureLoad(); saveResume(); renderSession(); };
+  $('#dayPlanBtn').onclick = () => { captureLoad(); openDayPlan(); };
   // (8.3) dolore durante l'esercizio
   $('#painBtn').onclick = () => { captureLoad(); openPainModal({
     part: partOfEx(ex) || (it.pain && it.pain.part) || 'shoulder',
@@ -5738,7 +5847,10 @@ function renderSessionCore() {
     else closeSet();
   };
   $('#infoBtn').onclick = () => openSheet(ex, it, { sess: s, after: () => renderSession() });
-  $('#swapBtn').onclick = () => openExercisePicker(it, s, changed => {
+  // (8.4) seduta aerobica: si cambia l'attrezzo di tutta la seduta (e, se
+  // non è ancora iniziata, anche il tipo di lavoro)
+  if (s.type === 'cardio' && CARDIO_ROLES.includes(it.role)) $('#swapBtn').onclick = () => { captureLoad(); openCardioPicker(s, sessionMeta(s.idx), { live: true }); };
+  else $('#swapBtn').onclick = () => openExercisePicker(it, s, changed => {
     if (changed) {
       if (chainHasWork()) stopTimer();          // le tenute in corso erano dell'esercizio sostituito
       c.setsDone[c.pos] = 0; c.loads[c.pos] = ''; c.feedback[c.pos] = null;
@@ -5901,6 +6013,41 @@ function setRowsHtml(pos) {
         r.rir === null || r.rir === undefined ? '' : ` · ${timed ? r.rir + 's di margine' : 'RIR ' + r.rir}`}</span>
       <span class="chev">✎</span></button>`).join('')}
   </div>`;
+}
+
+/* (8.4) Il programma del giorno a seduta aperta: lo stesso elenco di
+   «Allenamento del giorno» (superserie, dosi, note), con lo stato di ogni
+   esercizio. Tocca la riga per la scheda, «Vai» per passarci (come scorrere:
+   non registra nulla e il timer continua). */
+function openDayPlan() {
+  const c = current;
+  if (!c || c.finished) return;
+  const s = c.sess;
+  const rows = s.items.map((it, i) => {
+    const ex = exById(it.exId);
+    if (!ex) return '';
+    const doneN = c.setsDone[i] || 0, logged = c.logRef[i] !== null && c.logRef[i] !== undefined;
+    const state = i === c.pos ? 'in corso' : (!isOpenItem(c, i) ? 'fatto' : doneN ? `${doneN} di ${it.sets} serie` : 'da fare');
+    const ssHead = it.ss && it.ssRole === 'A' ? `<li class="sshead"><b>Superserie ${it.ssN || ''}</b> · una serie del primo, 20 s per spostarti, una serie del secondo, poi il recupero.</li>` : '';
+    return ssHead + `<li data-dp="${i}" class="${it.ss ? 'ssrow' : ''}${i === c.pos ? ' now' : ''}${!isOpenItem(c, i) || logged ? ' isdone' : ''}">
+      <div class="fig">${figureFor(ex, 1, { ground: false })}</div>
+      <div class="nm"><b>${esc(ex.name)}</b><span class="small muted">${esc(state)} · ${doseText(it)}${it.note ? ' · ' + esc(it.note) : ''}</span></div>
+      ${i === c.pos ? '' : `<button class="goto" data-goto="${i}">Vai</button>`}</li>`;
+  }).join('');
+  openModal(`<h2>Programma di oggi</h2>
+    <p class="small muted">${esc(s.label)} · esercizio ${c.pos + 1} di ${s.items.length}. Tocca un esercizio per la scheda, «Vai» per passarci: non si registra nulla e il timer continua.</p>
+    <ul class="plan" style="margin-top:10px">${rows}</ul>
+    <button class="btn secondary" id="dpClose" style="margin-top:14px">Torna all'esercizio</button>`);
+  $('#dpClose').onclick = () => closeModal();
+  document.querySelectorAll('[data-goto]').forEach(b => b.onclick = e => {
+    e.stopPropagation();
+    const i = +b.dataset.goto;
+    closeModal(() => { if (!current || current.finished) return; current.pos = i; saveResume(); renderSession(); window.scrollTo(0, 0); });
+  });
+  document.querySelectorAll('[data-dp]').forEach(li => li.onclick = () => {
+    const it = s.items[+li.dataset.dp];
+    closeModal(() => openSheet(exById(it.exId)));
+  });
 }
 
 /* (8.3) Dolore segnato durante un esercizio della seduta in corso. */
@@ -6105,6 +6252,23 @@ function concludeExercise(inChain) {
   }
 }
 
+/* (8.4) Il carico proposto per l'esercizio in posizione pos era alleggerito
+   per il dolore? Si guarda prima della registrazione (la memoria è nella
+   seduta, così ritoccare la registrazione non cambia la risposta). */
+function painAdjAt(pos) {
+  const c = current;
+  if (!c) return null;
+  c.painAdj = c.painAdj || {};
+  const it = c.sess.items[pos];
+  if (!it) return null;
+  if (!(pos in c.painAdj) || c.painAdj[pos] === null) {
+    const ex = exById(it.exId);
+    const pi = ex && !isCardioEx(ex) && ex.type !== 'stretch' ? painInfo(ex, it) : null;
+    c.painAdj[pos] = pi ? pi.part : null;
+  }
+  return c.painAdj[pos];
+}
+
 /* Registra l'esercizio in posizione pos (o aggiorna il record, se ci si era
    già tornati sopra: niente doppioni nello storico). */
 function logExercise(pos) {
@@ -6139,6 +6303,7 @@ function logExercise(pos) {
                   rest: it.rest || 0,                                 // per i minuti aerobici
                   setsPlanned: it.sets,                               // per la valutazione in Home
                   ...(it.pain ? { pain: Object.assign({}, it.pain) } : {}),   // (8.3) dolore segnato durante l'esercizio
+                  ...(painAdjAt(pos) ? { painAdj: painAdjAt(pos) } : {}),        // (8.4) carico proposto alleggerito per il dolore
                   ...(it.block === 'spartan' ? { spartan: true } : {}) };   // (7S 0) fuori dal volume dei gruppi
   // valutazione automatica rispetto alla registrazione precedente dello stesso esercizio
   const ref0 = c.logRef[pos];
@@ -6432,11 +6597,17 @@ function celebrate(st) {
     </div>
     <p class="sub small" style="margin-top:12px">${line}</p>
     <button class="btn" id="cheerOk" style="margin-top:18px">Continua</button>
+    ${st.avg ? '<button class="btn ghost" id="cheerWhy" style="margin-top:10px">Perché queste stelle</button>' : ''}
   </div>`);
 
   $('#cheerOk').onclick = () => closeModal(() => {
     goToday();
     if (st.weekDone) setTimeout(() => openWeekReport(st.weekDone), 260);
+  });
+  // (8.5) dal riepilogo al dettaglio: stelle e motivo esercizio per esercizio
+  if ($('#cheerWhy')) $('#cheerWhy').onclick = () => closeModal(() => {
+    goToday();
+    setTimeout(() => openSessionDetail(S.sessionLog.length - 1), 260);
   });
 }
 
@@ -6587,6 +6758,8 @@ function renderHistory() {
 
   const aero = aerobicMinutes(curWeek);
   $('#view-history').innerHTML = `
+    ${sess ? `<div class="card" id="lastSessCard"><h2>Ultime sedute</h2>
+      <p class="small muted">Tocca una seduta per vedere esercizio per esercizio serie, carichi, stelle e il motivo del giudizio.</p><ul class="hist">${sess}</ul></div>` : ''}
     ${measuresHtml()}
     ${aerobicHtml(curWeek, aero)}
     ${vol ? `<div class="card"><h2>Volume della settimana ${curWeek}</h2>
@@ -6607,7 +6780,7 @@ function renderHistory() {
     ${planRows ? `<div class="card"><h2>Aerobico e allungamenti</h2>
       <p class="small muted">Qui intensità e durata le decide il programma (riscaldamento, parte centrale, defaticamento; tenute degli allungamenti): non sono prestazioni da confrontare, quindi niente linea di andamento e niente stelle. Contano i minuti, nel riquadro dell'attività aerobica.</p>
       <ul class="hist">${planRows}</ul></div>` : ''}
-    ${sess ? `<div class="card"><h2>Ultime sedute</h2><ul class="hist">${sess}</ul></div>` : ''}`;
+`;
 
   bindMeasures();
   document.querySelectorAll('[data-ex]').forEach(li => li.onclick = () => detailFor(li.dataset.ex, byEx[li.dataset.ex]));
@@ -6719,7 +6892,7 @@ function openSessionDetail(i) {
       <div class="val">${esc(l.load || '—')} ${arrow(l.feedback)}</div>
       ${l.manual ? `<button class="mini-skip" data-dellog="${S.logs.indexOf(l)}" aria-label="Elimina la registrazione aggiunta a mano">✕</button>` : ''}</li>`).join('');
   openModal(`<h2>${esc(sessLabel(x))}</h2>
-    <p class="small muted">${d.toLocaleDateString('it-IT')} alle ${d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })} · ${x.minutes} minuti · ${logs.length} esercizi${x.kind === 'core' ? ' · blocco core' : ''}</p>
+    <p class="small muted">${d.toLocaleDateString('it-IT')} · ${x.minutes} minuti · ${logs.length} esercizi${x.kind === 'core' ? ' · blocco core' : ''}</p>
     ${x.note ? `<div class="notice" style="margin-bottom:10px">${esc(x.note)}</div>` : ''}
     <ul class="hist">${rows || '<li><span class="small muted">Nessun esercizio registrato per questa seduta.</span></li>'}</ul>
     <button class="btn ghost" id="addMissing" style="margin-top:16px">Aggiungi un esercizio non registrato</button>
@@ -6865,9 +7038,13 @@ function migrateRatings() {
   // una volta, con il punto di ingresso unico. Solo il giudizio cambia.
   // 6.8: settimana di scarico fuori dalla progressione
   // 6.9: conteggi azzerati, ripartenza dopo lo scarico
-  if (S.ratingsRev >= 4) return;
+  // 8.4: cambio di obiettivo con il carico proposto = in linea; carico
+  // alleggerito per il dolore fuori dal confronto e mai come riferimento
+  // 8.5: cambio di obiettivo confrontato con quanto l'app chiedeva (Epley),
+  // anche con un carico diverso da quello proposto
+  if (S.ratingsRev >= 6) return;
   if (S.progressEpoch == null) { S.progressEpoch = computeProgressEpoch(); S.progressEpochTs = Date.now(); }
-  S.ratingsFixed = true; S.ratingsRev = 4;
+  S.ratingsFixed = true; S.ratingsRev = 6;
   [...new Set(S.logs.map(l => l.exId))].forEach(rerateExercise);
   save();
 }
