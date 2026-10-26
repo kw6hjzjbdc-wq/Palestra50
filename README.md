@@ -213,6 +213,22 @@ Da *Oggi* (sotto il calendario), dalla pagina *Progressi* e dal riquadro *Il per
 
 Nel riepilogo di fine seduta, *Ho ancora tempo: aggiungi esercizi*. Si dichiara quanto tempo resta (5, 10 o 15 minuti) e l'app propone quattro esercizi sui **gruppi più indietro** rispetto al volume previsto per la settimana, con le serie che stanno davvero in quei minuti (tempo di preparazione compreso). Toccandone uno si torna nella seduta, che riprende da quell'esercizio e si chiude normalmente.
 
+### Disegni rivisti, dolore modificabile a seduta chiusa, risultati delle sedute svolte (8.6)
+- **Disegni**: rivisti tutti i 139 esercizi attivi, fermi e in movimento. Corretti quelli incongruenti:
+  - **burpee**: ora l'animazione segue il gesto vero in sei posizioni (salto con le braccia in alto → accosciata con le mani a terra → plank → petto a terra → plank → accosciata); prima passava in modo innaturale da in piedi al mountain climber;
+  - goblet squat (manubrio e kettlebell) e trasporto in abbraccio: peso al petto anche in piedi;
+  - lat machine (larga e presa neutra): da seduti, come alla macchina;
+  - croci ai cavi: in piedi con un piede avanti, come dice la scheda (prima sdraiato);
+  - iperestensioni: sul cuscino della panca, non a terra;
+  - vogatore: presa con le ginocchia piegate e il busto avanti, poi finale;
+  - camminata veloce e corsa-camminata: passo e corsa veri (prima uno slancio della gamba); trasporto del contadino animato col passo;
+  - estensioni sopra la testa al cavo: cavo in basso dietro, non in alto;
+  - curl stile Scott: seduto, braccio appoggiato in avanti.
+  Campo nuovo `art.motion` (facoltativo): più posizioni chiave per l'animazione; `frames` resta di due per le miniature e per `validateData`.
+- **Dolore a freddo**: ginocchio e spalla (0-10) si segnano o correggono anche dopo aver chiuso e salvato la seduta, nella seduta svolta (Oggi e programma della settimana) e in Progressi › Ultime sedute. Sull'ultima seduta del programma il valore vale anche per la prossima (registro `S.painLog`, voce «day»); sulle precedenti resta nello storico delle sensazioni. Nessuna voce del registro viene cancellata.
+- **Risultati delle sedute svolte**: in Oggi, se la seduta del giorno è fatta, il riquadro «Allenamento del giorno» apre i suoi risultati (serie, carichi, stelle e motivo, nota, dolore), con il pulsante per la prossima seduta; nel programma della settimana le sedute «svolta» aprono i risultati invece della seduta prevista.
+- Scale 0-10 su una sola riga anche su iPhone 12.
+
 ### Ultime sedute in cima, «Perché queste stelle», dischi per lato, niente ora (8.5)
 - **Progressi**: «Ultime sedute» è la prima sezione (prima era in fondo alla pagina e non si trovava). Toccando una seduta: serie, carichi, stelle e motivo esercizio per esercizio.
 - **Riepilogo di fine seduta**: pulsante «Perché queste stelle», che apre lo stesso dettaglio.

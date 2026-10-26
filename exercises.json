@@ -71,7 +71,7 @@
    ],
    "art": {
     "frames": [
-     "stand",
+     "gobletStand",
      "squatBottom"
     ],
     "implement": "goblet"
@@ -379,8 +379,8 @@
    ],
    "art": {
     "frames": [
-     "proneStart",
-     "proneEnd"
+     "hyperDown",
+     "hyperUp"
     ],
     "implement": null
    },
@@ -605,8 +605,8 @@
    ],
    "art": {
     "frames": [
-     "flyOpen",
-     "flyClose"
+     "flyStandOpen",
+     "flyStandClose"
     ],
     "implement": "cable"
    },
@@ -701,8 +701,8 @@
    ],
    "art": {
     "frames": [
-     "latStart",
-     "latEnd"
+     "latSeatStart",
+     "latSeatEnd"
     ],
     "implement": "cable"
    },
@@ -4170,8 +4170,8 @@
    ],
    "art": {
     "frames": [
-     "latStart",
-     "latEnd"
+     "latSeatStart",
+     "latSeatEnd"
     ],
     "implement": "cable"
    },
@@ -5568,7 +5568,7 @@
    ],
    "art": {
     "frames": [
-     "seatedRowStart",
+     "rowerCatch",
      "seatedRowEnd"
     ],
     "implement": null
@@ -5728,8 +5728,8 @@
    ],
    "art": {
     "frames": [
-     "swingFront",
-     "swingBack"
+     "walkA",
+     "walkB"
     ],
     "implement": null
    },
@@ -5827,7 +5827,7 @@
    ],
    "art": {
     "frames": [
-     "stand",
+     "gobletStand",
      "squatBottom"
     ],
     "implement": "kettlebellGoblet"
@@ -5924,10 +5924,18 @@
    ],
    "art": {
     "frames": [
-     "ohpStandEnd",
-     "mountain"
+     "burpeeSquatL",
+     "pushupBottom"
     ],
-    "implement": null
+    "implement": null,
+    "motion": [
+     "burpeeJumpL",
+     "burpeeSquatL",
+     "pushupTop",
+     "pushupBottom",
+     "pushupTop",
+     "burpeeSquatL"
+    ]
    },
    "levels": [
     "A passi, senza petto a terra",
@@ -5977,10 +5985,16 @@
    ],
    "art": {
     "frames": [
-     "swingFront",
-     "swingBack"
+     "runA",
+     "runB"
     ],
-    "implement": null
+    "implement": null,
+    "motion": [
+     "runA",
+     "runB",
+     "walkA",
+     "walkB"
+    ]
    },
    "interval": {
     "sets": 6,
@@ -6037,7 +6051,13 @@
      "stand",
      "splitTop"
     ],
-    "implement": "dumbbells"
+    "implement": "dumbbells",
+    "motion": [
+     "stand",
+     "walkA",
+     "stand",
+     "walkB"
+    ]
    },
    "steps": [
     "Un manubrio per mano, braccia lungo i fianchi, spalle basse e indietro.",
@@ -6080,8 +6100,8 @@
    ],
    "art": {
     "frames": [
-     "stand",
-     "splitTop"
+     "gobletStand",
+     "gobletStride"
     ],
     "implement": "goblet"
    },
@@ -6125,7 +6145,7 @@
      "frenchStart",
      "frenchEnd"
     ],
-    "implement": "cable"
+    "implement": "bandBack"
    },
    "steps": [
     "Di spalle al cavo, corda agganciata in basso, un piede avanti e busto appena inclinato.",
@@ -6169,10 +6189,10 @@
    ],
    "art": {
     "frames": [
-     "stand",
-     "curlUp"
+     "preacherStart",
+     "preacherEnd"
     ],
-    "implement": "dumbbells"
+    "implement": "dumbbell1"
    },
    "steps": [
     "Schienale della panca inclinato: appoggia il retro del braccio sul bordo imbottito.",

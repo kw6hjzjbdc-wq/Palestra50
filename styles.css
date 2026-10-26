@@ -867,3 +867,6 @@ html, body, button, a, input, select, label, textarea, [role="button"], li { tou
 ul.plan li .goto{flex:0 0 auto;min-height:36px;padding:0 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface2);color:var(--text);font-size:14px}
 ul.plan li.now{border-left:3px solid var(--teal)}
 ul.plan li.isdone .nm b{color:var(--muted)}
+/* (8.6) le scale 0-10 stanno su una riga anche su iPhone 12 */
+.feelbtns{gap:3px;flex-wrap:nowrap}
+.feelbtns button{flex:1 1 0;min-width:0;font-size:15px}

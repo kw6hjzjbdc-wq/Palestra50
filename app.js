@@ -507,36 +507,44 @@ function workParts(ex) {
 /* (8) Figura animata: la stessa sagoma passa dalla posizione iniziale a quella
    finale e ritorna, in 3 secondi, con le parti che lavorano in arancio. */
 function figureMotion(ex, opts) {
-  const fr = ex.art.frames || [];
-  const a = pose(fr[0]), b = pose(fr[1] || fr[0]), o = opts || {};
+  // (8.6) «motion» (facoltativo) elenca più posizioni chiave per i gesti che
+  // due sole non descrivono (burpee: in piedi → accosciata con le mani a terra
+  // → plank → petto a terra → di nuovo accosciata); senza, si usano i due
+  // fotogrammi delle miniature
+  const fr = (Array.isArray(ex.art.motion) && ex.art.motion.length >= 2) ? ex.art.motion : (ex.art.frames || []);
+  const o = opts || {};
   const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (reduce || fr[0] === fr[1]) return figureFor(ex, 1, o);
+  if (reduce || fr.length < 2 || fr.every(f => f === fr[0])) return figureFor(ex, 1, o);
+  const P = fr.map(pose), n = P.length, dur = (1.5 * n).toFixed(1) + 's';
+  const kt = Array.from({ length: n + 1 }, (_, i) => (i / n).toFixed(4)).join(';');
+  const ks = Array.from({ length: n }, () => '.45 0 .55 1').join(';');
   const work = workParts(ex);
   const cBack = '#5B7188', cBody = '#EAF1F8', cArm = '#F5A524', cImp = '#B9CBDD';
   const cA = work.arms ? cArm : cBody, cL = work.legs ? cArm : cBody, cT = work.torso ? cArm : cBody;
   const pt = (p, k, alt) => p[k] || p[alt] || null;
-  const anim = (attr, v1, v2) => `<animate attributeName="${attr}" values="${v1};${v2};${v1}" keyTimes="0;0.5;1" dur="3s" repeatCount="indefinite" calcMode="spline" keySplines=".45 0 .55 1;.45 0 .55 1"/>`;
+  const anim = (attr, vals) => `<animate attributeName="${attr}" values="${vals.concat([vals[0]]).join(';')}" keyTimes="${kt}" dur="${dur}" repeatCount="indefinite" calcMode="spline" keySplines="${ks}"/>`;
   const seg = (k1, k2, c, w, alt1, alt2) => {
-    const p1 = pt(a, k1, alt1), p2 = pt(a, k2, alt2), q1 = pt(b, k1, alt1) || p1, q2 = pt(b, k2, alt2) || p2;
-    if (!p1 || !p2) return '';
-    return `<line x1="${p1[0]}" y1="${p1[1]}" x2="${p2[0]}" y2="${p2[1]}" stroke="${c}" stroke-width="${w}" stroke-linecap="round">` +
-      anim('x1', p1[0], q1[0]) + anim('y1', p1[1], q1[1]) + anim('x2', p2[0], q2[0]) + anim('y2', p2[1], q2[1]) + '</line>';
+    const p1s = P.map(p => pt(p, k1, alt1)), p2s = P.map(p => pt(p, k2, alt2));
+    if (!p1s[0] || !p2s[0]) return '';
+    const f1 = p1s.map(q => q || p1s[0]), f2 = p2s.map(q => q || p2s[0]);
+    return `<line x1="${f1[0][0]}" y1="${f1[0][1]}" x2="${f2[0][0]}" y2="${f2[0][1]}" stroke="${c}" stroke-width="${w}" stroke-linecap="round">` +
+      anim('x1', f1.map(q => q[0])) + anim('y1', f1.map(q => q[1])) + anim('x2', f2.map(q => q[0])) + anim('y2', f2.map(q => q[1])) + '</line>';
   };
   let g = `<line x1="4" y1="${POSES.ground}" x2="116" y2="${POSES.ground}" stroke="#2B3B4E" stroke-width="2"/>`;
-  if (a.knee2 || b.knee2) g += seg('hip', 'knee2', cBack, 4.5, null, 'knee') + seg('knee2', 'ankle2', cBack, 4.5, 'knee', 'ankle');
-  if (a.elbow2 || b.elbow2) g += seg('neck', 'elbow2', cBack, 4.5, null, 'elbow') + seg('elbow2', 'hand2', cBack, 4.5, 'elbow', 'hand');
+  if (P.some(p => p.knee2)) g += seg('hip', 'knee2', cBack, 4.5, null, 'knee') + seg('knee2', 'ankle2', cBack, 4.5, 'knee', 'ankle');
+  if (P.some(p => p.elbow2)) g += seg('neck', 'elbow2', cBack, 4.5, null, 'elbow') + seg('elbow2', 'hand2', cBack, 4.5, 'elbow', 'hand');
   g += seg('hip', 'neck', cT, 5.5) + seg('hip', 'knee', cL, 5) + seg('knee', 'ankle', cL, 5);
-  if (a.toe || b.toe) g += seg('ankle', 'toe', cL, 3.4, null, 'ankle');
+  if (P.some(p => p.toe)) g += seg('ankle', 'toe', cL, 3.4, null, 'ankle');
   g += seg('neck', 'elbow', cA, 5) + seg('elbow', 'hand', cA, 5);
-  const h1 = a.head, h2 = b.head || a.head;
-  g += `<circle cx="${h1[0]}" cy="${h1[1]}" r="6.4" stroke="${cBody}" stroke-width="4" fill="none">${anim('cx', h1[0], h2[0])}${anim('cy', h1[1], h2[1])}</circle>`;
-  // attrezzo: dissolvenza fra le due posizioni
+  const hs = P.map(p => p.head || P[0].head);
+  g += `<circle cx="${hs[0][0]}" cy="${hs[0][1]}" r="6.4" stroke="${cBody}" stroke-width="4" fill="none">${anim('cx', hs.map(h => h[0]))}${anim('cy', hs.map(h => h[1]))}</circle>`;
+  // attrezzo: dissolvenza fra le posizioni
   const imp = p => implementSvg(ex.art.implement, p).replace(/class="imp"/g, `stroke="${cImp}" fill="none"`)
     .replace(/class="impf"/g, `fill="${cImp}"`).replace(/class="band"/g, `stroke="#4FC3A1" fill="none"`);
-  if (ex.art.implement) {
-    g += `<g opacity="1">${imp(a)}<animate attributeName="opacity" values="1;0;1" keyTimes="0;0.5;1" dur="3s" repeatCount="indefinite"/></g>`;
-    g += `<g opacity="0">${imp(b)}<animate attributeName="opacity" values="0;1;0" keyTimes="0;0.5;1" dur="3s" repeatCount="indefinite"/></g>`;
-  }
+  if (ex.art.implement) P.forEach((p, i) => {
+    const vals = Array.from({ length: n + 1 }, (_, k) => (k % n) === i ? 1 : 0).join(';');
+    g += `<g opacity="${i === 0 ? 1 : 0}">${imp(p)}<animate attributeName="opacity" values="${vals}" keyTimes="${kt}" dur="${dur}" repeatCount="indefinite"/></g>`;
+  });
   const lab = o.label || figureLabel(ex, 1);
   return `<svg viewBox="${POSES.viewBox}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${esc(lab)}"><title>${esc(lab)}</title>${g}</svg>`;
 }
@@ -3712,7 +3720,8 @@ function lunchTileBody(ls, full) {
   if (ls.skipped) return `<div class="dstat">Saltata</div><p class="small"><b>${esc(sessLabel(ls.entry))}</b> non svolta.</p>
        <p class="small muted">La prossima è «${esc(ls.s.label)}» · ${ls.s.minutes} min.</p>`;
   if (ls.done) return `<div class="dstat ok">Fatta ✓</div><p class="small"><b>${esc(sessLabel(ls.entry))}</b></p>
-       <p class="small">${esc(ls.verdict.text)} · ${ls.verdict.pct}% delle serie · ${ls.verdict.minutes} min${ls.verdict.avg ? ' · ' + starsHtml(Math.round(ls.verdict.avg)) : ''}</p>`;
+       <p class="small">${esc(ls.verdict.text)} · ${ls.verdict.pct}% delle serie · ${ls.verdict.minutes} min${ls.verdict.avg ? ' · ' + starsHtml(Math.round(ls.verdict.avg)) : ''}</p>
+       <p class="small muted">Tocca per i risultati e il dolore dopo la seduta; da lì anche la prossima.</p>`;
   return `<div class="dstat todo">Da fare · ${ls.s.minutes} min</div><p class="small"><b>${esc(ls.s.label)}</b></p>
        <p class="small muted">${typeWord(ls.s)} · ${ls.s.items.length} esercizi · sessione ${ls.s.pos} di ${ls.s.days} della settimana.</p>`;
 }
@@ -5025,6 +5034,7 @@ function renderHome() {
   if (homeView === 'morning') return renderHomeMorning();
   if (homeView === 'lunch') return renderHomeLunch();
   if (homeView === 'week') return renderHomeWeek();
+  if (homeView === 'result') return renderHomeResult();
   return renderHomePick();
 }
 
@@ -5140,6 +5150,8 @@ function renderHomePick() {
   document.querySelectorAll('[data-pick]').forEach(el => el.onclick = () => {
     const k = el.dataset.pick;
     if (k === 'lunch' && current && !current.finished) { go('session'); renderSession(); return; }
+    // (8.6) seduta di oggi già fatta: si aprono i suoi risultati
+    if (k === 'lunch' && ls.done) { const i = S.sessionLog.indexOf(ls.entry); if (i >= 0) { openResult(i, 'pick'); return; } }
     if (k === 'lunch') { daySel = null; dayFrom = 'pick'; homeSel = 'session'; }
     homeView = k; renderHome();
   });
@@ -5203,7 +5215,12 @@ function renderHomeWeek() {
     renderHome();
     offerUndo('Seduta spostata a oggi.');
   });
-  document.querySelectorAll('[data-day]').forEach(li => li.onclick = () => openDay(+li.dataset.day));
+  // (8.6) le sedute svolte aprono i risultati, non quella prevista
+  document.querySelectorAll('[data-day]').forEach(li => li.onclick = () => {
+    const q = +li.dataset.day;
+    if (q < here) { const i = sessionLogIndexFor(wStart + q); if (i >= 0) { openResult(i, 'week'); return; } }
+    openDay(q);
+  });
   $('[data-core]').onclick = () => { daySel = null; dayFrom = 'week'; homeSel = 'core'; homeView = 'lunch'; planCache = null; renderHome(); window.scrollTo(0, 0); };
   $('[data-free]').onclick = () => {
     if (current && !current.finished) {
@@ -5246,6 +5263,46 @@ function painStatusHtml() {
     ${lines.length ? `<ul class="small" style="margin:6px 0 0 18px">${lines.join('')}</ul>` : '<p class="small muted" style="margin:6px 0 0">Nessun dolore segnalato che cambi la prossima seduta.</p>'}
     <button class="btn ghost" id="painDayBtn" style="margin-top:10px">Segna dolore o fastidio</button>
   </div>`;
+}
+
+/* (8.6) Seduta già svolta: risultati, stelle e motivo, dolore modificabile.
+   Si apre dal riquadro «Allenamento del giorno» quando la seduta di oggi è
+   fatta e dalle sedute «svolta» del programma della settimana. */
+let resultIdx = -1;
+function sessionLogIndexFor(idx) {
+  for (let i = S.sessionLog.length - 1; i >= 0; i--) {
+    const x = S.sessionLog[i];
+    if (x && x.idx === idx && isProgramKind(x.kind) && !/ignorata/.test(x.label || '')) return i;
+  }
+  return -1;
+}
+function openResult(i, from) { resultIdx = i; dayFrom = from || 'pick'; homeView = 'result'; renderHome(); window.scrollTo(0, 0); }
+function renderHomeResult() {
+  const x = S.sessionLog[resultIdx];
+  if (!x) { homeView = null; return renderHome(); }
+  const v = sessionVerdict(x), d = new Date(x.ts);
+  $('#topChip').textContent = 'Seduta svolta';
+  $('#topChip').className = 'chip';
+  const backTxt = dayFrom === 'week' ? 'Torna al programma della settimana' : 'Torna a Oggi';
+  const next = todaySession(null);
+  $('#view-home').innerHTML = `
+    <button class="btn ghost" id="resBack" style="margin-top:14px">‹ ${backTxt}</button>
+    <div class="card">
+      <div class="kicker">Seduta svolta · ${d.toLocaleDateString('it-IT')}</div>
+      <h2>${esc(sessLabel(x))}</h2>
+      ${isSkipped(x) ? '<p class="small">Seduta saltata: nessun risultato registrato.</p>'
+        : `<p class="small">${esc(v.text)} · ${v.pct}% delle serie · ${v.minutes} min${v.avg ? ` · ${starsHtml(Math.round(v.avg))} ${kg1(v.avg)} stelle medie` : ''}</p>`}
+      ${x.note ? `<div class="notice" style="margin-top:8px">${esc(x.note)}</div>` : ''}
+      <ul class="hist" style="margin-top:10px">${sessionRowsHtml(v.logs) || '<li><span class="small muted">Nessun esercizio registrato per questa seduta.</span></li>'}</ul>
+      <p class="small muted" style="margin-top:8px">Sotto ogni esercizio: serie (carico × ripetizioni, tra parentesi le ripetizioni di riserva), stelle e motivo del giudizio.</p>
+      ${feelEditHtml(resultIdx)}
+    </div>
+    ${dayFrom === 'week' ? '' : `<button class="btn" id="resNext">Prossima seduta: ${esc(next.label)} ›</button>`}
+    <button class="btn ghost backbottom" id="resBack2">‹ ${backTxt}</button>`;
+  const back = () => { const to = dayFrom === 'week' ? 'week' : null; homeView = to; renderHome(); window.scrollTo(0, 0); };
+  $('#resBack').onclick = back; $('#resBack2').onclick = back;
+  if ($('#resNext')) $('#resNext').onclick = () => { daySel = null; dayFrom = 'pick'; homeSel = 'session'; homeView = 'lunch'; renderHome(); window.scrollTo(0, 0); };
+  bindFeelEdit(resultIdx);
 }
 
 /* Allenamento del giorno: la seduta di oggi, o quella toccata nel programma
@@ -6880,10 +6937,10 @@ function bindMeasures() {
   };
 }
 
-function openSessionDetail(i) {
-  const x = S.sessionLog[i], logs = logsOfSession(x);
-  const d = new Date(x.ts);
-  const rows = logs.map(l => `<li>
+/* (8.6) Righe dei risultati di una seduta svolta (dettaglio in Progressi e
+   seduta svolta in Oggi). */
+function sessionRowsHtml(logs) {
+  return logs.map(l => `<li>
       <div class="nm" style="flex:1"><b>${esc(l.name)}</b>
         <div class="small muted">${Array.isArray(l.setLog) && l.setLog.length
           ? l.setLog.map(r => `${r.load ? String(r.load).replace('.', ',') + '×' : ''}${r.hold ? r.hold + 's' : r.reps}${isFinite(r.rir) ? ` (${r.rir}${l.rirUnit === 's' ? 's' : ''})` : ''}`).join(' · ')
@@ -6891,13 +6948,52 @@ function openSessionDetail(i) {
         ${l.rateText ? `<div class="small muted">${starsHtml(l.stars)} ${esc(l.rateText)}</div>` : ''}</div>
       <div class="val">${esc(l.load || '—')} ${arrow(l.feedback)}</div>
       ${l.manual ? `<button class="mini-skip" data-dellog="${S.logs.indexOf(l)}" aria-label="Elimina la registrazione aggiunta a mano">✕</button>` : ''}</li>`).join('');
+}
+/* (8.6) Dolore a ginocchio e spalla modificabile anche a seduta chiusa
+   (dolori che arrivano a freddo). Il valore va sulla seduta; se è l'ultima
+   seduta del programma vale anche per la prossima (registro del dolore,
+   come se fosse segnato da Oggi). Nulla viene cancellato: ogni modifica si
+   aggiunge al registro. */
+function feelEditHtml(i) {
+  const x = S.sessionLog[i];
+  if (!x || x.kind === 'morning' || x.kind === 'core' || isSkipped(x)) return '';
+  const f = x.feel || {};
+  const row = (k, label) => `<div class="feelrow"><span class="lab">${label}<span class="small muted"> 0 nessun dolore · 10 il peggiore</span></span>
+    <div class="feelbtns" data-fe="${k}">${Array.from({ length: 11 }, (_, v) => `<button type="button" data-v="${v}" aria-pressed="${f[k] === v}">${v}</button>`).join('')}</div></div>`;
+  return `<div class="block feeledit" style="margin-top:14px"><h3 style="font-size:16px;color:var(--muted)">Dolore dopo la seduta</h3>
+    <p class="small muted">Se il dolore è arrivato a freddo, segnalo o correggilo qui: ${lastProgramSession() === x ? 'vale anche per la prossima seduta (carichi e scelta degli esercizi).' : 'resta nello storico delle sensazioni.'}</p>
+    <div class="feel">${row('knee', 'Ginocchio')}${row('shoulder', 'Spalla')}</div></div>`;
+}
+function bindFeelEdit(i, after) {
+  document.querySelectorAll('[data-fe]').forEach(g => g.querySelectorAll('button').forEach(bt => bt.onclick = () => {
+    const x = S.sessionLog[i];
+    if (!x) return;
+    const k = g.dataset.fe, v = +bt.dataset.v;
+    x.feel = Object.assign({ energy: null, sleep: null, knee: null, shoulder: null }, x.feel || {});
+    const last = lastProgramSession() === x;
+    x.feel[k] = x.feel[k] === v ? null : v;
+    S.painLog = Array.isArray(S.painLog) ? S.painLog : [];
+    if (x.feel[k] !== null) S.painLog.push({ ts: Date.now(), part: k, v, when: last ? 'day' : 'after', sid: x.sid, edit: true });
+    planCache = null; save();
+    g.querySelectorAll('button').forEach(b2 => b2.setAttribute('aria-pressed', String(+b2.dataset.v === x.feel[k])));
+    if (x.feel[k] !== null) showToast(`<div><b>${PAIN_NAME[k]} ${v}/10</b> annotato sulla seduta${last && v >= PAIN_DISTRICT ? ': la prossima seduta si alleggerisce per questo distretto' : ''}.</div>`, 3600);
+    if (after) after();
+  }));
+}
+
+function openSessionDetail(i) {
+  const x = S.sessionLog[i], logs = logsOfSession(x);
+  const d = new Date(x.ts);
+  const rows = sessionRowsHtml(logs);
   openModal(`<h2>${esc(sessLabel(x))}</h2>
     <p class="small muted">${d.toLocaleDateString('it-IT')} · ${x.minutes} minuti · ${logs.length} esercizi${x.kind === 'core' ? ' · blocco core' : ''}</p>
     ${x.note ? `<div class="notice" style="margin-bottom:10px">${esc(x.note)}</div>` : ''}
     <ul class="hist">${rows || '<li><span class="small muted">Nessun esercizio registrato per questa seduta.</span></li>'}</ul>
+    ${feelEditHtml(i)}
     <button class="btn ghost" id="addMissing" style="margin-top:16px">Aggiungi un esercizio non registrato</button>
     <button class="btn secondary" id="closeModal2" style="margin-top:10px">Chiudi</button>`);
   $('#closeModal2').onclick = closeModal;
+  bindFeelEdit(i);
   $('#addMissing').onclick = () => closeModal(() => addMissingLog(i));
   document.querySelectorAll('[data-dellog]').forEach(b => b.onclick = () => {
     const l = S.logs[+b.dataset.dellog];
