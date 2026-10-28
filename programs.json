@@ -244,6 +244,33 @@
    "hold": 60,
    "rpe": "corsa lenta in cui riesci a parlare; dolore al ginocchio al massimo 2 su 10",
    "source": "Esculier et al. 2018, Br J Sports Med 52(10):659-666: nel dolore femoro-rotuleo dei corridori il dolore durante la corsa resta entro 2/10, torna come prima entro un'ora e non aumenta la mattina dopo; prima si allunga la distanza, poi velocità e salite; corsa alternata a camminata consentita. Willy et al. 2019, JOSPT: aumento graduale. Livelli: regola operativa dell'app"
+  },
+  "legStrength": {
+   "label": "Forza gambe",
+   "sets": 3,
+   "repsLow": 6,
+   "repsHigh": 8,
+   "rest": 120,
+   "rpe": "7-8",
+   "source": "ACSM 2026 (Position Stand): forza con carichi elevati, 2-3 serie per esercizio. Per le gambe l'obiettivo è la forza che sostiene il ginocchio, non l'ipertrofia: 6-8 ripetizioni con 2-3 di riserva sono una regola operativa dell'app"
+  },
+  "legTone": {
+   "label": "Tono e resistenza gambe",
+   "sets": 3,
+   "repsLow": 15,
+   "repsHigh": 20,
+   "rest": 45,
+   "rpe": "7",
+   "source": "Linea guida sul dolore femoro-rotuleo (Willy et al. 2019, sintesi AAFP 2020): esercizi per l'anca posteriore e per il quadricipite, ad alto numero di ripetizioni. ACSM 2026: nessuna prova affidabile su quali variabili migliorino la resistenza muscolare. 15-20 ripetizioni con 45 s di recupero sono una regola operativa dell'app"
+  },
+  "power": {
+   "label": "Esplosività",
+   "sets": 3,
+   "repsLow": 5,
+   "repsHigh": 6,
+   "rest": 120,
+   "rpe": "6-7",
+   "source": "ACSM 2026 (Position Stand): la potenza migliora con carichi moderati (30-70% del massimale), volume basso-moderato (al massimo 24 ripetizioni × serie) e fase concentrica alla massima velocità volontaria. Il recupero di 2 minuti è una regola operativa dell'app"
   }
  },
  "programs": [
@@ -344,7 +371,8 @@
        "patterns": [
         "squat"
        ],
-       "note": "Multiarticolare gambe"
+       "goal": "legStrength",
+       "note": "Forza che sostiene il ginocchio"
       },
       {
        "patterns": [
@@ -355,7 +383,8 @@
        "patterns": [
         "hinge"
        ],
-       "note": "Catena posteriore"
+       "goal": "legTone",
+       "note": "Glutei e femorali"
       },
       {
        "patterns": [
@@ -365,11 +394,10 @@
       },
       {
        "patterns": [
-        "quadIso",
-        "hamIso",
-        "calf"
+        "quadIso"
        ],
-       "note": "Rinforzo articolare mirato",
+       "goal": "legTone",
+       "note": "Quadricipite, parte vicina al ginocchio",
        "ss": "1"
       },
       {
@@ -407,6 +435,29 @@
        "goal": "hypertrophy",
        "note": "Deltoide posteriore",
        "ss": "2"
+      },
+      {
+       "patterns": [
+        "hipAdd",
+        "squat"
+       ],
+       "focus": [
+        "adductors"
+       ],
+       "goal": "legTone",
+       "note": "Adduttori (interno coscia)",
+       "ss": "3"
+      },
+      {
+       "patterns": [
+        "hipAbd"
+       ],
+       "focus": [
+        "abductors"
+       ],
+       "goal": "legTone",
+       "note": "Medio gluteo: stabilità del ginocchio",
+       "ss": "3"
       }
      ]
     },
@@ -436,7 +487,8 @@
         "lunge",
         "squat"
        ],
-       "note": "Lavoro unilaterale"
+       "goal": "legTone",
+       "note": "Lavoro unilaterale, controllo del ginocchio"
       },
       {
        "patterns": [
@@ -492,6 +544,29 @@
        "goal": "endurance",
        "note": "Avambracci e presa",
        "ss": "2"
+      },
+      {
+       "patterns": [
+        "hamIso",
+        "hinge"
+       ],
+       "focus": [
+        "hamstrings"
+       ],
+       "fallback": [
+        "glute"
+       ],
+       "goal": "legTone",
+       "note": "Femorali",
+       "ss": "3"
+      },
+      {
+       "patterns": [
+        "calf"
+       ],
+       "goal": "legTone",
+       "note": "Polpacci",
+       "ss": "3"
       }
      ]
     },
@@ -502,13 +577,22 @@
       {
        "patterns": [
         "hinge"
-       ]
+       ],
+       "focus": [
+        "power"
+       ],
+       "loose": true,
+       "goal": "power",
+       "looseGoal": "legTone",
+       "note": "Forza esplosiva"
       },
       {
        "patterns": [
         "squat",
         "lunge"
-       ]
+       ],
+       "goal": "legStrength",
+       "note": "Forza che sostiene il ginocchio"
       },
       {
        "patterns": [
@@ -522,7 +606,6 @@
       },
       {
        "patterns": [
-        "calf",
         "shoulderIso"
        ],
        "ss": "1"
@@ -561,6 +644,30 @@
        "goal": "hypertrophy",
        "note": "Trapezio superiore",
        "ss": "2"
+      },
+      {
+       "patterns": [
+        "hinge"
+       ],
+       "focus": [
+        "glute"
+       ],
+       "goal": "legTone",
+       "note": "Glutei",
+       "ss": "3"
+      },
+      {
+       "patterns": [
+        "hipAbd",
+        "hipAdd"
+       ],
+       "focus": [
+        "abductors",
+        "adductors"
+       ],
+       "goal": "legTone",
+       "note": "Anca: medio gluteo e adduttori",
+       "ss": "3"
       }
      ]
     }

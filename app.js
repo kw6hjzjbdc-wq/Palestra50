@@ -315,7 +315,7 @@ const KNOWN_IMPLEMENTS = [
   'kettlebell', 'kettlebellGoblet',
   'cable', 'wheel', 'platform', 'thighPad', 'grips', 'bar', 'barBand', 'pullbar',
   'bandVertical', 'bandTop', 'bandFront', 'bandBack', 'bandFeet', 'bandFoot',
-  'bandKnees', 'bandAnkle', 'bandShoulder', 'bandSide'
+  'bandKnees', 'bandAnkle', 'bandShoulder', 'bandSide', 'cableAnkle'
 ];
 const REQUIRED_FIELDS = ['id', 'name', 'setup', 'type', 'group', 'pattern', 'load',
                          'primary', 'equipment', 'art', 'steps', 'errors', 'safety', 'source'];
@@ -457,6 +457,8 @@ function implementSvg(kind, p) {
       <line x1="${p.hip[0] - 14}" y1="99" x2="${(p.toe || p.ankle)[0] + 12}" y2="99" class="imp" stroke-width="3" stroke-linecap="round"/>
     </g>`;
     case 'bandSide':     return band(114, h[1]);
+    case 'cableAnkle':   return `<line x1="112" y1="40" x2="112" y2="100" class="imp" stroke-width="3"/>` +
+      `<path d="M ${a[0]} ${a[1]} L 112 ${a[1]}" class="band" stroke-width="2.6" stroke-dasharray="4 3" fill="none"/>`;
     default:             return '';
   }
 }
@@ -515,7 +517,7 @@ function figureMotion(ex, opts) {
   const o = opts || {};
   const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   if (reduce || fr.length < 2 || fr.every(f => f === fr[0])) return figureFor(ex, 1, o);
-  const P = fr.map(pose), n = P.length, dur = (1.5 * n).toFixed(1) + 's';
+  const P = fr.map(pose), n = P.length, dur = (n > 2 ? 1.1 * n : 3).toFixed(1) + 's';
   const kt = Array.from({ length: n + 1 }, (_, i) => (i / n).toFixed(4)).join(';');
   const ks = Array.from({ length: n }, () => '.45 0 .55 1').join(';');
   const work = workParts(ex);
@@ -1512,7 +1514,17 @@ function ratingRef(cur, candidates) {
   const src = ok.length ? ok : c;
   return src.length ? src[src.length - 1] : null;
 }
-function rateFor(cur, candidates) {
+/* (8.7) Per il confronto contano solo le serie previste. */
+function plannedPart(l) {
+  if (!l || !l.extraSets || !Array.isArray(l.setLog)) return l;
+  const n = Math.max(1, (l.sets || l.setLog.length) - l.extraSets);
+  const rows = l.setLog.slice(0, n), last = rows[rows.length - 1] || {};
+  return Object.assign({}, l, { setLog: rows, sets: rows.length, repsDone: isFinite(last.reps) ? last.reps : l.repsDone,
+    rir: last.rir !== undefined && last.rir !== null ? last.rir : l.rir, extraSets: 0 });
+}
+function rateFor(cur0, candidates0) {
+  const cur = plannedPart(cur0);
+  const candidates = (candidates0 || []).map(l => l === cur0 ? cur : plannedPart(l));
   if (!isRatable(cur)) return { stars: 0, text: cur.planned ? 'Segnata come fatta alle dosi previste: senza dati reali non c\'è valutazione.' : '' };
   // (6.9) prima della ripartenza: fuori dal conteggio, fa solo da riferimento
   if (isPreEpoch(cur)) {
@@ -2101,6 +2113,7 @@ const EXTRA_PATTERNS = {
   'Polpacci': ['calf'], 'Core': ['coreAnti', 'coreFlex']
 };
 const MAX_EXTRAS = 2;
+const LEG_GROUPS = ['Quadricipiti', 'Glutei e femorali', 'Polpacci'];
 
 function buildStrength(meta, budget) {
   const tmpl = meta.program.strengthDays[meta.tmplIdx];
@@ -2128,7 +2141,10 @@ function buildStrength(meta, budget) {
     const rot = (meta.mesocycle - 1) * (meta.tmplIdx + 2) + i;   // rotazione per mesociclo
     const ex = pickFrom(pool, rot, used);
     if (!ex) return;
-    const goalKey = slot.goal || dayGoal;
+    let goalKey = slot.goal || dayGoal;
+    // (8.7) slot con un muscolo preciso ripiegato sullo schema generico (per
+    // esempio a casa senza kettlebell per lo slancio): obiettivo di ripiego
+    if (slot.looseGoal && slot.focus && !(ex.focus || []).some(f => slot.focus.includes(f))) goalKey = slot.looseGoal;
     // con un focus lo slot conta solo per il muscolo: il primo resta comunque 'key'
     main.push({ exId: ex.id, note: slot.note || '', baseNote: slot.note || '', goalKey, role: main.length < 2 ? 'key' : 'main',
                 alt: { patterns: slot.patterns.slice(), types: ['strength', 'core'], ...(slot.focus ? { focus: slot.focus.concat(slot.fallback || []) } : {}) },
@@ -2153,6 +2169,9 @@ function buildStrength(meta, budget) {
     const p = Object.assign({}, need.proj);
     need.groups.forEach(g => {
       if (extras.length >= MAX_EXTRAS || (p[g] || 0) >= VOL_TARGET) return;
+      // (8.7) gambe: l'obiettivo è tono, forza e sostegno del ginocchio, non
+      // l'ipertrofia: le 10 serie (soglia per l'ipertrofia) non si inseguono
+      if (LEG_GROUPS.includes(g)) return;
       const pats = EXTRA_PATTERNS[g] || [];
       const pool = slotPool(pats).filter(e => !used.has(e.id) && e.type === 'strength' && primaryGroups(e).includes(g));
       const ex = pickFrom(pool, (meta.mesocycle - 1) + extras.length, used);
@@ -2317,7 +2336,7 @@ const SS_TRANSFER = 20;          // secondi per passare da un esercizio all'altr
    supplementari (fillToTime).
 --------------------------------------------------------------------------- */
 const SS_FAMILY = { pushH: 'push', pushV: 'push', shoulderIso: 'push', pullH: 'pull', pullV: 'pull', arms: 'arms', forearm: 'arms', traps: 'pull',
-  squat: 'legs', lunge: 'legs', quadIso: 'legs', hamIso: 'legs', hinge: 'legs', calf: 'legs', coreAnti: 'core', coreFlex: 'core' };
+  squat: 'legs', lunge: 'legs', quadIso: 'legs', hamIso: 'legs', hinge: 'legs', calf: 'legs', hipAdd: 'legs', hipAbd: 'legs', coreAnti: 'core', coreFlex: 'core' };
 function pairSupersets(items) {
   const famOf = it => SS_FAMILY[(exById(it.exId) || {}).pattern] || 'other';
   const grpOf = it => primaryGroups(exById(it.exId) || {})[0] || '';
@@ -2529,7 +2548,7 @@ function fillToTime(items, maxMin, opt) {
   // 4. una serie in più a petto e gambe (fino a 4), senza toccare il finale
   const growable = items.filter(it => (it.role === 'key' || it.role === 'main' || it.role === 'extra') && it.goal !== 'core' && (() => {
     const g = muscleGroup(((exById(it.exId) || {}).primary || [])[0] || '');
-    return g === 'Petto' || g === 'Polpacci' || g === 'Quadricipiti' || g === 'Glutei e femorali';
+    return g === 'Petto';     // (8.7) le gambe non si allungano per volume: obiettivo tono e forza
   })());
   let again = true, guard = 0;
   while (again && guard++ < 20) {
@@ -3606,11 +3625,67 @@ function morningStatus() {
   const m = buildMorning(w, day, S.morningMin || 10);
   return { done: false, w, day, m };
 }
+/* ---------------------------------------------------------------------------
+   SEDUTA DI OGGI SECONDO IL CALENDARIO (dalla 8.7)
+   Le sei sedute della settimana corrispondono, di base, ai giorni da lunedì a
+   sabato: la «seduta di oggi» è quella prevista per il giorno della settimana
+   in cui si apre l'app (gli scambi fatti nella settimana restano validi).
+     · già svolta (o saltata) → risultati e valutazioni;
+     · da fare → il programma del giorno (se prima ci sono sedute dei giorni
+       scorsi non svolte, avviandola quelle si spostano più avanti);
+     · domenica → riposo, con la prossima seduta a disposizione;
+     · settimana del programma iniziata in una settimana di calendario
+       precedente e rimasta a metà → si prosegue con la prossima seduta e si
+       può saltare il resto per ripartire dal lunedì.
+--------------------------------------------------------------------------- */
+const WEEKDAYS = ['lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato', 'domenica'];
+function calendarMonday(ts) {
+  const d = new Date(ts || Date.now());
+  const wd = (d.getDay() + 6) % 7;            // 0 = lunedì
+  d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - wd);
+  return d.getTime();
+}
+const weekdayIdx = ts => (new Date(ts || Date.now()).getDay() + 6) % 7;   // 0 = lunedì … 6 = domenica
+function programWeekLogs(w) {
+  const a = weekStart(w), b = a + weekLen(w);
+  return (S.sessionLog || []).filter(x => x && x.idx != null && x.idx >= a && x.idx < b && isProgramKind(x.kind) && !/ignorata/.test(x.label || ''));
+}
+function todayPlan() {
+  const SI = S.sessionIndex, wCur = weekOfIdx(SI), here = posOfIdx(SI);
+  const monday = calendarMonday(), day = weekdayIdx();
+  let W = wCur;
+  if (here === 0 && wCur > 1 && programWeekLogs(wCur - 1).some(x => x.ts >= monday)) W = wCur - 1;   // settimana finita in anticipo
+  else if (here > 0) {
+    const first = programWeekLogs(wCur).reduce((m, x) => Math.min(m, x.ts || Infinity), Infinity);
+    if (first < monday) return { stale: true, W: wCur, here, left: weekLen(wCur) - here, day };
+  }
+  const len = weekLen(W);
+  if (day >= len) return { rest: true, W, day };
+  const idx = weekStart(W) + day;
+  if (idx < SI) { const i = sessionLogIndexFor(idx); return { done: true, idx, q: day, W, day, logIdx: i, entry: i >= 0 ? S.sessionLog[i] : null }; }
+  return { done: false, idx, q: day, W, day, pending: idx - SI };
+}
 function lunchStatus() {
-  const today = S.sessionLog.filter(x => isProgramKind(x.kind) && sameDay(x.ts, Date.now())).pop();
-  if (today && isSkipped(today)) return { skipped: true, entry: today, s: todaySession(null) };
-  if (today) return { done: true, entry: today, verdict: sessionVerdict(today) };
-  return { done: false, s: todaySession(null) };
+  const tp = todayPlan();
+  if (tp.rest || tp.stale) return { rest: !!tp.rest, stale: !!tp.stale, tp, s: todaySession(null) };
+  if (tp.done) {
+    if (tp.entry && isSkipped(tp.entry)) return { skipped: true, entry: tp.entry, tp, s: todaySession(null) };
+    return { done: true, entry: tp.entry, verdict: tp.entry ? sessionVerdict(tp.entry) : null, tp };
+  }
+  return { done: false, tp, s: tp.idx === S.sessionIndex ? todaySession(null) : sessionFor(tp.idx) };
+}
+/* Salta le sedute rimaste di una settimana del programma iniziata prima di
+   questa settimana di calendario: registro «saltata», nessun dato cancellato. */
+function skipRestOfWeek() {
+  const w = weekOfIdx(S.sessionIndex);
+  let k = 0;
+  while (weekOfIdx(S.sessionIndex) === w && k < 8) {
+    skipSession(sessionFor(S.sessionIndex), 'Saltata: settimana del programma rimasta a metà');
+    const last = S.sessionLog[S.sessionLog.length - 1];
+    if (last) last.sid = last.ts + k;
+    k++;
+  }
+  planCache = null; save();
 }
 
 /* Percorso: fase, settimana, settimane alla fine e data di fine stimata
@@ -3717,13 +3792,18 @@ function morningTileBody(ms, full) {
 }
 
 function lunchTileBody(ls, full) {
-  if (ls.skipped) return `<div class="dstat">Saltata</div><p class="small"><b>${esc(sessLabel(ls.entry))}</b> non svolta.</p>
-       <p class="small muted">La prossima è «${esc(ls.s.label)}» · ${ls.s.minutes} min.</p>`;
-  if (ls.done) return `<div class="dstat ok">Fatta ✓</div><p class="small"><b>${esc(sessLabel(ls.entry))}</b></p>
-       <p class="small">${esc(ls.verdict.text)} · ${ls.verdict.pct}% delle serie · ${ls.verdict.minutes} min${ls.verdict.avg ? ' · ' + starsHtml(Math.round(ls.verdict.avg)) : ''}</p>
-       <p class="small muted">Tocca per i risultati e il dolore dopo la seduta; da lì anche la prossima.</p>`;
-  return `<div class="dstat todo">Da fare · ${ls.s.minutes} min</div><p class="small"><b>${esc(ls.s.label)}</b></p>
-       <p class="small muted">${typeWord(ls.s)} · ${ls.s.items.length} esercizi · sessione ${ls.s.pos} di ${ls.s.days} della settimana.</p>`;
+  const wd = WEEKDAYS[weekdayIdx()];
+  if (ls.rest) return `<div class="dstat">Domenica · riposo</div><p class="small">Nessuna seduta prevista oggi.</p>
+       <p class="small muted">La prossima è «${esc(ls.s.label)}» (lunedì) · tocca per vederla o farla lo stesso.</p>`;
+  if (ls.stale) return `<div class="dstat todo">Settimana da chiudere</div><p class="small"><b>${esc(ls.s.label)}</b> · ${ls.s.minutes} min</p>
+       <p class="small muted">La settimana ${ls.tp.W} del programma è rimasta a metà (${ls.tp.left === 1 ? 'manca 1 seduta' : `mancano ${ls.tp.left} sedute`}): puoi proseguire o saltare il resto e ripartire dal lunedì.</p>`;
+  if (ls.skipped) return `<div class="dstat">Saltata</div><p class="small">Seduta di oggi (${wd}): <b>${esc(sessLabel(ls.entry))}</b> non svolta.</p>
+       <p class="small muted">Tocca per i dettagli e il programma della settimana.</p>`;
+  if (ls.done) return `<div class="dstat ok">Fatta ✓</div><p class="small">Seduta di oggi (${wd}): <b>${esc(ls.entry ? sessLabel(ls.entry) : sessionFor(ls.tp.idx).label)}</b></p>
+       ${ls.verdict ? `<p class="small">${esc(ls.verdict.text)} · ${ls.verdict.pct}% delle serie · ${ls.verdict.minutes} min${ls.verdict.avg ? ' · ' + starsHtml(Math.round(ls.verdict.avg)) : ''}</p>` : ''}
+       <p class="small muted">Tocca per svolgimento, risultati e valutazioni.</p>`;
+  return `<div class="dstat todo">Da fare · ${ls.s.minutes} min</div><p class="small">Seduta di oggi (${wd}): <b>${esc(ls.s.label)}</b></p>
+       <p class="small muted">${typeWord(ls.s)} · ${ls.s.items.length} esercizi${ls.tp && ls.tp.pending ? ` · prima ${ls.tp.pending === 1 ? 'c\'è 1 seduta' : `ci sono ${ls.tp.pending} sedute`} dei giorni scorsi non svolte` : ''}.</p>`;
 }
 
 /* Pagina Progressi: percorso, prossime settimane, trazioni, esercizi, misure,
@@ -5150,9 +5230,17 @@ function renderHomePick() {
   document.querySelectorAll('[data-pick]').forEach(el => el.onclick = () => {
     const k = el.dataset.pick;
     if (k === 'lunch' && current && !current.finished) { go('session'); renderSession(); return; }
-    // (8.6) seduta di oggi già fatta: si aprono i suoi risultati
-    if (k === 'lunch' && ls.done) { const i = S.sessionLog.indexOf(ls.entry); if (i >= 0) { openResult(i, 'pick'); return; } }
-    if (k === 'lunch') { daySel = null; dayFrom = 'pick'; homeSel = 'session'; }
+    // (8.6 / 8.7) seduta di oggi (secondo il calendario) già fatta o saltata: risultati
+    if (k === 'lunch' && (ls.done || ls.skipped)) {
+      const i = ls.entry ? S.sessionLog.indexOf(ls.entry) : -1;
+      if (i >= 0) { openResult(i, 'pick'); return; }
+      homeView = 'week'; renderHome(); return;
+    }
+    if (k === 'lunch') {
+      daySel = (!ls.rest && !ls.stale && ls.tp && ls.tp.W === weekOfIdx(S.sessionIndex)) ? ls.tp.q : null;
+      if (daySel === posOfIdx(S.sessionIndex)) daySel = null;
+      dayFrom = 'pick'; homeSel = 'session';
+    }
     homeView = k; renderHome();
   });
   bindHomeBanners(b.saved);
@@ -5168,18 +5256,21 @@ function renderHomeWeek() {
   $('#topChip').textContent = shortWhere(s);
   $('#topChip').className = 'chip';
   let week = '';
+  const tpw = todayPlan();
+  const calQ = (!tpw.rest && !tpw.stale && tpw.W === weekOfIdx(S.sessionIndex)) ? tpw.q : -1;
   for (let q = 0; q < nDays; q++) {
     const alt = sessionFor(wStart + q);          // sola lettura: etichetta, tipo, minuti
-    const isPlanned = alt.dayInWeek === here + 1;
-    const state = q < here ? 'done' : (q === here ? 'now' : 'next');
-    const badge = q < here ? '<span class="wkbadge done">✓ svolta</span>'
-                : q === here ? `<span class="wkbadge${isPlanned ? '' : ' alt'}">${isPlanned ? 'di oggi' : 'scelta per oggi'}</span>`
-                : `<button class="selbtn" data-sel="${q}" aria-label="Sposta ${esc(alt.label)} a oggi">Seleziona</button>`;
+    const state = q < here ? 'done' : (q === calQ || (calQ < 0 && q === here) ? 'now' : 'next');
+    const lg = q < here ? (() => { const i = sessionLogIndexFor(wStart + q); return i >= 0 ? S.sessionLog[i] : null; })() : null;
+    const badge = q < here ? `<span class="wkbadge done">${lg && isSkipped(lg) ? 'saltata' : '✓ svolta'}</span>`
+                : q === calQ ? '<span class="wkbadge">di oggi</span>'
+                : q === here ? '<span class="wkbadge alt">la prossima</span>'
+                : `<button class="selbtn" data-sel="${q}" aria-label="Sposta ${esc(alt.label)} come prossima">Seleziona</button>`;
     const ck = q >= here ? spCheckKinds(sessionMeta(wStart + q)) : [];
     week += `<li class="wk ${state}" data-day="${q}">
       <span class="wknum ${typeClass(alt)}">${q < here ? '✓' : q + 1}</span>
       <div class="nm"><b>${esc(alt.label)}</b>
-        <div class="small muted">${typeWord(alt)} · ${alt.minutes} min${alt.items.some(i => i.block === 'pullup') ? ' · trazioni' : ''}${ck.length ? ' · Spartan Race check' : ''}${(nDays === 6 && alt.dayType === 'stretch' && q === nDays - 1) ? ' · di solito l\'ultima' : ''}</div></div>
+        <div class="small muted">${nDays === 6 ? WEEKDAYS[q] + ' · ' : ''}${typeWord(alt)} · ${alt.minutes} min${alt.items.some(i => i.block === 'pullup') ? ' · trazioni' : ''}${ck.length ? ' · Spartan Race check' : ''}${(nDays === 6 && alt.dayType === 'stretch' && q === nDays - 1) ? ' · di solito l\'ultima' : ''}</div></div>
       ${badge}</li>`;
   }
   const coreS = sessionFor(S.sessionIndex, 'core');
@@ -5202,7 +5293,7 @@ function renderHomeWeek() {
       ${weekIntroHtml(s)}
       <h2 style="margin-top:10px">Programma della settimana</h2>
       <ul class="week">${week}</ul>
-      <p class="small muted" style="margin-top:10px">Tocca una seduta per aprirla; «Seleziona» la sposta a oggi e quella prevista prende il suo posto. La mobilità è prevista per ultima, ma puoi farla in qualunque giorno.</p>
+      <p class="small muted" style="margin-top:10px">Le sedute corrispondono ai giorni da lunedì a sabato. Tocca una seduta per aprirla (quelle svolte mostrano risultati e valutazioni); «Seleziona» la rende la prossima da fare e quella prevista prende il suo posto. La mobilità è prevista per ultima, ma puoi farla in qualunque giorno.</p>
     </div>
     <button class="btn ghost backbottom" id="homeBack2">‹ Torna a Oggi</button>`;
   const openDay = q => { daySel = q; dayFrom = 'week'; homeSel = 'session'; homeView = 'lunch'; renderHome(); window.scrollTo(0, 0); };
@@ -5297,10 +5388,12 @@ function renderHomeResult() {
       <p class="small muted" style="margin-top:8px">Sotto ogni esercizio: serie (carico × ripetizioni, tra parentesi le ripetizioni di riserva), stelle e motivo del giudizio.</p>
       ${feelEditHtml(resultIdx)}
     </div>
-    ${dayFrom === 'week' ? '' : `<button class="btn" id="resNext">Prossima seduta: ${esc(next.label)} ›</button>`}
+    ${dayFrom === 'week' ? '' : `<button class="btn" id="resNext">Prossima seduta: ${esc(next.label)} ›</button>
+    <button class="btn ghost" id="resWeek" style="margin-top:10px">Programma della settimana</button>`}
     <button class="btn ghost backbottom" id="resBack2">‹ ${backTxt}</button>`;
   const back = () => { const to = dayFrom === 'week' ? 'week' : null; homeView = to; renderHome(); window.scrollTo(0, 0); };
   $('#resBack').onclick = back; $('#resBack2').onclick = back;
+  if ($('#resWeek')) $('#resWeek').onclick = () => { homeView = 'week'; renderHome(); window.scrollTo(0, 0); };
   if ($('#resNext')) $('#resNext').onclick = () => { daySel = null; dayFrom = 'pick'; homeSel = 'session'; homeView = 'lunch'; renderHome(); window.scrollTo(0, 0); };
   bindFeelEdit(resultIdx);
 }
@@ -5340,8 +5433,17 @@ function renderHomeLunch() {
       ${pickOf(isToday ? S.sessionIndex : wStart + q) ? `<p class="small" style="margin-top:10px">Seduta scelta da te al posto di quella prevista.</p>` : ''}
       <button class="btn ghost" id="swapKind" style="margin-top:10px">${
         s.dayType === 'cardio' ? 'Cambia attrezzo o tipo di lavoro' : 'Cambia schema di mobilità'}</button>`;
+  const tpl = todayPlan();
+  const calToday = !tpl.rest && !tpl.stale && tpl.W === weekOfIdx(S.sessionIndex) && tpl.q === q;
   const notToday = !core && !isToday && !done
-    ? `<div class="notice" style="margin-top:12px">Questa seduta è prevista per il giorno ${q + 1} della settimana. Se la avvii, la salti o la segni come svolta, diventa la seduta di oggi e quella di oggi prende il suo posto.</div>` : '';
+    ? (calToday
+      ? `<div class="notice" style="margin-top:12px">È la seduta di oggi (${WEEKDAYS[q]}). Prima ${q - here === 1 ? 'c\'è 1 seduta' : `ci sono ${q - here} sedute`} dei giorni scorsi non svolte: se avvii questa o la segni come svolta, quelle si spostano più avanti nella settimana. Per saltarle usa il programma della settimana.</div>`
+      : `<div class="notice" style="margin-top:12px">Questa seduta è prevista per ${WEEKDAYS[q] || 'il giorno ' + (q + 1)}. Se la avvii, la salti o la segni come svolta, diventa la prossima da fare e quella prevista prende il suo posto.</div>`) : '';
+  const staleNote = !core && tpl.stale && isToday
+    ? `<div class="notice" style="margin-top:12px">La settimana ${tpl.W} del programma è iniziata la settimana scorsa ed è rimasta a metà (${tpl.left === 1 ? 'manca 1 seduta' : `mancano ${tpl.left} sedute`}). Puoi proseguire da qui oppure saltare il resto e ripartire con la settimana nuova dal lunedì.
+       <button class="btn ghost" id="skipRest" style="margin-top:10px">Salta le sedute rimaste e passa alla settimana ${tpl.W + 1}</button></div>` : '';
+  const restNote = !core && tpl.rest && isToday && weekdayIdx() === 6
+    ? `<div class="notice" style="margin-top:12px">Oggi è domenica: nessuna seduta prevista. Questa è la prossima, di lunedì; puoi farla anche oggi.</div>` : '';
   const doneNote = done ? `<div class="notice" style="margin-top:12px">Seduta già svolta questa settimana: qui sotto gli esercizi previsti.</div>` : '';
 
   $('#view-home').innerHTML = `
@@ -5349,7 +5451,7 @@ function renderHomeLunch() {
     ${b.html}
     ${deloadCardHtml()}
     ${core || !isToday ? '' : spartanTodayHtml(s)}
-    ${notToday}${doneNote}
+    ${notToday}${doneNote}${staleNote}${restNote}
     <div class="seg" role="group" aria-label="Attrezzatura">
       <button data-setup="gym" aria-pressed="${S.setup === 'gym'}">Palestra</button>
       <button data-setup="home" aria-pressed="${S.setup === 'home'}">Casa</button>
@@ -5384,6 +5486,7 @@ function renderHomeLunch() {
       <button class="btn ghost" id="markBtn">${core ? 'Segna il core come svolto' : 'L\'ho già fatta: segna come svolta'}</button>
     </div>`}
     ${core ? '' : painStatusHtml()}
+    ${dayFrom === 'week' ? '' : '<button class="btn ghost" id="toWeek" style="margin-top:10px">Programma della settimana</button>'}
     <p class="small muted" style="margin-top:16px">Programma attivo: ${esc(p.name)} · ${esc(p.periodization)}.</p>
     <button class="btn ghost backbottom" id="dayBack2">‹ ${dayFrom === 'week' ? 'Torna al programma della settimana' : 'Torna a Oggi'}</button>
   `;
@@ -5391,6 +5494,10 @@ function renderHomeLunch() {
   const back = () => { const to = dayFrom === 'week' ? 'week' : null; daySel = null; homeSel = 'session'; homeView = to; renderHome(); window.scrollTo(0, 0); };
   $('#dayBack').onclick = back;
   $('#dayBack2').onclick = back;
+  if ($('#toWeek')) $('#toWeek').onclick = () => { daySel = null; homeView = 'week'; renderHome(); window.scrollTo(0, 0); };
+  if ($('#skipRest')) $('#skipRest').onclick = () => confirmAction('Saltare le sedute rimaste?',
+    `Le ${tpl.left} sedute rimaste della settimana ${tpl.W} vengono segnate come saltate (restano nello storico) e si riparte dalla settimana ${tpl.W + 1}.`,
+    'Salta e riparti', () => { snapForUndo(); skipRestOfWeek(); daySel = null; homeView = null; renderHome(); offerUndo('Sedute rimaste saltate.'); });
   document.querySelectorAll('[data-setup]').forEach(x => x.onclick = () => {
     if (current && !current.finished) return;   // non cambiare attrezzatura a sessione aperta
     S.setup = x.dataset.setup; save(); renderHome();
@@ -5621,6 +5728,13 @@ function renderSessionCore() {
       <li>una serie di <b>${esc(nB)}</b>;</li><li>recupero di ${rest} secondi, poi di nuovo il primo.</li></ol>
       <span class="small muted">${rounds} giri. Il timer ti porta da solo da un esercizio all'altro: tu chiudi la serie con il pulsante in basso.</span></div>`;
   })() : '';
+  // (8.7) serie in più: sull'esercizio appena chiuso o su questo, se finito
+  const lc = c.lastClosed;
+  const lcIt = (lc !== undefined && lc !== null && lc !== c.pos && s.items[lc] && !isOpenItem(c, lc)) ? s.items[lc] : null;
+  const extraHtml = (lcIt ? `<div class="extraline small"><span>«${esc(exById(lcIt.exId).name)}» chiuso con ${c.setsDone[lc]} serie${lcIt.extraSets ? ` (${lcIt.extraSets} in più)` : ''}.</span>
+      <button class="btn ghost" id="extraPrev">+ una serie in più</button></div>` : '') +
+    (c.setsDone[c.pos] >= it.sets && !CARDIO_ROLES.includes(it.role) && ex.type !== 'stretch'
+      ? `<div class="extraline small"><span>Serie previste fatte${it.extraSets ? ` · ${it.extraSets} in più` : ''}.</span><button class="btn ghost" id="extraHere">+ una serie in più</button></div>` : '');
   // (8.3) dolore segnato su questo esercizio
   const painBox = it.pain ? `<div class="${it.pain.v >= PAIN_STRONG ? 'warnbox' : 'notice'} painbox">${PAIN_NAME[it.pain.part]} ${it.pain.v}/10 segnato alla serie ${it.pain.set + 1 > it.sets ? it.sets : it.pain.set + 1}: ${
     it.pain.v >= PAIN_STRONG ? 'fermati con questo esercizio: cambialo o chiudilo.' : it.pain.v >= PAIN_LIGHT ? 'serie rimanenti più leggere; la prossima volta l\'esercizio parte più leggero.' : 'lieve, continua se non sale.'}</div>` : '';
@@ -5641,6 +5755,7 @@ function renderSessionCore() {
       ${nota ? `<div class="exnote" id="noteShow">📌 ${esc(nota)}</div>` : ''}
 
       ${painBox}
+      ${extraHtml}
       ${warmupHtml(c, it, ex, sug, s)}
       <div class="setdots">${setBtns}</div>
       ${setRowsHtml(c.pos)}
@@ -5763,6 +5878,8 @@ function renderSessionCore() {
   });
   if ($('#loadIn')) $('#loadIn').onchange = () => { captureLoad(); saveResume(); renderSession(); };
   $('#dayPlanBtn').onclick = () => { captureLoad(); openDayPlan(); };
+  if ($('#extraPrev')) $('#extraPrev').onclick = () => { captureLoad(); addExtraSet(lc); };
+  if ($('#extraHere')) $('#extraHere').onclick = () => { captureLoad(); addExtraSet(c.pos); };
   // (8.3) dolore durante l'esercizio
   $('#painBtn').onclick = () => { captureLoad(); openPainModal({
     part: partOfEx(ex) || (it.pain && it.pain.part) || 'shoulder',
@@ -5780,6 +5897,7 @@ function renderSessionCore() {
      nella barretta in basso: intanto puoi aprire la scheda e ripassarla. */
   const closeSet = () => {
     captureLoad();
+    if (c.lastClosed !== c.pos) c.lastClosed = undefined;
     const before = c.setsDone[c.pos];
     if (before < it.sets) c.setsDone[c.pos] = before + 1;
     const done = c.setsDone[c.pos];
@@ -6293,8 +6411,23 @@ function ssMateIdx(c, pos) {
   return c.sess.items.findIndex((x, j) => j !== pos && x.ss === it.ss);
 }
 
+/* (8.7) Serie in più rispetto a quelle previste: si aggiungono all'esercizio
+   (anche già chiuso) e si registrano come le altre. Contano nel volume e nei
+   record; le stelle confrontano solo le serie previste, così una serie in più
+   fatta con la stanchezza non abbassa il giudizio e non lo gonfia. */
+function addExtraSet(pos) {
+  const c = current;
+  if (!c || c.finished) return;
+  const it = c.sess.items[pos];
+  if (!it) return;
+  const k = it.perSide ? 2 : 1;
+  it.sets += k; it.extraSets = (it.extraSets || 0) + k;
+  c.lastClosed = undefined;
+  c.pos = pos; saveResume(); renderSession(); window.scrollTo(0, 0);
+}
 function concludeExercise(inChain) {
   const c = current, s = c.sess;
+  c.lastClosed = c.pos;                    // (8.7) per offrire «una serie in più»
   const it = s.items[c.pos], ex = exById(it.exId);
   const last = nextOpenAfter(c, c.pos) < 0;
   if (!inChain) stopTimer();
@@ -6358,7 +6491,8 @@ function logExercise(pos) {
                   goal: it.goal, week: s.weekInCycle,
                   hold: rows.length && timed0 ? Math.round(rows.reduce((a, r) => a + (r.hold || 0), 0) / rows.length) : (it.hold || 0),
                   rest: it.rest || 0,                                 // per i minuti aerobici
-                  setsPlanned: it.sets,                               // per la valutazione in Home
+                  setsPlanned: it.sets - (it.extraSets || 0),         // per la valutazione in Home
+                  ...(it.extraSets ? { extraSets: it.extraSets } : {}),   // (8.7) serie fatte oltre al previsto
                   ...(it.pain ? { pain: Object.assign({}, it.pain) } : {}),   // (8.3) dolore segnato durante l'esercizio
                   ...(painAdjAt(pos) ? { painAdj: painAdjAt(pos) } : {}),        // (8.4) carico proposto alleggerito per il dolore
                   ...(it.block === 'spartan' ? { spartan: true } : {}) };   // (7S 0) fuori dal volume dei gruppi
@@ -6824,7 +6958,7 @@ function renderHistory() {
       che la eseguono e ½ per quelli che collaborano (i tricipiti nella panca, i bicipiti nelle trazioni).
       La tacca chiara segna le 10 serie settimanali: è il <b>minimo</b> raccomandato dal Position Stand ACSM 2026 per l'ipertrofia,
       non un tetto — i guadagni continuano a crescere con rendimenti decrescenti e si appiattiscono verso le 18-20 serie
-      (Pelland et al. 2026). Sotto le 5 la barra diventa rossa.</p>
+      (Pelland et al. 2026). Sotto le 5 la barra diventa rossa. Per le gambe l'obiettivo è tono, forza e sostegno del ginocchio, non l'ipertrofia: lì la tacca non è un traguardo.</p>
       <div style="margin-top:10px">${vol}</div>
       ${volAna.advice.length ? `<ul class="small" style="margin-top:12px;padding-left:18px">${volAna.advice.map(t => `<li style="margin-top:6px">${esc(t)}</li>`).join('')}</ul>` : ''}</div>` : ''}
     ${(() => { const f = fineMuscleHtml(curWeek); return f ? `<div class="card"><h2>Muscoli specifici · settimana ${curWeek}</h2>
@@ -8795,7 +8929,11 @@ function registerServiceWorker() {
   }).catch(() => {});
   let reloaded = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (reloaded) return; reloaded = true; location.reload();
+    if (reloaded) return; reloaded = true;
+    // (8.7) la ricarica dopo l'aggiornamento non ripropone l'intro: si torna
+    // diritti alla pagina d'apertura (il pop-up, se non già visto, compare lì)
+    try { sessionStorage.setItem('p50reload', String(Date.now())); } catch (e) {}
+    location.reload();
   });
 }
 
@@ -8861,6 +8999,13 @@ function registerServiceWorker() {
   // (8.2) l'intro si sviluppa per intero a ogni avvio e resta a schermo
   // finché non la tocchi: la frase e il percorso si devono poter leggere
   // (su richiesta dell'utente; la versione breve della 8 è stata tolta)
-  if (splash) splash.onclick = afterSplash; else afterSplash();
+  let skipIntro = false;
+  try {
+    const t = +sessionStorage.getItem('p50reload');
+    skipIntro = !!t && Date.now() - t < 120000;
+    sessionStorage.removeItem('p50reload');
+  } catch (e) {}
+  if (splash && skipIntro) { splash.dataset.done = '1'; if (splash.parentNode) splash.parentNode.removeChild(splash); afterSplash(); }
+  else if (splash) splash.onclick = afterSplash; else afterSplash();
   registerServiceWorker();
 })();

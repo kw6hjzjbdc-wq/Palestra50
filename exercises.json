@@ -309,7 +309,10 @@
     "Ginocchio: femorali forti stabilizzano l'articolazione e bilanciano il lavoro del quadricipite."
    ],
    "source": "NSCA – ipertrofia, isolamento femorali",
-   "rack": "machine"
+   "rack": "machine",
+   "focus": [
+    "hamstrings"
+   ]
   },
   {
    "id": "g_hipthrust",
@@ -354,7 +357,10 @@
     "Mantieni il mento leggermente raccolto e le costole basse per non caricare la lombare."
    ],
    "source": "NSCA – estensione d'anca, ipertrofia glutei",
-   "rack": "barbell"
+   "rack": "barbell",
+   "focus": [
+    "glute"
+   ]
   },
   {
    "id": "g_backext",
@@ -1670,7 +1676,10 @@
    "safety": [
     "Movimento a basso impatto, adatto anche nei giorni in cui il ginocchio è sensibile."
    ],
-   "source": "NSCA – attivazione ed estensione d'anca"
+   "source": "NSCA – attivazione ed estensione d'anca",
+   "focus": [
+    "glute"
+   ]
   },
   {
    "id": "h_singleglute",
@@ -1719,6 +1728,9 @@
     "Gamba libera distesa",
     "Tallone su rialzo",
     "Con pausa di 2 s in alto"
+   ],
+   "focus": [
+    "glute"
    ]
   },
   {
@@ -3161,7 +3173,13 @@
      "plank",
      "mountain"
     ],
-    "implement": null
+    "implement": null,
+    "motion": [
+     "plank",
+     "mountainMid",
+     "mountain",
+     "mountainMid"
+    ]
    },
    "steps": [
     "Posizione di plank alto, mani sotto le spalle.",
@@ -5513,8 +5531,8 @@
    ],
    "art": {
     "frames": [
-     "seated",
-     "sit90"
+     "recumbentExt",
+     "recumbentBent"
     ],
     "implement": "recumbent"
    },
@@ -5801,7 +5819,10 @@
     "Schiena: parti leggero (8-12 kg) finché il movimento non è automatico; se la zona lombare si affatica, ferma la serie."
    ],
    "source": "Meigh et al. 2022 (BMC Geriatrics, studio BELL): 12 settimane di kettlebell hardstyle in adulti 59-79 anni, +23-25% di forza di presa, +23% al sit-to-stand, nessun infortunio serio",
-   "rack": "kettlebell"
+   "rack": "kettlebell",
+   "focus": [
+    "power"
+   ]
   },
   {
    "id": "g_kbgoblet",
@@ -5931,9 +5952,11 @@
     "motion": [
      "burpeeJumpL",
      "burpeeSquatL",
+     "burpeeKick",
      "pushupTop",
      "pushupBottom",
      "pushupTop",
+     "burpeeKick",
      "burpeeSquatL"
     ]
    },
@@ -6562,6 +6585,365 @@
    "source": "Regola operativa dell'app: lavoro diretto aggiunto con la 8.3 (nessuno studio verificato su questo esercizio specifico)",
    "focus": [
     "upperTrap"
+   ]
+  },
+  {
+   "id": "g_sumosquat",
+   "name": "Squat sumo goblet con manubrio",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Adduttori",
+   "pattern": "squat",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Adduttori",
+    "Glutei",
+    "Quadricipiti"
+   ],
+   "secondary": [
+    "Core"
+   ],
+   "equipment": [
+    "Manubrio"
+   ],
+   "art": {
+    "frames": [
+     "gobletStand",
+     "squatBottom"
+    ],
+    "implement": "goblet"
+   },
+   "steps": [
+    "Piedi più larghi delle spalle, punte un po' in fuori, manubrio al petto.",
+    "Scendi spingendo le ginocchia nella direzione delle punte, schiena dritta.",
+    "Risali spingendo con tutto il piede."
+   ],
+   "errors": [
+    "Ginocchia che cadono verso l'interno.",
+    "Scendere oltre il punto in cui il ginocchio resta comodo."
+   ],
+   "safety": [
+    "Profondità solo fin dove il ginocchio non dà fastidio."
+   ],
+   "source": "Regola operativa dell'app: adduttori e glutei con la posizione larga. Paoli et al. 2009 (J Strength Cond Res): la posizione larga aumenta l'attività del grande gluteo, non quella dei vasti",
+   "focus": [
+    "adductors"
+   ],
+   "rack": "dumbbell"
+  },
+  {
+   "id": "g_cableadd",
+   "name": "Adduzione dell'anca al cavo basso",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Adduttori",
+   "pattern": "hipAdd",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Adduttori"
+   ],
+   "secondary": [],
+   "equipment": [
+    "Cavo",
+    "Cavigliera"
+   ],
+   "art": {
+    "frames": [
+     "frontAbd",
+     "frontStand"
+    ],
+    "implement": "cableAnkle"
+   },
+   "steps": [
+    "Di fianco al cavo, cavigliera alla gamba più vicina, mano su un appoggio.",
+    "Porta la gamba verso l'interno, davanti all'altra, ginocchio dritto ma non bloccato.",
+    "Torna piano fino a sentire allungare l'interno coscia."
+   ],
+   "errors": [
+    "Ruotare il bacino per aiutarsi."
+   ],
+   "safety": [
+    "Movimento lento e controllato, carico leggero."
+   ],
+   "source": "Regola operativa dell'app: lavoro diretto sugli adduttori",
+   "focus": [
+    "adductors"
+   ],
+   "rack": "machine",
+   "perSide": true
+  },
+  {
+   "id": "h_bandadd",
+   "name": "Adduzione dell'anca con band",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Adduttori",
+   "pattern": "hipAdd",
+   "load": "band",
+   "kneeFriendly": true,
+   "primary": [
+    "Adduttori"
+   ],
+   "secondary": [],
+   "equipment": [
+    "Band"
+   ],
+   "art": {
+    "frames": [
+     "frontAbd",
+     "frontStand"
+    ],
+    "implement": "cableAnkle"
+   },
+   "steps": [
+    "Band agganciata in basso di lato, alla caviglia più vicina.",
+    "Porta la gamba verso l'interno, davanti all'altra.",
+    "Torna piano."
+   ],
+   "errors": [
+    "Ruotare il bacino."
+   ],
+   "safety": [
+    "Movimento lento."
+   ],
+   "source": "Regola operativa dell'app",
+   "focus": [
+    "adductors"
+   ],
+   "perSide": true
+  },
+  {
+   "id": "c_copenhagen",
+   "name": "Copenhagen plank corto (ginocchio in appoggio)",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "strength",
+   "group": "Adduttori",
+   "pattern": "hipAdd",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Adduttori"
+   ],
+   "secondary": [
+    "Obliqui"
+   ],
+   "equipment": [
+    "Panca o divano"
+   ],
+   "art": {
+    "frames": [
+     "sidePlank",
+     "sidePlank"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Di fianco, avambraccio a terra, ginocchio della gamba di sopra appoggiato sulla panca.",
+    "Solleva il bacino in linea con il corpo e tieni.",
+    "Scendi piano e cambia lato."
+   ],
+   "errors": [
+    "Bacino che cede verso il basso."
+   ],
+   "safety": [
+    "Versione corta (ginocchio sulla panca): meno carico sul ginocchio della versione con il piede."
+   ],
+   "source": "Regola operativa dell'app: isometria per gli adduttori",
+   "focus": [
+    "adductors"
+   ],
+   "perSide": true
+  },
+  {
+   "id": "g_cableabd",
+   "name": "Abduzione dell'anca al cavo basso",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Glutei",
+   "pattern": "hipAbd",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Medio gluteo"
+   ],
+   "secondary": [
+    "Piccolo gluteo"
+   ],
+   "equipment": [
+    "Cavo",
+    "Cavigliera"
+   ],
+   "art": {
+    "frames": [
+     "frontStand",
+     "frontAbd"
+    ],
+    "implement": "cableAnkle"
+   },
+   "steps": [
+    "Di fianco al cavo, cavigliera alla gamba più lontana, mano su un appoggio.",
+    "Porta la gamba verso l'esterno senza inclinare il busto.",
+    "Torna piano."
+   ],
+   "errors": [
+    "Inclinare il busto dalla parte opposta.",
+    "Ruotare il piede verso l'alto."
+   ],
+   "safety": [
+    "Il medio gluteo stabilizza il ginocchio: carico leggero, movimento pulito."
+   ],
+   "source": "Linea guida sul dolore femoro-rotuleo (Willy et al. 2019, sintesi AAFP 2020): esercizi per l'anca e per il quadricipite insieme; la scelta dell'esercizio è una regola operativa dell'app",
+   "focus": [
+    "abductors"
+   ],
+   "rack": "machine",
+   "perSide": true
+  },
+  {
+   "id": "h_lateralwalk",
+   "name": "Passi laterali con mini band",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "strength",
+   "group": "Glutei",
+   "pattern": "hipAbd",
+   "load": "band",
+   "kneeFriendly": true,
+   "primary": [
+    "Medio gluteo"
+   ],
+   "secondary": [
+    "Glutei"
+   ],
+   "equipment": [
+    "Mini band"
+   ],
+   "art": {
+    "frames": [
+     "frontStand",
+     "frontWide"
+    ],
+    "implement": "bandAnkle"
+   },
+   "steps": [
+    "Mini band sopra le caviglie, ginocchia appena piegate.",
+    "Passi laterali corti mantenendo la band in tensione.",
+    "Stesso numero di passi verso destra e verso sinistra."
+   ],
+   "errors": [
+    "Ginocchia che cadono verso l'interno.",
+    "Trascinare i piedi."
+   ],
+   "safety": [
+    "Ginocchia in linea con le punte."
+   ],
+   "source": "Linea guida sul dolore femoro-rotuleo (Willy et al. 2019, sintesi AAFP 2020): esercizi per l'anca e per il quadricipite insieme; la scelta dell'esercizio è una regola operativa dell'app",
+   "focus": [
+    "abductors"
+   ]
+  },
+  {
+   "id": "c_sideabd",
+   "name": "Abduzione dell'anca da sdraiato su un fianco",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "strength",
+   "group": "Glutei",
+   "pattern": "hipAbd",
+   "load": "bodyweight",
+   "kneeFriendly": true,
+   "primary": [
+    "Medio gluteo"
+   ],
+   "secondary": [
+    "Piccolo gluteo"
+   ],
+   "equipment": [
+    "Tappetino"
+   ],
+   "art": {
+    "frames": [
+     "sideLyingDown",
+     "sideLyingUp"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Sdraiato su un fianco, gambe in linea con il corpo.",
+    "Solleva la gamba di sopra di una trentina di gradi, punta del piede in avanti.",
+    "Scendi lentamente."
+   ],
+   "errors": [
+    "Ruotare il bacino all'indietro.",
+    "Portare la gamba in avanti."
+   ],
+   "safety": [
+    "Movimento piccolo e controllato."
+   ],
+   "source": "Linea guida sul dolore femoro-rotuleo (Willy et al. 2019, sintesi AAFP 2020): esercizi per l'anca e per il quadricipite insieme; la scelta dell'esercizio è una regola operativa dell'app",
+   "focus": [
+    "abductors"
+   ],
+   "perSide": true
+  },
+  {
+   "id": "h_legcurlband",
+   "name": "Leg curl prono con band",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Catena posteriore",
+   "pattern": "hamIso",
+   "load": "band",
+   "kneeFriendly": true,
+   "primary": [
+    "Femorali"
+   ],
+   "secondary": [
+    "Polpacci"
+   ],
+   "equipment": [
+    "Band"
+   ],
+   "art": {
+    "frames": [
+     "proneCurlStart",
+     "proneCurlEnd"
+    ],
+    "implement": "bandAnkle"
+   },
+   "steps": [
+    "Prono, band agganciata in basso davanti ai piedi e alla caviglia.",
+    "Fletti il ginocchio portando il tallone verso il gluteo.",
+    "Torna piano."
+   ],
+   "errors": [
+    "Staccare il bacino dal pavimento."
+   ],
+   "safety": [
+    "Movimento lento."
+   ],
+   "source": "Regola operativa dell'app",
+   "focus": [
+    "hamstrings"
    ]
   }
  ]

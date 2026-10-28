@@ -870,3 +870,6 @@ ul.plan li.isdone .nm b{color:var(--muted)}
 /* (8.6) le scale 0-10 stanno su una riga anche su iPhone 12 */
 .feelbtns{gap:3px;flex-wrap:nowrap}
 .feelbtns button{flex:1 1 0;min-width:0;font-size:15px}
+/* (8.7) serie in più */
+.extraline{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;padding:8px 10px;border:1px dashed var(--line);border-radius:12px}
+.extraline .btn{width:auto;min-height:40px;padding:0 12px;font-size:15px;flex:0 0 auto}
