@@ -1278,6 +1278,8 @@ function seriesValues(logs) {
 }
 
 /* Confronta una registrazione con la precedente dello stesso esercizio. */
+/* (8.8) Numero vero (isFinite(null) è true: il «null» finiva a schermo). */
+const hasNum = v => v !== null && v !== undefined && v !== '' && isFinite(v);
 /* (8.4) Carico che l'app propone dopo un cambio di obiettivo, ricavato dalla
    registrazione precedente come in convertedLoad. */
 function goalShiftProposal(cur, prev) {
@@ -1355,13 +1357,25 @@ function rateLog(cur, prev, deload) {
   // (8.5) il confronto è con quanto l'app chiedeva (carico proposto ×
   // ripetizioni obiettivo, formula di Epley): con un carico diverso da quello
   // proposto, per esempio 2 kg in più e 2 ripetizioni in meno, vale lo stesso
-  if (goalShift) {
+  // (8.8) stesso obiettivo ma ripetizioni prescritte diverse (il programma
+  // cambia le dosi con le fasi e le settimane: 15 → 14, per esempio). Chi fa
+  // le ripetizioni chieste non è «in calo»: il confronto si fa rispetto
+  // all'obiettivo di ciascuna seduta, e la prima seduta alla dose nuova non
+  // deve progredire
+  const tc = hasNum(cur.repsTarget) ? +cur.repsTarget : null, tp = hasNum(prev.repsTarget) ? +prev.repsTarget : null;
+  const targetShift = !goalShift && tc > 0 && tp > 0 && tc !== tp && !(ex && ex.load === 'time');
+  const shiftNote = targetShift ? ` Ripetizioni prescritte diverse dalla volta scorsa (${tp} → ${tc}): il confronto tiene conto dell'obiettivo.` : '';
+  if (goalShift || targetShift) {
     expected = 1;
     const prop = goalShiftProposal(cur, prev);
     const target = isFinite(cur.repsTarget) ? cur.repsTarget : cur.reps;
     if (prop && cmp.what === 'massimale stimato' && isFinite(target) && target > 0 && target <= 15) {
       const rp = cmp.a / (prop * (1 + target / 30));
       if (rp >= 0.97 && ratio < 1) ratio = rp >= 1 ? rp : 1;
+    }
+    if (targetShift && /ripetizioni per serie/.test(what)) {
+      const rel = (cmp.a / tc) / (cmp.b / tp);
+      if (rel > ratio) ratio = rel;
     }
   }
   const pct = Math.round((ratio - 1) * 100);
@@ -1407,15 +1421,15 @@ function rateLog(cur, prev, deload) {
       advice: sec ? 'Tieni qualche secondo di margine: l\'isometria rende di più se non arrivi al tremore.'
                   : 'Lavorare sempre al limite accumula fatica senza aggiungere stimolo: tieni 1-2 ripetizioni di margine.' };
   }
-  if (ratio < 0.97) return { stars: goalShift ? 2 : 1, text: `Calo del ${Math.abs(pct)}% ${suRif(what)} rispetto alla volta scorsa.${goalShift}` };
+  if (ratio < 0.97) return { stars: goalShift ? 2 : 1, text: `Calo del ${Math.abs(pct)}% ${suRif(what)} rispetto alla volta scorsa.${goalShift}${shiftNote}` };
   if (ratio < expected - 0.005) return { stars: 2, text: expected > 1
-    ? `Stabile: atteso circa +${Math.round((expected - 1) * 100)}% ${suRif(what)}.${goalShift}`
-    : `Poco sotto la volta scorsa (${pct}% ${suRif(what)}).${goalShift}` };
-  if (ratio <= expected + 0.02) return { stars: 3, text: `In linea con la progressione prevista (${pct >= 0 ? '+' : ''}${pct}% ${suRif(what)}).${goalShift}` };
+    ? `Stabile: atteso circa +${Math.round((expected - 1) * 100)}% ${suRif(what)}.${goalShift}${shiftNote}`
+    : `Poco sotto la volta scorsa (${pct}% ${suRif(what)}).${goalShift}${shiftNote}` };
+  if (ratio <= expected + 0.02) return { stars: 3, text: `In linea con la progressione prevista (${pct >= 0 ? '+' : ''}${pct}% ${suRif(what)}).${goalShift}${shiftNote}` };
   // la fascia delle 4 stelle segue l'atteso: con +5% previsto (due settimane)
   // prima andava da +7% a +5%, cioè non esisteva
-  if (ratio <= Math.max(expected + 0.05, 1 + SAFE_STEP / 2)) return { stars: 4, text: `Sopra le attese: +${pct}% ${suRif(what)}, ne era previsto +${Math.round((expected - 1) * 100)}%.${goalShift}` };
-  return { stars: goalShift ? 4 : 5, text: `Progresso netto: +${pct}% ${suRif(what)}.${goalShift}` };
+  if (ratio <= Math.max(expected + 0.05, 1 + SAFE_STEP / 2)) return { stars: 4, text: `Sopra le attese: +${pct}% ${suRif(what)}, ne era previsto +${Math.round((expected - 1) * 100)}%.${goalShift}${shiftNote}` };
+  return { stars: (goalShift || targetShift) ? 4 : 5, text: `Progresso netto: +${pct}% ${suRif(what)}.${goalShift}${shiftNote}` };
 }
 
 /* ---------------------------------------------------------------------------
@@ -5677,7 +5691,7 @@ function renderSessionCore() {
     const rws = Array.isArray(l.setLog) && l.setLog.length ? l.setLog : null;
     if (rws) det.push(rws.map(r => `${r.load ? String(r.load).replace('.', ',') + '×' : ''}${r.hold ? r.hold + 's' : r.reps}`).join(' · '));
     else if (isFinite(l.repsDone)) det.push(`${l.sets}×${l.repsDone}`);
-    if (isFinite(l.rir)) det.push(`RIR ${l.rir}`);
+    if (hasNum(l.rir)) det.push(`RIR ${l.rir}`);
     const e = e1rm(l);
     if (e) det.push(`max stimato ${e.toFixed(1)} kg`);
     lastTxt = `Ultima volta: <b>${esc(l.load || '—')}</b>${det.length ? ' · ' + det.join(' · ') : ''} · ${new Date(l.ts).toLocaleDateString('it-IT')} ${starsHtml(l.stars)}`;
@@ -7077,8 +7091,8 @@ function sessionRowsHtml(logs) {
   return logs.map(l => `<li>
       <div class="nm" style="flex:1"><b>${esc(l.name)}</b>
         <div class="small muted">${Array.isArray(l.setLog) && l.setLog.length
-          ? l.setLog.map(r => `${r.load ? String(r.load).replace('.', ',') + '×' : ''}${r.hold ? r.hold + 's' : r.reps}${isFinite(r.rir) ? ` (${r.rir}${l.rirUnit === 's' ? 's' : ''})` : ''}`).join(' · ')
-          : `${l.sets}×${l.hold ? l.hold + 's' : (l.repsDone || l.reps)}${l.rirUnit === 's' && isFinite(l.rir) ? ' · ' + l.rir + 's di margine' : (isFinite(l.rir) ? ' · RIR ' + l.rir : '')}`}</div>
+          ? l.setLog.map(r => `${r.load && (numLoad(r.load) !== null || r.load !== l.load) ? String(r.load).replace('.', ',') + '×' : ''}${r.hold ? r.hold + 's' : r.reps + (numLoad(r.load) === null ? ' rip' : '')}${hasNum(r.rir) ? ` (${r.rir}${l.rirUnit === 's' ? 's' : ''})` : ''}`).join(' · ')
+          : `${l.sets}×${l.hold ? l.hold + 's' : (l.repsDone || l.reps)}${l.rirUnit === 's' && hasNum(l.rir) ? ' · ' + l.rir + 's di margine' : (hasNum(l.rir) ? ' · RIR ' + l.rir : '')}`}</div>
         ${l.rateText ? `<div class="small muted">${starsHtml(l.stars)} ${esc(l.rateText)}</div>` : ''}</div>
       <div class="val">${esc(l.load || '—')} ${arrow(l.feedback)}</div>
       ${l.manual ? `<button class="mini-skip" data-dellog="${S.logs.indexOf(l)}" aria-label="Elimina la registrazione aggiunta a mano">✕</button>` : ''}</li>`).join('');
@@ -7272,9 +7286,10 @@ function migrateRatings() {
   // alleggerito per il dolore fuori dal confronto e mai come riferimento
   // 8.5: cambio di obiettivo confrontato con quanto l'app chiedeva (Epley),
   // anche con un carico diverso da quello proposto
-  if (S.ratingsRev >= 6) return;
+  // 8.8: ripetizioni prescritte diverse dalla volta scorsa = confronto con l'obiettivo
+  if (S.ratingsRev >= 7) return;
   if (S.progressEpoch == null) { S.progressEpoch = computeProgressEpoch(); S.progressEpochTs = Date.now(); }
-  S.ratingsFixed = true; S.ratingsRev = 6;
+  S.ratingsFixed = true; S.ratingsRev = 7;
   [...new Set(S.logs.map(l => l.exId))].forEach(rerateExercise);
   save();
 }
