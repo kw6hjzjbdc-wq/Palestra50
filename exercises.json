@@ -3038,7 +3038,8 @@
    "source": "NSCA – isometria del core",
    "focus": [
     "abs"
-   ]
+   ],
+   "groinRisk": true
   },
   {
    "id": "c_abwheel",
@@ -3092,7 +3093,8 @@
    ],
    "focus": [
     "abs"
-   ]
+   ],
+   "groinRisk": true
   },
   {
    "id": "c_reversecrunch",
@@ -3143,7 +3145,8 @@
    ],
    "focus": [
     "abs"
-   ]
+   ],
+   "groinRisk": true
   },
   {
    "id": "c_mountain",
@@ -3193,7 +3196,8 @@
    "safety": [
     "Versione lenta: qui è un esercizio di stabilità, non cardio."
    ],
-   "source": "ACSM – core dinamico a basso impatto"
+   "source": "ACSM – core dinamico a basso impatto",
+   "groinRisk": true
   },
   {
    "id": "c_pallof",
@@ -6632,7 +6636,8 @@
    "focus": [
     "adductors"
    ],
-   "rack": "dumbbell"
+   "rack": "dumbbell",
+   "groinRisk": true
   },
   {
    "id": "g_cableadd",
@@ -6676,7 +6681,8 @@
     "adductors"
    ],
    "rack": "machine",
-   "perSide": true
+   "perSide": true,
+   "groinRisk": true
   },
   {
    "id": "h_bandadd",
@@ -6718,7 +6724,8 @@
    "focus": [
     "adductors"
    ],
-   "perSide": true
+   "perSide": true,
+   "groinRisk": true
   },
   {
    "id": "c_copenhagen",
@@ -6763,7 +6770,8 @@
    "focus": [
     "adductors"
    ],
-   "perSide": true
+   "perSide": true,
+   "groinRisk": true
   },
   {
    "id": "g_cableabd",

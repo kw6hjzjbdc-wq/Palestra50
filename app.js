@@ -35,6 +35,7 @@ const DEFAULT_STATE = {
   sessionIndex: 0,         // numero progressivo della prossima sessione da fare
   kneeCare: true,          // dà priorità agli esercizi a basso impatto sul ginocchio
   shoulderCare: true,      // evita gli esercizi di solito dolorosi con la tendinopatia della cuffia
+  groinCare: true,         // (8.9) dolore all'inguine: evita gli esercizi che sforzano parete addominale e inguine
   pullupGoal: true,        // trazioni e muscle-up nelle sedute di forza (obiettivo del programma, dalla 6.4)
   perms: {},               // ordine delle 5 sedute all'interno di ciascuna settimana
   mobilityWeeks: [],       // settimane in cui si fa solo mobilità (il programma slitta)
@@ -81,6 +82,8 @@ function load() {
   // (8.3) registro del dolore e durata predefinita portata a 45 minuti (una volta sola)
   if (!Array.isArray(S.painLog)) S.painLog = [];
   if (!S.dur45) { S.durPref = 45; S.dur45 = true; }
+  // (8.9) dolore all'inguine segnalato: la precauzione parte accesa, una volta sola
+  if (!S.groin89) { S.groinCare = true; S.groin89 = true; }
   if (![35, 40, 45, 50].includes(S.durPref)) S.durPref = 45;
 }
 
@@ -1802,6 +1805,10 @@ function applyCare(pool) {
     const safe = pool.filter(e => e.kneeFriendly);
     if (safe.length) pool = safe;
   }
+  if (S.groinCare || pc.groin) {          // (8.9) inguine
+    const safe = pool.filter(e => !e.groinRisk);
+    if (safe.length) pool = safe;
+  }
   if (S.shoulderCare || pc.shoulder) {
     const safe = pool.filter(e => !e.shoulderRisk);
     if (safe.length) pool = safe;
@@ -2001,7 +2008,7 @@ function slotPool(patterns) {
 function strictCare(pool) {
   const pc = painCare();
   return pool.filter(e => !isAvoided(e.id) && (!(S.kneeCare || pc.knee) || e.kneeFriendly) &&
-    (!(S.shoulderCare || pc.shoulder) || !e.shoulderRisk));
+    (!(S.shoulderCare || pc.shoulder) || !e.shoulderRisk) && (!(S.groinCare || pc.groin) || !e.groinRisk));
 }
 function focusPool(focus) {
   const sub = DB.exercises.filter(e => e.setup.includes(S.setup) && (e.type === 'strength' || e.type === 'core') &&
@@ -2280,7 +2287,8 @@ function buildStretch(meta, budget) {
 
 function buildCore(meta) {
   const cfg = PROG.coreSession;
-  const pool = DB.exercises.filter(e => e.type === 'core' && e.setup.includes(S.setup))
+  // (8.9) anche il blocco core rispetta le precauzioni (inguine compresa)
+  const pool = applyCare(DB.exercises.filter(e => e.type === 'core' && e.setup.includes(S.setup)))
                            .sort((a, b) => a.id.localeCompare(b.id));
   const used = new Set(), items = [];
   for (let i = 0; i < cfg.count; i++) {
@@ -3408,7 +3416,7 @@ function bindMorning() {
 --------------------------------------------------------------------------- */
 let sessMemo = new Map(), sessMemoKey = null;
 function planSignature() {
-  return [S.programId, S.setup, S.durPref || 45, S.finisher || '', S.kneeCare, S.shoulderCare,
+  return [S.programId, S.setup, S.durPref || 45, S.finisher || '', S.kneeCare, S.shoulderCare, !!S.groinCare,
           S.pullupGoal, JSON.stringify(S.pullSelf || null), S.week6From || 0, logsRev, (S.mobilityWeeks || []).join('.'),
           JSON.stringify(S.perms || {}), JSON.stringify(S.sessPick || {}), spSig(), painSig()].join('|');
 }
@@ -4023,10 +4031,11 @@ function lastPain(part) {
 }
 const KNEE_PATTERNS = ['squat', 'lunge', 'quadIso'];
 const SHOULDER_PATTERNS = ['pushV', 'pushH', 'shoulderIso', 'pullV', 'pullup'];
-const PAIN_NAME = { knee: 'Ginocchio', shoulder: 'Spalla' };
+const PAIN_NAME = { knee: 'Ginocchio', shoulder: 'Spalla', groin: 'Inguine' };
 /* Distretto che un esercizio carica di più (null se nessuno dei due). */
 function partOfEx(ex) {
   if (!ex) return null;
+  if (ex.groinRisk) return 'groin';
   if (KNEE_PATTERNS.includes(ex.pattern)) return 'knee';
   if (SHOULDER_PATTERNS.includes(ex.pattern) || ex.shoulderRisk) return 'shoulder';
   return null;
@@ -4077,10 +4086,11 @@ function districtPain(part) {
 /* Precauzioni temporanee decise dal dolore forte: valgono finché un nuovo
    valore più basso non le spegne. */
 function painCare() {
-  const k = districtPain('knee'), sh = districtPain('shoulder');
-  return { knee: !!(k && k.v >= PAIN_STRONG), shoulder: !!(sh && sh.v >= PAIN_STRONG) };
+  const k = districtPain('knee'), sh = districtPain('shoulder'), g = districtPain('groin');
+  // (8.9) inguine: basta un dolore moderato per togliere gli esercizi a rischio
+  return { knee: !!(k && k.v >= PAIN_STRONG), shoulder: !!(sh && sh.v >= PAIN_STRONG), groin: !!(g && g.v >= PAIN_LIGHT) };
 }
-function painSig() { const p = painCare(); return (p.knee ? 'k' : '') + (p.shoulder ? 's' : ''); }
+function painSig() { const p = painCare(); return (p.knee ? 'k' : '') + (p.shoulder ? 's' : '') + (p.groin ? 'g' : ''); }
 /* Perché alleggerire un esercizio (null se non serve). */
 function painInfo(ex, it) {
   if (!ex) return null;
@@ -4136,6 +4146,7 @@ function openPainModal(opt) {
     <div class="seg" role="group" aria-label="Dove" style="margin-top:10px">
       <button data-ppart="knee" aria-pressed="${part === 'knee'}">Ginocchio</button>
       <button data-ppart="shoulder" aria-pressed="${part === 'shoulder'}">Spalla</button>
+      <button data-ppart="groin" aria-pressed="${part === 'groin'}">Inguine</button>
     </div>
     <div class="feelbtns painvals" style="margin-top:12px">${Array.from({ length: 11 }, (_, i) => `<button type="button" data-pv="${i}">${i}</button>`).join('')}</div>
     <p class="small" id="painHint" style="margin-top:10px">${PAIN_HINT(null)}</p>
@@ -4189,6 +4200,7 @@ function feelPickerHtml() {
     ${row('sleep', 'Sonno della notte', 1, 5, '1 pessimo · 5 ottimo')}
     ${row('knee', 'Ginocchio', 0, 10, '0 nessun dolore · 10 il peggiore')}
     ${row('shoulder', 'Spalla', 0, 10, '0 nessun dolore · 10 il peggiore')}
+    ${row('groin', 'Inguine', 0, 10, '0 nessun dolore · 10 il peggiore')}
   </div>`;
 }
 function bindFeelPicker(store) {
@@ -5358,13 +5370,14 @@ function durationLoss(idx, m) {
 }
 /* Riquadro del dolore in Allenamento del giorno: stato e pulsante. */
 function painStatusHtml() {
-  const lines = ['knee', 'shoulder'].map(p => {
+  const lines = ['knee', 'shoulder', 'groin'].map(p => {
     const d = districtPain(p);
     if (!d || d.v < PAIN_DISTRICT) return '';
+    if (p === 'groin') return d.v >= PAIN_LIGHT ? `<li>Inguine ${d.v}/10 ${esc(d.src)}: niente esercizi che sforzano parete addominale e inguine. Se compare un rigonfiamento o il dolore aumenta, fatti visitare.</li>` : '';
     return `<li>${PAIN_NAME[p]} ${d.v}/10 ${esc(d.src)}: ${d.v >= PAIN_STRONG ? 'esercizi più tollerabili per questo distretto e carichi −10%' : 'carichi −10% sugli esercizi di questo distretto'}.</li>`;
   }).filter(Boolean);
   return `<div class="card painstatus" style="margin-top:14px">
-    <p class="small" style="margin:0"><b>Ginocchio e spalla</b></p>
+    <p class="small" style="margin:0"><b>Ginocchio, spalla e inguine</b></p>
     ${lines.length ? `<ul class="small" style="margin:6px 0 0 18px">${lines.join('')}</ul>` : '<p class="small muted" style="margin:6px 0 0">Nessun dolore segnalato che cambi la prossima seduta.</p>'}
     <button class="btn ghost" id="painDayBtn" style="margin-top:10px">Segna dolore o fastidio</button>
   </div>`;
@@ -5825,7 +5838,7 @@ function renderSessionCore() {
         <button class="btn ghost" id="dayPlanBtn">Programma di oggi</button>
       </div>
       <div class="btn-row" style="margin-top:10px">
-        <button class="btn ghost painbtn" id="painBtn">Dolore o fastidio a spalla o ginocchio</button>
+        <button class="btn ghost painbtn" id="painBtn">Dolore o fastidio (ginocchio, spalla, inguine)</button>
       </div>
       <p class="small muted" style="margin-top:14px">${esc(it.source)}${it.note ? ' · ' + esc(it.note) : ''}</p>
       <button class="btn ghost" id="abortBtn" style="margin-top:14px">Interrompi</button>
@@ -6605,7 +6618,7 @@ function endSession() {
   const feel = {};
   bindFeelPicker(feel);
   // (8.3) il dolore segnato durante la seduta precompila ginocchio e spalla
-  ['knee', 'shoulder'].forEach(p => {
+  ['knee', 'shoulder', 'groin'].forEach(p => {
     const vs = s.items.filter(x => x.pain && x.pain.part === p).map(x => x.pain.v);
     if (!vs.length) return;
     const b = document.querySelector(`[data-feel="${p}"] [data-v="${Math.max(...vs)}"]`);
@@ -6617,7 +6630,7 @@ function endSession() {
     S.sessionLog.push({ ts: Date.now(), sid: sid, idx: s.idx,
       label: s.label, kind: s.kind, minutes: mins,
       est: s.minutes || estimateMinutes(s.items), budget: s.budget || null,     // (8) durata stimata
-      ...(hasFeel ? { feel: Object.assign({ energy: null, sleep: null, knee: null, shoulder: null }, feel) } : {}),
+      ...(hasFeel ? { feel: Object.assign({ energy: null, sleep: null, knee: null, shoulder: null, groin: null }, feel) } : {}),
       ...(s.kind === 'morning' ? { mWeek: s.mWeek, mDay: s.mDay, mFocus: s.focusKey, mLunch: s.lunchLabel } : {}),
       note: withNote ? ($('#sNote').value || '') : '' });
     if (isProgramKind(s.kind)) S.sessionIndex++;
@@ -7110,14 +7123,14 @@ function feelEditHtml(i) {
     <div class="feelbtns" data-fe="${k}">${Array.from({ length: 11 }, (_, v) => `<button type="button" data-v="${v}" aria-pressed="${f[k] === v}">${v}</button>`).join('')}</div></div>`;
   return `<div class="block feeledit" style="margin-top:14px"><h3 style="font-size:16px;color:var(--muted)">Dolore dopo la seduta</h3>
     <p class="small muted">Se il dolore è arrivato a freddo, segnalo o correggilo qui: ${lastProgramSession() === x ? 'vale anche per la prossima seduta (carichi e scelta degli esercizi).' : 'resta nello storico delle sensazioni.'}</p>
-    <div class="feel">${row('knee', 'Ginocchio')}${row('shoulder', 'Spalla')}</div></div>`;
+    <div class="feel">${row('knee', 'Ginocchio')}${row('shoulder', 'Spalla')}${row('groin', 'Inguine')}</div></div>`;
 }
 function bindFeelEdit(i, after) {
   document.querySelectorAll('[data-fe]').forEach(g => g.querySelectorAll('button').forEach(bt => bt.onclick = () => {
     const x = S.sessionLog[i];
     if (!x) return;
     const k = g.dataset.fe, v = +bt.dataset.v;
-    x.feel = Object.assign({ energy: null, sleep: null, knee: null, shoulder: null }, x.feel || {});
+    x.feel = Object.assign({ energy: null, sleep: null, knee: null, shoulder: null, groin: null }, x.feel || {});
     const last = lastProgramSession() === x;
     x.feel[k] = x.feel[k] === v ? null : v;
     S.painLog = Array.isArray(S.painLog) ? S.painLog : [];
@@ -7867,6 +7880,9 @@ function renderSettings() {
         <input type="checkbox" id="kneeChk" ${S.kneeCare ? 'checked' : ''}></div>
       <div class="switch"><span>Evita gli esercizi di solito dolorosi per la spalla</span>
         <input type="checkbox" id="shoulderChk" ${S.shoulderCare ? 'checked' : ''}></div>
+      <div class="switch"><span>Dolore all'inguine: evita gli esercizi che sforzano parete addominale e inguine</span>
+        <input type="checkbox" id="groinChk" ${S.groinCare ? 'checked' : ''}></div>
+      <p class="small muted" style="margin:6px 0 0">Escluso: rollout con la ruota, hollow hold, crunch inverso, mountain climber, Copenhagen plank, adduzioni e squat sumo; al loro posto dead bug, plank, Pallof press, plank laterale, abduzioni. Regola operativa dell'app: la scheda dell'NHS sull'ernia inguinale consiglia di restare attivi evitando ciò che dà fastidio o dolore. Un dolore all'inguine che compare sotto sforzo va fatto vedere dal medico; se compare un rigonfiamento duro e dolente che non rientra, con nausea o vomito, è un'urgenza.</p>
       <p class="small muted" style="margin:8px 0 0">Sono due preferenze di comfort, non divieti. Le linee guida più recenti non vietano esercizi:
         per il dolore femoro-rotuleo il rinforzo è il trattamento di prima scelta e nessun tipo risulta superiore a un altro
         (Morri et al. 2025), e per la tendinopatia della cuffia dei rotatori — la definizione che oggi comprende il conflitto
@@ -8003,6 +8019,12 @@ function renderSettings() {
   $('#pullChk').onchange = e => { S.pullupGoal = e.target.checked; planCache = null; save(); };
   if ($('#spChk')) $('#spChk').onchange = e => { S.spartan = e.target.checked; planCache = null; save(); };
   $('#finSel').onchange = e => { S.finisher = e.target.value; planCache = null; save(); };
+  $('#groinChk').onchange = e => {
+    if (e.target.checked) { S.groinCare = true; planCache = null; save(); return; }
+    e.target.checked = true;
+    confirmAction('Togliere la precauzione per l\'inguine?', 'Torneranno rollout, hollow hold, crunch inverso, mountain climber, Copenhagen plank, adduzioni e squat sumo. Toglila solo se il dolore è passato o dopo il parere del medico.',
+      'Sì, toglila', () => { S.groinCare = false; planCache = null; save(); renderSettings(); });
+  };
   $('#shoulderChk').onchange = e => careOff(e.target, 'shoulderCare', 'le tappe verso il muscle-up (dip, transizione, muscle-up) e gli esercizi meno protettivi per la spalla');
   $('#soundChk').onchange = e => { S.sound = e.target.checked; save(); if (e.target.checked) testBells(); };
   $('#testSound').onclick = testBells;
@@ -8897,6 +8919,7 @@ const APP_VER = (() => {
   const el = document.querySelector('.splash .ver');
   return el ? el.textContent.trim().replace(/\s+\d{4}$/, '') : '';
 })();
+let updPopupShown = false, bootVersionChanged = false;
 function showUpdatedPopup(then) {
   const next = typeof then === 'function' ? then : () => {};
   if (!APP_VER || S.seenVersion === APP_VER) { next(); return false; }
@@ -8923,6 +8946,7 @@ function showUpdatedPopup(then) {
     <p class="sub">Tutto pronto e tutti i tuoi dati al loro posto. Buon allenamento!</p>
     <button class="btn" id="updOk" style="margin-top:18px">Andiamo!</button>
   </div>`);
+  updPopupShown = true;
   $('#updOk').onclick = () => { S.seenVersion = APP_VER; save(); closeModal(next); };
   return true;
 }
@@ -8945,8 +8969,13 @@ function registerServiceWorker() {
   let reloaded = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (reloaded) return; reloaded = true;
-    // (8.7) la ricarica dopo l'aggiornamento non ripropone l'intro: si torna
-    // diritti alla pagina d'apertura (il pop-up, se non già visto, compare lì)
+    // (8.9) la pagina carica i file dalla rete (network-first): se questa
+    // apertura è già la versione nuova (pop-up appena mostrato, o versione
+    // diversa da quella vista all'avvio) non serve ricaricare: il nuovo
+    // service worker prende il controllo in silenzio e l'intro non torna
+    if (bootVersionChanged || updPopupShown) return;
+    // (8.7) altrimenti si ricarica, e la ricarica non ripropone l'intro
+    try { localStorage.setItem('p50reload', String(Date.now())); } catch (e) {}
     try { sessionStorage.setItem('p50reload', String(Date.now())); } catch (e) {}
     location.reload();
   });
@@ -8954,6 +8983,7 @@ function registerServiceWorker() {
 
 (async function boot() {
   load();
+  bootVersionChanged = !!APP_VER && !!S.seenVersion && S.seenVersion !== APP_VER;   // (8.9) apertura già con la versione nuova
   try { await loadData(); }
   catch (e) {
     document.body.innerHTML = '<p style="padding:24px">Impossibile caricare i dati degli esercizi. Apri l\'app da un server web (o dalla schermata Home dopo l\'installazione), non da file locale.</p>';
@@ -9016,9 +9046,9 @@ function registerServiceWorker() {
   // (su richiesta dell'utente; la versione breve della 8 è stata tolta)
   let skipIntro = false;
   try {
-    const t = +sessionStorage.getItem('p50reload');
+    const t = Math.max(+sessionStorage.getItem('p50reload') || 0, +localStorage.getItem('p50reload') || 0);
     skipIntro = !!t && Date.now() - t < 120000;
-    sessionStorage.removeItem('p50reload');
+    sessionStorage.removeItem('p50reload'); localStorage.removeItem('p50reload');
   } catch (e) {}
   if (splash && skipIntro) { splash.dataset.done = '1'; if (splash.parentNode) splash.parentNode.removeChild(splash); afterSplash(); }
   else if (splash) splash.onclick = afterSplash; else afterSplash();
