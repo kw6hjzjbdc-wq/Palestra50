@@ -873,3 +873,11 @@ ul.plan li.isdone .nm b{color:var(--muted)}
 /* (8.7) serie in più */
 .extraline{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;padding:8px 10px;border:1px dashed var(--line);border-radius:12px}
 .extraline .btn{width:auto;min-height:40px;padding:0 12px;font-size:15px;flex:0 0 auto}
+/* (8.10) solo verticale: l'iPhone non applica il blocco chiesto dal manifest
+   alle app web, quindi in orizzontale (telefono) compare un invito a ruotare */
+#rotateMsg{display:none}
+@media (orientation: landscape) and (max-height: 500px){
+  #rotateMsg{display:flex;position:fixed;inset:0;z-index:9999;background:var(--bg,#0E1620);color:var(--text,#EAF1F8);align-items:center;justify-content:center;text-align:center;padding:24px}
+  #rotateMsg b{font-size:22px}
+  #rotateMsg p{margin-top:10px;max-width:420px;color:var(--muted,#93A7BC)}
+}

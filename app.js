@@ -318,7 +318,7 @@ const KNOWN_IMPLEMENTS = [
   'kettlebell', 'kettlebellGoblet',
   'cable', 'wheel', 'platform', 'thighPad', 'grips', 'bar', 'barBand', 'pullbar',
   'bandVertical', 'bandTop', 'bandFront', 'bandBack', 'bandFeet', 'bandFoot',
-  'bandKnees', 'bandAnkle', 'bandShoulder', 'bandSide', 'cableAnkle'
+  'bandKnees', 'bandAnkle', 'bandShoulder', 'bandSide', 'cableAnkle', 'machineBack'
 ];
 const REQUIRED_FIELDS = ['id', 'name', 'setup', 'type', 'group', 'pattern', 'load',
                          'primary', 'equipment', 'art', 'steps', 'errors', 'safety', 'source'];
@@ -460,6 +460,11 @@ function implementSvg(kind, p) {
       <line x1="${p.hip[0] - 14}" y1="99" x2="${(p.toe || p.ankle)[0] + 12}" y2="99" class="imp" stroke-width="3" stroke-linecap="round"/>
     </g>`;
     case 'bandSide':     return band(114, h[1]);
+    // (8.10) macchine con il pacco pesi alle spalle (chest press): colonna
+    // dietro lo schienale, leve davanti alle mani
+    case 'machineBack':  return `<line x1="${p.hip[0] - 16}" y1="18" x2="${p.hip[0] - 16}" y2="100" class="imp" stroke-width="3"/>` +
+      `<line x1="${p.hip[0] - 6}" y1="${p.hip[1] + 2}" x2="${p.neck[0] - 6}" y2="${p.neck[1] - 6}" class="imp" stroke-width="3.4" stroke-linecap="round"/>` +
+      `<path d="M ${p.hip[0] - 16} 24 L ${p.neck[0] + 4} 24 L ${h[0]} ${h[1]}" class="band" stroke-width="2.6" stroke-dasharray="4 3" fill="none"/>`;
     case 'cableAnkle':   return `<line x1="112" y1="40" x2="112" y2="100" class="imp" stroke-width="3"/>` +
       `<path d="M ${a[0]} ${a[1]} L 112 ${a[1]}" class="band" stroke-width="2.6" stroke-dasharray="4 3" fill="none"/>`;
     default:             return '';
@@ -1015,8 +1020,9 @@ function suggestLoadCore(ex, deloadNow, it) {
     } else if (atLimit) {
       info.reason = 'L\'ultima serie è finita al limite: consolida questo gradino prima di procedere.';
     } else {
-      info.reason = twoForTwo ? 'Consolida su questo gradino.'
-                              : 'Resta qui finché non superi l\'obiettivo di 2 ripetizioni per due sedute.';
+      info.reason = twoForTwo
+        ? (!canAdvance && ex.nextEx && exById(ex.nextEx) ? `Hai completato tutti i gradini: passa a «${exById(ex.nextEx).name}» con «Cambia esercizio».` : 'Consolida su questo gradino.')
+        : 'Resta qui finché non superi l\'obiettivo di 2 ripetizioni per due sedute.';
     }
     return Object.assign(info, { value: steps[i], steps });
   }
@@ -1423,6 +1429,17 @@ function rateLog(cur, prev, deload) {
                 : 'Seconda seduta di fila portata a zero ripetizioni di riserva su questo esercizio.',
       advice: sec ? 'Tieni qualche secondo di margine: l\'isometria rende di più se non arrivi al tremore.'
                   : 'Lavorare sempre al limite accumula fatica senza aggiungere stimolo: tieni 1-2 ripetizioni di margine.' };
+  }
+  // (8.10) obiettivo superato di almeno 2 ripetizioni in ogni serie prevista,
+  // senza calo rispetto alla volta scorsa: la dose era facile, la prestazione
+  // è in linea con il programma (non «stabile»); il segnale vero è salire di
+  // gradino o di carico, che la regola 2-for-2 propone
+  const rowsC = setRows(cur), tgtC = hasNum(cur.repsTarget) ? +cur.repsTarget : null;
+  const beyond = !deload && tgtC > 0 && !(ex && ex.load === 'time') && rowsC && rowsC.length &&
+    rowsC.every(r2 => hasNum(r2.reps) && +r2.reps >= tgtC + 2);
+  if (beyond && ratio >= 0.97 && ratio < expected - 0.005) {
+    const mx = Math.max(...rowsC.map(r2 => +r2.reps));
+    return { stars: 3, text: `Oltre l'obiettivo (${mx} ripetizioni contro ${tgtC} previste), come la volta scorsa: in linea con il programma. È il momento di salire di gradino o di carico.${goalShift}${shiftNote}` };
   }
   if (ratio < 0.97) return { stars: goalShift ? 2 : 1, text: `Calo del ${Math.abs(pct)}% ${suRif(what)} rispetto alla volta scorsa.${goalShift}${shiftNote}` };
   if (ratio < expected - 0.005) return { stars: 2, text: expected > 1
@@ -2170,6 +2187,7 @@ function buildStrength(meta, budget) {
     main.push({ exId: ex.id, note: slot.note || '', baseNote: slot.note || '', goalKey, role: main.length < 2 ? 'key' : 'main',
                 alt: { patterns: slot.patterns.slice(), types: ['strength', 'core'], ...(slot.focus ? { focus: slot.focus.concat(slot.fallback || []) } : {}) },
                 ...(slot.ss ? { ssSlot: slot.ss } : {}),
+                ...(slot.looseGoal && slot.focus ? { looseGoal: slot.looseGoal, focusList: slot.focus.slice(), slotGoal: slot.goal || dayGoal } : {}),
                 ...dose(goalKey, meta.profile, ex) });
     main[main.length - 1].doseSets = main[main.length - 1].sets;
   });
@@ -4877,10 +4895,16 @@ function alternativesFor(item, sess) {
 /* Mette un esercizio preciso nello slot, ricalcolando la dose su di esso. */
 function applyExercise(item, sess, ex) {
   if (!ex || ex.id === item.exId) return false;
+  // (8.10) slot con un obiettivo legato al muscolo (esplosività con lo
+  // slancio): un esercizio diverso prende l'obiettivo di ripiego, non le 5-6
+  // ripetizioni «esplosive» delle iperestensioni
+  if (item.slotGoal === undefined) item.slotGoal = item.goalKey || item.goal;
+  if (item.looseGoal && item.focusList) item.goalKey = (ex.focus || []).some(f => item.focusList.includes(f)) ? item.slotGoal : item.looseGoal;
   const d = dose(item.goalKey || item.goal, sess.profile, ex);
   item.exId = ex.id;
   item.sets = d.sets; item.reps = d.reps; item.rest = d.rest;
   item.hold = d.hold; item.perSide = d.perSide; item.source = d.source;
+  item.goal = d.goal; item.goalLabel = d.goalLabel; item.rpe = d.rpe;
   if (item.ss && sess && sess.items) finalizeSupersets(sess.items, { noMove: true });   // la nota del compagno cita il nuovo nome
   return true;
 }
@@ -5410,7 +5434,7 @@ function renderHomeResult() {
       <h2>${esc(sessLabel(x))}</h2>
       ${isSkipped(x) ? '<p class="small">Seduta saltata: nessun risultato registrato.</p>'
         : `<p class="small">${esc(v.text)} · ${v.pct}% delle serie · ${v.minutes} min${v.avg ? ` · ${starsHtml(Math.round(v.avg))} ${kg1(v.avg)} stelle medie` : ''}</p>`}
-      ${x.note ? `<div class="notice" style="margin-top:8px">${esc(x.note)}</div>` : ''}
+      ${sessNoteHtml(resultIdx)}
       <ul class="hist" style="margin-top:10px">${sessionRowsHtml(v.logs) || '<li><span class="small muted">Nessun esercizio registrato per questa seduta.</span></li>'}</ul>
       <p class="small muted" style="margin-top:8px">Sotto ogni esercizio: serie (carico × ripetizioni, tra parentesi le ripetizioni di riserva), stelle e motivo del giudizio.</p>
       ${feelEditHtml(resultIdx)}
@@ -5423,6 +5447,7 @@ function renderHomeResult() {
   if ($('#resWeek')) $('#resWeek').onclick = () => { homeView = 'week'; renderHome(); window.scrollTo(0, 0); };
   if ($('#resNext')) $('#resNext').onclick = () => { daySel = null; dayFrom = 'pick'; homeSel = 'session'; homeView = 'lunch'; renderHome(); window.scrollTo(0, 0); };
   bindFeelEdit(resultIdx);
+  bindSessNote(resultIdx, () => renderHome());
 }
 
 /* Allenamento del giorno: la seduta di oggi, o quella toccata nel programma
@@ -7142,19 +7167,49 @@ function bindFeelEdit(i, after) {
   }));
 }
 
+/* (8.10) Nota della seduta: si scrive a fine seduta e si può correggere
+   dopo, dalla seduta svolta e da Progressi › Ultime sedute. */
+function sessNoteHtml(i) {
+  const x = S.sessionLog[i];
+  if (!x) return '';
+  return `<div class="sessnote" style="margin:8px 0 10px">${x.note ? `<div class="notice">📝 ${esc(x.note)}</div>` : ''}
+    <button class="btn ghost" id="sessNoteBtn" style="margin-top:8px">${x.note ? 'Modifica la nota' : 'Aggiungi una nota'}</button></div>`;
+}
+function bindSessNote(i, after) {
+  const b = document.getElementById('sessNoteBtn');
+  if (!b) return;
+  b.onclick = () => {
+    const x = S.sessionLog[i];
+    if (!x) return;
+    const wasModal = document.getElementById('modal').classList.contains('on');
+    const open = () => {
+      openModal(`<h2>Nota della seduta</h2>
+        <p class="small muted">${esc(sessLabel(x))} · ${new Date(x.ts).toLocaleDateString('it-IT')}</p>
+        <div class="field"><textarea id="snEdit" rows="4" style="width:100%;min-height:96px;background:var(--surface2);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px;font:inherit">${esc(x.note || '')}</textarea></div>
+        <button class="btn" id="snOk" style="margin-top:10px">Salva</button>
+        <button class="btn ghost" id="snNo" style="margin-top:10px">Annulla</button>`);
+      setTimeout(() => { const t = $('#snEdit'); if (t) t.focus(); }, 200);
+      $('#snOk').onclick = () => { x.note = ($('#snEdit').value || '').trim(); save(); closeModal(() => after && after()); };
+      $('#snNo').onclick = () => closeModal(() => after && after());
+    };
+    if (wasModal) closeModal(open); else open();
+  };
+}
+
 function openSessionDetail(i) {
   const x = S.sessionLog[i], logs = logsOfSession(x);
   const d = new Date(x.ts);
   const rows = sessionRowsHtml(logs);
   openModal(`<h2>${esc(sessLabel(x))}</h2>
     <p class="small muted">${d.toLocaleDateString('it-IT')} · ${x.minutes} minuti · ${logs.length} esercizi${x.kind === 'core' ? ' · blocco core' : ''}</p>
-    ${x.note ? `<div class="notice" style="margin-bottom:10px">${esc(x.note)}</div>` : ''}
+    ${sessNoteHtml(i)}
     <ul class="hist">${rows || '<li><span class="small muted">Nessun esercizio registrato per questa seduta.</span></li>'}</ul>
     ${feelEditHtml(i)}
     <button class="btn ghost" id="addMissing" style="margin-top:16px">Aggiungi un esercizio non registrato</button>
     <button class="btn secondary" id="closeModal2" style="margin-top:10px">Chiudi</button>`);
   $('#closeModal2').onclick = closeModal;
   bindFeelEdit(i);
+  bindSessNote(i, () => openSessionDetail(i));
   $('#addMissing').onclick = () => closeModal(() => addMissingLog(i));
   document.querySelectorAll('[data-dellog]').forEach(b => b.onclick = () => {
     const l = S.logs[+b.dataset.dellog];
@@ -7300,9 +7355,10 @@ function migrateRatings() {
   // 8.5: cambio di obiettivo confrontato con quanto l'app chiedeva (Epley),
   // anche con un carico diverso da quello proposto
   // 8.8: ripetizioni prescritte diverse dalla volta scorsa = confronto con l'obiettivo
-  if (S.ratingsRev >= 7) return;
+  // 8.10: obiettivo superato di 2+ ripetizioni senza calo = in linea
+  if (S.ratingsRev >= 8) return;
   if (S.progressEpoch == null) { S.progressEpoch = computeProgressEpoch(); S.progressEpochTs = Date.now(); }
-  S.ratingsFixed = true; S.ratingsRev = 7;
+  S.ratingsFixed = true; S.ratingsRev = 8;
   [...new Set(S.logs.map(l => l.exId))].forEach(rerateExercise);
   save();
 }

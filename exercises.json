@@ -393,7 +393,8 @@
    "steps": [
     "Sdraiati prono sulla panca orizzontale con il bacino appoggiato sul cuscino e le caviglie bloccate.",
     "Scendi flettendo l'anca con la schiena neutra fino a sentire i femorali in tensione.",
-    "Risali fino all'allineamento tra tronco e gambe, senza superarlo."
+    "Risali fino all'allineamento tra tronco e gambe, senza superarlo.",
+    "Quando completi tutti i gradini, la progressione continua con «Iperestensioni con manubrio al petto»."
    ],
    "errors": [
     "Estendere oltre la linea del corpo iperestendendo la lombare.",
@@ -408,7 +409,8 @@
     "Mani al petto",
     "Mani dietro la nuca",
     "Mani dietro la nuca con tenuta di 2 s"
-   ]
+   ],
+   "nextEx": "g_backextw"
   },
   {
    "id": "g_goodmorning",
@@ -572,7 +574,7 @@
      "seatedPressStart",
      "seatedPressEnd"
     ],
-    "implement": "machine"
+    "implement": "machineBack"
    },
    "steps": [
     "Regola il sedile con le impugnature all'altezza della metà del petto.",
@@ -6953,6 +6955,50 @@
    "focus": [
     "hamstrings"
    ]
+  },
+  {
+   "id": "g_backextw",
+   "name": "Iperestensioni con manubrio al petto",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Catena posteriore",
+   "pattern": "hinge",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Erettori spinali",
+    "Glutei"
+   ],
+   "secondary": [
+    "Femorali"
+   ],
+   "equipment": [
+    "Panca per iperestensioni",
+    "Manubrio"
+   ],
+   "art": {
+    "frames": [
+     "hyperDown",
+     "hyperUp"
+    ],
+    "implement": "dumbbell1"
+   },
+   "steps": [
+    "Bacino sul cuscino, caviglie bloccate, manubrio stretto al petto con le due mani.",
+    "Scendi flettendo l'anca con la schiena neutra.",
+    "Risali fino all'allineamento fra tronco e gambe, senza inarcare oltre."
+   ],
+   "errors": [
+    "Inarcare la schiena oltre la linea del corpo in alto.",
+    "Dare slancio con il busto."
+   ],
+   "safety": [
+    "Carico che cresce a piccoli passi: si parte dal manubrio più leggero dopo aver completato i gradini a corpo libero."
+   ],
+   "source": "Regola operativa dell'app: progressione con carico dopo i gradini a corpo libero",
+   "rack": "dumbbell"
   }
  ]
 }
