@@ -6999,6 +6999,51 @@
    ],
    "source": "Regola operativa dell'app: progressione con carico dopo i gradini a corpo libero",
    "rack": "dumbbell"
+  },
+  {
+   "id": "o_mtb",
+   "name": "Uscita in mountain bike",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "strength",
+   "group": "Condizionamento",
+   "pattern": "cardio",
+   "load": "time",
+   "kneeFriendly": true,
+   "noVolume": true,
+   "cardioModes": [
+    "mtb"
+   ],
+   "primary": [
+    "Apparato cardiovascolare"
+   ],
+   "secondary": [],
+   "equipment": [
+    "Mountain bike"
+   ],
+   "art": {
+    "frames": [
+     "spinTop",
+     "spinBottom"
+    ],
+    "implement": "spinBike"
+   },
+   "steps": [
+    "Sterrato e strade bianche, con la bici che porterai al Tuscany Trail.",
+    "Ritmo da conversazione: riesci a parlare a frasi brevi.",
+    "Rapporti agili e cadenza alta in salita, soprattutto con le borse cariche; sui tratti più ripidi scendi e spingi."
+   ],
+   "errors": [
+    "Partire troppo forte nella prima ora.",
+    "Sella troppo bassa: aumenta il carico sulla rotula."
+   ],
+   "safety": [
+    "Sella regolata con il ginocchio piegato di circa 25-30° quando il pedale è in basso (Bini et al. 2011, Sports Medicine): con la sella bassa la compressione sulla rotula aumenta.",
+    "Ginocchio: se il giorno dopo va peggio del solito, l'uscita successiva si accorcia."
+   ],
+   "source": "Preparazione Tuscany Trail: durate e progressione sono regole operative dell'app; consigli pratici degli organizzatori (guida 2027)"
   }
  ]
 }

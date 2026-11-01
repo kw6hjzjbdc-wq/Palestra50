@@ -81,6 +81,7 @@ function load() {
   if (S.spSelf && (typeof S.spSelf !== 'object' || !isFinite(S.spSelf.ts))) S.spSelf = null;
   // (8.3) registro del dolore e durata predefinita portata a 45 minuti (una volta sola)
   if (!Array.isArray(S.painLog)) S.painLog = [];
+  if (!Array.isArray(S.mtbRides)) S.mtbRides = [];
   if (!S.dur45) { S.durPref = 45; S.dur45 = true; }
   // (8.9) dolore all'inguine segnalato: la precauzione parte accesa, una volta sola
   if (!S.groin89) { S.groinCare = true; S.groin89 = true; }
@@ -2236,6 +2237,28 @@ function buildStrength(meta, budget) {
   const trimmed = fitToTime(items, budget - reserve, pullTail);
   fillToTime(items, budget, { extras, finisher: fin, tail: pullTail, reserve });
   finalizeSupersets(items);
+  // (8.11) scarico pre-gara del Tuscany Trail: due settimane, volume ridotto
+  // di circa il 40% (fascia 41-60% di Bosquet et al. 2007), intensità e
+  // frequenza invariate; mai sotto 2 serie
+  if (!volProbe && ttPhase(metaDate(meta)) === 'taper') {
+    const work = it => ['key', 'main', 'pull', 'extra'].includes(it.role);
+    const tot = () => items.filter(work).reduce((a, it) => a + it.sets, 0);
+    const before = tot();
+    items.forEach(it => { if (work(it)) { const n = Math.max(2, Math.round(it.sets * 0.6)); it.sets = it.perSide && n % 2 ? n + 1 : n; } });
+    // con le serie già al minimo di 2 si tolgono gli ultimi complementari
+    // (le superserie intere, dall'ultima), lasciando fondamentali, trazioni e
+    // almeno due complementari
+    let guard = 0;
+    while (tot() > before * 0.6 && guard++ < 12) {
+      const extras = items.filter(it => it.role === 'extra' || it.role === 'finisher' || it.role === 'activation');
+      if (extras.length) { items.splice(items.indexOf(extras[extras.length - 1]), 1); continue; }
+      const mains = items.filter(it => it.role === 'main');
+      if (mains.length <= 2) break;
+      const last = mains[mains.length - 1];
+      items.filter(it => it === last || (last.ss && it.ss === last.ss)).forEach(it => items.splice(items.indexOf(it), 1));
+    }
+    finalizeSupersets(items);
+  }
 
   const gLabel = meta.phase && PROG.goals[(meta.phase.ph.goals || [])[meta.tmplIdx]]
     ? PROG.goals[meta.phase.ph.goals[meta.tmplIdx]].label : '';
@@ -2709,6 +2732,10 @@ function buildCardio(meta, budget) {
   // attrezzo scelto a mano: vale solo se è davvero disponibile e adatto alla modalità
   let ex = chosen.exId ? exById(chosen.exId) : null;
   if (ex && (ex.retired || !ex.setup.includes(S.setup) || !(ex.cardioModes || []).includes(mode))) ex = null;
+  // (8.11) preparazione Tuscany Trail: la seduta a intervalli sulla bici da
+  // spinning (si può comunque cambiare attrezzo)
+  const ttSpin = !ex && meta.tmplIdx === 0 && ttPhase(metaDate(meta)) === 'build' && (() => { const sp = exById('a_spinning'); return sp && !sp.retired && sp.setup.includes(S.setup) && (sp.cardioModes || []).includes(mode); })();
+  if (ttSpin) ex = exById('a_spinning');
   if (ex) used.add(ex.id);
   else ex = pickFrom(pool, (meta.weekAbs - 1) + meta.tmplIdx, used);
   const items = [];
@@ -2785,7 +2812,224 @@ function buildCardio(meta, budget) {
   items.push(cool);
   stretches.forEach(it => items.push(it));
   const spTag = spItems.length ? (spItems.some(it => it.spCheck) ? ' · Spartan Race check' : ' · burpees') : '';
-  return { label: `${tmpl.label} · ${ex.name}${spTag}`, type: 'cardio', items, mode };
+  if (ttSpin) main.note = 'Preparazione per Tuscany Trail' + (main.note ? ' · ' + main.note : '');
+  return { label: `${tmpl.label} · ${ex.name}${spTag}${ttSpin ? ' · Preparazione per Tuscany Trail' : ''}`, type: 'cardio', items, mode };
+}
+
+
+/* ===========================================================================
+   PREPARAZIONE TUSCANY TRAIL (dalla 8.11)
+   Evento: 19-25 maggio 2027, Campiglia Marittima; percorso lungo di 440 km
+   (edizione 2026) o Newbie di 160 km, strade bianche, nessun tempo massimo.
+   Ogni domenica un'uscita in mountain bike, fuori dalle sei sedute del
+   programma (non fa avanzare la settimana); la seduta a intervalli si fa
+   sulla bici da spinning («Preparazione per Tuscany Trail»).
+   Fonti verificate: Bini et al. 2011 (Sports Medicine) — la compressione
+   sulla rotula cresce quando la sella è bassa; indicazione prudente di 25-30°
+   di flessione del ginocchio con il pedale in basso. Bosquet et al. 2007
+   (Med Sci Sports Exerc 39(8):1358-1365) — scarico pre-gara di circa due
+   settimane, volume ridotto del 41-60%, intensità e frequenza invariate.
+   Schumann et al. 2022 (Sports Med) — forza e resistenza nella stessa
+   settimana sono compatibili per massa e forza massima; la forza esplosiva può
+   risentirne, soprattutto nella stessa seduta: l'uscita è in un giorno a sé.
+   Regole operative dell'app (nessuna fonte fissa questi numeri): prima uscita
+   90 minuti, +15 minuti dopo ogni uscita completa con il ginocchio tranquillo
+   la mattina dopo (stesso criterio di Esculier et al. 2018 per la corsa),
+   -15 se il ginocchio va peggio; tetti 150 minuti fino a gennaio, 210 fino a
+   marzo, 300 fino al 4 maggio; settimana di scarico al 60%; nelle due
+   settimane prima dell'evento al massimo 75 minuti. Borse cariche da
+   febbraio e un'uscita lunga con tutto il carico ad aprile-maggio: consigli
+   pratici degli organizzatori (guida 2027), non studi.
+=========================================================================== */
+const TT = () => (PROG && PROG.tuscany) || null;
+const ttOn = () => !!TT() && S.tuscany !== false;
+function ttPhase(date) {
+  const t = TT();
+  if (!t || S.tuscany === false) return 'off';
+  const d = noonOf(date || Date.now());
+  if (d < isoNoon(t.start)) return 'off';
+  if (d > isoNoon(t.eventEnd)) return 'after';
+  if (d >= isoNoon(t.event)) return 'event';
+  if (d >= isoNoon(t.taperFrom)) return 'taper';
+  return 'build';
+}
+const ttWeeksTo = () => { const t = TT(); return t ? Math.max(0, Math.ceil((isoNoon(t.event) - noonOf(Date.now())) / (7 * DAY_MS))) : 0; };
+function mtbCap(date) {
+  const t = TT(), d = noonOf(date || Date.now());
+  if (!t) return 0;
+  if (ttPhase(d) === 'taper') return t.taperMin;
+  const c = (t.caps || []).find(x => d <= isoNoon(x.until));
+  return c ? c.min : (t.caps || []).slice(-1)[0].min;
+}
+const mtbRides = () => (Array.isArray(S.mtbRides) ? S.mtbRides : []).filter(r => r && r.ts).sort((a, b) => a.ts - b.ts);
+/* Durata proposta per la prossima uscita e uscita in attesa del riscontro
+   del ginocchio. */
+function mtbState() {
+  const t = TT();
+  if (!t) return { min: 0, rides: [] };
+  const rides = mtbRides();
+  let planned = t.firstMin;
+  rides.forEach(r => {
+    if (r.kneeNext === 2) planned = Math.max(t.minMin, planned - t.stepMin);
+    else if (r.kneeNext === 0 && r.minutes >= (r.planned || planned) * 0.9 && !r.light) planned = Math.min(mtbCap(r.ts), planned + t.stepMin);
+  });
+  const now = Date.now();
+  let min = Math.min(planned, mtbCap(now));
+  const deload = isDeloadWeek(S.sessionIndex);
+  if (deload && ttPhase(now) === 'build') min = Math.max(t.minMin, Math.round(min * 0.6 / 15) * 15);
+  const pending = rides.slice().reverse().find(r => r.kneeNext == null && now - r.ts > 10 * 3600e3 && now - r.ts < 4 * DAY_MS);
+  return { min, planned, deload, rides, pending };
+}
+/* Indicazioni del giorno per l'uscita (date in ora locale). */
+function mtbPlanFor(date) {
+  const t = TT(), d = noonOf(date || Date.now()), st = mtbState();
+  const ph = ttPhase(d), out = { phase: ph, min: st.min, notes: [] };
+  if (!t || ph === 'off' || ph === 'after') return out;
+  const iso = x => isoNoon(x).toDateString();
+  if (t.spartanSunday && d.toDateString() === iso(t.spartanSunday)) { out.skip = true; out.notes.push('Weekend della Spartan Race: niente uscita.'); return out; }
+  if (ph === 'event') { out.event = true; out.notes.push('Tuscany Trail in corso: buon viaggio!'); return out; }
+  out.loaded = d >= isoNoon(t.loadedFrom);
+  if (d.toDateString() === iso(t.longLoaded) || d.toDateString() === iso(t.longLoadedAlt)) {
+    out.long = true;
+    out.min = Math.max(out.min, mtbCap(d));
+    out.notes.push('Uscita lunga con tutto il carico definitivo, se puoi con una notte fuori: serve a scoprire i piccoli problemi (borse che sfregano, luci) prima dell\'evento (consiglio degli organizzatori).');
+  }
+  if (ph === 'taper') out.notes.push('Ultime due settimane prima dell\'evento: uscita breve e tranquilla. Lo scarico pre-gara riduce il volume del 41-60% mantenendo l\'intensità (Bosquet et al. 2007).');
+  else if (st.deload) out.notes.push('Settimana di scarico: uscita accorciata al 60%.');
+  if (out.loaded && !out.long && ph === 'build') out.notes.push('Con le borse che userai, piene: la bici carica frena, sterza e sale in modo diverso (consiglio degli organizzatori).');
+  return out;
+}
+/* Uscita della settimana di calendario (lunedì-domenica) in corso. */
+function mtbThisWeek() {
+  const mon = calendarMonday();
+  return mtbRides().filter(r => r.ts >= mon).pop() || null;
+}
+function recordMtbRide(o) {
+  const t = TT(), now = Date.now(), plan = mtbPlanFor(now);
+  const minutes = Math.max(1, Math.round(+o.minutes || 0));
+  S.mtbRides = Array.isArray(S.mtbRides) ? S.mtbRides : [];
+  const tp = todayPlan();
+  const W = tp.W || weekOfIdx(S.sessionIndex);
+  const sIdx = weekStart(W) + weekLen(W) - 1;
+  const ride = { ts: now, sid: now, planned: plan.min || minutes, minutes, km: o.km || null, dplus: o.dplus || null,
+    loaded: !!o.loaded, kneeDuring: hasNum(o.knee) ? +o.knee : null, kneeNext: null, light: plan.phase === 'taper' || !!mtbState().deload, note: o.note || '' };
+  S.mtbRides.push(ride);
+  S.logs.push({ ts: now, sid: now, sIdx, exId: 'o_mtb', name: 'Uscita in mountain bike', setup: S.setup, load: '', feedback: 'same',
+    sets: 1, setLog: [{ load: '', reps: 1, hold: minutes * 60, rir: null }], repsTarget: 1, repsDone: 1, reps: 1,
+    goal: 'cardioSteady', hold: minutes * 60, rest: 0, setsPlanned: 1, mtb: true, stars: 0, rateText: '' });
+  S.sessionLog.push({ ts: now, sid: now, idx: sIdx, label: 'Uscita in MTB · Tuscany Trail', kind: 'mtb', minutes,
+    note: [o.km ? `${String(o.km).replace('.', ',')} km` : '', o.dplus ? `${o.dplus} m D+` : '', o.loaded ? 'bici carica' : '', o.note || ''].filter(Boolean).join(' · '),
+    ...(hasNum(o.knee) ? { feel: { energy: null, sleep: null, knee: +o.knee, shoulder: null, groin: null } } : {}) });
+  logsTouched && logsTouched();
+  planCache = null; save();
+  return ride;
+}
+function mtbKneeAskHtml() {
+  const st = mtbState(), r = st.pending;
+  if (!r) return '';
+  return `<div class="card spcard" id="mtbKneeCard">
+    <div class="kicker">Tuscany Trail · ginocchio dopo l'uscita</div>
+    <h3 style="margin:4px 0 6px">Com'è il ginocchio dopo l'uscita di ${esc(new Date(r.ts).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' }))}?</h3>
+    <p class="small muted">Da questa risposta dipende la durata della prossima uscita (stesso criterio usato per la corsa: Esculier et al. 2018).</p>
+    <div class="spknee">
+      <button class="btn ghost" data-mtbknee="0">Stamattina come prima: tutto tranquillo</button>
+      <button class="btn ghost" data-mtbknee="1">Un po' di fastidio, ma stamattina come prima</button>
+      <button class="btn ghost" data-mtbknee="2">Stamattina il ginocchio va peggio del solito</button>
+    </div></div>`;
+}
+function bindMtbKneeAsk(after) {
+  document.querySelectorAll('[data-mtbknee]').forEach(b => b.onclick = () => {
+    const r = mtbState().pending;
+    if (!r) return;
+    r.kneeNext = +b.dataset.mtbknee; r.kneeTs = Date.now();
+    planCache = null; save();
+    const now = mtbState();
+    showToast(`<div>${r.kneeNext === 0 ? `Bene: la prossima uscita sale a <b>${fmtMin(now.min)}</b>.` : r.kneeNext === 1 ? `La prossima uscita resta di <b>${fmtMin(now.min)}</b>.` : `La prossima uscita scende a <b>${fmtMin(now.min)}</b>. Se il ginocchio continua a peggiorare, senti il fisioterapista.`}</div>`, 4200);
+    if (after) after();
+  });
+}
+const fmtMin = m => m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ' ' + String(m % 60).padStart(2, '0') : ''}` : `${m} min`;
+function mtbTileBody() {
+  const st = mtbState(), rides = st.rides, ph = ttPhase(Date.now());
+  const tot = rides.reduce((a, r) => a + (r.minutes || 0), 0), km = rides.reduce((a, r) => a + (+r.km || 0), 0);
+  const longest = rides.reduce((a, r) => Math.max(a, r.minutes || 0), 0);
+  return `<div class="dstat">${ph === 'event' ? 'In corso' : ph === 'after' ? 'Concluso' : `${ttWeeksTo()} settimane`}</div>
+    <p class="small">${rides.length} uscite · ${fmtMin(tot)}${km ? ` · ${kg1(km)} km` : ''}${longest ? ` · la più lunga ${fmtMin(longest)}` : ''}</p>
+    <p class="small muted">Prossima uscita: ${fmtMin(st.min)}. Ogni domenica in mountain bike; la seduta a intervalli sulla bici da spinning.</p>`;
+}
+function openTuscany() {
+  const t = TT(), st = mtbState();
+  const rows = st.rides.slice().reverse().slice(0, 12).map(r => `<li><div class="nm" style="flex:1"><b>${esc(new Date(r.ts).toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' }))}</b>
+      <div class="small muted">${fmtMin(r.minutes)}${r.km ? ` · ${String(r.km).replace('.', ',')} km` : ''}${r.dplus ? ` · ${r.dplus} m D+` : ''}${r.loaded ? ' · bici carica' : ''}${r.kneeNext === 2 ? ' · ginocchio peggio il giorno dopo' : r.kneeNext === 0 ? ' · ginocchio tranquillo' : ''}</div></div></li>`).join('');
+  openModal(`<h2>Tuscany Trail · ${esc(t.place)}</h2>
+    <p class="small muted">${dateIt(isoNoon(t.event))} - ${dateIt(isoNoon(t.eventEnd))} · ${esc(t.routes)} · nessun tempo massimo.</p>
+    <div class="block" style="margin-top:12px"><h3 style="font-size:16px;color:var(--muted)">Come si prepara l'app</h3>
+      <ul class="small" style="margin:6px 0 0 18px">
+        <li>Ogni domenica un'uscita in mountain bike sullo sterrato, a ritmo da conversazione. Prossima: <b>${fmtMin(st.min)}</b> (tetto attuale ${fmtMin(mtbCap(Date.now()))}).</li>
+        <li>La seduta a intervalli del martedì sulla bici da spinning.</li>
+        <li>Da febbraio uscite con le borse piene; un'uscita lunga con tutto il carico il ${dateIt(isoNoon(t.longLoaded))} (oppure il ${dateIt(isoNoon(t.longLoadedAlt))}).</li>
+        <li>Dal ${dateIt(isoNoon(t.taperFrom))}: due settimane di scarico pre-gara, serie delle sedute di forza ridotte di circa il 40% e uscite brevi (Bosquet et al. 2007).</li>
+        <li>Sella: ginocchio piegato di circa 25-30° con il pedale in basso; con la sella bassa la compressione sulla rotula aumenta (Bini et al. 2011).</li>
+      </ul>
+      <p class="small muted" style="margin-top:8px">Durate e progressione sono regole operative dell'app; borse cariche e uscita lunga sono consigli degli organizzatori.</p></div>
+    <div class="block" style="margin-top:12px"><h3 style="font-size:16px;color:var(--muted)">Uscite</h3>
+      <ul class="hist">${rows || '<li><span class="small muted">Ancora nessuna uscita registrata.</span></li>'}</ul></div>
+    <button class="btn secondary" id="ttClose" style="margin-top:14px">Chiudi</button>`);
+  $('#ttClose').onclick = () => closeModal();
+}
+/* Pagina dell'uscita della domenica: indicazioni e registrazione. */
+function renderHomeMtb() {
+  const plan = mtbPlanFor(Date.now()), st = mtbState(), done = mtbThisWeek();
+  $('#topChip').textContent = 'Tuscany Trail';
+  $('#topChip').className = 'chip cardio';
+  const backTxt = dayFrom === 'week' ? 'Torna al programma della settimana' : 'Torna a Oggi';
+  $('#view-home').innerHTML = `
+    <button class="btn ghost" id="mtbBack" style="margin-top:14px">‹ ${backTxt}</button>
+    ${mtbKneeAskHtml()}
+    <div class="card">
+      <div class="session-head cardio"><div>
+        <div class="kicker">Domenica · Preparazione per Tuscany Trail · ${ttWeeksTo()} settimane</div>
+        <h2>Uscita in mountain bike</h2>
+        <p class="small muted" style="margin:6px 0 0">${plan.skip || plan.event ? '' : `Durata proposta: <b>${fmtMin(plan.min)}</b> · sterrato e strade bianche, con la bici dell'evento · ritmo da conversazione.`}</p>
+      </div></div>
+      ${plan.notes.map(n => `<div class="notice" style="margin-top:10px">${esc(n)}</div>`).join('')}
+      ${done ? `<div class="notice" style="margin-top:10px">Uscita di questa settimana registrata: ${fmtMin(done.minutes)}${done.km ? ` · ${String(done.km).replace('.', ',')} km` : ''}.</div>` : ''}
+      <ul class="small" style="margin:10px 0 0 18px">
+        <li>Rapporti agili e cadenza alta in salita, soprattutto con le borse; sui tratti più ripidi scendi e spingi.</li>
+        <li>Sella: ginocchio piegato di circa 25-30° con il pedale in basso (Bini et al. 2011).</li>
+        <li>Ginocchio: se durante l'uscita supera 2 su 10, accorcia e torna con calma.</li>
+      </ul>
+      <h3 style="font-size:16px;margin-top:14px">${done ? 'Registra un\'altra uscita' : 'Registra l\'uscita'}</h3>
+      <div class="field"><label>Durata (minuti)</label><input id="mtbMin" type="number" inputmode="numeric" min="1" max="900" value="${plan.min || 90}"></div>
+      <div class="field"><label>Distanza (km, facoltativa)</label><input id="mtbKm" type="text" inputmode="decimal" placeholder="km"></div>
+      <div class="field"><label>Dislivello (m, facoltativo)</label><input id="mtbD" type="number" inputmode="numeric" placeholder="m"></div>
+      <div class="switch"><span>Bici carica con le borse</span><input type="checkbox" id="mtbLoad" ${plan.loaded ? 'checked' : ''}></div>
+      <div class="feelrow"><span class="lab">Ginocchio durante l'uscita<span class="small muted"> 0 nessun dolore · 10 il peggiore</span></span>
+        <div class="feelbtns" id="mtbKnee">${Array.from({ length: 11 }, (_, v) => `<button type="button" data-v="${v}">${v}</button>`).join('')}</div></div>
+      <div class="field"><label>Nota</label><input id="mtbNote" type="text" placeholder="percorso, sensazioni, attrezzatura"></div>
+      <button class="btn teal" id="mtbSave" style="margin-top:10px">Salva l'uscita</button>
+    </div>
+    <button class="btn ghost" id="mtbWeek" style="margin-top:10px">Programma della settimana</button>
+    <button class="btn ghost backbottom" id="mtbBack2">‹ ${backTxt}</button>`;
+  let knee = null;
+  document.querySelectorAll('#mtbKnee button').forEach(b => b.onclick = () => {
+    knee = knee === +b.dataset.v ? null : +b.dataset.v;
+    document.querySelectorAll('#mtbKnee button').forEach(x => x.setAttribute('aria-pressed', String(+x.dataset.v === knee)));
+  });
+  const back = () => { homeView = dayFrom === 'week' ? 'week' : null; renderHome(); window.scrollTo(0, 0); };
+  $('#mtbBack').onclick = back; $('#mtbBack2').onclick = back;
+  $('#mtbWeek').onclick = () => { homeView = 'week'; renderHome(); window.scrollTo(0, 0); };
+  bindMtbKneeAsk(() => renderHome());
+  $('#mtbSave').onclick = () => {
+    const minutes = parseInt($('#mtbMin').value, 10);
+    if (!(minutes > 0)) { showToast('<div>Indica la durata in minuti.</div>'); return; }
+    const km = parseFloat(String($('#mtbKm').value || '').replace(',', '.'));
+    const dp = parseInt($('#mtbD').value, 10);
+    recordMtbRide({ minutes, km: isFinite(km) && km > 0 ? Math.round(km * 10) / 10 : null, dplus: dp > 0 ? dp : null,
+      loaded: $('#mtbLoad').checked, knee, note: $('#mtbNote').value || '' });
+    showToast(`<div><b>Uscita registrata</b>: ${fmtMin(minutes)}. Domani l'app ti chiede com'è il ginocchio.</div>`, 4200);
+    homeView = null; renderHome(); window.scrollTo(0, 0);
+  };
 }
 
 /* ===========================================================================
@@ -3243,7 +3487,7 @@ const sessLabel = x => String((x && x.label) || '').replace(/^Mattino · /, 'Mob
 // calendario, quindi l'indice avanza e lo storico resta allineato
 // 'extra': attività fuori programma registrate con la 6.11 (funzione poi tolta
 // nella 6.12). Restano nello storico ma non sono sedute del programma.
-const isProgramKind = k => k !== 'core' && k !== 'free' && k !== 'morning' && k !== 'extra';
+const isProgramKind = k => k !== 'core' && k !== 'free' && k !== 'morning' && k !== 'extra' && k !== 'mtb';
 const isSkipped = x => x.kind === 'skipped';
 
 /* Giorni della settimana con la mobilità breve (dalla 6.10). Nella settimana
@@ -3434,7 +3678,7 @@ function bindMorning() {
 --------------------------------------------------------------------------- */
 let sessMemo = new Map(), sessMemoKey = null;
 function planSignature() {
-  return [S.programId, S.setup, S.durPref || 45, S.finisher || '', S.kneeCare, S.shoulderCare, !!S.groinCare,
+  return [S.programId, S.setup, S.durPref || 45, S.finisher || '', S.kneeCare, S.shoulderCare, !!S.groinCare, S.tuscany !== false,
           S.pullupGoal, JSON.stringify(S.pullSelf || null), S.week6From || 0, logsRev, (S.mobilityWeeks || []).join('.'),
           JSON.stringify(S.perms || {}), JSON.stringify(S.sessPick || {}), spSig(), painSig()].join('|');
 }
@@ -3707,7 +3951,8 @@ function todayPlan() {
 }
 function lunchStatus() {
   const tp = todayPlan();
-  if (tp.rest || tp.stale) return { rest: !!tp.rest, stale: !!tp.stale, tp, s: todaySession(null) };
+  if (tp.rest || tp.stale) return { rest: !!tp.rest, stale: !!tp.stale, tp, s: todaySession(null),
+    mtb: !!tp.rest && weekdayIdx() === 6 && ['build', 'taper', 'event'].includes(ttPhase(Date.now())) };
   if (tp.done) {
     if (tp.entry && isSkipped(tp.entry)) return { skipped: true, entry: tp.entry, tp, s: todaySession(null) };
     return { done: true, entry: tp.entry, verdict: tp.entry ? sessionVerdict(tp.entry) : null, tp };
@@ -3833,6 +4078,9 @@ function morningTileBody(ms, full) {
 
 function lunchTileBody(ls, full) {
   const wd = WEEKDAYS[weekdayIdx()];
+  if (ls.rest && ls.mtb) { const dn = mtbThisWeek(), pl = mtbPlanFor(Date.now());
+    return dn ? `<div class="dstat ok">Fatta ✓</div><p class="small">Domenica · <b>Uscita in MTB</b> · ${fmtMin(dn.minutes)}${dn.km ? ` · ${String(dn.km).replace('.', ',')} km` : ''}</p><p class="small muted">Preparazione per Tuscany Trail. Tocca per i dettagli.</p>`
+      : `<div class="dstat todo">${pl.skip || pl.event ? 'Oggi' : 'Da fare · ' + fmtMin(pl.min)}</div><p class="small">Domenica · <b>Uscita in mountain bike</b></p><p class="small muted">Preparazione per Tuscany Trail · ${pl.skip || pl.event ? esc(pl.notes[0] || '') : 'sterrato, ritmo da conversazione'}.</p>`; }
   if (ls.rest) return `<div class="dstat">Domenica · riposo</div><p class="small">Nessuna seduta prevista oggi.</p>
        <p class="small muted">La prossima è «${esc(ls.s.label)}» (lunedì) · tocca per vederla o farla lo stesso.</p>`;
   if (ls.stale) return `<div class="dstat todo">Settimana da chiudere</div><p class="small"><b>${esc(ls.s.label)}</b> · ${ls.s.minutes} min</p>
@@ -4365,6 +4613,7 @@ function renderProg() {
     ${tile('upcoming', 'Le prossime settimane', `<div class="dstat">Cosa ti aspetta</div>
       <p class="small muted">Tipo di seduta giorno per giorno, con fasi, scarichi e settimane di sola mobilità.</p>`)}
     ${SP() && (S.spartan !== false || spPhase(Date.now()) !== 'off') ? tile('spartan', 'Spartan Race · Sprint di Orte', spartanTileBody()) : ''}
+    ${TT() && ttPhase(Date.now()) !== 'off' ? tile('tuscany', 'Tuscany Trail · ' + esc(TT().place), mtbTileBody()) : ''}
     ${S.pullupGoal ? tile('pull', 'Trazioni e muscle-up', pullTileBody()) : ''}
     ${tile('week', 'Riepilogo della settimana', weekRecapTile())}
     ${tile('trend', 'Progressione negli esercizi', eBody + eNote)}
@@ -4380,6 +4629,7 @@ function renderProg() {
     else if (k === 'upcoming') openUpcoming();
     else if (k === 'pull') openPullGoal();
     else if (k === 'spartan') openSpartan();
+    else if (k === 'tuscany') openTuscany();
     else if (k === 'week') openWeekReport(recapWeek());
     else if (k === 'records') openRecords();
     else if (k === 'e1rm') openE1rm();
@@ -4875,7 +5125,7 @@ function alternativesFor(item, sess) {
     (!alt.roles || alt.roles.includes(e.pullRole)) &&
     // (7S 0) la corsa-camminata non è un'alternativa alla bici: si sceglie solo
     // nella seduta di corsa della preparazione Spartan
-    (!(e.cardioModes || []).includes('run') || (alt.modes || []).includes('run')));
+    (!(e.cardioModes || []).includes('run') || (alt.modes || []).includes('run')) && !(e.cardioModes || []).includes('mtb'));
   if (alt.roles && pool.length < 2) {
     pool = DB.exercises.filter(e => e.setup.includes(S.setup) && e.pattern === 'pullup');
   }
@@ -5003,7 +5253,7 @@ function openCardioPicker(sess, meta, opt) {
   const runOk = meta.tmplIdx === 1 && !meta.mobilityWeek && ['run', 'race'].includes(spPhase(metaDate(meta)));
   const pool = DB.exercises.filter(e => (e.pattern === 'cardio' || e.pattern === 'finisher') &&
       !e.retired && e.setup.includes(S.setup) && (e.cardioModes || []).length &&
-      (!(e.cardioModes || []).includes('run') || runOk))
+      (!(e.cardioModes || []).includes('run') || runOk) && !(e.cardioModes || []).includes('mtb'))
     .sort((a, b) => a.name.localeCompare(b.name));
   // (8.4) in seduta: finché nulla è registrato si può cambiare tutto; dopo,
   // solo l'attrezzo, fra quelli che reggono il tipo di lavoro già iniziato
@@ -5165,6 +5415,7 @@ function renderHome() {
   if (homeView === 'lunch') return renderHomeLunch();
   if (homeView === 'week') return renderHomeWeek();
   if (homeView === 'result') return renderHomeResult();
+  if (homeView === 'mtb') return renderHomeMtb();
   return renderHomePick();
 }
 
@@ -5273,7 +5524,8 @@ function renderHomePick() {
     ${b.html}
     ${deloadCardHtml()}
     ${tile('morning', 'Mobilità breve · a casa', 'mobility', mBody)}
-    ${tile('lunch', 'Allenamento del giorno', ls.done || ls.skipped ? 'strength' : typeClass(ls.s), lBody)}
+    ${mtbKneeAskHtml()}
+    ${tile('lunch', 'Allenamento del giorno', ls.mtb ? 'cardio' : (ls.done || ls.skipped ? 'strength' : typeClass(ls.s)), lBody)}
     ${tile('week', 'Programma della settimana', 'week', weekTileBody())}
     ${spartanTodayHtml(ls.done || ls.skipped ? todaySession(null) : ls.s)}`;
 
@@ -5286,6 +5538,7 @@ function renderHomePick() {
       if (i >= 0) { openResult(i, 'pick'); return; }
       homeView = 'week'; renderHome(); return;
     }
+    if (k === 'lunch' && ls.mtb) { dayFrom = 'pick'; homeView = 'mtb'; renderHome(); window.scrollTo(0, 0); return; }
     if (k === 'lunch') {
       daySel = (!ls.rest && !ls.stale && ls.tp && ls.tp.W === weekOfIdx(S.sessionIndex)) ? ls.tp.q : null;
       if (daySel === posOfIdx(S.sessionIndex)) daySel = null;
@@ -5295,6 +5548,7 @@ function renderHomePick() {
   });
   bindHomeBanners(b.saved);
   bindKneeAsk(() => renderHome());
+  bindMtbKneeAsk(() => renderHome());
 }
 
 /* Programma della settimana: presentazione e sedute dei giorni. */
@@ -5322,6 +5576,15 @@ function renderHomeWeek() {
       <div class="nm"><b>${esc(alt.label)}</b>
         <div class="small muted">${nDays === 6 ? WEEKDAYS[q] + ' · ' : ''}${typeWord(alt)} · ${alt.minutes} min${alt.items.some(i => i.block === 'pullup') ? ' · trazioni' : ''}${ck.length ? ' · Spartan Race check' : ''}${(nDays === 6 && alt.dayType === 'stretch' && q === nDays - 1) ? ' · di solito l\'ultima' : ''}</div></div>
       ${badge}</li>`;
+  }
+  // (8.11) domenica: uscita in mountain bike per il Tuscany Trail (fuori dalle sei sedute)
+  if (nDays === 6 && ['build', 'taper', 'event'].includes(ttPhase(Date.now()))) {
+    const dn = mtbThisWeek(), pl = mtbPlanFor(Date.now());
+    week += `<li class="wk ${dn ? 'done' : (weekdayIdx() === 6 ? 'now' : 'next')}" data-mtb="1">
+      <span class="wknum cardio">${dn ? '✓' : 'D'}</span>
+      <div class="nm"><b>Uscita in mountain bike</b>
+        <div class="small muted">domenica · Preparazione per Tuscany Trail · ${dn ? fmtMin(dn.minutes) + ' fatta' : (pl.skip ? 'niente uscita (Spartan Race)' : fmtMin(pl.min))}</div></div>
+      ${dn ? '<span class="wkbadge done">✓ svolta</span>' : weekdayIdx() === 6 ? '<span class="wkbadge">di oggi</span>' : '<span class="chev">›</span>'}</li>`;
   }
   const coreS = sessionFor(S.sessionIndex, 'core');
   week += `<li class="wk next extra" data-core="1">
@@ -5357,6 +5620,7 @@ function renderHomeWeek() {
     offerUndo('Seduta spostata a oggi.');
   });
   // (8.6) le sedute svolte aprono i risultati, non quella prevista
+  if ($('[data-mtb]')) $('[data-mtb]').onclick = () => { dayFrom = 'week'; homeView = 'mtb'; renderHome(); window.scrollTo(0, 0); };
   document.querySelectorAll('[data-day]').forEach(li => li.onclick = () => {
     const q = +li.dataset.day;
     if (q < here) { const i = sessionLogIndexFor(wStart + q); if (i >= 0) { openResult(i, 'week'); return; } }
@@ -5780,13 +6044,13 @@ function renderSessionCore() {
       <li>una serie di <b>${esc(nB)}</b>;</li><li>recupero di ${rest} secondi, poi di nuovo il primo.</li></ol>
       <span class="small muted">${rounds} giri. Il timer ti porta da solo da un esercizio all'altro: tu chiudi la serie con il pulsante in basso.</span></div>`;
   })() : '';
-  // (8.7) serie in più: sull'esercizio appena chiuso o su questo, se finito
-  const lc = c.lastClosed;
-  const lcIt = (lc !== undefined && lc !== null && lc !== c.pos && s.items[lc] && !isOpenItem(c, lc)) ? s.items[lc] : null;
-  const extraHtml = (lcIt ? `<div class="extraline small"><span>«${esc(exById(lcIt.exId).name)}» chiuso con ${c.setsDone[lc]} serie${lcIt.extraSets ? ` (${lcIt.extraSets} in più)` : ''}.</span>
-      <button class="btn ghost" id="extraPrev">+ una serie in più</button></div>` : '') +
-    (c.setsDone[c.pos] >= it.sets && !CARDIO_ROLES.includes(it.role) && ex.type !== 'stretch'
-      ? `<div class="extraline small"><span>Serie previste fatte${it.extraSets ? ` · ${it.extraSets} in più` : ''}.</span><button class="btn ghost" id="extraHere">+ una serie in più</button></div>` : '');
+  // (8.7 / 8.11) serie in più: si decide nella pagina dello stesso esercizio,
+  // prima o dopo l'ultima serie prevista (aggiunta prima, l'ultima serie non
+  // chiude più l'esercizio e si prosegue con quella in più)
+  const canExtra = !CARDIO_ROLES.includes(it.role) && ex.type !== 'stretch' && it.role !== 'finisher';
+  const extraHtml = canExtra
+    ? `<div class="extraline small"><span>${it.extraSets ? `${it.sets - it.extraSets} previste + ${it.extraSets} in più` : `${it.sets} serie previste`}.</span>
+        <span style="display:flex;gap:6px">${it.extraSets ? '<button class="btn ghost" id="extraLess" aria-label="Togli una serie in più">−</button>' : ''}<button class="btn ghost" id="extraHere">+ una serie in più</button></span></div>` : '';
   // (8.3) dolore segnato su questo esercizio
   const painBox = it.pain ? `<div class="${it.pain.v >= PAIN_STRONG ? 'warnbox' : 'notice'} painbox">${PAIN_NAME[it.pain.part]} ${it.pain.v}/10 segnato alla serie ${it.pain.set + 1 > it.sets ? it.sets : it.pain.set + 1}: ${
     it.pain.v >= PAIN_STRONG ? 'fermati con questo esercizio: cambialo o chiudilo.' : it.pain.v >= PAIN_LIGHT ? 'serie rimanenti più leggere; la prossima volta l\'esercizio parte più leggero.' : 'lieve, continua se non sale.'}</div>` : '';
@@ -5930,8 +6194,8 @@ function renderSessionCore() {
   });
   if ($('#loadIn')) $('#loadIn').onchange = () => { captureLoad(); saveResume(); renderSession(); };
   $('#dayPlanBtn').onclick = () => { captureLoad(); openDayPlan(); };
-  if ($('#extraPrev')) $('#extraPrev').onclick = () => { captureLoad(); addExtraSet(lc); };
   if ($('#extraHere')) $('#extraHere').onclick = () => { captureLoad(); addExtraSet(c.pos); };
+  if ($('#extraLess')) $('#extraLess').onclick = () => { captureLoad(); removeExtraSet(c.pos); };
   // (8.3) dolore durante l'esercizio
   $('#painBtn').onclick = () => { captureLoad(); openPainModal({
     part: partOfEx(ex) || (it.pain && it.pain.part) || 'shoulder',
@@ -5949,7 +6213,6 @@ function renderSessionCore() {
      nella barretta in basso: intanto puoi aprire la scheda e ripassarla. */
   const closeSet = () => {
     captureLoad();
-    if (c.lastClosed !== c.pos) c.lastClosed = undefined;
     const before = c.setsDone[c.pos];
     if (before < it.sets) c.setsDone[c.pos] = before + 1;
     const done = c.setsDone[c.pos];
@@ -6474,12 +6737,22 @@ function addExtraSet(pos) {
   if (!it) return;
   const k = it.perSide ? 2 : 1;
   it.sets += k; it.extraSets = (it.extraSets || 0) + k;
-  c.lastClosed = undefined;
-  c.pos = pos; saveResume(); renderSession(); window.scrollTo(0, 0);
+  const moved = c.pos !== pos;
+  c.pos = pos; saveResume(); renderSession(); if (moved) window.scrollTo(0, 0);
+}
+/* Toglie una serie in più non ancora fatta (aggiunta per sbaglio). */
+function removeExtraSet(pos) {
+  const c = current;
+  if (!c || c.finished) return;
+  const it = c.sess.items[pos];
+  if (!it || !it.extraSets) return;
+  const k = it.perSide ? 2 : 1;
+  if (it.sets - k < c.setsDone[pos]) { showToast('<div>Quella serie è già stata fatta: resta registrata.</div>'); return; }
+  it.sets -= k; it.extraSets -= k;
+  saveResume(); renderSession();
 }
 function concludeExercise(inChain) {
   const c = current, s = c.sess;
-  c.lastClosed = c.pos;                    // (8.7) per offrire «una serie in più»
   const it = s.items[c.pos], ex = exById(it.exId);
   const last = nextOpenAfter(c, c.pos) < 0;
   if (!inChain) stopTimer();
@@ -6611,9 +6884,11 @@ function applyReview() {
   const v = $('#view-session');
   if (!v) return;
   v.insertAdjacentHTML('afterbegin', `<div class="notice reviewnote">Seduta finita. Prima di chiuderla puoi <b>correggere carichi e ripetizioni</b> toccando le righe delle serie (✎), <b>aggiungere una nota</b> all'esercizio e scorrere agli altri esercizi per controllarli.</div>`);
-  $('#actionBar').innerHTML = `<button class="btn" id="reviewDone">Chiudi la seduta</button>`;
+  $('#actionBar').innerHTML = `<button class="btn" id="reviewDone">Chiudi la seduta</button>
+    <button class="btn secondary" id="reviewMore">Esercizi in più</button>`;
   $('#actionBar').classList.add('on');
   $('#reviewDone').onclick = () => finishReview();
+  $('#reviewMore').onclick = () => openAddChoice();
 }
 function renderSession() {
   renderSessionCore();
@@ -6761,6 +7036,65 @@ function openExtraPicker(minutes) {
     closeModal(() => addExtraToSession(x.item));
   });
   $('#xClose').onclick = () => closeModal(() => { if (current && current.finished) endSession(); });
+}
+
+/* (8.11) Esercizi in più a scelta prima di chiudere la seduta: proposte sui
+   gruppi più indietro e tutto il catalogo, con ricerca; si aggiungono in coda
+   e si svolgono come gli altri, poi si torna alla revisione. */
+function extraItemFor(id) {
+  const ex = exById(id), meta = sessionMeta(S.sessionIndex);
+  if (!ex) return null;
+  if (ex.pattern === 'finisher') { const f = finisherItem(meta, ex.id); if (f) return Object.assign(f, { note: 'In più, a scelta' }); }
+  const legs = primaryGroups(ex).some(g => LEG_GROUPS.includes(g));
+  const goalKey = ex.type === 'stretch' ? 'stretch' : ex.type === 'core' ? 'core' : legs ? 'legTone' : 'hypertrophy';
+  return Object.assign({ exId: id, note: 'In più, a scelta', baseNote: 'In più, a scelta', goalKey, role: 'extra',
+    alt: { patterns: [ex.pattern], types: [ex.type] } }, dose(goalKey, meta.profile, ex));
+}
+function openAddChoice() {
+  let picked = [];
+  const sugg = (() => { try { return extraCandidates(10).map(x => x.item.exId); } catch (e) { return []; } })();
+  const draw = () => {
+    const q = (catQuery || '').trim().toLowerCase();
+    const inUse = new Set(current ? current.sess.items.map(i => i.exId) : []);
+    const all = catalogList().filter(ex => !inUse.has(ex.id) && !(ex.cardioModes || []).includes('mtb'));
+    const list = (q ? all : sugg.map(exById).filter(Boolean).concat(all.filter(e => !sugg.includes(e.id)))).slice(0, 60);
+    const rows = list.map(ex => `<li class="${picked.includes(ex.id) ? 'cur' : ''}" data-addex="${ex.id}">
+      <div class="fig">${figureFor(ex, 1, { ground: false })}</div>
+      <div class="nm"><b>${esc(ex.name)}</b>
+        <div class="small muted">${esc(ex.group)}${sugg.includes(ex.id) ? ' · proposto: gruppo indietro questa settimana' : ''}</div></div>
+      <button class="pick">${picked.includes(ex.id) ? '✓ scelto' : 'Aggiungi'}</button></li>`).join('');
+    openModal(`<h2>Esercizi in più</h2>
+      <p class="small muted">Scegli quelli che vuoi fare prima di chiudere: in cima le proposte per i gruppi più indietro questa settimana, poi tutto il catalogo. Si registrano come gli altri e contano nel volume.</p>
+      <input class="search" id="addSearch" type="search" placeholder="Cerca un esercizio" value="${esc(catQuery || '')}">
+      <ul class="picker">${rows}</ul>
+      <button class="btn" id="addGo" ${picked.length ? '' : 'disabled'}>Aggiungi ${picked.length || ''} eserciz${picked.length === 1 ? 'io' : 'i'}</button>
+      <button class="btn ghost" id="addNo" style="margin-top:10px">Annulla</button>`);
+    const fi = $('#addSearch');
+    fi.oninput = () => { catQuery = fi.value; draw(); setTimeout(() => { const e2 = $('#addSearch'); if (e2) { e2.focus(); e2.setSelectionRange(e2.value.length, e2.value.length); } }, 10); };
+    document.querySelectorAll('[data-addex]').forEach(li => li.onclick = () => {
+      const id = li.dataset.addex, i = picked.indexOf(id);
+      if (i >= 0) picked.splice(i, 1); else picked.push(id);
+      draw();
+    });
+    $('#addGo').onclick = () => { if (!picked.length) return; const items = picked.map(extraItemFor).filter(Boolean); closeModal(() => addExtrasToSession(items)); };
+    $('#addNo').onclick = () => closeModal();
+  };
+  draw();
+}
+function addExtrasToSession(items) {
+  const c = current;
+  if (!c || !items.length) return;
+  const first = c.sess.items.length;
+  items.forEach(item => {
+    c.sess.items.push(item);
+    c.setsDone.push(0); c.loads.push(''); c.feedback.push(null);
+    c.logRef.push(null); c.repsDone.push(null); c.rir.push(null); c.setLog.push([]);
+  });
+  c.review = false; c.finished = false;
+  c.pos = first;
+  c.sess.minutes = estimateMinutes(c.sess.items);
+  saveResume();
+  go('session'); renderSession(); window.scrollTo(0, 0);
 }
 
 /* Aggiunge l'esercizio in coda alla seduta e ci porta sopra: la seduta torna
@@ -7949,6 +8283,8 @@ function renderSettings() {
         <input type="checkbox" id="pullChk" ${S.pullupGoal ? 'checked' : ''}></div>
       ${SP() ? `<div class="switch"><span>Preparazione Spartan Race<br><span class="small muted">Sprint di ${esc(SP().place)}, ${spDateText()}: burpees e sospensione nella seduta a intervalli, corsa-camminata settimanale dal ${dateIt(isoNoon(SP().runFrom))}, Spartan Race check dopo ogni scarico. Forza A, B e C invariate. Dettagli in Progressi.</span></span>
         <input type="checkbox" id="spChk" ${S.spartan !== false ? 'checked' : ''}></div>` : ''}
+      ${TT() ? `<div class="switch"><span>Preparazione Tuscany Trail<br><span class="small muted">${dateIt(isoNoon(TT().event))}-${dateIt(isoNoon(TT().eventEnd))}: uscita in mountain bike ogni domenica, seduta a intervalli sulla bici da spinning, scarico pre-gara di due settimane. Dettagli in Progressi.</span></span>
+        <input type="checkbox" id="ttChk" ${S.tuscany !== false ? 'checked' : ''}></div>` : ''}
       <div class="field" style="margin-top:12px"><label>Ultima valutazione del fisioterapista</label>
         <input id="physioDate" type="date" value="${esc(S.physioDate || '')}"></div>
       <p class="small muted" style="margin:4px 0 0">Prima di togliere le spunte di ginocchio e spalla (che sbloccano burpee con salto e muscle-up) l'app te la ricorda.</p>
@@ -8074,6 +8410,7 @@ function renderSettings() {
   document.querySelectorAll('[data-unavoid]').forEach(b => b.onclick = () => { S.avoid = Object.assign({}, S.avoid); delete S.avoid[b.dataset.unavoid]; planCache = null; save(); renderSettings(); });
   $('#pullChk').onchange = e => { S.pullupGoal = e.target.checked; planCache = null; save(); };
   if ($('#spChk')) $('#spChk').onchange = e => { S.spartan = e.target.checked; planCache = null; save(); };
+  if ($('#ttChk')) $('#ttChk').onchange = e => { S.tuscany = e.target.checked; planCache = null; save(); };
   $('#finSel').onchange = e => { S.finisher = e.target.value; planCache = null; save(); };
   $('#groinChk').onchange = e => {
     if (e.target.checked) { S.groinCare = true; planCache = null; save(); return; }
@@ -9094,7 +9431,8 @@ function registerServiceWorker() {
         ? `${weekText(path.meta, { cap: true })} · ${days} giorni alla meta`
         : 'Ultima settimana del percorso: ci sei.') +
         // (8) conto alla rovescia della Spartan Race
-        (SP() && spPhase(Date.now()) !== 'off' ? ` · ${weeksToRace()} settimane alla Spartan` : '');
+        (SP() && spPhase(Date.now()) !== 'off' ? ` · ${weeksToRace()} settimane alla Spartan` : '') +
+        (TT() && ['build', 'taper'].includes(ttPhase(Date.now())) ? ` · ${ttWeeksTo()} al Tuscany Trail` : '');
     } catch (e) { gEl.textContent = ''; }
   }
   // (8.2) l'intro si sviluppa per intero a ogni avvio e resta a schermo

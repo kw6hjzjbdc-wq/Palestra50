@@ -1569,5 +1569,36 @@
    "Schumann et al. 2022, Sports Med 52(3) – allenamento concorrente: nessuna interferenza su ipertrofia e forza massima; forza esplosiva ridotta se nella stessa seduta"
   ],
   "simFrom": "2027-03-01"
+ },
+ "tuscany": {
+  "name": "Tuscany Trail",
+  "place": "Campiglia Marittima",
+  "event": "2027-05-19",
+  "eventEnd": "2027-05-25",
+  "start": "2026-11-02",
+  "taperFrom": "2027-05-05",
+  "firstMin": 90,
+  "stepMin": 15,
+  "minMin": 60,
+  "taperMin": 75,
+  "caps": [
+   {
+    "until": "2027-01-31",
+    "min": 150
+   },
+   {
+    "until": "2027-03-31",
+    "min": 210
+   },
+   {
+    "until": "2027-05-04",
+    "min": 300
+   }
+  ],
+  "loadedFrom": "2027-02-01",
+  "longLoaded": "2027-05-02",
+  "longLoadedAlt": "2027-04-11",
+  "spartanSunday": "2027-04-25",
+  "routes": "440 km (percorso lungo, edizione 2026) oppure 160 km (Newbie)"
  }
 }
