@@ -632,7 +632,10 @@
    ],
    "source": "NSCA – isolamento, ipertrofia",
    "shoulderRisk": true,
-   "rack": "machine"
+   "rack": "machine",
+   "focus": [
+    "chestAdd"
+   ]
   },
   {
    "id": "g_pushup",
@@ -2091,7 +2094,10 @@
     "Con carichi leggeri lavora ad alte ripetizioni (15-20) e tempo lento."
    ],
    "source": "ACSM – resistenza muscolare con carichi leggeri",
-   "rack": "home"
+   "rack": "home",
+   "focus": [
+    "chestAdd"
+   ]
   },
   {
    "id": "h_rowband",
@@ -7044,6 +7050,99 @@
     "Ginocchio: se il giorno dopo va peggio del solito, l'uscita successiva si accorcia."
    ],
    "source": "Preparazione Tuscany Trail: durate e progressione sono regole operative dell'app; consigli pratici degli organizzatori (guida 2027)"
+  },
+  {
+   "id": "g_squeezepress",
+   "name": "Squeeze press con manubri",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Petto",
+   "pattern": "pushH",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Gran pettorale"
+   ],
+   "secondary": [
+    "Tricipiti",
+    "Deltoide anteriore"
+   ],
+   "equipment": [
+    "Manubri",
+    "Panca"
+   ],
+   "art": {
+    "frames": [
+     "benchStart",
+     "benchEnd"
+    ],
+    "implement": "dumbbell1"
+   },
+   "steps": [
+    "Sdraiato sulla panca, due manubri uniti sopra il petto, palmi affacciati.",
+    "Premi i manubri uno contro l'altro per tutta la serie: è questa spinta verso l'interno che fa lavorare il petto in adduzione.",
+    "Scendi fino a sfiorare il petto e risali senza separarli."
+   ],
+   "errors": [
+    "Lasciare che i manubri si separino.",
+    "Inarcare la schiena."
+   ],
+   "safety": [
+    "Presa neutra e gomiti vicini al busto: in genere più comoda per la spalla delle croci."
+   ],
+   "source": "Regola operativa dell'app: lavoro in adduzione orizzontale, la funzione del gran pettorale (nessuno studio verificato su questo esercizio o sulla parte interna del petto)",
+   "rack": "dumbbell",
+   "focus": [
+    "chestAdd"
+   ]
+  },
+  {
+   "id": "h_squeezepress",
+   "name": "Squeeze press a terra con manubri leggeri",
+   "setup": [
+    "home"
+   ],
+   "type": "strength",
+   "group": "Petto",
+   "pattern": "pushH",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Gran pettorale"
+   ],
+   "secondary": [
+    "Tricipiti",
+    "Deltoide anteriore"
+   ],
+   "equipment": [
+    "Manubri"
+   ],
+   "art": {
+    "frames": [
+     "floorPressStart",
+     "floorPressEnd"
+    ],
+    "implement": "dumbbell1"
+   },
+   "steps": [
+    "Sdraiato a terra, manubri uniti sopra il petto, palmi affacciati.",
+    "Premi i manubri uno contro l'altro per tutta la serie.",
+    "Scendi fino a sfiorare il pavimento con i gomiti e risali senza separarli."
+   ],
+   "errors": [
+    "Lasciare che i manubri si separino.",
+    "Inarcare la schiena."
+   ],
+   "safety": [
+    "Presa neutra e gomiti vicini al busto: in genere più comoda per la spalla delle croci."
+   ],
+   "source": "Regola operativa dell'app: lavoro in adduzione orizzontale, la funzione del gran pettorale (nessuno studio verificato su questo esercizio o sulla parte interna del petto)",
+   "rack": "home",
+   "focus": [
+    "chestAdd"
+   ]
   }
  ]
 }

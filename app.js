@@ -693,7 +693,7 @@ const isAssist = ex => !!(ex && ex.assist);
    · manubri — rastrelliera da 2 a 40 kg; il numero annotato è il peso del
      SINGOLO manubrio, anche quando se ne usano due;
    · macchine, cavi e lat machine — pacco pesi da 10 a 120 kg a passi di 2,5;
-   · kettlebell — da 8 a 24 kg, un ferro ogni 2 kg;
+   · kettlebell — da 8 a 20 kg, un ferro ogni 2 kg (fino alla 8.11 erano 24);
    · casa — manubri da 1 e 2 kg, usabili anche in coppia.
 
    Da queste scale discende anche il passo minimo: serve a non segnalare come
@@ -716,8 +716,8 @@ const RACKS = {
   barbell:  barbellScale(),
   dumbbell: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40],
   machine:  Array.from({ length: 45 }, (_, i) => 10 + i * 2.5),      // 10 → 120
-  // kettlebell della sala: da 8 a 24 kg, un ferro ogni 2 kg
-  kettlebell: Array.from({ length: 9 }, (_, i) => 8 + i * 2),         // 8 → 24
+  // kettlebell della sala: da 8 a 20 kg, un ferro ogni 2 kg
+  kettlebell: Array.from({ length: 7 }, (_, i) => 8 + i * 2),         // 8 → 20 (8.12: in sala non oltre 20 kg)
   home:     [1, 2, 3, 4]                                             // 1+2 kg, anche in coppia
 };
 const rackOf = ex => (ex && RACKS[ex.rack]) ? RACKS[ex.rack] : null;
@@ -747,7 +747,7 @@ function rackNote(ex) {
     case 'barbell':  return 'Bilanciere da 10 kg con dischi da 2, 5, 10 e 20 kg a coppie: 12 e 16 kg non sono componibili.' + (arguments[1] ? ' ' + platesText(arguments[1]) : '');
     case 'dumbbell': return 'Peso del singolo manubrio, dalla rastrelliera da 2 a 40 kg.';
     case 'machine':  return 'Pacco pesi da 10 a 120 kg, a scalini di 2,5 kg.';
-    case 'kettlebell': return 'Kettlebell da 8 a 24 kg, un ferro ogni 2 kg: il passo è fisso, non si compone.';
+    case 'kettlebell': return 'Kettlebell da 8 a 20 kg, un ferro ogni 2 kg: il passo è fisso, non si compone.';
     case 'home':     return 'Manubri da 1 e 2 kg, anche in coppia.';
     default: return '';
   }
@@ -802,13 +802,19 @@ const loadWord = ex => isAssist(ex) ? 'assistenza' : 'carico';
 /* Dalla 6.8 le prestazioni della settimana di scarico non sono dati di
    progressione: restano nello storico (nulla si cancella) ma non fanno da
    «ultima volta» per il carico suggerito, la regola 2-for-2 e le tenute. */
+/* (8.12) La seduta aperta non è «l'ultima volta»: ora l'esercizio si
+   registra appena finite le serie previste, mentre si decide se farne
+   un'altra, e il consiglio di carico non deve guardare sé stesso. */
+const openSid = () => (current && !current.finished ? current.started : null);
 function lastEntry(exId) {
-  for (let i = S.logs.length - 1; i >= 0; i--) if (S.logs[i].exId === exId && !isDeloadLog(S.logs[i])) return S.logs[i];
+  const sid = openSid();
+  for (let i = S.logs.length - 1; i >= 0; i--) { const l = S.logs[i]; if (l.exId === exId && !isDeloadLog(l) && (sid === null || l.sid !== sid)) return l; }
   return null;
 }
 function lastEntries(exId, n) {
   // (6.9) la serie di sedute valide per la regola 2-for-2 riparte da zero
-  return S.logs.filter(l => l.exId === exId && !isDeloadLog(l) && !isPreEpoch(l)).slice(-n);
+  const sid = openSid();
+  return S.logs.filter(l => l.exId === exId && !isDeloadLog(l) && !isPreEpoch(l) && (sid === null || l.sid !== sid)).slice(-n);
 }
 
 /* Vero se in quella registrazione hai superato l'obiettivo di 2+ ripetizioni. */
@@ -919,7 +925,7 @@ function rirOfGoal(goalKey) {
 function lastRealEntry(exId) {
   for (let i = S.logs.length - 1; i >= 0; i--) {
     const l = S.logs[i];
-    if (l && l.exId === exId && !l.planned && !isDeloadLog(l) && numLoad(l.load) > 0) return l;
+    if (l && l.exId === exId && !l.planned && !isDeloadLog(l) && numLoad(l.load) > 0 && !(openSid() !== null && l.sid === openSid())) return l;
   }
   return null;
 }
@@ -1441,6 +1447,23 @@ function rateLog(cur, prev, deload) {
   if (beyond && ratio >= 0.97 && ratio < expected - 0.005) {
     const mx = Math.max(...rowsC.map(r2 => +r2.reps));
     return { stars: 3, text: `Oltre l'obiettivo (${mx} ripetizioni contro ${tgtC} previste), come la volta scorsa: in linea con il programma. È il momento di salire di gradino o di carico.${goalShift}${shiftNote}` };
+  }
+  // (8.13) fatto come previsto: tutte le serie previste all'obiettivo di
+  // ripetizioni, con un carico non più basso della volta scorsa (o diverso
+  // perché l'obiettivo è cambiato). È esattamente quello che il programma
+  // chiede, quindi vale «in linea» (3 stelle) anche se la volta scorsa avevi
+  // fatto di più: le 4-5 stelle restano per chi va oltre o migliora.
+  const loadOk = (() => {
+    if (goalShift || targetShift || !ex || ex.load !== 'weight' || isAssist(ex)) return true;
+    const a = numLoad(cur.load), b0 = numLoad(prev.load);
+    return a === null || b0 === null || a >= b0 - 0.001;
+  })();
+  const met = !deload && tgtC > 0 && !(ex && ex.load === 'time') && rowsC && rowsC.length &&
+    rowsC.every(r2 => hasNum(r2.reps) && +r2.reps >= tgtC) && loadOk;
+  if (met && ratio < expected + 0.02) {
+    const load = numLoad(cur.load);
+    const dose = `${rowsC.length}×${tgtC}${load ? ` a ${String(load).replace('.', ',')} kg` : ''}`;
+    return { stars: 3, text: `Fatto come previsto: obiettivo raggiunto in tutte le serie (${dose}). In linea con il programma.${ratio < 0.97 ? ` La volta scorsa avevi fatto di più (${pct}% ${suRif(what)}): quando ti restano 2 ripetizioni, falle, perché due sedute oltre l'obiettivo fanno salire il carico.` : ''}${goalShift}${shiftNote}` };
   }
   if (ratio < 0.97) return { stars: goalShift ? 2 : 1, text: `Calo del ${Math.abs(pct)}% ${suRif(what)} rispetto alla volta scorsa.${goalShift}${shiftNote}` };
   if (ratio < expected - 0.005) return { stars: 2, text: expected > 1
@@ -3900,11 +3923,14 @@ function sessionVerdict(x) {
 function morningStatus() {
   const doneToday = S.sessionLog.filter(x => x.kind === 'morning' && sameDay(x.ts, Date.now())).pop();
   if (doneToday) return { done: true, entry: doneToday, verdict: sessionVerdict(doneToday) };
-  const lunchToday = S.sessionLog.filter(x => isProgramKind(x.kind) && sameDay(x.ts, Date.now())).pop();
-  // se il pranzo di oggi è già chiuso, l'indice punta a domani: il mattino di
-  // oggi è quello del giorno appena svolto
-  const idx = lunchToday && lunchToday.idx != null ? lunchToday.idx : S.sessionIndex;
-  const w = weekOfIdx(idx), day = posOfIdx(idx) + 1;
+  // (8.12) il giorno è quello del calendario (lunedì = 1 … sabato = 6), nella
+  // settimana del programma di oggi: prima si guardava l'ultima seduta
+  // registrata oggi, e una seduta della settimana prima chiusa (o saltata)
+  // stamattina faceva credere che oggi fosse il giorno della mobilità
+  const tp = todayPlan();
+  if (tp.rest) return { done: false, none: true, rest: true, w: tp.W, day: 7 };
+  const w = tp.stale ? weekOfIdx(S.sessionIndex) : tp.W;
+  const day = tp.stale ? posOfIdx(S.sessionIndex) + 1 : tp.q + 1;
   if (!morningAvail(w, day)) return { done: false, none: true, w, day };
   const m = buildMorning(w, day, S.morningMin || 10);
   return { done: false, w, day, m };
@@ -3938,9 +3964,14 @@ function todayPlan() {
   const SI = S.sessionIndex, wCur = weekOfIdx(SI), here = posOfIdx(SI);
   const monday = calendarMonday(), day = weekdayIdx();
   let W = wCur;
-  if (here === 0 && wCur > 1 && programWeekLogs(wCur - 1).some(x => x.ts >= monday)) W = wCur - 1;   // settimana finita in anticipo
+  // (8.12) inizio di una settimana del programma = la sua prima seduta vera
+  // (non una saltata): una seduta segnata o saltata stamattina per chiudere la
+  // settimana precedente non la fa diventare «la settimana di oggi»
+  const startOf = w => programWeekLogs(w).filter(x => !isSkipped(x)).reduce((m, x) => Math.min(m, x.ts || Infinity), Infinity);
+  const prevStart = here === 0 && wCur > 1 ? startOf(wCur - 1) : Infinity;
+  if (isFinite(prevStart) && prevStart >= monday) W = wCur - 1;   // settimana iniziata e finita in questa settimana di calendario
   else if (here > 0) {
-    const first = programWeekLogs(wCur).reduce((m, x) => Math.min(m, x.ts || Infinity), Infinity);
+    const first = startOf(wCur);
     if (first < monday) return { stale: true, W: wCur, here, left: weekLen(wCur) - here, day };
   }
   const len = weekLen(W);
@@ -4071,7 +4102,8 @@ const dashTile = (attr, id, kicker, cls, body) => `<button class="dtile ${cls}" 
 function morningTileBody(ms, full) {
   if (ms.done) return `<div class="dstat ok">Fatta ✓</div><p class="small">${esc(ms.verdict.text)} · ${ms.verdict.pct}% delle tenute · ${ms.verdict.minutes} min</p>
        <p class="small muted">Mobilità brevi della settimana: ${morningsDone(weekOfIdx(S.sessionIndex)).length} di ${MORNING_DAYS}.${full ? ' Puoi ripeterla o recuperarne una.' : ''}</p>`;
-  if (ms.none) return `<div class="dstat">Oggi niente</div><p class="small muted">Oggi c'è la seduta di mobilità del programma.${full ? ' Entra se vuoi recuperarne una saltata.' : ''}</p>`;
+  if (ms.none && ms.rest) return `<div class="dstat">Oggi niente</div><p class="small muted">Domenica: nessuna mobilità breve prevista.${full ? ' Entra se vuoi recuperarne una saltata.' : ''}</p>`;
+  if (ms.none) return `<div class="dstat">Oggi niente</div><p class="small muted">Oggi (${WEEKDAYS[ms.day - 1] || ''}) c'è la seduta di mobilità del programma.${full ? ' Entra se vuoi recuperarne una saltata.' : ''}</p>`;
   return `<div class="dstat todo">Da fare · ${ms.m.minutes} min</div><p class="small">${esc(ms.m.focusLabel || '')}</p>
          <p class="small muted">${Math.max(1, morningDaysOf(ms.w).indexOf(ms.day) + 1)}ª di ${MORNING_DAYS} della settimana · ${ms.m.items.length} esercizi a casa${full ? ', serve solo un tappetino' : ''}.</p>`;
 }
@@ -6047,10 +6079,16 @@ function renderSessionCore() {
   // (8.7 / 8.11) serie in più: si decide nella pagina dello stesso esercizio,
   // prima o dopo l'ultima serie prevista (aggiunta prima, l'ultima serie non
   // chiude più l'esercizio e si prosegue con quella in più)
-  const canExtra = !CARDIO_ROLES.includes(it.role) && ex.type !== 'stretch' && it.role !== 'finisher';
-  const extraHtml = canExtra
-    ? `<div class="extraline small"><span>${it.extraSets ? `${it.sets - it.extraSets} previste + ${it.extraSets} in più` : `${it.sets} serie previste`}.</span>
-        <span style="display:flex;gap:6px">${it.extraSets ? '<button class="btn ghost" id="extraLess" aria-label="Togli una serie in più">−</button>' : ''}<button class="btn ghost" id="extraHere">+ una serie in più</button></span></div>` : '';
+  const canExtra = extraOk(it, ex);
+  // (8.12) sotto il conteggio delle ripetizioni; finite le serie previste è una
+  // domanda: «una serie in più» o «esercizio successivo» (si passa oltre solo
+  // dopo la scelta)
+  const decide = canExtra && c.setsDone[c.pos] >= it.sets;
+  const extraHtml = !canExtra ? '' : decide
+    ? `<div class="extraline decide small"><span><b>Serie previste finite${it.extraSets ? ` (+${it.extraSets} in più)` : ''}.</b> Ne fai un'altra o passi al prossimo esercizio?</span>
+        <span style="display:flex;gap:6px;flex-wrap:wrap">${it.extraSets && c.setsDone[c.pos] < it.sets ? '<button class="btn ghost" id="extraLess">−</button>' : ''}<button class="btn ghost" id="extraHere">+ una serie in più</button><button class="btn" id="extraNext">Esercizio successivo ›</button></span></div>`
+    : `<div class="extraline small"><span>${it.extraSets ? `${it.sets - it.extraSets} previste + ${it.extraSets} in più` : `${it.sets} serie previste`}.</span>
+        <span style="display:flex;gap:6px">${it.extraSets ? '<button class="btn ghost" id="extraLess" aria-label="Togli una serie in più">−</button>' : ''}<button class="btn ghost" id="extraHere">+ una serie in più</button></span></div>`;
   // (8.3) dolore segnato su questo esercizio
   const painBox = it.pain ? `<div class="${it.pain.v >= PAIN_STRONG ? 'warnbox' : 'notice'} painbox">${PAIN_NAME[it.pain.part]} ${it.pain.v}/10 segnato alla serie ${it.pain.set + 1 > it.sets ? it.sets : it.pain.set + 1}: ${
     it.pain.v >= PAIN_STRONG ? 'fermati con questo esercizio: cambialo o chiudilo.' : it.pain.v >= PAIN_LIGHT ? 'serie rimanenti più leggere; la prossima volta l\'esercizio parte più leggero.' : 'lieve, continua se non sale.'}</div>` : '';
@@ -6071,7 +6109,6 @@ function renderSessionCore() {
       ${nota ? `<div class="exnote" id="noteShow">📌 ${esc(nota)}</div>` : ''}
 
       ${painBox}
-      ${extraHtml}
       ${warmupHtml(c, it, ex, sug, s)}
       <div class="setdots">${setBtns}</div>
       ${setRowsHtml(c.pos)}
@@ -6090,6 +6127,7 @@ function renderSessionCore() {
       ${c.setsDone[c.pos] > 0 && c.setsDone[c.pos] < it.sets && c.loads[c.pos] && ex.load === 'weight' ? `<p class="small muted" style="margin:6px 0 0">Serie ${c.setsDone[c.pos] + 1}: riparte dal carico dell'ultima serie (${esc(String(c.loads[c.pos]).replace('.', ','))} kg). Se vuoi salire o scendere, cambialo qui.</p>` : ''}
       ${repsCtl}
       ${rirCtl}
+      ${extraHtml}
       <p class="lasttime">${lastTxt}</p>
       ${jump}`}
 
@@ -6145,7 +6183,7 @@ function renderSessionCore() {
              : `Ho finito la serie ${nNext} di ${it.sets}${sideTag}`);
 
   $('#actionBar').innerHTML = `
-    <button class="btn ${timed && !allDone ? 'teal' : ''}" id="doneSet" ${timerRunning() ? 'disabled' : ''}>${doneLabel}</button>
+    <button class="btn ${timed && !allDone ? 'teal' : ''}" id="doneSet" ${timerRunning() && !allDone ? 'disabled' : ''}>${doneLabel}</button>
     <button class="btn secondary" id="nextBtn">${nextOpenAfter(c, c.pos) < 0 ? 'Chiudi seduta' : 'Chiudi esercizio'}</button>`;
   $('#actionBar').classList.add('on');
 
@@ -6195,6 +6233,7 @@ function renderSessionCore() {
   if ($('#loadIn')) $('#loadIn').onchange = () => { captureLoad(); saveResume(); renderSession(); };
   $('#dayPlanBtn').onclick = () => { captureLoad(); openDayPlan(); };
   if ($('#extraHere')) $('#extraHere').onclick = () => { captureLoad(); addExtraSet(c.pos); };
+  if ($('#extraNext')) $('#extraNext').onclick = () => { captureLoad(); stopTimer(); concludeExercise(); };
   if ($('#extraLess')) $('#extraLess').onclick = () => { captureLoad(); removeExtraSet(c.pos); };
   // (8.3) dolore durante l'esercizio
   $('#painBtn').onclick = () => { captureLoad(); openPainModal({
@@ -6214,6 +6253,8 @@ function renderSessionCore() {
   const closeSet = () => {
     captureLoad();
     const before = c.setsDone[c.pos];
+    // (8.12) serie già tutte fatte: il pulsante conclude, senza riscrivere l'ultima serie
+    if (before >= it.sets) { stopTimer(); concludeExercise(); return; }
     if (before < it.sets) c.setsDone[c.pos] = before + 1;
     const done = c.setsDone[c.pos];
     const rirNow = c.rir[c.pos];
@@ -6221,7 +6262,21 @@ function renderSessionCore() {
     // (8) la riserva si indica serie per serie: si riparte vuoti
     c.rir[c.pos] = null;
     saveResume();
-    if (done >= it.sets) { concludeExercise(); return; }
+    if (done >= it.sets) {
+      // (8.12) finite le serie previste si decide qui: serie in più o
+      // esercizio successivo. L'esercizio è già registrato; nel frattempo
+      // scorre il recupero nella barretta. In superserie con il compagno
+      // ancora da finire si alterna come prima.
+      const mi0 = ssMateIdx(c, c.pos);
+      const matePending = mi0 >= 0 && c.setsDone[mi0] < s.items[mi0].sets;
+      if (extraOk(it, ex) && !matePending) {
+        logExercise(c.pos); saveResume(); renderSession();
+        startTimer(finalRestOf(it, ex), 'Recupero · poi una serie in più o l\'esercizio successivo', null, 'rest', 0, { mini: true });
+        renderSession();
+        return;
+      }
+      concludeExercise(); return;
+    }
     // (8) recupero adattivo: +30 s dopo una serie al limite, -15 s con 3 o più di riserva
     const ad = adaptiveRest(it.rest, rirNow);
     // (8) superserie: si passa all'altro esercizio
@@ -6268,6 +6323,9 @@ function renderSessionCore() {
           recordSet(at, { hold: held });
           saveResume();
           if (current.setsDone[at] >= it.sets) {
+            // (8.12) esercizi a tempo di forza (plank, tenute): anche qui si
+            // decide se fare una tenuta in più prima di passare oltre
+            if (current.pos === at && extraOk(it, ex)) { logExercise(at); renderSession(); return true; }
             if (current.pos === at) { concludeExercise(true); return true; }
             logExercise(at);                   // registrato senza strapparti dalla schermata in cui sei
           }
@@ -6740,6 +6798,9 @@ function addExtraSet(pos) {
   const moved = c.pos !== pos;
   c.pos = pos; saveResume(); renderSession(); if (moved) window.scrollTo(0, 0);
 }
+/* (8.12) Esercizi per cui ha senso una serie in più: niente aerobico,
+   allungamenti e finale metabolico. */
+const extraOk = (it, ex) => !!it && !!ex && !CARDIO_ROLES.includes(it.role) && ex.type !== 'stretch' && it.role !== 'finisher' && !(ex.cardioModes || []).length && !TEST_GOALS.includes(it.goal) && !it.spCheck;
 /* Toglie una serie in più non ancora fatta (aggiunta per sbaglio). */
 function removeExtraSet(pos) {
   const c = current;
@@ -7690,9 +7751,10 @@ function migrateRatings() {
   // anche con un carico diverso da quello proposto
   // 8.8: ripetizioni prescritte diverse dalla volta scorsa = confronto con l'obiettivo
   // 8.10: obiettivo superato di 2+ ripetizioni senza calo = in linea
-  if (S.ratingsRev >= 8) return;
+  // 8.13: obiettivo raggiunto in tutte le serie = in linea (3 stelle)
+  if (S.ratingsRev >= 9) return;
   if (S.progressEpoch == null) { S.progressEpoch = computeProgressEpoch(); S.progressEpochTs = Date.now(); }
-  S.ratingsFixed = true; S.ratingsRev = 8;
+  S.ratingsFixed = true; S.ratingsRev = 9;
   [...new Set(S.logs.map(l => l.exId))].forEach(rerateExercise);
   save();
 }
@@ -8787,11 +8849,12 @@ function cachedTrack(spec) {
 }
 function cacheTrack(spec, url) {
   const k = bellKey(spec);
-  if (bellCache.some(x => x.k === k)) { URL.revokeObjectURL(url); return; }
+  // (8.12) l'URL può essere già in uso dall'audio: si libera più tardi
+  if (bellCache.some(x => x.k === k)) { setTimeout(() => { try { URL.revokeObjectURL(url); } catch (e) {} }, 15000); return; }
   bellCache.push({ k, url });
   while (bellCache.length > BELL_CACHE_MAX) {
     const old = bellCache.shift();
-    try { URL.revokeObjectURL(old.url); } catch (e) {}
+    setTimeout(() => { try { URL.revokeObjectURL(old.url); } catch (e) {} }, 15000);
   }
 }
 

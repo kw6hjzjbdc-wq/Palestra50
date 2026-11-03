@@ -602,7 +602,12 @@
       {
        "patterns": [
         "pushH"
-       ]
+       ],
+       "focus": [
+        "chestAdd"
+       ],
+       "loose": true,
+       "note": "Petto in adduzione (braccia verso il centro)"
       },
       {
        "patterns": [

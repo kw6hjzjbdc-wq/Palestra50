@@ -179,7 +179,7 @@ La scelta è legata alla **posizione nel programma**, non all'esercizio: resta s
 
 ### Kettlebell (dalla 5.12)
 
-In sala ci sono kettlebell **da 8 a 24 kg, un ferro ogni 2 kg**: è una scala a sé, con il suo passo minimo, e l'app la usa come già fa con bilanciere, manubri e macchine (il selettore del carico propone solo pesi che esistono davvero).
+In sala ci sono kettlebell **da 8 a 20 kg, un ferro ogni 2 kg** (corretto nella 8.12: prima 24): è una scala a sé, con il suo passo minimo, e l'app la usa come già fa con bilanciere, manubri e macchine (il selettore del carico propone solo pesi che esistono davvero).
 
 Tre esercizi nuovi, tutti compatibili con ginocchio e spalla:
 
@@ -212,6 +212,17 @@ Da *Oggi* (sotto il calendario), dalla pagina *Progressi* e dal riquadro *Il per
 ### Esercizi in più a fine seduta (dalla 5.8)
 
 Nel riepilogo di fine seduta, *Ho ancora tempo: aggiungi esercizi*. Si dichiara quanto tempo resta (5, 10 o 15 minuti) e l'app propone quattro esercizi sui **gruppi più indietro** rispetto al volume previsto per la settimana, con le serie che stanno davvero in quei minuti (tempo di preparazione compreso). Toccandone uno si torna nella seduta, che riprende da quell'esercizio e si chiude normalmente.
+
+### Stelle: «fatto come previsto» vale 3 (8.13)
+- Caso segnalato: panca piana con manubri 4×10 a 22 kg, esattamente la dose proposta, valutata 1 stella («calo del 5% sul massimale stimato») perché la volta scorsa erano state fatte 12 ripetizioni per serie. Il confronto guardava solo la volta precedente, non quanto l'app aveva chiesto.
+- Regola nuova: se tutte le serie previste raggiungono l'obiettivo di ripetizioni con un carico non più basso della volta scorsa (o diverso perché l'obiettivo è cambiato), la valutazione è almeno 3 stelle, «Fatto come previsto», con l'avviso se la volta scorsa era andata meglio (fare le ripetizioni di riserva fa scattare la regola 2-for-2). 4-5 stelle restano per chi va oltre o migliora il massimale stimato; sotto l'obiettivo valgono le regole di prima («stabile», «calo»); scarico, salti di carico e carichi alleggeriti per il dolore come prima. Ricalcolo una tantum (`S.ratingsRev` = 9), tocca solo il giudizio.
+
+### Oggi: settimana giusta il lunedì mattina; serie in più con la scelta; petto in adduzione; kettlebell fino a 20 kg (8.12)
+- **Lunedì mattina sbagliato** (errore della 8.7): se una seduta della settimana precedente veniva chiusa o saltata il lunedì mattina, `todayPlan` considerava ancora «di oggi» la settimana precedente e mostrava come «fatta» la Forza A del lunedì prima; la mobilità breve guardava l'ultima seduta registrata oggi e diceva «oggi c'è la seduta di mobilità». Ora una settimana del programma conta come «di questa settimana di calendario» solo se la sua prima seduta vera (non saltata) è di questa settimana, e la mobilità breve segue il giorno del calendario (lunedì = 1 … sabato = 6; domenica niente).
+- **Serie in più**: il riquadro sta sotto il conteggio delle ripetizioni (e della riserva). Finite le serie previste l'esercizio viene registrato, scorre il recupero nella barretta e compare la scelta «+ una serie in più» / «Esercizio successivo ›»: il passaggio avviene solo dopo la scelta (anche per le tenute a tempo di forza; non per aerobico, allungamenti, finale e test). In superserie, con il compagno ancora da finire, si alterna come prima. Il consiglio di carico non considera più la seduta aperta come «ultima volta» (`openSid`).
+- **Petto in adduzione** («inner chest»): in Forza C lo slot di spinta orizzontale diventa adduzione orizzontale (focus `chestAdd`): squeeze press con manubri (palestra e casa, esercizi nuovi), croci con manubri leggeri a casa, croci ai cavi senza precauzione spalla; con le precauzioni e senza alternative torna una spinta. Nessuna fonte verificata mostra che si possa far crescere selettivamente la parte interna del petto: lo slot assicura il lavoro nella funzione del muscolo (portare le braccia verso il centro), regola operativa dell'app.
+- **Kettlebell fino a 20 kg** (`RACKS.kettlebell` 8-20).
+- Audio del timer: l'URL della traccia si libera dopo 15 secondi invece che subito (evitava un errore quando due tracce uguali partivano insieme).
 
 ### Preparazione Tuscany Trail, serie in più nella stessa pagina, esercizi in più prima di chiudere (8.11)
 - **Tuscany Trail** (19-25 maggio 2027, Campiglia Marittima; 440 km nel 2026 o Newbie 160 km; `PROG.tuscany`, interruttore `S.tuscany`): dal 2 novembre 2026 ogni **domenica un'uscita in mountain bike** fuori dalle sei sedute (non fa avanzare la settimana; `S.mtbRides`, seduta `kind: 'mtb'`, minuti aerobici contati). Pagina dell'uscita con durata proposta, indicazioni e registrazione (durata, km, dislivello, bici carica, ginocchio); il giorno dopo l'app chiede del ginocchio. Progressione (regola operativa): 90′, +15′ dopo un'uscita completa con il ginocchio tranquillo la mattina dopo, −15′ se va peggio; tetti 150′ fino a gennaio, 210′ fino a marzo, 300′ fino al 4 maggio; scarico al 60%; niente uscita nel weekend della Spartan Race; uscita lunga con tutto il carico il 2 maggio (o l'11 aprile); borse piene da febbraio.

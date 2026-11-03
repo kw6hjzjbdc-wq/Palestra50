@@ -881,3 +881,6 @@ ul.plan li.isdone .nm b{color:var(--muted)}
   #rotateMsg b{font-size:22px}
   #rotateMsg p{margin-top:10px;max-width:420px;color:var(--muted,#93A7BC)}
 }
+/* (8.12) fine delle serie previste: la scelta in evidenza */
+.extraline.decide{flex-direction:column;align-items:stretch;border:1px solid var(--amber);background:rgba(245,165,36,.08)}
+.extraline.decide .btn{flex:1 1 auto}
