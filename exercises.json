@@ -4401,7 +4401,7 @@
   },
   {
    "id": "g_machinepress",
-   "name": "Shoulder press alla macchina, impugnature parallele",
+   "name": "Shoulder press alla macchina",
    "setup": [
     "gym"
    ],
@@ -4424,11 +4424,11 @@
      "ohpStart",
      "ohpEnd"
     ],
-    "implement": "grips"
+    "implement": "gripsPron"
    },
    "steps": [
-    "Regola il sedile in modo che le impugnature parallele siano all'altezza delle spalle.",
-    "Spingi verso l'alto senza bloccare i gomiti di scatto.",
+    "Regola il sedile in modo che le impugnature siano all'altezza delle spalle; presa prona (palmi in avanti), mani poco più larghe delle spalle.",
+    "Gomiti leggermente avanti rispetto al busto, non spalancati di lato; spingi verso l'alto senza bloccare i gomiti di scatto.",
     "Ritorna in 3 secondi fermandoti all'altezza delle spalle."
    ],
    "errors": [
@@ -4436,8 +4436,8 @@
     "Staccare la schiena dallo schienale per spingere di più."
    ],
    "safety": [
-    "Spalla: le impugnature parallele mantengono l'omero in rotazione neutra e la guida della macchina evita compensi quando l'esercizio si fa impegnativo.",
-    "Spalla: resta un movimento sopra la testa. Se la salita dà fastidio, fermati con le mani all'altezza delle orecchie o sostituiscilo con la distensione su panca a presa neutra."
+    "Spalla: la guida della macchina evita compensi quando l'esercizio si fa impegnativo. Con la presa prona tieni i gomiti un po' avanti e non scendere sotto la linea delle spalle (regola operativa dell'app).",
+    "Spalla: resta un movimento sopra la testa. Se la salita dà fastidio, fermati con le mani all'altezza delle orecchie o sostituiscilo con la distensione con manubri a presa neutra o con la distensione su panca a presa neutra."
    ],
    "source": "ACSM – macchine guidate per adulti over 50",
    "rack": "machine"

@@ -317,7 +317,7 @@ const exById = id => (DB.all || DB.exercises).find(e => e.id === id);
 const KNOWN_IMPLEMENTS = [
   null, 'spinBike', 'recumbent', 'barbell', 'barbellBack', 'dumbbells', 'dumbbell1', 'goblet', 'machine',
   'kettlebell', 'kettlebellGoblet',
-  'cable', 'wheel', 'platform', 'thighPad', 'grips', 'bar', 'barBand', 'pullbar',
+  'cable', 'wheel', 'platform', 'thighPad', 'grips', 'gripsPron', 'bar', 'barBand', 'pullbar',
   'bandVertical', 'bandTop', 'bandFront', 'bandBack', 'bandFeet', 'bandFoot',
   'bandKnees', 'bandAnkle', 'bandShoulder', 'bandSide', 'cableAnkle', 'machineBack'
 ];
@@ -417,6 +417,10 @@ function implementSvg(kind, p) {
     // impugnature parallele delle macchine guidate
     case 'grips':        return `<line x1="${h[0]}" y1="${h[1] - 6}" x2="${h[0]}" y2="${h[1] + 6}" class="imp" stroke-width="4" stroke-linecap="round"/>` +
                                 `<line x1="${h2[0]}" y1="${h2[1] - 6}" x2="${h2[0]}" y2="${h2[1] + 6}" class="imp" stroke-width="3" stroke-linecap="round"/>`;
+    // (8.14) impugnature in presa prona (palmi avanti), viste di lato: la
+    // maniglia orizzontale si vede di testa
+    case 'gripsPron':    return `<circle cx="${h[0]}" cy="${h[1]}" r="3.4" class="impf"/>` +
+                                `<circle cx="${h2[0]}" cy="${h2[1]}" r="2.8" class="impf"/>`;
     case 'cable':        return `<line x1="112" y1="6" x2="112" y2="100" class="imp" stroke-width="3"/>` + band(112, Math.min(h[1], 30));
     // sbarra per trazioni: barra orizzontale appena sopra le mani
     case 'bar':          return `<line x1="${h[0] - 30}" y1="${h[1] - 4}" x2="${h[0] + 26}" y2="${h[1] - 4}" class="imp" stroke-width="3.6" stroke-linecap="round"/>`;
@@ -806,15 +810,21 @@ const loadWord = ex => isAssist(ex) ? 'assistenza' : 'carico';
    registra appena finite le serie previste, mentre si decide se farne
    un'altra, e il consiglio di carico non deve guardare sé stesso. */
 const openSid = () => (current && !current.finished ? current.started : null);
+/* (8.14) Esercizio chiuso senza nessuna serie fatta (per esempio un
+   supplementare aggiunto e poi lasciato perdere): fino alla 8.13 finiva nello
+   storico con 0 serie e contava come una seduta a 0 ripetizioni. Dalla 8.14
+   non si registra più; quelli già salvati restano nello storico (nulla si
+   cancella) ma non entrano in confronti, stelle, grafici e conteggi. */
+const emptyLog = l => !!l && !l.planned && l.sets === 0;
 function lastEntry(exId) {
   const sid = openSid();
-  for (let i = S.logs.length - 1; i >= 0; i--) { const l = S.logs[i]; if (l.exId === exId && !isDeloadLog(l) && (sid === null || l.sid !== sid)) return l; }
+  for (let i = S.logs.length - 1; i >= 0; i--) { const l = S.logs[i]; if (l.exId === exId && !emptyLog(l) && !isDeloadLog(l) && (sid === null || l.sid !== sid)) return l; }
   return null;
 }
 function lastEntries(exId, n) {
   // (6.9) la serie di sedute valide per la regola 2-for-2 riparte da zero
   const sid = openSid();
-  return S.logs.filter(l => l.exId === exId && !isDeloadLog(l) && !isPreEpoch(l) && (sid === null || l.sid !== sid)).slice(-n);
+  return S.logs.filter(l => l.exId === exId && !emptyLog(l) && !isDeloadLog(l) && !isPreEpoch(l) && (sid === null || l.sid !== sid)).slice(-n);
 }
 
 /* Vero se in quella registrazione hai superato l'obiettivo di 2+ ripetizioni. */
@@ -880,6 +890,13 @@ function deloadCardHtml() {
 }
 
 function suggestLoad(ex, it) {
+  // (8.14) burpees: livello e ripetizioni li decide il blocco Spartan dal
+  // massimo di fila, non la regola 2-for-2
+  if (isBurpeeEx(ex)) {
+    const last = lastEntry(ex.id);
+    if (!last) return null;
+    return { last, twoForTwo: false, heldForDeload: false, value: (it && it.level) || burpeeState().level, reason: burpeeAdvice(), steps: levelsOf(ex) };
+  }
   // in settimana di scarico nessun aumento: si recupera a carico invariato
   const deloadNow = isDeloadWeek();
   const r = suggestLoadCore(ex, deloadNow, it);
@@ -925,7 +942,7 @@ function rirOfGoal(goalKey) {
 function lastRealEntry(exId) {
   for (let i = S.logs.length - 1; i >= 0; i--) {
     const l = S.logs[i];
-    if (l && l.exId === exId && !l.planned && !isDeloadLog(l) && numLoad(l.load) > 0 && !(openSid() !== null && l.sid === openSid())) return l;
+    if (l && l.exId === exId && !l.planned && !emptyLog(l) && !isDeloadLog(l) && numLoad(l.load) > 0 && !(openSid() !== null && l.sid === openSid())) return l;
   }
   return null;
 }
@@ -1012,7 +1029,8 @@ function suggestLoadCore(ex, deloadNow, it) {
   if (steps) {
     let i = steps.indexOf(last.load);
     if (i < 0) i = 0;
-    const canAdvance = dir > 0 ? i < steps.length - 1 : i > 0;
+    const cap = levelCap(ex, steps);
+    const canAdvance = dir > 0 ? i < cap : i > 0;
     const canEase    = dir > 0 ? i > 0 : i < steps.length - 1;
     if (twoForTwo && !tooHard && !atLimit && canAdvance) {
       i += dir;
@@ -1028,7 +1046,9 @@ function suggestLoadCore(ex, deloadNow, it) {
       info.reason = 'L\'ultima serie è finita al limite: consolida questo gradino prima di procedere.';
     } else {
       info.reason = twoForTwo
-        ? (!canAdvance && ex.nextEx && exById(ex.nextEx) ? `Hai completato tutti i gradini: passa a «${exById(ex.nextEx).name}» con «Cambia esercizio».` : 'Consolida su questo gradino.')
+        ? (!canAdvance && i >= steps.length - 1 && ex.nextEx && exById(ex.nextEx) ? `Hai completato tutti i gradini: passa a «${exById(ex.nextEx).name}» con «Cambia esercizio».`
+          : !canAdvance && dir > 0 && i >= cap && cap < steps.length - 1 ? 'Il gradino successivo non viene proposto per la priorità al ginocchio: si progredisce con le ripetizioni.'
+          : 'Consolida su questo gradino.')
         : 'Resta qui finché non superi l\'obiettivo di 2 ripetizioni per due sedute.';
     }
     return Object.assign(info, { value: steps[i], steps });
@@ -1311,6 +1331,58 @@ function goalShiftProposal(cur, prev) {
 /* (8.4) Registrazione con carico alleggerito per il dolore. */
 const painLightened = l => !!l && (!!l.painAdj || !!(l.pain && l.pain.v >= PAIN_LIGHT));
 
+/* (8.14) COSA FA SALIRE QUESTO ESERCIZIO, DETTO PER IL SUO TIPO
+   Prima la valutazione diceva a tutti «sali di gradino o di carico», anche
+   ai burpees, che non hanno carico e il cui gradino successivo (il salto) con
+   la priorità al ginocchio non viene proposto. Ora il consiglio dice quello
+   che l'app farà davvero la prossima volta, secondo il tipo di esercizio:
+   carico, assistenza, band, gradini (con i blocchi), ripetizioni, o — per i
+   burpees — il massimo di fila da cui si ricava la dose. Regola operativa
+   dell'app. */
+function burpeeAdvice() {
+  const b = burpeeState();
+  let t = `Nei burpees non ci sono carico né gradini da aggiungere a mano: le ripetizioni previste sono il 60-70% del tuo massimo di fila${b.n ? ` (ora ${b.n})` : ''} e salgono da sole quando una serie, o la verifica Spartan, supera quel massimo`;
+  if (b.next && b.L < b.maxL) t += `. Con ${b.next} di fila al livello attuale si passa a «${b.levels[b.L + 1]}»`;
+  else if (b.capped && b.L >= b.maxL) t += '. Il livello con il salto non viene proposto per la priorità al ginocchio';
+  return t + '.';
+}
+const isBurpeeEx = ex => { const sp = SP(); return !!(ex && sp && sp.burpee && ex.id === sp.burpee.exId); };
+/* Indice del gradino più alto che l'app può proporre (i burpees con la
+   priorità al ginocchio si fermano prima del salto). */
+function levelCap(ex, steps) {
+  if (isBurpeeEx(ex) && steps === levelsOf(ex)) return burpeeState().maxL;
+  return steps.length - 1;
+}
+function progressAdvice(ex, cur, prev) {
+  if (!ex) return '';
+  if (isBurpeeEx(ex)) return burpeeAdvice();
+  const two = beatTarget(cur) && beatTarget(prev);
+  const lead = two ? 'Seconda seduta di fila oltre l\'obiettivo: la prossima volta l\'app propone'
+                   : 'Se succede anche la prossima volta, l\'app propone';
+  if (ex.load === 'time') return '';
+  if (isAssist(ex)) return `${lead} meno assistenza.`;
+  if (ex.load === 'band') {
+    const i = BANDS.indexOf(cur.load);
+    return i >= 0 && i < BANDS.length - 1 ? `${lead} la band successiva («${BANDS[i + 1]}»).`
+      : 'Sei già alla band più dura: il progresso ora sono le ripetizioni.';
+  }
+  const lv = levelsOf(ex);
+  if (lv) {
+    const i = lv.indexOf(cur.load), cap = levelCap(ex, lv);
+    if (i >= 0 && i < cap) return `${lead} il gradino successivo («${lv[i + 1]}»).`;
+    const nx = ex.nextEx && exById(ex.nextEx);
+    if (i >= 0 && i >= lv.length - 1 && nx) return `Sei all'ultimo gradino: ${two ? 'puoi passare' : 'quando succede di nuovo, puoi passare'} a «${nx.name}» con «Cambia esercizio».`;
+    return 'Sei al gradino più alto che l\'app propone: il progresso ora sono le ripetizioni.';
+  }
+  if (ex.load === 'weight') {
+    const scale = rackOf(ex), n = numLoad(cur.load);
+    if (scale && n !== null && snapLoad(ex, n, 0) >= scale[scale.length - 1])
+      return 'Sei al carico più alto disponibile per questo attrezzo: il progresso ora sono le ripetizioni.';
+    return `${lead} il carico successivo disponibile (+2,5-5%).`;
+  }
+  return 'Esercizio a corpo libero senza gradini né carico: il progresso si misura nelle ripetizioni.';
+}
+
 function rateLog(cur, prev, deload) {
   const ex = exById(cur.exId);
   // allungamenti e mobilità non hanno un carico da confrontare: niente punteggio
@@ -1444,9 +1516,15 @@ function rateLog(cur, prev, deload) {
   const rowsC = setRows(cur), tgtC = hasNum(cur.repsTarget) ? +cur.repsTarget : null;
   const beyond = !deload && tgtC > 0 && !(ex && ex.load === 'time') && rowsC && rowsC.length &&
     rowsC.every(r2 => hasNum(r2.reps) && +r2.reps >= tgtC + 2);
-  if (beyond && ratio >= 0.97 && ratio < expected - 0.005) {
-    const mx = Math.max(...rowsC.map(r2 => +r2.reps));
-    return { stars: 3, text: `Oltre l'obiettivo (${mx} ripetizioni contro ${tgtC} previste), come la volta scorsa: in linea con il programma. È il momento di salire di gradino o di carico.${goalShift}${shiftNote}` };
+  // (8.14) andare oltre la dose prescritta è più di «in linea»: 4 stelle
+  // (5 se c'è anche un progresso netto sulla volta scorsa). Il consiglio dice
+  // cosa farà salire l'esercizio secondo il suo tipo, non «gradino o carico»
+  if (beyond && ratio >= 0.97) {
+    const reps = rowsC.map(r2 => +r2.reps), mx = Math.max(...reps), mn = Math.min(...reps);
+    const top = ratio > Math.max(expected + 0.05, 1 + SAFE_STEP / 2);
+    const vs = ratio < expected - 0.005 ? ', come la volta scorsa' : ratio > expected + 0.02 ? `, e +${pct}% ${suRif(what)} rispetto alla volta scorsa` : '';
+    const adv = progressAdvice(ex, cur, prev);
+    return { stars: top ? 5 : 4, text: `Sopra il previsto: ${mn === mx ? `${mx} ripetizioni in ogni serie` : `${mn}-${mx} ripetizioni per serie`} contro ${tgtC} previste${vs}.${adv ? ' ' + adv : ''}${goalShift}${shiftNote}` };
   }
   // (8.13) fatto come previsto: tutte le serie previste all'obiettivo di
   // ripetizioni, con un carico non più basso della volta scorsa (o diverso
@@ -1463,7 +1541,7 @@ function rateLog(cur, prev, deload) {
   if (met && ratio < expected + 0.02) {
     const load = numLoad(cur.load);
     const dose = `${rowsC.length}×${tgtC}${load ? ` a ${String(load).replace('.', ',')} kg` : ''}`;
-    return { stars: 3, text: `Fatto come previsto: obiettivo raggiunto in tutte le serie (${dose}). In linea con il programma.${ratio < 0.97 ? ` La volta scorsa avevi fatto di più (${pct}% ${suRif(what)}): quando ti restano 2 ripetizioni, falle, perché due sedute oltre l'obiettivo fanno salire il carico.` : ''}${goalShift}${shiftNote}` };
+    return { stars: 3, text: `Fatto come previsto: obiettivo raggiunto in tutte le serie (${dose}). In linea con il programma.${ratio < 0.97 ? ` La volta scorsa avevi fatto di più (${pct}% ${suRif(what)}): quando ti restano 2 ripetizioni, falle${isBurpeeEx(ex) ? '' : ': due sedute oltre l\'obiettivo fanno avanzare l\'esercizio'}.` : ''}${goalShift}${shiftNote}` };
   }
   if (ratio < 0.97) return { stars: goalShift ? 2 : 1, text: `Calo del ${Math.abs(pct)}% ${suRif(what)} rispetto alla volta scorsa.${goalShift}${shiftNote}` };
   if (ratio < expected - 0.005) return { stars: 2, text: expected > 1
@@ -1501,7 +1579,7 @@ const isCardioEx = ex => !!ex && (ex.pattern === 'cardio' || ex.pattern === 'fin
   !!(ex.cardioModes && ex.cardioModes.length) || /^f_/.test(ex.id));
 function isRatable(l) {
   const ex = exById(l.exId);
-  if (!ex || l.planned) return false;
+  if (!ex || l.planned || emptyLog(l)) return false;
   if (ex.type === 'stretch' || isCardioEx(ex)) return false;
   return !UNRATED_GOALS.includes(l.goal);
 }
@@ -1531,14 +1609,14 @@ function epochBaseline(exId) {
   if (S.progressEpoch == null) return null;
   for (let i = S.logs.length - 1; i >= 0; i--) {
     const l = S.logs[i];
-    if (l.exId === exId && isPreEpoch(l) && !l.planned && !isDeloadLog(l)) return l;
+    if (l.exId === exId && isPreEpoch(l) && !l.planned && !emptyLog(l) && !isDeloadLog(l)) return l;
   }
   return null;
 }
 /* Registrazioni che entrano nella linea e nella tendenza: il riferimento più
    quelle dopo la ripartenza, senza scarico e sedute segnate come fatte. */
 function progressLogs(exId, logs) {
-  const src = (logs || S.logs.filter(l => l.exId === exId)).filter(l => !l.planned && !isDeloadLog(l));
+  const src = (logs || S.logs.filter(l => l.exId === exId)).filter(l => !l.planned && !emptyLog(l) && !isDeloadLog(l));
   if (S.progressEpoch == null) return src;
   const base = epochBaseline(exId);
   return (base ? [base] : []).concat(src.filter(l => !isPreEpoch(l)));
@@ -1564,7 +1642,7 @@ function computeProgressEpoch() {
 function ratingRef(cur, candidates) {
   const test = TEST_GOALS.includes(cur.goal);
   // le registrazioni della settimana di scarico non fanno mai da riferimento
-  const c = (candidates || []).filter(l => l !== cur && l.exId === cur.exId && !l.planned && !isDeloadLog(l) &&
+  const c = (candidates || []).filter(l => l !== cur && l.exId === cur.exId && !l.planned && !emptyLog(l) && !isDeloadLog(l) &&
     !(cur.sid != null && l.sid === cur.sid) && TEST_GOALS.includes(l.goal) === test);
   // (8.4) una seduta alleggerita per il dolore non fa da riferimento (il
   // ritorno al carico normale sembrerebbe un progresso); se è l'unica, vale lei
@@ -1583,7 +1661,7 @@ function plannedPart(l) {
 function rateFor(cur0, candidates0) {
   const cur = plannedPart(cur0);
   const candidates = (candidates0 || []).map(l => l === cur0 ? cur : plannedPart(l));
-  if (!isRatable(cur)) return { stars: 0, text: cur.planned ? 'Segnata come fatta alle dosi previste: senza dati reali non c\'è valutazione.' : '' };
+  if (!isRatable(cur)) return { stars: 0, text: cur.planned ? 'Segnata come fatta alle dosi previste: senza dati reali non c\'è valutazione.' : emptyLog(cur) ? 'Nessuna serie fatta: resta nello storico ma non conta nella progressione.' : '' };
   // (6.9) prima della ripartenza: fuori dal conteggio, fa solo da riferimento
   if (isPreEpoch(cur)) {
     const base = epochBaseline(cur.exId) === cur;
@@ -2254,11 +2332,21 @@ function buildStrength(meta, budget) {
 
   // a 50 minuti una decina di minuti restano riservati al finale
   // metabolico: il resto della seduta si adatta al tempo che rimane
+  // (8.14) a 40-45 minuti, se servono per i 150′ aerobici della settimana,
+  // il finale metabolico si aggiunge in fondo, oltre la durata scelta: gli
+  // esercizi del programma restano tutti (a 45 minuti ci stanno per intero)
+  const aeroNeed = !!fin && budget < 50 && aeroFinisherNeed(meta, budget);
   const reserve = (fin && budget >= 50) ? FINISHER_RESERVE : 0;
   // (8) con 35 minuti i complementari vanno in superserie
   if (budget <= 35) pairSupersets(items);
   const trimmed = fitToTime(items, budget - reserve, pullTail);
-  fillToTime(items, budget, { extras, finisher: fin, tail: pullTail, reserve });
+  fillToTime(items, budget, { extras, finisher: aeroNeed ? null : fin, tail: pullTail, reserve });
+  if (aeroNeed && !items.includes(fin)) {
+    const add = Math.round((fin.sets * fin.hold + (fin.sets - 1) * fin.rest + CHANGE_SEC.finisher) / 60);
+    fin.aero = true;
+    fin.note = `Per i 150′ aerobici della settimana · circa ${add}′ oltre la durata scelta: se non hai tempo, chiudilo`;
+    items.push(fin);
+  }
   finalizeSupersets(items);
   // (8.11) scarico pre-gara del Tuscany Trail: due settimane, volume ridotto
   // di circa il 40% (fascia 41-60% di Bosquet et al. 2007), intensità e
@@ -3473,18 +3561,100 @@ function spartanSim(meta, used) {
 /* Minuti aerobici della settimana, nel conto dell'OMS: un minuto vigoroso
    (scatti, finale metabolico) vale due minuti moderati. Riscaldamento e
    defaticamento non contano. */
-function aerobicMinutes(weekAbs) {
+/* Minuti moderati e vigorosi di un blocco (registrato o previsto). */
+function aeroOf(goal, ex, sets, hold, rest) {
+  if (!ex || (ex.pattern !== 'cardio' && ex.pattern !== 'finisher')) return null;
+  if (goal === 'cardioWarm' || goal === 'cardioCool') return null;
+  if (!sets || !hold) return null;
+  if (goal === 'cardioSteady' || sets === 1) return { mod: sets * hold / 60, vig: 0 };
+  return { mod: Math.max(0, sets - 1) * (rest || 0) / 60, vig: sets * hold / 60 };
+}
+function aeroSum(list) {
   let mod = 0, vig = 0;
-  weekLogs(weekAbs).forEach(l => {
-    const ex = exById(l.exId);
-    if (!ex || (ex.pattern !== 'cardio' && ex.pattern !== 'finisher')) return;
-    if (l.goal === 'cardioWarm' || l.goal === 'cardioCool') return;
-    const sets = l.sets || 0, hold = l.hold || 0, rest = l.rest || 0;
-    if (!sets || !hold) return;
-    if (l.goal === 'cardioSteady' || sets === 1) mod += sets * hold / 60;
-    else { vig += sets * hold / 60; mod += Math.max(0, sets - 1) * rest / 60; }
-  });
+  list.forEach(x => { if (x) { mod += x.mod; vig += x.vig; } });
   return { mod: Math.round(mod), vig: Math.round(vig), eq: Math.round(mod + 2 * vig) };
+}
+function aerobicMinutes(weekAbs) {
+  return aeroSum(weekLogs(weekAbs).map(l => aeroOf(l.goal, exById(l.exId), l.sets || 0, l.hold || 0, l.rest || 0)));
+}
+const itemsAerobic = items => aeroSum((items || []).map(it => aeroOf(it.goal, exById(it.exId), it.sets || 0, it.hold || 0, it.rest || 0)));
+
+/* ---------------------------------------------------------------------------
+   150 MINUTI AEROBICI A SETTIMANA (dalla 8.14, priorità dell'utente)
+   Riferimento: OMS 2020 (Bull et al., Br J Sports Med 54:1451-1462): per gli
+   adulti 150-300 minuti a intensità moderata o 75-150 vigorosa a settimana,
+   o una combinazione equivalente (un minuto vigoroso vale due moderati).
+   Previsione della settimana del programma = minuti già fatti + sedute
+   aerobiche ancora da fare + uscita in MTB della domenica (se in programma e
+   non ancora registrata). Se non arriva a 150, le sedute di forza rimaste
+   nella settimana riservano il tempo al finale metabolico (anche a 40-45
+   minuti, togliendo per primi i complementari), quante ne servono per
+   colmare la differenza. Non in settimana di scarico, di sola mobilità, di
+   scarico pre-Tuscany Trail o dell'evento: lì il volume più basso è voluto.
+   Regola operativa dell'app.
+--------------------------------------------------------------------------- */
+const AERO_TARGET = 150;
+/* Domenica della settimana di calendario che corrisponde alla settimana W
+   del programma (la settimana di oggi è quella di todayPlan). */
+function sundayOfWeek(W) {
+  const tp = todayPlan(), Wc = tp.W || weekOfIdx(S.sessionIndex);
+  return new Date(calendarMonday() + (6 + 7 * (W - Wc)) * DAY_MS + 12 * 3600000);
+}
+/* Minuti dell'uscita in MTB prevista nella settimana W (0 se non c'è, se è
+   già registrata — allora è fra i minuti fatti — o se è già passata). */
+function mtbPlannedMin(W) {
+  if (S.tuscany === false || !TT()) return 0;
+  const sun = sundayOfWeek(W);
+  if (!['build', 'taper'].includes(ttPhase(sun))) return 0;
+  const mon = sun.getTime() - 6 * DAY_MS - 12 * 3600000;
+  if (mtbRides().some(r => r.ts >= mon && r.ts < mon + 7 * DAY_MS)) return 0;
+  if (Date.now() > sun.getTime() + 12 * 3600000) return 0;
+  const pl = mtbPlanFor(sun);
+  return pl.skip || pl.event ? 0 : (pl.min || 0);
+}
+function aerobicForecast(W) {
+  const done = aerobicMinutes(W);
+  const i0 = weekStart(W), i1 = i0 + weekLen(W);
+  let cardio = 0;
+  const strength = [];
+  for (let idx = Math.max(i0, S.sessionIndex); idx < i1; idx++) {
+    const m = sessionMeta(idx);
+    if (m.isCardio) cardio += itemsAerobic(sessionFor(idx).items).eq;
+    else if (m.isStrength) strength.push(idx);
+  }
+  const mtb = mtbPlannedMin(W);
+  const meta0 = sessionMeta(Math.min(i1 - 1, Math.max(i0, S.sessionIndex)));
+  const sun = sundayOfWeek(W);
+  const protectedWeek = (meta0.profile && meta0.profile.label === 'Scarico') || isMobilityWeek(W) || ['taper', 'event'].includes(ttPhase(sun));
+  return { W, done, cardio, mtb, strength, base: done.eq + cardio + mtb, protectedWeek };
+}
+/* La seduta di forza idx deve tenere il finale metabolico per i 150′? */
+function aeroFinisherNeed(meta, budget) {
+  if (volProbe || !meta || !meta.isStrength || budget < 40 || meta.idx < S.sessionIndex) return false;
+  const fin = finisherItem(meta);
+  if (!fin) return false;
+  const f = aerobicForecast(meta.weekAbs);
+  if (f.protectedWeek || f.base >= AERO_TARGET) return false;
+  const per = Math.max(1, itemsAerobic([fin]).eq);
+  const k = Math.ceil((AERO_TARGET - f.base) / per);
+  const pos = f.strength.indexOf(meta.idx);
+  return pos >= 0 && pos < k;
+}
+/* Testo della previsione, per Oggi, la settimana e i Progressi. */
+function aeroForecastText(W) {
+  const f = aerobicForecast(W);
+  const fins = f.strength.filter(idx => (sessionFor(idx).items || []).some(it => it.role === 'finisher'));
+  const finEq = fins.reduce((a, idx) => a + itemsAerobic(sessionFor(idx).items.filter(it => it.role === 'finisher')).eq, 0);
+  const tot = f.base + finEq;
+  const parts = [`${f.done.eq}′ fatti`];
+  if (f.cardio) parts.push(`${f.cardio}′ nelle sedute aerobiche da fare`);
+  if (f.mtb) parts.push(`${f.mtb}′ di MTB domenica`);
+  if (finEq) parts.push(`${finEq}′ di finale metabolico in ${fins.length} ${fins.length === 1 ? 'seduta' : 'sedute'} di forza`);
+  let tail;
+  if (tot >= AERO_TARGET) tail = `previsione ${tot}′ su ${AERO_TARGET}: obiettivo a portata.`;
+  else if (f.protectedWeek) tail = `previsione ${tot}′ su ${AERO_TARGET}: settimana a volume ridotto per scelta, sotto i 150 va bene.`;
+  else tail = `previsione ${tot}′ su ${AERO_TARGET}: mancano ${AERO_TARGET - tot}′. ${f.strength.length ? 'Scegli 50 minuti nelle sedute di forza rimaste: il finale metabolico si allunga.' : 'Le sedute della settimana sono finite: ne riparliamo la prossima.'}`;
+  return { f, tot, text: `${parts.join(' · ')} → ${tail}` };
 }
 
 /* ---------------------------------------------------------------------------
@@ -4635,7 +4805,7 @@ function renderProg() {
 
   const aero = aerobicMinutes(weekOfIdx(S.sessionIndex));
   const vBody = `<div class="dstat">Settimana ${weekOfIdx(S.sessionIndex)}</div>
-    <p class="small">${aero.eq} minuti aerobici equivalenti su 150</p>
+    <p class="small">${aero.eq} minuti aerobici equivalenti su 150 · previsione ${(() => { try { return aeroForecastText(weekOfIdx(S.sessionIndex)).tot + '′'; } catch (e) { return '—'; } })()}</p>
     <p class="small muted">Serie per gruppo muscolare, riepiloghi settimanali, carichi esercizio per esercizio e ultime sedute.</p>`;
 
   const tile = (id, kicker, body) => `<button class="dtile" data-prog="${id}">
@@ -5539,6 +5709,7 @@ function weekTileBody() {
   const s = sessionMeta(S.sessionIndex), here = posOfIdx(S.sessionIndex);
   return `<div class="dstat">${s.phase ? esc(s.phase.ph.name) : 'Settimana ' + s.weekAbs}</div>
     <p class="small">${weekText(s, { cap: true })} · ${here} di ${s.days} sedute svolte</p>
+    ${(() => { try { const a = aeroForecastText(s.weekAbs); return `<p class="small">Aerobico: ${a.f.done.eq}′ fatti · previsione ${a.tot}′ su ${AERO_TARGET}${a.tot < AERO_TARGET && !a.f.protectedWeek ? ' ⚠︎' : ''}</p>`; } catch (e) { return ''; } })()}
     <p class="small muted">Le sedute di ogni giorno: spostale, scegli il blocco core o una seduta libera.</p>`;
 }
 
@@ -5606,7 +5777,7 @@ function renderHomeWeek() {
     week += `<li class="wk ${state}" data-day="${q}">
       <span class="wknum ${typeClass(alt)}">${q < here ? '✓' : q + 1}</span>
       <div class="nm"><b>${esc(alt.label)}</b>
-        <div class="small muted">${nDays === 6 ? WEEKDAYS[q] + ' · ' : ''}${typeWord(alt)} · ${alt.minutes} min${alt.items.some(i => i.block === 'pullup') ? ' · trazioni' : ''}${ck.length ? ' · Spartan Race check' : ''}${(nDays === 6 && alt.dayType === 'stretch' && q === nDays - 1) ? ' · di solito l\'ultima' : ''}</div></div>
+        <div class="small muted">${nDays === 6 ? WEEKDAYS[q] + ' · ' : ''}${typeWord(alt)} · ${alt.minutes} min${alt.items.some(i => i.block === 'pullup') ? ' · trazioni' : ''}${q >= here && alt.type !== 'cardio' && alt.items.some(i => i.role === 'finisher') ? ' · finale metabolico' : ''}${q >= here ? (() => { const e = itemsAerobic(alt.items).eq; return e ? ` · ${e}′ aerobici` : ''; })() : ''}${ck.length ? ' · Spartan Race check' : ''}${(nDays === 6 && alt.dayType === 'stretch' && q === nDays - 1) ? ' · di solito l\'ultima' : ''}</div></div>
       ${badge}</li>`;
   }
   // (8.11) domenica: uscita in mountain bike per il Tuscany Trail (fuori dalle sei sedute)
@@ -5638,6 +5809,7 @@ function renderHomeWeek() {
       ${weekIntroHtml(s)}
       <h2 style="margin-top:10px">Programma della settimana</h2>
       <ul class="week">${week}</ul>
+      ${(() => { try { const W = weekOfIdx(S.sessionIndex), a = aeroForecastText(W); return `<div class="${a.tot >= AERO_TARGET || a.f.protectedWeek ? 'notice' : 'warnbox'}" style="margin-top:10px"><b>Minuti aerobici: ${a.f.done.eq} su ${AERO_TARGET}</b><br><span class="small">${esc(a.text)}</span></div>`; } catch (e) { return ''; } })()}
       <p class="small muted" style="margin-top:10px">Le sedute corrispondono ai giorni da lunedì a sabato. Tocca una seduta per aprirla (quelle svolte mostrano risultati e valutazioni); «Seleziona» la rende la prossima da fare e quella prevista prende il suo posto. La mobilità è prevista per ultima, ma puoi farla in qualunque giorno.</p>
     </div>
     <button class="btn ghost backbottom" id="homeBack2">‹ Torna a Oggi</button>`;
@@ -6297,7 +6469,7 @@ function renderSessionCore() {
      Ogni tenuta completata conta una serie; le azioni sono legate a questo
      esercizio in questa posizione, così uno spostamento non fa contare le
      tenute sull'esercizio sbagliato. */
-  const runHolds = () => {
+  const runHolds = (lead) => {
     const atPos = c.pos, atSid = c.started, atIt = it, atEx = it.exId;
     const valid = () => current && !current.finished && current.started === atSid &&
       current.pos === atPos && current.sess.items[atPos] === atIt && atIt.exId === atEx;
@@ -6305,7 +6477,7 @@ function renderSessionCore() {
     const last = nextPos < 0;
     const nextName = last ? '' : exById(s.items[nextPos].exId).name;
     const side = k => it.perSide ? ' · ' + (k % 2 ? 'Dx' : 'Sx') : '';
-    const defs = holdChainDefs(it, ex, c.setsDone[c.pos], last);
+    const defs = holdChainDefs(it, ex, c.setsDone[c.pos], last, lead);
     defs.forEach((d, i) => {
       if (d.kind === 'work') {
         d.what = it.sets === 1 ? `${it.workLabel || 'Tenuta'} · ${ex.name}`
@@ -6321,7 +6493,15 @@ function renderSessionCore() {
           // tenuta», o allungato con +15 s, è quello che finisce nello storico
           const held = seg ? Math.max(1, Math.round((seg.end - seg.start) / 1000)) : it.hold;
           recordSet(at, { hold: held });
+          current.lastHold = { item: atIt, t: Date.now() };
           saveResume();
+          // (8.14) serie in più aggiunta mentre la catena girava: finite le
+          // tenute che la catena conosceva, si prosegue con pausa e tenuta in
+          // più senza dover toccare di nuovo il pulsante
+          if (current.setsDone[at] < it.sets && current.pos === at && chain && !chain.segs.slice(chain.idx).some(x => x.kind === 'work')) {
+            current.autoHold = { item: atIt, lead: it.rest };
+            stopTimer(); renderSession(); return true;
+          }
           if (current.setsDone[at] >= it.sets) {
             // (8.12) esercizi a tempo di forza (plank, tenute): anche qui si
             // decide se fare una tenuta in più prima di passare oltre
@@ -6351,7 +6531,7 @@ function renderSessionCore() {
         d.what = `${it.restLabel || 'Pausa'} · poi ${(it.workLabel || 'tenuta').toLowerCase()} ${nx.set + 1} di ${it.sets}${side(nx.set)}`;
       }
     });
-    defs[0].what = defs[1].what;                 // la preparazione annuncia la prima tenuta
+    if (defs[0].kind === 'prep') defs[0].what = defs[1].what;   // la preparazione annuncia la prima tenuta
     runChain(defs);
     renderSession();
   };
@@ -6372,6 +6552,7 @@ function renderSessionCore() {
           const held = Math.max(1, Math.round((Date.now() - seg.start) / 1000));
           current.setsDone[at] = Math.min(it.sets, current.setsDone[at] + 1);
           recordSet(at, { hold: held });
+          current.lastHold = { item: atIt, t: Date.now(), sw: true };
           saveResume();
           if (current.setsDone[at] >= it.sets) {
             if (current.pos === at) { concludeExercise(); return true; }
@@ -6383,6 +6564,14 @@ function renderSessionCore() {
     runChain(defs, { countUp: true });
     renderSession();
   };
+
+  // (8.14) serie in più su un esercizio a tempo: la catena riparte da sola
+  if (c.autoHold) {
+    const ah = c.autoHold; delete c.autoHold;
+    if (ah.item === it && timed && !allDone && !timerRunning()) setTimeout(() => {
+      if (current === c && !c.finished && c.sess.items[c.pos] === it && !timerRunning()) runHolds(ah.lead);
+    }, 0);
+  }
 
   if ($('#stopwatchBtn')) $('#stopwatchBtn').onclick = () => { if (!timerRunning()) { captureLoad(); runStopwatch(); } };
 
@@ -6575,7 +6764,7 @@ function openDayPlan() {
     const ex = exById(it.exId);
     if (!ex) return '';
     const doneN = c.setsDone[i] || 0, logged = c.logRef[i] !== null && c.logRef[i] !== undefined;
-    const state = i === c.pos ? 'in corso' : (!isOpenItem(c, i) ? 'fatto' : doneN ? `${doneN} di ${it.sets} serie` : 'da fare');
+    const state = i === c.pos ? 'in corso' : (c.logRef[i] === -1 && !doneN ? 'chiuso senza serie' : !isOpenItem(c, i) ? 'fatto' : doneN ? `${doneN} di ${it.sets} serie` : 'da fare');
     const ssHead = it.ss && it.ssRole === 'A' ? `<li class="sshead"><b>Superserie ${it.ssN || ''}</b> · una serie del primo, 20 s per spostarti, una serie del secondo, poi il recupero.</li>` : '';
     return ssHead + `<li data-dp="${i}" class="${it.ss ? 'ssrow' : ''}${i === c.pos ? ' now' : ''}${!isOpenItem(c, i) || logged ? ' isdone' : ''}">
       <div class="fig">${figureFor(ex, 1, { ground: false })}</div>
@@ -6794,7 +6983,24 @@ function addExtraSet(pos) {
   const it = c.sess.items[pos];
   if (!it) return;
   const k = it.perSide ? 2 : 1;
+  const ex = exById(it.exId);
+  const wasDone = c.setsDone[pos] >= it.sets;
   it.sets += k; it.extraSets = (it.extraSets || 0) + k;
+  // (8.14) esercizio a tempo con le tenute previste finite: la serie in più
+  // parte da sola alla fine della pausa che sta scorrendo (o, se la pausa è
+  // già finita, dopo quel che ne resta rispetto al recupero previsto), come
+  // nel conteggio normale. A cronometro no: lì si parte quando si è pronti.
+  if (wasDone && ex && isTimedItem(it, ex) && !(chain && chain.countUp) && !chainHasWork() && !(c.lastHold && c.lastHold.item === it && c.lastHold.sw)) {
+    let lead;
+    if (chain && chain.segs[chain.idx]) lead = (chain.segs[chain.idx].end - Date.now()) / 1000;
+    else {
+      const lh = c.lastHold && c.lastHold.item === it ? c.lastHold.t : 0;
+      lead = lh ? it.rest - (Date.now() - lh) / 1000 : 0;
+    }
+    lead = Math.round(lead);
+    c.autoHold = { item: it, lead: lead >= 3 ? lead : 0 };
+    stopTimer();
+  }
   const moved = c.pos !== pos;
   c.pos = pos; saveResume(); renderSession(); if (moved) window.scrollTo(0, 0);
 }
@@ -6850,6 +7056,12 @@ function painAdjAt(pos) {
 function logExercise(pos) {
   const c = current, s = c.sess;
   const it = s.items[pos];
+  // (8.14) nessuna serie fatta: niente registrazione. L'esercizio si segna
+  // come chiuso (-1) così non torna fra quelli da fare
+  if (!(c.setsDone[pos] > 0)) {
+    if (c.logRef[pos] === null || c.logRef[pos] === undefined) c.logRef[pos] = -1;
+    return;
+  }
   const ex0 = exById(it.exId);
   const timed0 = isTimedItem(it, ex0);
   // righe delle serie davvero chiuse; se una serie è stata segnata con i
@@ -7288,7 +7500,7 @@ function openSheet(ex, it, ctx) {
     ${S.exNotes[ex.id] ? `<div class="exnote" style="cursor:default">📌 ${esc(S.exNotes[ex.id])}</div>` : ''}
     <div class="block"><h3>Esecuzione</h3><ol>${ex.steps.map(s => `<li>${esc(s)}</li>`).join('')}</ol></div>
     ${ex.levels ? `<div class="block"><h3>Progressione</h3>
-      <p class="small muted">Gradini dal più facile al più difficile: si sale quando superi l'obiettivo di due ripetizioni per due sedute.</p>
+      <p class="small muted">${isBurpeeEx(ex) ? (() => { const sp = SP(), adv = (sp.burpee && sp.burpee.advance) || [15, 20]; return `Gradini dal più facile al più difficile: si sale con ${adv[0]} di fila al primo e ${adv[1]} al secondo${S.kneeCare ? '; con la priorità al ginocchio il salto non viene proposto' : ''}.`; })() : 'Gradini dal più facile al più difficile: si sale quando superi l\'obiettivo di due ripetizioni per due sedute.'}</p>
       <ol>${ex.levels.map(l => `<li>${esc(l)}</li>`).join('')}</ol></div>` : ''}
     <div class="block"><h3>Muscoli coinvolti</h3>
       <div class="tags">${ex.primary.map(m => `<span data-muscle="${esc(m)}">${esc(m)} ›</span>`).join('')}
@@ -7340,7 +7552,7 @@ function renderHistory() {
   $('#topChip').className = 'chip';
 
   const byEx = {};
-  S.logs.forEach(l => { (byEx[l.exId] = byEx[l.exId] || []).push(l); });
+  S.logs.forEach(l => { if (!emptyLog(l)) (byEx[l.exId] = byEx[l.exId] || []).push(l); });
   const keys = Object.keys(byEx).sort((a, b) =>
     byEx[b][byEx[b].length - 1].ts - byEx[a][byEx[a].length - 1].ts);
 
@@ -7361,7 +7573,11 @@ function renderHistory() {
     // parità di carico si vede, mentre prima il grafico restava piatto
     // la linea mostra le ultime 24 registrazioni: oltre non si legge nulla di
     // più e il calcolo cresce con lo storico, che a fine programma è lungo
-    const nums = seriesValues(logs.slice(-24)).vals.filter(n => isFinite(n));
+    // (8.14) stessa metrica, registrazione per registrazione, del grafico
+    // nel dettaglio dell'esercizio: prima qui si sceglieva una sola metrica
+    // per tutta la serie (il «lavoro totale» appena una seduta non aveva il
+    // massimale stimato) e la linea non somigliava a quella del dettaglio
+    const nums = chartValues(logs.slice(-24)).filter(n => isFinite(n));
     const e = e1rm(last);
     const nS = sessionsCount(all);
     return `<li data-ex="${k}">
@@ -7455,7 +7671,8 @@ function aerobicHtml(weekAbs, a) {
     <div class="volrow" style="margin-top:8px"><span class="nm">Settimana</span>
       <span class="volbar"><i class="${a.eq >= 150 ? 'good' : (a.eq < 75 ? 'low' : '')}" style="width:${pct}%"></i></span>
       <span class="val">${a.eq}<small class="muted"> / 150</small></span></div>
-    <p class="small muted" style="margin-top:6px">${a.vig} min di scatti · ${a.mod} min a ritmo moderato. Contano le sedute aerobiche e il finale metabolico; riscaldamento e defaticamento no.</p>
+    <p class="small muted" style="margin-top:6px">${a.vig} min di scatti · ${a.mod} min a ritmo moderato. Contano le sedute aerobiche, il finale metabolico e l'uscita in MTB; riscaldamento e defaticamento no.</p>
+    ${weekAbs === weekOfIdx(S.sessionIndex) ? (() => { try { return `<p class="small" style="margin-top:6px"><b>Settimana in corso:</b> ${esc(aeroForecastText(weekAbs).text)}</p>`; } catch (e) { return ''; } })() : ''}
   </div>`;
 }
 
@@ -7521,7 +7738,8 @@ function bindMeasures() {
 /* (8.6) Righe dei risultati di una seduta svolta (dettaglio in Progressi e
    seduta svolta in Oggi). */
 function sessionRowsHtml(logs) {
-  return logs.map(l => `<li>
+  return logs.map(l => emptyLog(l) ? `<li><div class="nm" style="flex:1"><b>${esc(l.name)}</b>
+        <div class="small muted">non fatto · nessuna serie, non conta nella progressione</div></div></li>` : `<li>
       <div class="nm" style="flex:1"><b>${esc(l.name)}</b>
         <div class="small muted">${Array.isArray(l.setLog) && l.setLog.length
           ? l.setLog.map(r => `${r.load && (numLoad(r.load) !== null || r.load !== l.load) ? String(r.load).replace('.', ',') + '×' : ''}${r.hold ? r.hold + 's' : r.reps + (numLoad(r.load) === null ? ' rip' : '')}${hasNum(r.rir) ? ` (${r.rir}${l.rirUnit === 's' ? 's' : ''})` : ''}`).join(' · ')
@@ -7752,9 +7970,11 @@ function migrateRatings() {
   // 8.8: ripetizioni prescritte diverse dalla volta scorsa = confronto con l'obiettivo
   // 8.10: obiettivo superato di 2+ ripetizioni senza calo = in linea
   // 8.13: obiettivo raggiunto in tutte le serie = in linea (3 stelle)
-  if (S.ratingsRev >= 9) return;
+  // 8.14: obiettivo superato di 2+ ripetizioni in ogni serie = sopra il
+  // previsto (4 stelle); esercizi segnati senza serie fatte ignorati
+  if (S.ratingsRev >= 10) return;
   if (S.progressEpoch == null) { S.progressEpoch = computeProgressEpoch(); S.progressEpochTs = Date.now(); }
-  S.ratingsFixed = true; S.ratingsRev = 9;
+  S.ratingsFixed = true; S.ratingsRev = 10;
   [...new Set(S.logs.map(l => l.exId))].forEach(rerateExercise);
   save();
 }
@@ -8020,7 +8240,7 @@ function openWeekReport(weekAbs) {
     <div class="block" style="margin-top:16px"><h3 style="font-size:16px;color:var(--muted)">Obiettivi, misure e sensazioni</h3>${weekExtrasHtml(weekAbs)}</div>
     ${medals ? `<div class="block" style="margin-top:16px"><h3 style="font-size:16px;color:var(--muted)">Migliori traguardi</h3>${medals}</div>` : ''}
     <div class="block" style="margin-top:16px"><h3 style="font-size:16px;color:var(--muted)">Attività aerobica</h3>
-      <p class="small">${(() => { const a = aerobicMinutes(weekAbs); return `${a.eq} minuti equivalenti su 150 (${a.vig} di scatti, ${a.mod} moderati).${a.eq < 150 && !isMobilityWeek(weekAbs) ? ' Per arrivarci: completa le due sedute aerobiche e, quando hai 50 minuti, lascia il finale metabolico nelle sedute di forza.' : ''}`; })()}</p></div>
+      <p class="small">${(() => { const a = aerobicMinutes(weekAbs); return `${a.eq} minuti equivalenti su 150 (${a.vig} di scatti, ${a.mod} moderati).${a.eq < 150 && !isMobilityWeek(weekAbs) ? ' Per arrivarci: le due sedute aerobiche, l\'uscita in MTB della domenica e, quando servono, i finali metabolici che l\'app inserisce da sola nelle sedute di forza (o che entrano scegliendo 50 minuti).' : ''}`; })()}</p></div>
     ${vol ? `<div class="block" style="margin-top:16px"><h3 style="font-size:16px;color:var(--muted)">Serie per gruppo muscolare</h3>
       <p class="small muted">Serie fatte / previste dal programma. Diretta = 1, indiretta = ½. Tacca a 10: minimo raccomandato per l'ipertrofia (plateau verso 18-20); barra rossa sotto 5.</p>${vol}</div>` : ''}
     ${(() => { const f = fineMuscleHtml(weekAbs); return f ? `<div class="block" style="margin-top:16px"><h3 style="font-size:16px;color:var(--muted)">Muscoli specifici</h3>${f}</div>` : ''; })()}
@@ -8102,8 +8322,10 @@ function detailFor(exId, logs) {
 /* Grafico del dettaglio: due linee quando è possibile, il massimale stimato
    (piena) e il carico usato (tratteggiata), così si distingue un progresso di
    forza da un semplice aumento di peso. */
+/* (8.14) Valori della linea: gli stessi nel riepilogo e nel dettaglio. */
+const chartValues = logs => logs.map(l => { const m = progressMetric(l); return m ? m.v : NaN; });
 function bigChart(logs) {
-  const met = logs.map(l => { const m = progressMetric(l); return m ? m.v : NaN; });
+  const met = chartValues(logs);
   const raw = logs.map(l => { const v = logValue(l); return v === null ? NaN : v; });
   const vals = met.filter(n => isFinite(n));
   if (vals.length < 2) return `<p class="small muted">Servono almeno due sedute registrate per il grafico.</p>`;
@@ -8958,9 +9180,12 @@ const finalRestOf = (it, ex) => CARDIO_ROLES.includes(it.role) ? 10 : Math.max(i
 /* Catena delle tenute da "from" serie già fatte: preparazione di 3 s, poi
    tenuta / pausa / tenuta … e, se non è l'ultimo esercizio, il recupero
    conclusivo. */
-function holdChainDefs(it, ex, from, isLast) {
+function holdChainDefs(it, ex, from, isLast, lead) {
   const hold = holdOf(it, ex), n = Math.max(0, it.sets - from);
-  const defs = [{ kind: 'prep', dur: 3 }];
+  // (8.14) con «lead» la catena parte da una pausa (quella che stava già
+  // scorrendo quando hai chiesto una serie in più) invece che dai 3 secondi
+  // di preparazione: si prosegue come nel conteggio normale
+  const defs = [lead > 0 ? { kind: 'rest', dur: lead, lead: true } : { kind: 'prep', dur: 3 }];
   for (let k = 0; k < n; k++) {
     defs.push({ kind: 'work', dur: hold, set: from + k });
     if (k < n - 1) defs.push({ kind: 'rest', dur: it.rest });
