@@ -213,6 +213,11 @@ Da *Oggi* (sotto il calendario), dalla pagina *Progressi* e dal riquadro *Il per
 
 Nel riepilogo di fine seduta, *Ho ancora tempo: aggiungi esercizi*. Si dichiara quanto tempo resta (5, 10 o 15 minuti) e l'app propone quattro esercizi sui **gruppi più indietro** rispetto al volume previsto per la settimana, con le serie che stanno davvero in quei minuti (tempo di preparazione compreso). Toccandone uno si torna nella seduta, che riprende da quell'esercizio e si chiude normalmente.
 
+### Seduta di giovedì risultata «svolta»: riparazione a ogni avvio (8.17)
+- **Caso segnalato (4 novembre, sera).** Nel Programma della settimana l'aerobico di giovedì risultava «✓ svolta» senza essere stato fatto. È lo stesso doppione della 8.16: la seduta di mercoledì registrata due volte aveva fatto avanzare il programma di una seduta in più, e la vista della settimana segnava «svolta» ogni seduta precedente alla prossima da fare, anche senza nessuna registrazione.
+- **La riparazione della 8.16 ora gira a ogni avvio**, non una volta sola. È idempotente: la seduta doppia, una volta marcata `merged`, non viene più considerata. Riconosce il doppione anche quando la seconda registrazione non contiene esercizi veri, purché le due sedute siano nella stessa posizione del programma e nello stesso giorno, una vera e una alle dosi previste. Il programma torna indietro di una seduta.
+- **Settimana più sincera.** Una seduta passata senza nessuna registrazione mostra «?» e «non registrata», non più «✓ svolta». Se è l'ultima passata, toccandola si può rimettere fra quelle da fare: una via d'uscita per qualunque avanzamento del programma senza motivo.
+
 ### Seduta registrata due volte dopo il blocco: riparazione (8.16)
 - **Caso segnalato (4 novembre).** Dopo il blocco la seduta era stata chiusa con un identificativo nuovo. Ore dopo, all'apertura, l'app ha chiesto «una seduta è rimasta aperta» per gli esercizi fatti prima del blocco. Alla risposta «era la seduta del giorno» ha registrato la seduta una seconda volta: ha aggiunto alle dosi previste («segnata come fatta») tutti gli esercizi che non trovava con quell'identificativo, compresi shoulder press, dead bug, estensioni dei polsi e leg curl, fatti e registrati davvero dopo la riapertura, e ha fatto avanzare il programma di una seduta in più.
 - **Riparazione una tantum** (`S.dup816`):

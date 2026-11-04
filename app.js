@@ -5816,13 +5816,14 @@ function renderHomeWeek() {
     const alt = sessionFor(wStart + q);          // sola lettura: etichetta, tipo, minuti
     const state = q < here ? 'done' : (q === calQ || (calQ < 0 && q === here) ? 'now' : 'next');
     const lg = q < here ? (() => { const i = sessionLogIndexFor(wStart + q); return i >= 0 ? S.sessionLog[i] : null; })() : null;
-    const badge = q < here ? `<span class="wkbadge done">${lg && isSkipped(lg) ? 'saltata' : '✓ svolta'}</span>`
+    // (8.17) una seduta «passata» senza registrazione non è «svolta»: lo si dice
+    const badge = q < here ? (lg ? `<span class="wkbadge done">${isSkipped(lg) ? 'saltata' : '✓ svolta'}</span>` : '<span class="wkbadge alt">non registrata</span>')
                 : q === calQ ? '<span class="wkbadge">di oggi</span>'
                 : q === here ? '<span class="wkbadge alt">la prossima</span>'
                 : `<button class="selbtn" data-sel="${q}" aria-label="Sposta ${esc(alt.label)} come prossima">Seleziona</button>`;
     const ck = q >= here ? spCheckKinds(sessionMeta(wStart + q)) : [];
     week += `<li class="wk ${state}" data-day="${q}">
-      <span class="wknum ${typeClass(alt)}">${q < here ? '✓' : q + 1}</span>
+      <span class="wknum ${typeClass(alt)}">${q < here ? (lg ? '✓' : '?') : q + 1}</span>
       <div class="nm"><b>${esc(alt.label)}</b>
         <div class="small muted">${nDays === 6 ? WEEKDAYS[q] + ' · ' : ''}${typeWord(alt)} · ${alt.minutes} min${alt.items.some(i => i.block === 'pullup') ? ' · trazioni' : ''}${q >= here && alt.type !== 'cardio' && alt.items.some(i => i.role === 'finisher') ? ' · finale metabolico' : ''}${q >= here ? (() => { const e = itemsAerobic(alt.items).eq; return e ? ` · ${e}′ aerobici` : ''; })() : ''}${ck.length ? ' · Spartan Race check' : ''}${(nDays === 6 && alt.dayType === 'stretch' && q === nDays - 1) ? ' · di solito l\'ultima' : ''}</div></div>
       ${badge}</li>`;
@@ -5875,6 +5876,13 @@ function renderHomeWeek() {
   document.querySelectorAll('[data-day]').forEach(li => li.onclick = () => {
     const q = +li.dataset.day;
     if (q < here) { const i = sessionLogIndexFor(wStart + q); if (i >= 0) { openResult(i, 'week'); return; } }
+    // (8.17) l'ultima seduta «passata» ma senza nessuna registrazione: si può
+    // rimettere fra quelle da fare (il programma era avanzato senza motivo)
+    if (q === here - 1 && sessionLogIndexFor(wStart + q) < 0 && !S.logs.some(l => l && l.sIdx === wStart + q && !l.superseded)) {
+      confirmAction('Seduta non registrata', `«${sessionFor(wStart + q).label}» risulta passata ma non c'è nessuna registrazione. Se non l'hai fatta, torna fra quelle da fare.`,
+        'Rimettila da fare', () => { S.sessionIndex = wStart + q; planCache = null; save(); renderHome(); });
+      return;
+    }
     openDay(q);
   });
   $('[data-core]').onclick = () => { daySel = null; dayFrom = 'week'; homeSel = 'core'; homeView = 'lunch'; planCache = null; renderHome(); window.scrollTo(0, 0); };
@@ -8116,9 +8124,12 @@ function migrateInterrupted() {
    seduta vera, la seduta doppia è marcata «merged» e il programma torna
    indietro di una seduta (se nel frattempo non è stata fatta). */
 function repairDoubleSession() {
-  if (S.dup816) return;
+  // (8.17) a ogni avvio, non una volta sola: la riparazione è idempotente (la
+  // seduta doppia, una volta marcata «merged», non viene più considerata) e
+  // così vale anche se il doppione nasce dopo l'aggiornamento
   S.dup816 = true;
   const touched = new Set();
+  let changed = false;
   S.sessionLog.forEach(P => {
     if (!P || !P.planned || P.note !== 'Registrata a posteriori' || !isProgramKind(P.kind)) return;
     const cand = x => x !== P && x && x.sid != null && isProgramKind(x.kind) && !isSkipped(x) && !x.planned && sameDay(x.ts, P.ts);
@@ -8127,8 +8138,13 @@ function repairDoubleSession() {
     const R = S.sessionLog.find(x => cand(x) && x.idx === P.idx) ||
       S.sessionLog.find(x => cand(x) && x.idx != null && P.idx != null && weekOfIdx(x.idx) === weekOfIdx(P.idx) && S.sessionLog.indexOf(x) < S.sessionLog.indexOf(P));
     if (!R) return;
+    // (8.17) due sedute del programma nella stessa posizione e nello stesso
+    // giorno, una vera e una «alle dosi previste»: è un doppione anche senza
+    // esercizi veri nella seconda. Con posizioni diverse serve la prova degli
+    // esercizi veri della prima apertura
     const real = S.logs.filter(l => l && l.sid === P.sid && !l.planned);
-    if (!real.length) return;                    // seduta segnata a mano, non un doppione
+    if (R.idx !== P.idx && !real.length) return;
+    changed = true;
     S.logs.forEach(l => {
       if (!l || l.sid !== P.sid) return;
       if (l.planned) { l.superseded = true; l.supersededBy = R.sid; }
@@ -8140,8 +8156,8 @@ function repairDoubleSession() {
     const prevIdx = S.sessionIndex - 1;
     if (S.sessionIndex > 0 && !S.sessionLog.some(x => x && isProgramKind(x.kind) && x.idx === prevIdx)) S.sessionIndex--;
   });
-  if (touched.size) { touched.forEach(id => rerateExercise(id)); logsTouched && logsTouched(); planCache = null; }
-  save();
+  if (touched.size) { touched.forEach(id => rerateExercise(id)); logsTouched && logsTouched(); }
+  if (changed) { planCache = null; save(); }
 }
 
 /* Una sola volta, all'avvio della 4.6: corregge le sedute salvate prima
