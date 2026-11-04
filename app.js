@@ -815,7 +815,8 @@ const openSid = () => (current && !current.finished ? current.started : null);
    storico con 0 serie e contava come una seduta a 0 ripetizioni. Dalla 8.14
    non si registra più; quelli già salvati restano nello storico (nulla si
    cancella) ma non entrano in confronti, stelle, grafici e conteggi. */
-const emptyLog = l => !!l && !l.planned && l.sets === 0;
+// (8.16) anche le registrazioni «alle dosi previste» sostituite da quelle vere
+const emptyLog = l => !!l && (!!l.superseded || (!l.planned && l.sets === 0));
 function lastEntry(exId) {
   const sid = openSid();
   for (let i = S.logs.length - 1; i >= 0; i--) { const l = S.logs[i]; if (l.exId === exId && !emptyLog(l) && !isDeloadLog(l) && (sid === null || l.sid !== sid)) return l; }
@@ -1471,18 +1472,36 @@ function rateLog(cur, prev, deload) {
   // il salto va misurato sul carico effettivo, non sul massimale stimato:
   // aumentare le ripetizioni non è un rischio, aumentare il peso sì.
   // Sugli esercizi assistiti il salto è una riduzione troppo brusca dell'aiuto.
-  const la = logValue(cur), lb = logValue(prev);
-  if (la !== null && lb) {
+  const la = logValue(cur);
+  // (8.15) con ripetizioni prescritte diverse (o un obiettivo diverso) il
+  // riferimento non è il carico della volta scorsa ma quello che l'app
+  // proponeva per le ripetizioni di oggi: 85×6 dopo 60×12 non è un +42%
+  let lb = logValue(prev);
+  if ((goalShift || targetShift) && ex && ex.load === 'weight' && !isAssist(ex)) lb = goalShiftProposal(cur, prev) || null;
+  if (la !== null && lb && !cur._noJump) {
     const jump = isAssist(ex) ? (lb - la) / lb : (la - lb) / lb;
     // oltre il 10%, ma solo se la variazione supera anche il passo minimo
     // dell'attrezzo: altrimenti si segnalerebbe come imprudente proprio
     // l'incremento più piccolo che quella macchina consente
     const minStep = minStepFor(ex, lb);
     if (jump > SAFE_STEP && Math.abs(la - lb) > minStep + 0.001) {
+      // (8.15) salto fatto con almeno 2 ripetizioni di riserva anche nella
+      // serie più pesante: il carico di prima era troppo leggero (taratura),
+      // non un azzardo. Si valuta la prestazione come sempre e si aggiunge
+      // l'avviso, invece di fermare tutto a 3 stelle. Regola operativa dell'app.
+      if (!isAssist(ex) && !deload) {
+        const rows = setRows(cur) || [];
+        const top = rows.reduce((a, r) => (numLoad(r.load) !== null && (!a || numLoad(r.load) > numLoad(a.load))) ? r : a, null);
+        const rir = top && hasNum(top.rir) ? +top.rir : (hasNum(cur.rir) ? +cur.rir : null);
+        if (rir !== null && rir >= 2) {
+          const base = rateLog(Object.assign({}, cur, { _noJump: true }), prev, deload);
+          return Object.assign({}, base, { text: `${base.text} Carico salito del ${Math.round(jump * 100)}% ${goalShift || targetShift ? 'rispetto a quello proposto' : 'in una volta'}, oltre il 2-10% consigliato per singolo incremento, ma con ${rir} ripetizioni di riserva anche nella serie più pesante: il carico di prima era troppo leggero. Da qui in avanti, incrementi piccoli.` });
+        }
+      }
       return { stars: 3, warn: 'salto',
         text: isAssist(ex)
           ? `Assistenza ridotta del ${Math.round(jump * 100)}% in una volta: oltre la fascia del 2-10% consigliata per singolo passo.`
-          : `Carico aumentato del ${Math.round(jump * 100)}%: oltre la fascia del 2-10% consigliata per singolo incremento.`,
+          : `Carico aumentato del ${Math.round(jump * 100)}%${goalShift || targetShift ? ' rispetto a quello proposto per le ripetizioni di oggi' : ''}: oltre la fascia del 2-10% consigliata per singolo incremento.`,
         advice: isAssist(ex)
           ? 'Togli l\'aiuto un pacco alla volta: scendere troppo in fretta fa perdere le ultime ripetizioni pulite.'
           : 'Resta su questo carico almeno una seduta e verifica che la tecnica regga: la progressione lenta è quella che dura.' };
@@ -1541,7 +1560,7 @@ function rateLog(cur, prev, deload) {
   if (met && ratio < expected + 0.02) {
     const load = numLoad(cur.load);
     const dose = `${rowsC.length}×${tgtC}${load ? ` a ${String(load).replace('.', ',')} kg` : ''}`;
-    return { stars: 3, text: `Fatto come previsto: obiettivo raggiunto in tutte le serie (${dose}). In linea con il programma.${ratio < 0.97 ? ` La volta scorsa avevi fatto di più (${pct}% ${suRif(what)}): quando ti restano 2 ripetizioni, falle${isBurpeeEx(ex) ? '' : ': due sedute oltre l\'obiettivo fanno avanzare l\'esercizio'}.` : ''}${goalShift}${shiftNote}` };
+    return { stars: 3, text: `Fatto come previsto: obiettivo raggiunto in tutte le serie (${dose}). In linea con il programma.${ratio < 0.97 && !goalShift && !targetShift ? ` La volta scorsa avevi fatto di più (${pct}% ${suRif(what)}): quando ti restano 2 ripetizioni, falle${isBurpeeEx(ex) ? '' : ': due sedute oltre l\'obiettivo fanno avanzare l\'esercizio'}.` : ''}${goalShift}${shiftNote}` };
   }
   if (ratio < 0.97) return { stars: goalShift ? 2 : 1, text: `Calo del ${Math.abs(pct)}% ${suRif(what)} rispetto alla volta scorsa.${goalShift}${shiftNote}` };
   if (ratio < expected - 0.005) return { stars: 2, text: expected > 1
@@ -2348,6 +2367,7 @@ function buildStrength(meta, budget) {
     items.push(fin);
   }
   finalizeSupersets(items);
+  equalizeSupersets(items, budget);
   // (8.11) scarico pre-gara del Tuscany Trail: due settimane, volume ridotto
   // di circa il 40% (fascia 41-60% di Bosquet et al. 2007), intensità e
   // frequenza invariate; mai sotto 2 serie
@@ -2369,6 +2389,7 @@ function buildStrength(meta, budget) {
       items.filter(it => it === last || (last.ss && it.ss === last.ss)).forEach(it => items.splice(items.indexOf(it), 1));
     }
     finalizeSupersets(items);
+    equalizeSupersets(items, null, true);
   }
 
   const gLabel = meta.phase && PROG.goals[(meta.phase.ph.goals || [])[meta.tmplIdx]]
@@ -2556,6 +2577,30 @@ function presetSupersets(list) {
 }
 /* Dopo i tagli e le aggiunte: coppie ancora intere, una accanto all'altra,
    numerate nell'ordine della seduta, con la nota che dice come si svolgono. */
+/* (8.15) Superserie con lo stesso numero di giri. I due esercizi arrivano
+   con dosi proprie (obiettivi diversi, complementare con una serie in meno,
+   serie tolte per stare nei minuti) e capitava una superserie 3 + 2: l'ultimo
+   giro restava a metà. Si pareggia verso l'alto se i minuti lo consentono
+   (in superserie il secondo esercizio occupa il recupero del primo, quindi
+   costa poco), altrimenti verso il basso. Regola operativa dell'app. */
+// nel giro di superserie ogni serie è un turno (un esercizio per lato alterna
+// il lato a ogni giro): i giri sono le serie, pari se c'è un esercizio per lato
+const roundsOf = it => it.sets;
+function equalizeSupersets(items, budget, down) {
+  const est = () => estimateMinutes(items.filter(it => !it.aero));
+  const ids = [...new Set(items.filter(it => it.ss).map(it => it.ss))];
+  ids.forEach(id => {
+    const g = items.filter(it => it.ss === id);
+    if (g.length !== 2 || g[0].sets === g[1].sets) return;
+    const ps = g.some(it => it.perSide);
+    const even = n => ps && n % 2 ? n + 1 : n;
+    const old = g.map(it => it.sets);
+    const hiT = even(Math.max(...old));
+    let loT = Math.min(...old); if (ps && loT % 2) loT--; loT = Math.max(ps ? 2 : 1, loT);
+    if (!down) { g.forEach(it => { it.sets = hiT; }); if (!budget || est() <= budget) return; }
+    g.forEach(it => { it.sets = loT; });
+  });
+}
 function finalizeSupersets(items, opt) {
   const noMove = opt && opt.noMove;     // seduta in corso: le posizioni non si toccano
   const ids = [...new Set(items.filter(it => it.ss).map(it => it.ss))];
@@ -3680,7 +3725,8 @@ const sessLabel = x => String((x && x.label) || '').replace(/^Mattino · /, 'Mob
 // calendario, quindi l'indice avanza e lo storico resta allineato
 // 'extra': attività fuori programma registrate con la 6.11 (funzione poi tolta
 // nella 6.12). Restano nello storico ma non sono sedute del programma.
-const isProgramKind = k => k !== 'core' && k !== 'free' && k !== 'morning' && k !== 'extra' && k !== 'mtb';
+// 'merged' (8.16): seduta registrata due volte, unita a quella vera dello stesso giorno
+const isProgramKind = k => k !== 'core' && k !== 'free' && k !== 'morning' && k !== 'extra' && k !== 'mtb' && k !== 'merged';
 const isSkipped = x => x.kind === 'skipped';
 
 /* Giorni della settimana con la mobilità breve (dalla 6.10). Nella settimana
@@ -4024,6 +4070,7 @@ function orphanSessions() {
 }
 
 function fixOrphanSessions() {
+  linkInterrupted();                 // (8.16) prima si uniscono alla seduta chiusa dello stesso giorno
   const list = orphanSessions();
   if (!list.length) return;
   const o = list[0];
@@ -5519,7 +5566,7 @@ function liveCardioChange(exId, begun) {
     planCache = null;
     const ns = todaySession(null);
     if (!ns || !ns.items || !ns.items.length) return;
-    startSession(ns);
+    startSession(ns, { fresh: true });
     go('session'); renderSession();
     return;
   }
@@ -6094,12 +6141,60 @@ const RIR_HINT = {
   3: 'tre o più: c\'era margine'
 };
 
-function startSession(sess) {
+/* (8.15) SEDUTA INTERROTTA E RIAPERTA
+   Caso segnalato: l'app si blocca a metà seduta, si riavvia e si riparte dal
+   riquadro di Oggi invece che da «Riprendi». Prima nasceva una seduta nuova:
+   gli esercizi appena fatti tornavano da fare, con obiettivi ricalcolati su
+   quelli di un'ora prima, e a fine seduta i risultati mostravano solo gli
+   esercizi fatti dopo la riapertura (identificativo di seduta diverso).
+   Ora, aprendo la stessa seduta del programma nello stesso giorno:
+     · se c'è lo stato salvato, si riprende quello (serie, carichi, posizione);
+     · altrimenti si recuperano dallo storico gli esercizi già registrati
+       oggi per quella seduta non ancora chiusa: risultano fatti, e la seduta
+       continua con lo stesso identificativo, così i risultati li comprendono
+       tutti. */
+function interruptedFor(sess) {
+  if (!sess || ['core', 'free', 'morning'].includes(sess.kind) || sess.idx == null) return null;
+  if (current && !current.finished) return null;
+  const now = Date.now();
+  const r = resumableSession();
+  if (r && r.idx === sess.idx && (r.kind || null) === (sess.kind || null) && sameDay(r.ts, now) && !S.sessionLog.some(x => x.sid === r.started))
+    return { resume: r };
+  const closed = new Set(S.sessionLog.map(x => x.sid).filter(v => v != null));
+  const mine = S.logs.filter(l => l && l.sid != null && l.sIdx === sess.idx && !l.planned && !l.manual && !l.mtb && sameDay(l.ts, now) && !closed.has(l.sid));
+  if (!mine.length) return null;
+  const sid = mine[mine.length - 1].sid;
+  return { sid, logs: mine.filter(l => l.sid === sid) };
+}
+function startSession(sess, opt) {
+  const intr = !(opt && opt.fresh) ? interruptedFor(sess) : null;
+  if (intr && intr.resume) {
+    restoreSession(intr.resume);
+    showToast('<div><b>Seduta interrotta ripresa</b><br>Gli esercizi già fatti restano fatti.</div>', 3600);
+    return;
+  }
   current = { sess, pos: 0, setsDone: sess.items.map(() => 0), loads: sess.items.map(() => ''),
               feedback: sess.items.map(() => null), logRef: sess.items.map(() => null),
               repsDone: sess.items.map(() => null), rir: sess.items.map(() => null),
               setLog: sess.items.map(() => []),      // una riga per serie conclusa
               started: Date.now() };
+  if (intr && intr.logs) {
+    const c = current;
+    c.started = intr.sid;
+    intr.logs.forEach(l => {
+      const i = sess.items.findIndex((it, k) => it.exId === l.exId && c.logRef[k] === null);
+      if (i < 0) return;                       // esercizio cambiato: resta nei risultati con lo stesso identificativo
+      const it = sess.items[i];
+      if (l.sets > it.sets) { it.extraSets = (it.extraSets || 0) + (l.sets - it.sets); it.sets = l.sets; }
+      c.setsDone[i] = l.sets || 0;
+      c.logRef[i] = S.logs.indexOf(l);
+      c.setLog[i] = Array.isArray(l.setLog) ? l.setLog.map(r => Object.assign({}, r)) : [];
+      c.loads[i] = l.load || '';
+    });
+    const first = sess.items.findIndex((_, i) => isOpenItem(c, i));
+    c.pos = first >= 0 ? first : 0;
+    showToast('<div><b>Seduta interrotta ripresa</b><br>Gli esercizi registrati oggi risultano fatti.</div>', 3600);
+  }
   requestWakeLock();
   unlockAudio();
   prewarmBells(sess.items);        // tracce audio pronte prima della prima serie
@@ -7596,7 +7691,7 @@ function renderHistory() {
       <div class="val">${isCardioEx(ex) ? (min ? min + ' min' : '') : ''}</div><div class="chev">›</div></li>`;
   }).join('');
 
-  const sess = S.sessionLog.map((x, i) => [x, i]).slice(-10).reverse().map(pair => {
+  const sess = S.sessionLog.map((x, i) => [x, i]).filter(pr => pr[0] && pr[0].kind !== 'merged').slice(-10).reverse().map(pair => {
     const x = pair[0], i = pair[1];
     return `<li data-sess="${i}"><div class="nm" style="flex:1"><b>${esc(sessLabel(x))}</b>${isSkipped(x) ? ' <span class="wkbadge done">saltata</span>' : ''}
       <div class="small muted">${new Date(x.ts).toLocaleDateString('it-IT')}${isSkipped(x) ? '' : ' · ' + x.minutes + ' min'}${x.note ? ' · ' + esc(x.note) : ''}</div></div>
@@ -7647,11 +7742,11 @@ function renderHistory() {
    temporale della seduta. */
 function logsOfSession(x) {
   if (x.sid) {
-    const l = S.logs.filter(g => g.sid === x.sid);
+    const l = S.logs.filter(g => g.sid === x.sid && !g.superseded);
     if (l.length) return l;
   }
   const start = x.ts - (x.minutes + 3) * 60000;
-  return S.logs.filter(g => g.ts >= start && g.ts <= x.ts + 60000);
+  return S.logs.filter(g => g.ts >= start && g.ts <= x.ts + 60000 && !g.superseded);
 }
 
 /* Riepilogo completo di una seduta già chiusa. */
@@ -7972,10 +8067,80 @@ function migrateRatings() {
   // 8.13: obiettivo raggiunto in tutte le serie = in linea (3 stelle)
   // 8.14: obiettivo superato di 2+ ripetizioni in ogni serie = sopra il
   // previsto (4 stelle); esercizi segnati senza serie fatte ignorati
-  if (S.ratingsRev >= 10) return;
+  // 8.15: salto di carico con 2+ ripetizioni di riserva = taratura, non
+  // tetto a 3 stelle; con ripetizioni prescritte diverse il salto si misura
+  // sul carico proposto
+  if (S.ratingsRev >= 11) return;
   if (S.progressEpoch == null) { S.progressEpoch = computeProgressEpoch(); S.progressEpochTs = Date.now(); }
-  S.ratingsFixed = true; S.ratingsRev = 10;
+  S.ratingsFixed = true; S.ratingsRev = 11;
   [...new Set(S.logs.map(l => l.exId))].forEach(rerateExercise);
+  save();
+}
+
+/* (8.15 / 8.16) Esercizi di una seduta interrotta (app bloccata e riaperta)
+   rimasti con l'identificativo della prima apertura, mentre la seduta si è
+   chiusa con un identificativo nuovo. Si collegano alla seduta chiusa dello
+   stesso giorno e della stessa posizione del programma, così i risultati li
+   comprendono tutti. Dalla 8.16 a ogni avvio e prima della domanda «una
+   seduta è rimasta aperta» (che altrimenti la registrava una seconda volta).
+   Nulla si cancella: l'identificativo originale resta in sidOrig. */
+function linkInterrupted() {
+  const sids = new Set(S.sessionLog.map(x => x.sid).filter(v => v != null));
+  const open = new Set([S.resume && S.resume.started, current && !current.finished && current.started].filter(v => v != null));
+  let n = 0;
+  S.sessionLog.forEach(x => {
+    if (!x || x.sid == null || !isProgramKind(x.kind) || isSkipped(x) || x.planned) return;
+    S.logs.forEach(l => {
+      if (!l || l.sid == null || sids.has(l.sid) || open.has(l.sid) || l.sid === x.sid || l.planned || l.manual || l.mtb) return;
+      if (l.sIdx !== x.idx || !sameDay(l.ts, x.ts) || l.ts > x.ts) return;
+      l.sidOrig = l.sid; l.sid = x.sid; n++;
+    });
+  });
+  if (n) { logsTouched && logsTouched(); planCache = null; save(); }
+  return n;
+}
+function migrateInterrupted() {
+  if (!S.interrupted815) { S.interrupted815 = true; save(); }
+  linkInterrupted();
+  repairDoubleSession();
+}
+/* (8.16) Una sola volta. Caso del 4 novembre: dopo il blocco la seduta è
+   stata chiusa con un identificativo nuovo; ore dopo l'app ha chiesto «una
+   seduta è rimasta aperta» per gli esercizi della prima apertura e, alla
+   risposta «era la seduta del giorno», l'ha registrata UNA SECONDA VOLTA:
+   tutti gli esercizi mancanti «segnati come fatti alle dosi previste» (anche
+   quelli fatti davvero dopo la riapertura) e il programma avanzato di una
+   seduta in più. Qui: le registrazioni alle dosi previste di quella seduta
+   doppia restano nello storico ma marcate come sostituite (superseded: non
+   contano in nulla), gli esercizi veri della prima apertura passano alla
+   seduta vera, la seduta doppia è marcata «merged» e il programma torna
+   indietro di una seduta (se nel frattempo non è stata fatta). */
+function repairDoubleSession() {
+  if (S.dup816) return;
+  S.dup816 = true;
+  const touched = new Set();
+  S.sessionLog.forEach(P => {
+    if (!P || !P.planned || P.note !== 'Registrata a posteriori' || !isProgramKind(P.kind)) return;
+    const cand = x => x !== P && x && x.sid != null && isProgramKind(x.kind) && !isSkipped(x) && !x.planned && sameDay(x.ts, P.ts);
+    // stessa posizione del programma; in mancanza, la seduta vera dello stesso
+    // giorno e della stessa settimana chiusa PRIMA che nascesse il doppione
+    const R = S.sessionLog.find(x => cand(x) && x.idx === P.idx) ||
+      S.sessionLog.find(x => cand(x) && x.idx != null && P.idx != null && weekOfIdx(x.idx) === weekOfIdx(P.idx) && S.sessionLog.indexOf(x) < S.sessionLog.indexOf(P));
+    if (!R) return;
+    const real = S.logs.filter(l => l && l.sid === P.sid && !l.planned);
+    if (!real.length) return;                    // seduta segnata a mano, non un doppione
+    S.logs.forEach(l => {
+      if (!l || l.sid !== P.sid) return;
+      if (l.planned) { l.superseded = true; l.supersededBy = R.sid; }
+      else { l.sidOrig = l.sid; l.sid = R.sid; }
+      touched.add(l.exId);
+    });
+    P.realKind = P.kind; P.kind = 'merged'; P.mergedInto = R.sid;
+    P.label = `${P.label} · unita alla seduta del giorno`;
+    const prevIdx = S.sessionIndex - 1;
+    if (S.sessionIndex > 0 && !S.sessionLog.some(x => x && isProgramKind(x.kind) && x.idx === prevIdx)) S.sessionIndex--;
+  });
+  if (touched.size) { touched.forEach(id => rerateExercise(id)); logsTouched && logsTouched(); planCache = null; }
   save();
 }
 
@@ -8050,7 +8215,7 @@ function groupSetsOf(ex, sets) {
 const addInto = (acc, part) => Object.keys(part).forEach(g => { acc[g] = (acc[g] || 0) + part[g]; });
 
 function weekLogs(weekAbs) {
-  return S.logs.filter(l => l.sIdx != null && weekOfIdx(l.sIdx) === weekAbs);
+  return S.logs.filter(l => l.sIdx != null && !l.superseded && weekOfIdx(l.sIdx) === weekAbs);
 }
 
 /* Serie effettivamente completate nella settimana. */
@@ -9681,6 +9846,7 @@ function registerServiceWorker() {
   migrateRealign();
   seedPaceFromHistory();
   migrateRatings();
+  migrateInterrupted();
   applyLook();
   goToday();
   // l'intro si anima per 3 secondi e resta sull'ultimo fotogramma: sparisce solo

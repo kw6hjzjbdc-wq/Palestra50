@@ -213,6 +213,27 @@ Da *Oggi* (sotto il calendario), dalla pagina *Progressi* e dal riquadro *Il per
 
 Nel riepilogo di fine seduta, *Ho ancora tempo: aggiungi esercizi*. Si dichiara quanto tempo resta (5, 10 o 15 minuti) e l'app propone quattro esercizi sui **gruppi più indietro** rispetto al volume previsto per la settimana, con le serie che stanno davvero in quei minuti (tempo di preparazione compreso). Toccandone uno si torna nella seduta, che riprende da quell'esercizio e si chiude normalmente.
 
+### Seduta registrata due volte dopo il blocco: riparazione (8.16)
+- **Caso segnalato (4 novembre).** Dopo il blocco la seduta era stata chiusa con un identificativo nuovo. Ore dopo, all'apertura, l'app ha chiesto «una seduta è rimasta aperta» per gli esercizi fatti prima del blocco. Alla risposta «era la seduta del giorno» ha registrato la seduta una seconda volta: ha aggiunto alle dosi previste («segnata come fatta») tutti gli esercizi che non trovava con quell'identificativo, compresi shoulder press, dead bug, estensioni dei polsi e leg curl, fatti e registrati davvero dopo la riapertura, e ha fatto avanzare il programma di una seduta in più.
+- **Riparazione una tantum** (`S.dup816`):
+  - le registrazioni alle dosi previste di quella seduta doppia restano nello storico, marcate come sostituite (`superseded`), e non contano più in nulla: risultati, «ultima volta», stelle, volume, minuti aerobici, grafici;
+  - gli esercizi veri della prima apertura passano alla seduta vera, che ora li mostra tutti;
+  - la seduta doppia è marcata `merged`: non conta e non compare in «Ultime sedute»;
+  - il programma torna indietro di una seduta, se nel frattempo non è stata fatta.
+- **Prevenzione.** A ogni avvio, e prima di quella domanda, gli esercizi rimasti con l'identificativo della prima apertura si uniscono alla seduta chiusa dello stesso giorno e della stessa posizione (`linkInterrupted`): la domanda non nasce più per una seduta già chiusa. Insieme alla ripresa automatica della 8.15, il caso non si ripete.
+
+### Seduta interrotta e riaperta, superserie pari, salto di carico con margine (8.15)
+- **Seduta interrotta.** Caso segnalato: l'app si blocca a metà seduta, si riavvia e si riparte dal riquadro di Oggi. Prima nasceva una seduta nuova: gli esercizi appena fatti tornavano da fare, con obiettivi ricalcolati su quelli di un'ora prima, e i risultati di fine seduta mostravano solo gli esercizi fatti dopo la riapertura, perché l'identificativo della seduta era cambiato. Ora, aprendo la stessa seduta del programma nello stesso giorno:
+  - se c'è lo stato salvato, si riprende quello (serie, carichi, posizione);
+  - altrimenti gli esercizi già registrati oggi per quella seduta non ancora chiusa risultano fatti, e la seduta continua con lo stesso identificativo, quindi i risultati li comprendono tutti.
+  Le sedute già chiuse così (quella del 4 novembre) vengono ricollegate una volta sola all'avvio (`migrateInterrupted`). L'identificativo originale resta in `sidOrig` e nulla si cancella.
+- **Superserie con lo stesso numero di giri.** I due esercizi arrivano con dosi proprie (obiettivi diversi, una serie in meno al complementare, serie tolte per stare nei minuti), e capitava una superserie 3 + 2 con l'ultimo giro a metà. Ora si pareggia verso l'alto se i minuti lo consentono: in superserie il secondo esercizio occupa il recupero del primo, quindi costa poco. Altrimenti si pareggia verso il basso, e sempre verso il basso nello scarico pre-Tuscany Trail. Con un esercizio per lato (che alterna il lato a ogni giro) i giri restano pari. Regola operativa dell'app.
+- **Salto di carico.** Caso segnalato: shoulder press alla macchina 65×6 · 75×6 · 85×6, tutte con 2 ripetizioni di riserva, e 3 stelle per «carico aumentato del 42%». La regola del salto (oltre il 2-10% per incremento, indicazione ACSM) fermava ogni valutazione a 3 stelle, anche quando la serie più pesante lasciava margine. Ora:
+  - con almeno 2 ripetizioni di riserva nella serie più pesante il salto è una taratura (il carico di prima era troppo leggero): si valuta la prestazione come sempre e resta l'avviso a usare d'ora in poi incrementi piccoli;
+  - con meno margine, o senza riserva annotata, resta l'avviso a 3 stelle;
+  - con ripetizioni prescritte diverse dalla volta scorsa (per esempio 6 dopo 12) il salto si misura sul carico che l'app proponeva per le ripetizioni di oggi, non sul carico della volta scorsa.
+  Regola operativa dell'app. Ricalcolo una tantum (`S.ratingsRev` = 11).
+
 ### Serie in più a tempo che riparte da sola, 150′ aerobici, stelle e consigli per tipo di esercizio, esercizi senza serie, grafici allineati (8.14)
 - **Serie in più su un esercizio a tempo** (plank, tenute): toccando «+ una serie in più» durante il recupero, la catena prosegue come nel conteggio normale: finisce il recupero che restava e parte la tenuta, senza la preparazione e senza toccare di nuovo il pulsante. Se il recupero era già finito, si aspetta quel che resta della pausa prevista; aggiunta mentre la catena gira, la tenuta in più si accoda alle altre. A cronometro no: lì si parte quando si è pronti.
 - **Shoulder press alla macchina**: la macchina della palestra non ha impugnature parallele. Nome, istruzioni e disegno ora dicono presa prona (palmi avanti), gomiti un po' avanti, non sotto la linea delle spalle (regola operativa dell'app). Con la spalla delicata l'alternativa resta la spinta con manubri a presa neutra.
