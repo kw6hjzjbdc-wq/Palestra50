@@ -319,7 +319,8 @@ const KNOWN_IMPLEMENTS = [
   'kettlebell', 'kettlebellGoblet',
   'cable', 'wheel', 'platform', 'thighPad', 'grips', 'gripsPron', 'bar', 'barBand', 'pullbar',
   'bandVertical', 'bandTop', 'bandFront', 'bandBack', 'bandFeet', 'bandFoot',
-  'bandKnees', 'bandAnkle', 'bandShoulder', 'bandSide', 'cableAnkle', 'machineBack'
+  'bandKnees', 'bandAnkle', 'bandShoulder', 'bandSide', 'cableAnkle', 'machineBack',
+  'sandbag', 'medball', 'swissball', 'aerobicBar'
 ];
 const REQUIRED_FIELDS = ['id', 'name', 'setup', 'type', 'group', 'pattern', 'load',
                          'primary', 'equipment', 'art', 'steps', 'errors', 'safety', 'source'];
@@ -402,6 +403,14 @@ function implementSvg(kind, p) {
     case 'dumbbells':    return bell(h) + bell(h2);
     case 'dumbbell1':    return bell(h);
     case 'goblet':       return `<rect x="${n[0] - 4}" y="${n[1] + 4}" width="8" height="13" rx="2.5" class="impf"/>`;
+    // (8.21) sacca di potenza abbracciata al petto
+    case 'sandbag':      return `<rect x="${h[0] - 9}" y="${h[1] - 5}" width="18" height="11" rx="5" class="impf"/>`;
+    // (8.21) palla medica fra le mani
+    case 'medball':      return `<circle cx="${h[0] + 2}" cy="${h[1]}" r="4.6" class="impf"/>`;
+    // (8.21) palla svizzera sotto i talloni
+    case 'swissball':    return `<circle cx="${a[0] + 1}" cy="${a[1] + 10}" r="9.5" class="imp" fill="none" stroke-width="2.4"/>`;
+    // (8.21) aerobic bar sulle spalle (più sottile del bilanciere)
+    case 'aerobicBar':   return `<line x1="${n[0] - 15}" y1="${n[1] + 1}" x2="${n[0] + 15}" y2="${n[1] + 1}" class="imp" stroke-width="2.2" stroke-linecap="round"/>`;
     // kettlebell appeso alla mano: maniglia ad arco e campana arrotondata
     case 'kettlebell':   return `<path d="M ${h[0] - 3.6} ${h[1] + 4} a 3.6 3.6 0 0 1 7.2 0" class="imp" stroke-width="2.2"/>` +
                                 `<path d="M ${h[0] - 5.4} ${h[1] + 6.5} a 5.4 5.4 0 1 0 10.8 0 z" class="impf"/>`;
@@ -718,7 +727,11 @@ function barbellScale() {
 }
 const RACKS = {
   barbell:  barbellScale(),
-  dumbbell: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40],
+  // (8.21) in sala anche i manubri da 1 e 3 kg
+  dumbbell: [1, 2, 3, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40],
+  // (8.21) sacche di potenza (power bag) e palle mediche della sala
+  sandbag:  [7.5, 10, 12.5, 15],
+  medball:  [3, 4, 5],
   machine:  Array.from({ length: 45 }, (_, i) => 10 + i * 2.5),      // 10 → 120
   // kettlebell della sala: da 8 a 20 kg, un ferro ogni 2 kg
   kettlebell: Array.from({ length: 7 }, (_, i) => 8 + i * 2),         // 8 → 20 (8.12: in sala non oltre 20 kg)
@@ -749,7 +762,9 @@ function rackNote(ex) {
   if (!ex || ex.load !== 'weight') return '';
   switch (ex.rack) {
     case 'barbell':  return 'Bilanciere da 10 kg con dischi da 2, 5, 10 e 20 kg a coppie: 12 e 16 kg non sono componibili.' + (arguments[1] ? ' ' + platesText(arguments[1]) : '');
-    case 'dumbbell': return 'Peso del singolo manubrio, dalla rastrelliera da 2 a 40 kg.';
+    case 'dumbbell': return 'Peso del singolo manubrio: 1, 2, 3 kg, poi da 4 a 40 kg a passi di 2.';
+    case 'sandbag':  return 'Sacche di potenza da 7,5, 10, 12,5 e 15 kg.';
+    case 'medball':  return 'Palle mediche da 3, 4 e 5 kg.';
     case 'machine':  return 'Pacco pesi da 10 a 120 kg, a scalini di 2,5 kg.';
     case 'kettlebell': return 'Kettlebell da 8 a 20 kg, un ferro ogni 2 kg: il passo è fisso, non si compone.';
     case 'home':     return 'Manubri da 1 e 2 kg, anche in coppia.';
@@ -2176,7 +2191,9 @@ function focusPool(focus) {
   return strictCare(sub).sort((a, b) => a.id.localeCompare(b.id));
 }
 function slotPoolFor(slot) {
-  if (!slot.focus) return slotPool(slot.patterns);
+  // (8.21) esercizi «solo mirati» (i lanci della palla medica): entrano solo
+  // negli slot del loro muscolo, non negli schemi generici
+  if (!slot.focus) return slotPool(slot.patterns).filter(e => !e.focusOnly);
   let pool = focusPool(slot.focus);
   if (!pool.length && slot.fallback) pool = focusPool(slot.fallback);
   if (!pool.length && slot.loose) pool = slotPool(slot.patterns);
@@ -2312,6 +2329,16 @@ function buildStrength(meta, budget) {
   tmpl.slots.forEach((slot, i) => {
     if (slot.skipIfPullBlock && pullMain.length) return;   // la tirata verticale c'è già
     let pool = slotPoolFor(slot);
+    // (8.21) slot che alternano il muscolo a ogni blocco di 4 settimane
+    // (cuffia dei rotatori un blocco, deltoide laterale quello dopo)
+    // (8.21) esercizi nuovi solo dal blocco che comincia dopo la loro aggiunta
+    const d0 = metaDate(meta), isNew = e => !!e.newFrom && d0 < isoNoon(e.newFrom);
+    pool = pool.filter(e => !isNew(e));
+    if (slot.cycleFocus && slot.focus && slot.focus.length > 1) {
+      const blk = Math.floor((meta.trainingWeek - 1) / 4);
+      const sub = focusPool([slot.focus[blk % slot.focus.length]]).filter(e => !isNew(e));
+      if (sub.length) pool = sub;
+    }
     // (8.3) in superserie solo esercizi a ripetizioni: con le tenute a tempo
     // il timer farebbe tutta la sequenza di fila e l'alternanza salterebbe
     if (slot.ss) { const reps = pool.filter(e => e.load !== 'time'); if (reps.length) pool = reps; }
@@ -2319,13 +2346,19 @@ function buildStrength(meta, budget) {
       const free = pool.filter(e => !(e.focus || []).some(f => dayFocus.has(f)));
       if (free.length) pool = free;
     }
-    const rot = (meta.mesocycle - 1) * (meta.tmplIdx + 2) + i;   // rotazione per mesociclo
+    let rot = (meta.mesocycle - 1) * (meta.tmplIdx + 2) + i;   // rotazione per mesociclo
+    // (8.21) slot che alternano gli esercizi a ogni blocco (esplosività:
+    // slancio con kettlebell e lancio della palla medica)
+    if (slot.alternate) rot += meta.mesocycle - 1;
     const ex = pickFrom(pool, rot, used);
     if (!ex) return;
     let goalKey = slot.goal || dayGoal;
     // (8.7) slot con un muscolo preciso ripiegato sullo schema generico (per
     // esempio a casa senza kettlebell per lo slancio): obiettivo di ripiego
     if (slot.looseGoal && slot.focus && !(ex.focus || []).some(f => slot.focus.includes(f))) goalKey = slot.looseGoal;
+    // (8.21) esercizi con una dose propria (lanci della palla medica: pochi,
+    // alla massima velocità) qualunque sia lo slot
+    if (ex.goalOverride && PROG.goals[ex.goalOverride]) goalKey = ex.goalOverride;
     // con un focus lo slot conta solo per il muscolo: il primo resta comunque 'key'
     main.push({ exId: ex.id, note: slot.note || '', baseNote: slot.note || '', goalKey, role: main.length < 2 ? 'key' : 'main',
                 alt: { patterns: slot.patterns.slice(), types: ['strength', 'core'], ...(slot.focus ? { focus: slot.focus.concat(slot.fallback || []) } : {}) },
@@ -2447,7 +2480,7 @@ function buildStretch(meta, budget) {
   const ti = (chosen.stretch != null && sDays[chosen.stretch]) ? chosen.stretch : meta.tmplIdx;
   const tmpl = sDays[ti];
   const used = new Set(), items = [];
-  const dyn = DB.exercises.filter(e => e.type === 'stretch' && e.pattern === 'mobility' && e.setup.includes(S.setup));
+  const dyn = DB.exercises.filter(e => e.type === 'stretch' && e.pattern === 'mobility' && e.setup.includes(S.setup) && (!e.newFrom || metaDate(meta) >= isoNoon(e.newFrom)));
   const stat = DB.exercises.filter(e => e.type === 'stretch' && e.pattern === 'static' && e.setup.includes(S.setup)
                                         && tmpl.staticGroups.includes(e.group));
   dyn.sort((a, b) => a.id.localeCompare(b.id));
@@ -2640,8 +2673,12 @@ function equalizeSupersets(items, budget, down) {
     const even = n => ps && n % 2 ? n + 1 : n;
     const old = g.map(it => it.sets);
     const hiT = even(Math.max(...old));
-    let loT = Math.min(...old); if (ps && loT % 2) loT--; loT = Math.max(ps ? 2 : 1, loT);
     if (!down) { g.forEach(it => { it.sets = hiT; }); if (!budget || est() <= budget) return; }
+    // (8.21) con un esercizio per lato (che alterna il lato a ogni giro) e una
+    // sola serie di differenza si lascia com'era: pareggiare verso il basso
+    // dimezzerebbe le serie per lato
+    if (ps && Math.abs(old[0] - old[1]) <= 1) { g.forEach((it, k) => { it.sets = old[k]; }); return; }
+    let loT = Math.min(...old); if (ps && loT % 2) loT--; loT = Math.max(ps ? 2 : 1, loT);
     g.forEach(it => { it.sets = loT; });
   });
 }
@@ -3597,13 +3634,13 @@ function spartanBlock(meta, used) {
   }
   // trasporti: da dicembre, in palestra, fuori da scarico e settimana della gara
   if (S.setup === 'gym' && ph === 'run' && !deload) {
-    const pool = (sp.carries || []).map(exById).filter(e => e && !e.retired && e.setup.includes(S.setup) && !isAvoided(e.id));
+    const pool = (sp.carries || []).map(exById).filter(e => e && !e.retired && e.setup.includes(S.setup) && !isAvoided(e.id) && (!e.newFrom || date >= isoNoon(e.newFrom)));
     const cx = pool.length ? pool[(meta.weekAbs || 0) % pool.length] : null;
     if (cx) {
       used.add(cx.id);
       const d = dose('carry', meta.profile, cx);
       out.push(spItem(cx, 'carry', { sets: 3, reps: d.reps, rest: d.rest, hold: 0 },
-        { spKind: 'carry', note: `Spartan · le ripetizioni sono i passi${cx.id === 'g_farmercarry' ? ' (un manubrio per mano: simula taniche e secchi)' : ' (simula il sacco e la pietra)'}` }));
+        { spKind: 'carry', note: `Spartan · le ripetizioni sono i passi${cx.id === 'g_farmercarry' ? ' (un manubrio per mano: simula taniche e secchi)' : cx.id === 'g_sandbagcarry' ? ' (il sacco della gara: presa e respiro)' : ' (simula il sacco e la pietra)'}` }));
     }
   }
   return out;
@@ -5542,7 +5579,7 @@ function applyExercise(item, sess, ex) {
   // ripetizioni «esplosive» delle iperestensioni
   if (item.slotGoal === undefined) item.slotGoal = item.goalKey || item.goal;
   if (item.looseGoal && item.focusList) item.goalKey = (ex.focus || []).some(f => item.focusList.includes(f)) ? item.slotGoal : item.looseGoal;
-  const d = dose(item.goalKey || item.goal, sess.profile, ex);
+  const d = dose((ex.goalOverride && PROG.goals[ex.goalOverride]) ? ex.goalOverride : (item.goalKey || item.goal), sess.profile, ex);
   item.exId = ex.id;
   item.sets = d.sets; item.reps = d.reps; item.rest = d.rest;
   item.hold = d.hold; item.perSide = d.perSide; item.source = d.source;

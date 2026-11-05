@@ -7199,6 +7199,304 @@
    "focus": [
     "chestAdd"
    ]
+  },
+  {
+   "id": "g_sidelyingER",
+   "name": "Rotazione esterna da sdraiato su un fianco con manubrio",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Spalle",
+   "pattern": "shoulderIso",
+   "load": "weight",
+   "rack": "dumbbell",
+   "kneeFriendly": true,
+   "perSide": true,
+   "primary": [
+    "Cuffia dei rotatori (sottospinato, piccolo rotondo)"
+   ],
+   "secondary": [
+    "Deltoide posteriore"
+   ],
+   "equipment": [
+    "Manubrio leggero (1-3 kg)",
+    "Asciugamano arrotolato"
+   ],
+   "art": {
+    "frames": [
+     "sideLyingErStart",
+     "sideLyingErEnd"
+    ],
+    "implement": "dumbbell1"
+   },
+   "focus": [
+    "cuff"
+   ],
+   "steps": [
+    "Sdraiato su un fianco, testa appoggiata sul braccio di sotto; il gomito del braccio di sopra piegato a 90°, appoggiato al fianco con un asciugamano arrotolato fra gomito e busto.",
+    "Ruota l'avambraccio verso l'alto tenendo il gomito incollato all'asciugamano, fin dove il movimento resta senza dolore.",
+    "Scendi in 3 secondi; poi cambia lato."
+   ],
+   "errors": [
+    "Staccare il gomito dal fianco o ruotare il busto all'indietro.",
+    "Partire con un carico che costringe a strappare: qui bastano 1-3 kg."
+   ],
+   "safety": [
+    "Spalla: il dolore durante l'esercizio resta lieve e passa entro poco; se sale, riduci l'escursione o il carico (adattamento alla tolleranza, come indica la linea guida)."
+   ],
+   "source": "Desmeules et al. 2025, JOSPT 55(4):235-274: nella tendinopatia della cuffia dei rotatori (che comprende il conflitto subacromiale) l'esercizio contro resistenza è raccomandato con prove forti, adattato alla tolleranza al dolore. Scelta dell'esercizio e dosi: regola operativa dell'app",
+   "newFrom": "2026-11-09",
+   "focusOnly": true
+  },
+  {
+   "id": "g_sandbagcarry",
+   "name": "Trasporto della sacca di potenza (power bag) in abbraccio",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Condizionamento",
+   "pattern": "carry",
+   "load": "weight",
+   "rack": "sandbag",
+   "kneeFriendly": true,
+   "noVolume": true,
+   "spartan": true,
+   "carry": true,
+   "primary": [
+    "Tenuta della presa",
+    "Core"
+   ],
+   "secondary": [
+    "Erettori spinali",
+    "Spalle"
+   ],
+   "equipment": [
+    "Sacca di potenza (7,5-15 kg)"
+   ],
+   "art": {
+    "frames": [
+     "gobletStand",
+     "gobletStride"
+    ],
+    "implement": "sandbag"
+   },
+   "steps": [
+    "Solleva la sacca da terra piegando le anche con la schiena lunga, poi abbracciala contro il petto, gomiti sotto.",
+    "Cammina in piano a passi corti e regolari: le ripetizioni sono i passi.",
+    "Respira a fondo senza inarcare la schiena; per appoggiarla, di nuovo anche indietro e schiena lunga."
+   ],
+   "errors": [
+    "Sollevarla con la schiena curva.",
+    "Inarcarsi all'indietro per reggerla."
+   ],
+   "safety": [
+    "È il gesto più vicino al trasporto del sacco della gara (27 kg per gli uomini): qui si arriva a 15 kg, e il progresso è nei passi e nella presa. Inguine: se tira, riduci il carico e senti il medico prima di insistere."
+   ],
+   "source": "Nella Sprint ci sono trasporti di sacchi (27 kg per gli uomini), secchi, pietre e taniche (guida Spartan agli ostacoli). Dosi: regola operativa dell'app",
+   "newFrom": "2026-11-09"
+  },
+  {
+   "id": "g_mbscoop",
+   "name": "Lancio della palla medica dal basso con spinta d'anca",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Catena posteriore",
+   "pattern": "hinge",
+   "load": "weight",
+   "rack": "medball",
+   "kneeFriendly": true,
+   "primary": [
+    "Glutei",
+    "Femorali"
+   ],
+   "secondary": [
+    "Erettori spinali",
+    "Core",
+    "Spalle"
+   ],
+   "equipment": [
+    "Palla medica (3-5 kg)",
+    "Spazio libero o muro robusto"
+   ],
+   "art": {
+    "frames": [
+     "hingeBottom",
+     "frontUp"
+    ],
+    "implement": "medball"
+   },
+   "focus": [
+    "power"
+   ],
+   "steps": [
+    "Palla fra le mani a braccia tese, piedi alla larghezza delle anche; porta il bacino indietro con la schiena lunga, palla fra le ginocchia.",
+    "Spingi il bacino avanti più veloce che puoi e lascia partire la palla in avanti e in alto, a braccia tese: la spinta viene dalle anche.",
+    "Recupera la palla, riprendi la posizione con calma: ogni lancio parte da fermo e alla massima velocità."
+   ],
+   "errors": [
+    "Trasformarlo in uno squat: le ginocchia si piegano poco.",
+    "Lanciare con le braccia invece che con le anche.",
+    "Fare lanci di fila senza ritrovare la posizione."
+   ],
+   "safety": [
+    "Niente fase di frenata alla fine: il lancio permette di accelerare fino in fondo senza caricare la schiena come uno stacco veloce. Ginocchio: il carico è sull'anca."
+   ],
+   "source": "ACSM 2026 (Position Stand): la potenza migliora con carichi moderati, volume basso-moderato e fase concentrica alla massima velocità volontaria. Scelta del lancio: regola operativa dell'app",
+   "goalOverride": "power",
+   "focusOnly": true,
+   "newFrom": "2026-11-09"
+  },
+  {
+   "id": "g_mbrotthrow",
+   "name": "Lancio rotazionale della palla medica al muro",
+   "setup": [
+    "gym"
+   ],
+   "type": "core",
+   "group": "Core",
+   "pattern": "coreAnti",
+   "load": "weight",
+   "rack": "medball",
+   "kneeFriendly": true,
+   "perSide": false,
+   "goalOverride": "corePower",
+   "primary": [
+    "Obliqui",
+    "Trasverso"
+   ],
+   "secondary": [
+    "Glutei",
+    "Spalle"
+   ],
+   "equipment": [
+    "Palla medica (3-5 kg)",
+    "Muro robusto"
+   ],
+   "art": {
+    "frames": [
+     "rotThrowStart",
+     "rotThrowEnd"
+    ],
+    "implement": "medball"
+   },
+   "focus": [
+    "obliques"
+   ],
+   "steps": [
+    "Di fianco al muro, a un metro e mezzo, ginocchia morbide; palla all'altezza dell'anca lontana dal muro.",
+    "Ruota partendo dalle anche e dal piede di dietro, poi busto e braccia, e lancia la palla contro il muro alla massima velocità.",
+    "Riprendila al rimbalzo o da terra e torna in posizione: in ogni serie 4 lanci per lato (prima un lato, poi l'altro)."
+   ],
+   "errors": [
+    "Ruotare solo con le braccia, con anche e piedi fermi.",
+    "Ruotare il ginocchio con il piede bloccato: il piede di dietro gira con l'anca."
+   ],
+   "safety": [
+    "Ginocchio: il piede di dietro ruota sulla punta insieme all'anca, così la torsione non passa dal ginocchio. Inguine: se il lancio tira, riduci velocità e carico."
+   ],
+   "source": "ACSM 2026 (Position Stand): potenza con carichi moderati, al massimo 24 ripetizioni × serie, fase concentrica alla massima velocità. Esercizio per obliqui e rotazione (ostacoli della Spartan, guida della MTB): regola operativa dell'app",
+   "focusOnly": true,
+   "newFrom": "2026-11-09"
+  },
+  {
+   "id": "g_ballcurl",
+   "name": "Leg curl sulla palla svizzera",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Catena posteriore",
+   "pattern": "hamIso",
+   "load": "bodyweight",
+   "kneeFriendly": true,
+   "primary": [
+    "Femorali"
+   ],
+   "secondary": [
+    "Glutei",
+    "Core"
+   ],
+   "equipment": [
+    "Palla svizzera",
+    "Tappetino"
+   ],
+   "art": {
+    "frames": [
+     "ballCurlStart",
+     "ballCurlEnd"
+    ],
+    "implement": "swissball"
+   },
+   "focus": [
+    "hamstrings"
+   ],
+   "levels": [
+    "Due gambe, rientro e ritorno lenti",
+    "Due gambe, bacino sempre alto",
+    "Una gamba"
+   ],
+   "steps": [
+    "Supino, talloni sulla palla, braccia a terra lungo i fianchi; solleva il bacino fino ad allineare spalle, anche e ginocchia.",
+    "Tenendo il bacino alto, porta la palla verso di te piegando le ginocchia.",
+    "Torna a gambe tese in 3 secondi senza far cadere il bacino."
+   ],
+   "errors": [
+    "Lasciar scendere il bacino mentre la palla rientra.",
+    "Spingere con la schiena invece che con i femorali."
+   ],
+   "safety": [
+    "Ginocchio: lavoro dei femorali a carico basso, utile all'equilibrio con il quadricipite. Linea guida sul dolore femoro-rotuleo: il rinforzo di anca e ginocchio è la prima scelta, nessun esercizio è superiore agli altri."
+   ],
+   "source": "Willy et al. 2019, JOSPT 49(9); Morri et al. 2025, BMC Sports Sci Med Rehabil 17:303: rinforzo come prima scelta nel dolore femoro-rotuleo, nessun tipo superiore. Scelta dell'esercizio e gradini: regola operativa dell'app",
+   "newFrom": "2026-11-09"
+  },
+  {
+   "id": "s_hingebar",
+   "name": "Cerniera dell'anca con aerobic bar",
+   "setup": [
+    "gym"
+   ],
+   "type": "stretch",
+   "group": "Mobilità anca",
+   "pattern": "mobility",
+   "load": "bodyweight",
+   "kneeFriendly": true,
+   "mode": "dynamic",
+   "primary": [
+    "Femorali",
+    "Glutei"
+   ],
+   "secondary": [
+    "Erettori spinali"
+   ],
+   "equipment": [
+    "Aerobic bar leggera (2-6 kg)"
+   ],
+   "art": {
+    "frames": [
+     "hingeBarStand",
+     "hingeBarBottom"
+    ],
+    "implement": "aerobicBar"
+   },
+   "steps": [
+    "Aerobic bar appoggiata sulle spalle dietro la nuca, ginocchia morbide.",
+    "Porta il bacino indietro con la schiena lunga finché senti i femorali in allungamento, poi torna su stringendo i glutei.",
+    "Movimento lento e ampio, senza forzare: è il gesto di stacco, slancio e good morning."
+   ],
+   "errors": [
+    "Piegare la schiena invece delle anche.",
+    "Scendere oltre il punto in cui la schiena resta dritta."
+   ],
+   "safety": [
+    "Mobilità senza carico vero: la barra serve a sentire la posizione della schiena."
+   ],
+   "source": "Mobilità dinamica come preparazione (ACSM). Scelta dell'esercizio: regola operativa dell'app",
+   "newFrom": "2026-11-09"
   }
  ]
 }

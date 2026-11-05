@@ -213,6 +213,29 @@ Da *Oggi* (sotto il calendario), dalla pagina *Progressi* e dal riquadro *Il per
 
 Nel riepilogo di fine seduta, *Ho ancora tempo: aggiungi esercizi*. Si dichiara quanto tempo resta (5, 10 o 15 minuti) e l'app propone quattro esercizi sui **gruppi più indietro** rispetto al volume previsto per la settimana, con le serie che stanno davvero in quei minuti (tempo di preparazione compreso). Toccandone uno si torna nella seduta, che riprende da quell'esercizio e si chiude normalmente.
 
+### Verifica del piano e attrezzi nuovi della sala (8.21)
+- **Attrezzi:**
+  - manubri anche da 1 e 3 kg (`RACKS.dumbbell` 1, 2, 3, 4…40);
+  - sacche di potenza 7,5-10-12,5-15 kg (`RACKS.sandbag`);
+  - palle mediche 3-4-5 kg (`RACKS.medball`);
+  - aerobic bar 2-6 kg e palla svizzera (attrezzi senza scala di carico).
+  Disegni nuovi: `sandbag`, `medball`, `swissball`, `aerobicBar`, più le pose `sideLyingEr*`, `rotThrow*`, `ballCurl*`, `hingeBar*`.
+- **Verifica del piano rispetto alle fonti già verificate:**
+  - frequenza e serie settimanali per gruppo (ACSM 2026), 150-300′ aerobici (OMS 2020), intervalli per il grasso viscerale (Chang et al. 2026): già coperti;
+  - rinforzo di anca e ginocchio nel dolore femoro-rotuleo (Willy et al. 2019; Morri et al. 2025): già coperto;
+  - esplosività (ACSM 2026) e mantenimento da aprile (Spiering et al. 2021): già coperti;
+  - mancava un esercizio diretto per la cuffia dei rotatori, mentre la linea guida sulla tendinopatia della cuffia (Desmeules et al. 2025, JOSPT 55(4):235-274) raccomanda con prove forti l'esercizio contro resistenza, adattato al dolore.
+- **Esercizi nuovi** (nel programma dal blocco del 9 novembre, `newFrom`; prima solo scegliendoli a mano):
+  - `g_sidelyingER`: rotazione esterna da sdraiato con manubrio da 1-3 kg. Forza C, slot spalle, a blocchi alterni con il deltoide laterale (`cycleFocus`). Esercizio e dosi: regola operativa dell'app.
+  - `g_mbscoop`: lancio della palla medica dal basso con spinta d'anca. Esplosività delle gambe senza fase di frenata; dose sempre di esplosività (`goalOverride: power`, ACSM 2026). Si alterna a ogni blocco con lo slancio con kettlebell (`alternate`).
+  - `g_mbrotthrow`: lancio rotazionale al muro, 3×8 (4 per lato) alla massima velocità (goal `corePower`, ACSM 2026: al massimo 24 ripetizioni × serie). Negli slot di obliqui e addome; i lanci entrano solo negli slot mirati (`focusOnly`).
+  - `g_ballcurl`: leg curl sulla palla svizzera, tre gradini. Nella rotazione dei femorali di Forza B, accanto al leg curl alla macchina.
+  - `g_sandbagcarry`: trasporto della sacca in abbraccio, nella rotazione dei trasporti Spartan (da dicembre). È il gesto più vicino al sacco di 27 kg della gara.
+  - `s_hingebar`: cerniera dell'anca con aerobic bar, fra la mobilità dinamica in palestra.
+- La palla per gli addominali non è usata per crunch o rollout: l'app già tiene da parte gli esercizi più impegnativi per l'inguine, in attesa della visita.
+- **Superserie con un esercizio per lato**: se il pareggio verso l'alto non sta nei minuti e la differenza è di una sola serie, si lascia com'era. Pareggiare verso il basso (8.15) avrebbe dimezzato le serie per lato.
+- Non citati perché la fonte primaria non era raggiungibile: gli studi elettromiografici sulla rotazione esterna (Reinold et al. 2004).
+
 ### Niente scarico subito dopo il recupero (8.20)
 - Se lo scarico del programma cade nella settimana subito dopo quella di recupero dopo la Spartan Race, non si fa: quella settimana diventa una settimana normale del blocco (profilo «Costruzione», con la nota che lo spiega). Con il calendario previsto è la settimana del 3 maggio. Lo scarico pre-Tuscany Trail dal 5 maggio resta (Bosquet et al. 2007). Regola operativa dell'app.
 

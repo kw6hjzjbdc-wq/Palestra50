@@ -271,6 +271,15 @@
    "rest": 120,
    "rpe": "6-7",
    "source": "ACSM 2026 (Position Stand): la potenza migliora con carichi moderati (30-70% del massimale), volume basso-moderato (al massimo 24 ripetizioni × serie) e fase concentrica alla massima velocità volontaria. Il recupero di 2 minuti è una regola operativa dell'app"
+  },
+  "corePower": {
+   "label": "Core esplosivo",
+   "sets": 3,
+   "repsLow": 8,
+   "repsHigh": 8,
+   "rest": 45,
+   "rpe": "lanci alla massima velocità, ogni ripetizione fresca",
+   "source": "ACSM 2026 (Position Stand): la potenza migliora con carichi moderati, volume basso-moderato (al massimo 24 ripetizioni × serie) e fase concentrica alla massima velocità volontaria. 3×8 (4 lanci per lato) e recupero di 45 s in superserie: regola operativa dell'app"
   }
  },
  "programs": [
@@ -584,7 +593,8 @@
        "loose": true,
        "goal": "power",
        "looseGoal": "legTone",
-       "note": "Forza esplosiva"
+       "note": "Forza esplosiva",
+       "alternate": true
       },
       {
        "patterns": [
@@ -613,7 +623,13 @@
        "patterns": [
         "shoulderIso"
        ],
-       "ss": "1"
+       "ss": "1",
+       "focus": [
+        "cuff",
+        "lateralDelt"
+       ],
+       "note": "Spalle: deltoide laterale o cuffia dei rotatori, a blocchi alterni",
+       "cycleFocus": true
       },
       {
        "patterns": [
@@ -1423,7 +1439,12 @@
   "place": "Orte (VT)",
   "distanceKm": 5,
   "obstacles": 20,
-  "specFrom": "2026-12-07", "recoveryDays": 7, "runFrom": "2027-03-01", "walk": {"exId": "o_hillwalk"},
+  "specFrom": "2026-12-07",
+  "recoveryDays": 7,
+  "runFrom": "2027-03-01",
+  "walk": {
+   "exId": "o_hillwalk"
+  },
   "aim": "Divertirti e superare gli ostacoli in sicurezza, con forma corretta e disinvoltura. Tempo e velocità non contano. Il lancio del giavellotto non lo fai: al suo posto i 30 burpees.",
   "targets": {
    "pullups": 8,
@@ -1496,7 +1517,8 @@
   },
   "carries": [
    "g_farmercarry",
-   "g_gobletcarry"
+   "g_gobletcarry",
+   "g_sandbagcarry"
   ],
   "obstacles_list": [
    {
@@ -1606,5 +1628,11 @@
   "spartanSunday": "2027-04-25",
   "routes": "440 km (percorso lungo, edizione 2026) oppure 160 km (Newbie)"
  },
- "maintenance": {"from": "2027-04-01", "dropTmpl": 2, "keySets": 3, "otherSets": 2, "source": "Spiering et al. 2021, J Strength Cond Res 35(5):1449-1458: la forza si mantiene riducendo frequenza e volume se resta l'intensità; negli adulti più anziani per conservare la massa muscolare possono servire 2 sedute a settimana con 2-3 serie per esercizio"}
+ "maintenance": {
+  "from": "2027-04-01",
+  "dropTmpl": 2,
+  "keySets": 3,
+  "otherSets": 2,
+  "source": "Spiering et al. 2021, J Strength Cond Res 35(5):1449-1458: la forza si mantiene riducendo frequenza e volume se resta l'intensità; negli adulti più anziani per conservare la massa muscolare possono servire 2 sedute a settimana con 2-3 serie per esercizio"
+ }
 }
