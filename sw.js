@@ -17,7 +17,7 @@
    scheda aperta: niente più pulsante «Aggiornamento pronto», e nessun
    aggiornamento irrompe a metà seduta.
    ========================================================================== */
-const CACHE = 'palestra50-v81';
+const CACHE = 'palestra50-v84';
 
 const SHELL = [
   './', './index.html', './styles.css', './app.js',

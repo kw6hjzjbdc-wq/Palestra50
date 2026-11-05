@@ -1423,7 +1423,7 @@
   "place": "Orte (VT)",
   "distanceKm": 5,
   "obstacles": 20,
-  "runFrom": "2026-12-07",
+  "specFrom": "2026-12-07", "recoveryDays": 7, "runFrom": "2027-03-01", "walk": {"exId": "o_hillwalk"},
   "aim": "Divertirti e superare gli ostacoli in sicurezza, con forma corretta e disinvoltura. Tempo e velocità non contano. Il lancio del giavellotto non lo fai: al suo posto i 30 burpees.",
   "targets": {
    "pullups": 8,
@@ -1605,5 +1605,6 @@
   "longLoadedAlt": "2027-04-11",
   "spartanSunday": "2027-04-25",
   "routes": "440 km (percorso lungo, edizione 2026) oppure 160 km (Newbie)"
- }
+ },
+ "maintenance": {"from": "2027-04-01", "dropTmpl": 2, "keySets": 3, "otherSets": 2, "source": "Spiering et al. 2021, J Strength Cond Res 35(5):1449-1458: la forza si mantiene riducendo frequenza e volume se resta l'intensità; negli adulti più anziani per conservare la massa muscolare possono servire 2 sedute a settimana con 2-3 serie per esercizio"}
 }

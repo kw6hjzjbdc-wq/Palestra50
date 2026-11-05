@@ -853,7 +853,9 @@ function isDeloadWeek(idx) {
   } catch (e) { return false; }
 }
 function deloadText() {
-  try { return `Settimana ${sessionMeta(S.sessionIndex).weekAbs} di scarico · non aumentare i carichi`; }
+  try { const m = sessionMeta(S.sessionIndex);
+    if (m.recovery) return 'Settimana di recupero dopo la Spartan Race · forza leggera, aerobico facile';
+    return `Settimana ${m.weekAbs} di scarico · non aumentare i carichi`; }
   catch (e) { return 'Settimana di scarico · non aumentare i carichi'; }
 }
 /* Aggiorna la fascia in cima e quella del timer a tutto schermo. */
@@ -1913,9 +1915,29 @@ function sessionMeta(idx) {
   else if (isCardio) tmplIdx = nth('cardio');
   else if (mobWeek) tmplIdx = pos0 % 2;
   else tmplIdx = weekLen(weekAbs) === OLD_WEEK ? nth('stretch') : (weekAbs % 2);
+  // (8.19) per data: settimana di recupero dopo la Spartan Race (profilo di
+  // scarico) e, da aprile, forza in mantenimento (2 sedute: la terza diventa
+  // mobilità)
+  const fl = dateFlags(idx);
+  let dt = dayType, isS = isStrength, maintFree = false;
+  if (fl.maint && !mobWeek && isStrength && tmplIdx === ((PROG.maintenance || {}).dropTmpl ?? 2)) {
+    dt = 'stretch'; isS = false; maintFree = true; tmplIdx = (weekAbs + 1) % 2;
+  }
+  // (8.20) scarico del programma che cade subito dopo la settimana di
+  // recupero: non serve, la settimana diventa normale (il blocco prosegue)
+  if (!fl.recovery && !mobWeek && profile && profile.label === 'Scarico' && weekAbs > 1) {
+    const pw = weekAbs - 1, p0 = weekStart(pw);
+    let prevRec = false;
+    for (let q = 0; q < weekLen(pw) && !prevRec; q++) prevRec = !!dateFlags(p0 + q).recovery;
+    if (prevRec) profile = Object.assign({}, weekProfile(2, cycleLen), { deloadSkipped: true,
+      note: 'Scarico non necessario: la settimana prima era di recupero dopo la Spartan Race. Settimana normale del blocco.' });
+  }
+  if (fl.recovery && !mobWeek) profile = Object.assign({}, weekProfile(cycleLen, cycleLen), { recovery: true,
+    note: 'Settimana di recupero dopo la Spartan Race: forza leggera (meno serie, stessi carichi, 3-4 ripetizioni di riserva), aerobico a ritmo facile e mobilità. Il carico suggerito resta fermo.' });
   return { idx, dayInWeek, pos: pos0 + 1, days: weekLen(weekAbs), weekAbs, weekInCycle, cycleLen, mesocycle,
-           isStrength, isCardio, dayType,
+           isStrength: isS, isCardio, dayType: dt,
            mobilityWeek: mobWeek, trainingWeek: trainingWeekOf(weekAbs),
+           recovery: !!fl.recovery && !mobWeek, maint: !!fl.maint && !mobWeek, maintFree,
            phase: ph, tmplIdx, profile, program: p };
 }
 
@@ -2392,9 +2414,31 @@ function buildStrength(meta, budget) {
     equalizeSupersets(items, null, true);
   }
 
+  // (8.19) recupero dopo la Spartan Race: forza leggera, niente supplementari,
+  // finale metabolico e trazioni «se resta tempo», al massimo 2 serie.
+  // Da aprile, mantenimento (Spiering et al. 2021): stessi carichi, niente
+  // supplementari, 3 serie ai fondamentali e alle trazioni, 2 agli altri
+  if (meta.recovery || meta.maint) {
+    const mt = PROG.maintenance || {};
+    const drop = meta.recovery ? ['extra', 'finisher', 'activation'] : ['extra'];
+    for (let k = items.length - 1; k >= 0; k--) {
+      const it = items[k];
+      if (drop.includes(it.role) && !it.aero) items.splice(k, 1);
+      else if (meta.recovery && it.block === 'pullup' && /se resta tempo/.test(it.note || '')) items.splice(k, 1);
+    }
+    items.forEach(it => {
+      if (!['key', 'main', 'pull'].includes(it.role)) return;
+      const cap = meta.recovery ? 2 : (['key', 'pull'].includes(it.role) ? (mt.keySets || 3) : (mt.otherSets || 2));
+      const lim = it.perSide ? cap * 2 : cap;
+      if (it.sets > lim) it.sets = lim;
+    });
+    finalizeSupersets(items);
+    equalizeSupersets(items, null, true);
+  }
+
   const gLabel = meta.phase && PROG.goals[(meta.phase.ph.goals || [])[meta.tmplIdx]]
     ? PROG.goals[meta.phase.ph.goals[meta.tmplIdx]].label : '';
-  return { label: tmpl.label, type: 'strength', items, dayGoalLabel: gLabel, trimmed };
+  return { label: tmpl.label + (meta.recovery ? ' · recupero' : meta.maint ? ' · mantenimento' : ''), type: 'strength', items, dayGoalLabel: gLabel, trimmed };
 }
 
 function buildStretch(meta, budget) {
@@ -2455,7 +2499,7 @@ function buildStretch(meta, budget) {
       if (estimateMinutes(items) > (budget || 35)) it.sets -= it.perSide ? 2 : 1;
     });
   }
-  return { label, type: 'stretch', items, trimmed };
+  return { label: label + (meta.maintFree ? ' · al posto di Forza C (mantenimento)' : ''), type: 'stretch', items, trimmed };
 }
 
 function buildCore(meta) {
@@ -2877,10 +2921,14 @@ function buildCardio(meta, budget) {
   // (7S 0) da dicembre la seduta a ritmo costante diventa corsa-camminata,
   // salvo che per quella seduta tu abbia scelto un altro attrezzo
   if (runDay(meta)) return buildRun(meta, budget);
+  if (walkDay(meta)) return buildWalk(meta, budget);     // (8.18) da dicembre a febbraio
   const days = PROG.cardioDays || [];
   let tmpl = days[meta.tmplIdx] || { label: 'Aerobico', mode: 'steady' };
   // modalità scelta a mano (intervalli o ritmo costante) al posto di quella del giorno
   if (chosen.mode && chosen.mode !== tmpl.mode) tmpl = days.find(t => t.mode === chosen.mode) || tmpl;
+  // (8.19) settimana di recupero dopo la Spartan Race: solo ritmo facile
+  if (meta.recovery) tmpl = Object.assign({}, days.find(t => t.mode === 'steady') || { mode: 'steady' },
+    { label: 'Aerobico · Ritmo facile (recupero)', note: 'Recupero dopo la Spartan Race: ritmo facile, riesci a parlare a frasi complete' });
   const mode = tmpl.mode;
   const used = new Set();
   let pool = cardioPool(mode);
@@ -3232,6 +3280,29 @@ function sessDate(idx) {
   return new Date(base.getTime() + days * DAY_MS);
 }
 const metaDate = meta => meta._date || (meta._date = sessDate(meta.idx));
+/* (8.19) Caratteristiche di una seduta che dipendono dalla sua data:
+   recupero dopo la Spartan Race e mantenimento della forza da aprile. La data
+   prevista cambia solo quando avanza il programma, cambia il giorno o si
+   registra una seduta: il risultato si tiene in memoria fino ad allora. */
+let dateFlagsMemo = { key: null, map: new Map() };
+function dateFlags(idx) {
+  if (!PROG) return {};
+  const key = `${S.sessionIndex}|${new Date().toDateString()}|${(S.sessionLog || []).length}|${S.week6From}|${S.spartan}|${S.maintenance}`;
+  if (dateFlagsMemo.key !== key) dateFlagsMemo = { key, map: new Map() };
+  let f = dateFlagsMemo.map.get(idx);
+  if (f) return f;
+  f = {};
+  try {
+    const d = sessDate(idx), sp = SP(), mt = PROG.maintenance;
+    if (sp && spOn() && sp.recoveryDays) {
+      const end = isoNoon(sp.dateTo || sp.date);
+      f.recovery = d > end && d <= new Date(end.getTime() + sp.recoveryDays * DAY_MS);
+    }
+    if (mt && mt.from && S.maintenance !== false) f.maint = d >= isoNoon(mt.from);
+  } catch (e) { f = {}; }
+  dateFlagsMemo.map.set(idx, f);
+  return f;
+}
 
 /* Fase della preparazione in una data: 'base' (burpees e sospensione),
    'run' (anche corsa-camminata e trasporti), 'race' (settimana della gara,
@@ -3243,9 +3314,14 @@ function spPhase(date) {
   const race = isoNoon(sp.date), end = isoNoon(sp.dateTo || sp.date);
   if (!(d <= end)) return 'off';
   if (d >= new Date(race.getTime() - 6 * DAY_MS)) return 'race';
-  if (d >= isoNoon(sp.runFrom)) return 'run';
+  if (d >= isoNoon(sp.specFrom || sp.runFrom)) return 'run';
   return 'base';
 }
+/* (8.18) La corsa-camminata comincia a marzo (runFrom); da dicembre a
+   febbraio la seduta a ritmo costante è una camminata veloce in salita
+   all'aperto (walkDay). Trasporti e fase specifica restano da dicembre
+   (specFrom). */
+const runOn = date => { const sp = SP(); return !!sp && noonOf(date) >= isoNoon(sp.runFrom); };
 const spDateText = () => { const sp = SP(); return sp ? `${isoNoon(sp.date).getDate()}-${dateIt(isoNoon(sp.dateTo || sp.date))}` : ''; };
 const weeksToRace = () => { const sp = SP(); return sp ? Math.max(0, Math.ceil((isoNoon(sp.date) - noonOf(Date.now())) / (7 * DAY_MS))) : 0; };
 
@@ -3367,6 +3443,7 @@ function runDay(meta) {
   if (!meta || !meta.isCardio || meta.tmplIdx !== 1 || meta.mobilityWeek) return false;
   const ph = spPhase(metaDate(meta));
   if (ph !== 'run' && ph !== 'race') return false;
+  if (!runOn(metaDate(meta))) return false;                  // (8.18) solo da marzo
   const p = pickOf(meta.idx);
   if (p && ((p.exId && p.exId !== (SP().run || {}).exId) || (p.mode && p.mode !== 'run'))) return false;
   if (isAvoided((SP().run || {}).exId)) return false;           // (8) segnata come fastidiosa
@@ -3578,6 +3655,68 @@ function buildRun(meta, budget) {
   return { label: sim.length ? 'Simulazione Spartan · corsa e ostacoli' : `Corsa-camminata · Spartan${check ? ' · Spartan Race check' : ''}`, type: 'cardio', items, mode: 'run',
            run: { level: rs.L, planned: main.sets, full, light, check, sim: !!sim.length } };
 }
+/* ---------------------------------------------------------------------------
+   CAMMINATA VELOCE IN SALITA (dalla 8.18, da dicembre a febbraio)
+   Su richiesta, la corsa entra solo a marzo. Al suo posto, nella seduta a
+   ritmo costante, una camminata veloce in salita all'aperto che serve a più
+   obiettivi insieme:
+     · 150′ aerobici: minuti moderati come la bici (OMS 2020);
+     · Spartan Race: 5 km su terreno vario si fanno anche camminando, e il
+       tempo in piedi su salite e sterrato prepara la corsa di marzo;
+     · Tuscany Trail: le salite a piedi spingendo la bici carica;
+     · grasso di pancia e gambe: conta la spesa energetica di tutta la
+       settimana, perché il grasso non si toglie in un punto preciso (sei
+       settimane di esercizi per l'addome non hanno ridotto il grasso
+       addominale: Vispute et al. 2011, J Strength Cond Res 25(9):2559-2564).
+   Tappe mensili (regola operativa dell'app): a dicembre passo svelto con
+   qualche salita; a gennaio tratti in salita di 2-5 minuti; a febbraio salite
+   più lunghe e, se il ginocchio è tranquillo, uno zaino leggero (3-5 kg).
+   Durata: tutto il tempo della seduta (fra 15 e 45 minuti); in scarico 60%.
+   Se piove, «Cambia attrezzo» riporta la bici.
+--------------------------------------------------------------------------- */
+function walkDay(meta) {
+  const sp = SP();
+  if (!sp || !sp.walk || !meta || !meta.isCardio || meta.tmplIdx !== 1 || meta.mobilityWeek) return false;
+  const d = metaDate(meta);
+  if (spPhase(d) !== 'run' || runOn(d)) return false;
+  const p = pickOf(meta.idx);
+  if (p && ((p.exId && p.exId !== sp.walk.exId) || (p.mode && p.mode !== 'walk'))) return false;
+  const ex = exById(sp.walk.exId);
+  if (!ex || ex.retired || !ex.setup.includes(S.setup) || isAvoided(ex.id)) return false;
+  return true;
+}
+const walkOkFor = meta => { const sp = SP(); if (!sp || !sp.walk || !meta || meta.tmplIdx !== 1 || meta.mobilityWeek) return false;
+  const d = metaDate(meta); return spPhase(d) === 'run' && !runOn(d); };
+function buildWalk(meta, budget) {
+  const ex = exById(SP().walk.exId);
+  const date = metaDate(meta), deload = meta.profile.label === 'Scarico';
+  const used = new Set([ex.id]);
+  const alt = { patterns: ['cardio', 'finisher'], types: ['strength'], modes: ['walk'] };
+  const timed = (role, goalKey, label, sets, hold, rest, note, extra) => Object.assign({
+    exId: ex.id, role, goal: goalKey, goalKey, goalLabel: label, sets, reps: 1, perSide: false,
+    hold, rest, rpe: '', source: ex.source, note, workLabel: label, restLabel: 'Camminata', alt
+  }, extra || {});
+  const y = date.getFullYear(), m = date.getMonth();
+  const stage = (y < 2027) ? 0 : m === 0 ? 1 : 2;
+  const notes = [
+    'Dicembre: passo svelto su un percorso con qualche salita; in discesa passi corti e lenti',
+    'Gennaio: tratti in salita di 2-5 minuti a passo deciso, recupero camminando in piano',
+    'Febbraio: salite più lunghe; se il ginocchio è tranquillo, zaino leggero (3-5 kg): trasporti della Spartan e bici spinta a mano al Tuscany Trail'];
+  const g = PROG.goals.cardioSteady;
+  const warm = timed('warmup', 'cardioWarm', 'Camminata tranquilla', 1, 300, 0, 'In piano, passo che si allunga piano piano');
+  const main = timed('cardio', 'cardioSteady', 'Camminata in salita', 1, 900, 0,
+    `${notes[stage]}${deload ? ' · settimana di scarico: più corta' : ''}`,
+    { rpe: '5-6/10: respiro accelerato, riesci a parlare a frasi brevi; ginocchio al massimo 2 su 10', source: ex.source, goalLabel: 'Camminata veloce in salita' });
+  const cool = timed('cooldown', 'cardioCool', 'Camminata lenta', 1, 180, 0, 'In piano, respiro che rallenta');
+  const stretches = cardioStretches(meta, used);
+  const items = [warm, main, cool].concat(stretches);
+  const room = budget * 60 / paceOf('cardio') - rawSeconds(items.filter(it => it !== main)) - CHANGE_SEC.cardio;
+  let sec = clampN(Math.floor(room / 60) * 60, 900, 2700);
+  if (deload) sec = Math.max(900, Math.round(sec * 0.6 / 60) * 60);
+  main.hold = sec;
+  return { label: 'Camminata in salita · Spartan e Tuscany Trail', type: 'cardio', items, mode: 'walk' };
+}
+
 /* (8) Mini-percorso a ostacoli: dopo la corsa-camminata, senza pause lunghe,
    30 burpees al tuo livello (la penalità del giavellotto), una sospensione
    lunga e un trasporto. Serve a sentire la gara in sequenza, non a fare
@@ -5094,7 +5233,7 @@ function openSpartan() {
   }).join('');
   const runRows = rs.runs.slice(-6).reverse().map(r => `<li><div class="nm" style="flex:1">${dateIt(r.ts)} · livello ${(r.level || 0) + 1}${r.full ? '' : ' (non completa)'}${r.light ? ' · leggera' : ''}${r.check ? ' · check' : ''}
       <div class="small muted">Ginocchio: ${r.knee === 0 ? 'tranquillo' : r.knee === 1 ? 'oltre 2/10 o lento a passare' : r.knee === 2 ? 'peggio la mattina dopo' : 'risposta mancante'}${isFinite(r.km) && r.km ? ` · ${String(r.km).replace('.', ',')} km` : ''}</div></div></li>`).join('');
-  const runFrom = isoNoon(sp.runFrom);
+  const runFrom = isoNoon(sp.runFrom), specFrom = isoNoon(sp.specFrom || sp.runFrom);
   openModal(`<h2>Spartan Race · Sprint di ${esc(sp.place)}</h2>
     <p class="small muted">${spDateText()} · ${sp.distanceKm} km e ${sp.obstacles} ostacoli · ${weeksToRace()} settimane.</p>
     <p class="small">${esc(sp.aim)}</p>
@@ -5105,7 +5244,7 @@ function openSpartan() {
       ${goalRow('pull', mP, `Traguardo ${mP.T} trazioni pulite di fila (fune, muri, Hercules hoist) · ${srcTxt(mP)}. L'obiettivo del programma resta ${pullTarget().n} a fine maggio.`)}
       ${goalRow('hang', mH, `Traguardo ${mH.T} secondi appeso con le spalle attive (monkey bars, multi-rig) · ${srcTxt(mH)}.`)}
       ${goalRow('burpee', mB, `Traguardo ${mB.T} di fila in forma corretta, la penalità del giavellotto e di ogni ostacolo fallito. Livello «${esc(b.level)}»${b.byChoice ? ', scelto da te in seduta' + (S.kneeCare ? ' (con la priorità al ginocchio l\'app non lo proporrebbe da sola)' : '') : ''}${b.L < b.maxL ? `: con ${b.next} di fila passi al livello successivo` : ''}${b.capped && !b.byChoice ? '. Il livello regolamentare, con il salto, l\'app non lo propone da sola finché è attiva la priorità al ginocchio: puoi sceglierlo tu nel menu del livello, meglio sentito il fisioterapista' : ''}. Conta la serie migliore di fila, non il totale della seduta; una serie a un livello più difficile vale anche per quelli più facili · ${srcTxt(mB)}.`)}
-      ${goalRow('run', mR, ph === 'base' ? `Dal ${dateIt(runFrom)} la seduta a ritmo costante diventa corsa-camminata all'aperto, una volta a settimana. Traguardo: ${runSpecText(rs.levels[rs.max])}, circa ${sp.targets.runKm} km per chi corre piano.`
+      ${goalRow('run', mR, !runOn(Date.now()) ? `Dal ${dateIt(runFrom)} la seduta a ritmo costante diventa corsa-camminata all'aperto, una volta a settimana${noonOf(Date.now()) < runFrom && sp.walk ? ` (dal ${dateIt(specFrom)} a febbraio camminata veloce in salita all'aperto)` : ''}. Traguardo: ${runSpecText(rs.levels[rs.max])}, circa ${sp.targets.runKm} km per chi corre piano.`
         : `Ora: ${runSpecText(rs.spec)}. Traguardo: ${runSpecText(rs.levels[rs.max])}, circa ${sp.targets.runKm} km${rs.km ? ` · distanza migliore registrata ${String(rs.km).replace('.', ',')} km` : ''}. Il livello sale solo se il giorno dopo il ginocchio è tranquillo.`)}
     </ul>
 
@@ -5116,8 +5255,8 @@ function openSpartan() {
     <h3>Come cambia il piano</h3>
     <ul class="small" style="padding-left:18px">
       <li><b>Forza A, B e C</b>: invariate. Il test delle trazioni in Forza A, fino alla gara, è anche lo Spartan Race check.</li>
-      <li><b>Seduta a intervalli</b>: dopo il riscaldamento, a fresco, burpees per livelli e sospensione alla sbarra${S.setup === 'gym' ? '' : ' (a casa solo burpees)'}; dal ${dateIt(runFrom)} anche un trasporto (contadino o in abbraccio, a settimane alterne). Poi gli scatti, nel tempo che resta.</li>
-      <li><b>Seduta a ritmo costante</b>: dal ${dateIt(runFrom)} corsa-camminata all'aperto, una volta a settimana, con il timer che suona ai cambi. Se piove o il ginocchio protesta, «Cambia attrezzo» riporta la bici.</li>
+      <li><b>Seduta a intervalli</b>: dopo il riscaldamento, a fresco, burpees per livelli e sospensione alla sbarra${S.setup === 'gym' ? '' : ' (a casa solo burpees)'}; dal ${dateIt(specFrom)} anche un trasporto (contadino o in abbraccio, a settimane alterne). Poi gli scatti, nel tempo che resta.</li>
+      <li><b>Seduta a ritmo costante</b>: ${sp.walk ? `dal ${dateIt(specFrom)} a febbraio camminata veloce in salita all'aperto (minuti aerobici, terreno vario della Spartan, salite a piedi del Tuscany Trail; tappe mensili, zaino leggero da febbraio se il ginocchio è tranquillo); ` : ''}dal ${dateIt(runFrom)} corsa-camminata all'aperto, una volta a settimana, con il timer che suona ai cambi. Se piove o il ginocchio protesta, «Cambia attrezzo» riporta la bici.</li>
       <li><b>Settimane di scarico</b>: blocco Spartan e corsa più corti, nessun aumento di livello.</li>
       <li><b>Settimana della gara</b>: tutto leggero, nessun check. Dopo la gara il piano torna com'era.</li>
       <li>Le serie del blocco Spartan non contano nel volume dei gruppi muscolari: sono condizionamento.</li>
@@ -5253,12 +5392,15 @@ function cyclesHtml(p, meta) {
 function spCyclesHtml() {
   const sp = SP();
   if (!sp || spPhase(Date.now()) === 'off') return '';
-  const runFrom = dateIt(isoNoon(sp.runFrom));
+  const runFrom = dateIt(isoNoon(sp.runFrom)), specFrom = dateIt(isoNoon(sp.specFrom || sp.runFrom));
   return `<h3 style="margin-top:14px;font-size:15px">Preparazione Spartan Race (fino al ${spDateText()})</h3>
     <ul class="small" style="padding-left:18px">
-      <li><b>Per calendario</b>: da ora burpees e sospensione alla sbarra nella seduta a intervalli; dal ${runFrom} la seduta a ritmo costante diventa corsa-camminata (una volta a settimana) e si aggiunge un trasporto; settimana della gara leggera; dopo la gara il piano torna com'era. Forza A, B e C non cambiano.</li>
+      <li><b>Per calendario</b>: da ora burpees e sospensione alla sbarra nella seduta a intervalli; dal ${specFrom} si aggiunge un trasporto e la seduta a ritmo costante diventa camminata veloce in salita all'aperto, dal ${runFrom} corsa-camminata (una volta a settimana); settimana della gara leggera; dopo la gara il piano torna com'era. Forza A, B e C non cambiano.</li>
       <li><b>Secondo i tuoi risultati</b>: il livello dei burpees sale con ${(sp.burpee.advance || []).join(' e ')} di fila; le ripetizioni sono circa il 60-70% del tuo massimo; la sospensione il 60% del tuo massimo; la corsa sale di un livello solo se il giorno dopo il ginocchio è tranquillo, resta ferma se ha dato fastidio, scende se la mattina dopo andava peggio.</li>
       <li><b>Spartan Race check</b> nella prima settimana di ogni blocco: trazioni (Forza A), burpees e sospensione (intervalli), corsa-camminata (dal ${runFrom}). Dettagli e date in Progressi › Spartan Race.</li>
+      <li><b>Settimana dopo la gara</b>: recupero, cioè forza leggera (al massimo 2 serie, stessi carichi), aerobico solo a ritmo facile e mobilità; stelle fuori dalla progressione come nello scarico.</li>
+      ${PROG.maintenance ? `<li><b>Dal ${dateIt(isoNoon(PROG.maintenance.from))}, forza in mantenimento</b>: due sedute a settimana (Forza A e B, stessi carichi, 3 serie ai fondamentali e alle trazioni, 2 agli altri, niente supplementari); al posto di Forza C una seduta di mobilità. Spiering et al. 2021: per mantenere la forza conta l'intensità; negli adulti più anziani possono servire 2 sedute con 2-3 serie.</li>` : ''}
+      <li><b>Lunedì dopo un'uscita in MTB di 3 ore o più</b>: l'app mette Forza B (parte alta) al posto di Forza A, che si sposta più avanti nella settimana.</li>
     </ul>`;
 }
 
@@ -5374,7 +5516,8 @@ function alternativesFor(item, sess) {
     (!alt.roles || alt.roles.includes(e.pullRole)) &&
     // (7S 0) la corsa-camminata non è un'alternativa alla bici: si sceglie solo
     // nella seduta di corsa della preparazione Spartan
-    (!(e.cardioModes || []).includes('run') || (alt.modes || []).includes('run')) && !(e.cardioModes || []).includes('mtb'));
+    (!(e.cardioModes || []).includes('run') || (alt.modes || []).includes('run')) &&
+    (!(e.cardioModes || []).includes('walk') || (alt.modes || []).includes('walk')) && !(e.cardioModes || []).includes('mtb'));
   if (alt.roles && pool.length < 2) {
     pool = DB.exercises.filter(e => e.setup.includes(S.setup) && e.pattern === 'pullup');
   }
@@ -5476,7 +5619,7 @@ function openExercisePicker(item, sess, after, opts) {
    Aerobico: si sceglie l'attrezzo e, se serve, il tipo di lavoro (intervalli o
    ritmo costante). Mobilità: si sceglie quale dei due schemi svolgere.
 --------------------------------------------------------------------------- */
-const cardioModeWord = m => m === 'hiit' ? 'intervalli' : m === 'run' ? 'corsa-camminata' : 'ritmo costante';
+const cardioModeWord = m => m === 'hiit' ? 'intervalli' : m === 'run' ? 'corsa-camminata' : m === 'walk' ? 'camminata in salita' : 'ritmo costante';
 
 function openSessionPicker(sess) {
   const meta = sessionMeta(sess.idx);
@@ -5499,10 +5642,11 @@ function openCardioPicker(sess, meta, opt) {
   const curId = (sess.items.filter(i => i.role === 'cardio')[0] || {}).exId;
   // (7S 0) la corsa-camminata si sceglie solo nella seduta a ritmo costante,
   // da dicembre alla gara
-  const runOk = meta.tmplIdx === 1 && !meta.mobilityWeek && ['run', 'race'].includes(spPhase(metaDate(meta)));
+  const runOk = meta.tmplIdx === 1 && !meta.mobilityWeek && ['run', 'race'].includes(spPhase(metaDate(meta))) && runOn(metaDate(meta));
+  const walkOk = walkOkFor(meta);
   const pool = DB.exercises.filter(e => (e.pattern === 'cardio' || e.pattern === 'finisher') &&
       !e.retired && e.setup.includes(S.setup) && (e.cardioModes || []).length &&
-      (!(e.cardioModes || []).includes('run') || runOk) && !(e.cardioModes || []).includes('mtb'))
+      (!(e.cardioModes || []).includes('run') || runOk) && (!(e.cardioModes || []).includes('walk') || walkOk) && !(e.cardioModes || []).includes('mtb'))
     .sort((a, b) => a.name.localeCompare(b.name));
   // (8.4) in seduta: finché nulla è registrato si può cambiare tutto; dopo,
   // solo l'attrezzo, fra quelli che reggono il tipo di lavoro già iniziato
@@ -5515,6 +5659,7 @@ function openCardioPicker(sess, meta, opt) {
     const care = S.kneeCare && ex.kneeFriendly === false;
     const why = isCur ? 'in programma oggi'
       : ms.includes('run') ? 'preparazione Spartan: la corsa della settimana, livelli guidati dal ginocchio'
+      : ms.includes('walk') ? 'da dicembre a febbraio: camminata veloce in salita all\'aperto per Spartan, Tuscany Trail e 150′'
       : care ? 'flessione profonda sotto carico: non viene proposto da solo con la priorità al ginocchio'
       : ms.includes(mode) ? 'adatto al lavoro a ' + cardioModeWord(mode)
       : 'si può fare solo a ' + ms.map(cardioModeWord).join(' o ');
@@ -5657,8 +5802,34 @@ const typeClass = x => x.dayType === 'strength' || (x.isStrength && !x.dayType) 
    mobilità del mattino e la seduta del giorno — e i dettagli compaiono solo
    dentro quella che tocchi, con «Torna alla scelta» per cambiare idea.
 --------------------------------------------------------------------------- */
+/* (8.19) Lunedì dopo un'uscita in MTB di 3 ore o più (registrata domenica o
+   stamattina): Forza A, con lo squat pesante, cede il posto a Forza B (parte
+   alta), come farebbe «Seleziona» nel Programma della settimana. Una volta
+   per settimana: se poi rimetti Forza A al lunedì, l'app non la risposta. */
+const LONG_RIDE_MIN = 180;
+function autoSwapAfterLongRide() {
+  if (current && !current.finished) return null;
+  if (weekdayIdx() !== 0) return null;
+  const sun = calendarMonday() - DAY_MS;
+  const ride = mtbRides().filter(r => r.ts >= sun && (+r.minutes || 0) >= LONG_RIDE_MIN).pop();
+  if (!ride) return null;
+  const tp = todayPlan(), W = weekOfIdx(S.sessionIndex);
+  if (tp.rest || tp.stale || tp.done || tp.W !== W || tp.q !== 0 || posOfIdx(S.sessionIndex) !== 0) return null;
+  S.autoSwap = S.autoSwap || {};
+  if (S.autoSwap[W]) return null;
+  const w0 = weekStart(W), m0 = sessionMeta(w0);
+  if (!m0.isStrength || m0.tmplIdx !== 0) return null;
+  let qB = -1;
+  for (let q = 1; q < weekLen(W); q++) { const m = sessionMeta(w0 + q); if (m.isStrength && m.tmplIdx === 1) { qB = q; break; } }
+  if (qB < 0) return null;
+  swapDay(0, qB);
+  S.autoSwap[W] = { ts: Date.now(), ride: ride.ts, from: 0, to: qB };
+  sessMemo.clear(); planCache = null; save();
+  return `Ieri ${fmtMin(ride.minutes)} in MTB: oggi Forza B (parte alta) e Forza A, con lo squat, passa a ${WEEKDAYS[qB]}.`;
+}
 function renderHome() {
   $('#topTitle').textContent = 'Oggi';
+  { const msg = autoSwapAfterLongRide(); if (msg) setTimeout(() => showToast(`<div><b>Gambe a riposo dopo l'uscita lunga</b><br>${esc(msg)}</div>`, 5200), 300); }
   refreshDeload();
   if (homeView === 'morning') return renderHomeMorning();
   if (homeView === 'lunch') return renderHomeLunch();
@@ -8746,7 +8917,7 @@ function renderSettings() {
         movimento non ti dà dolore, togli la spunta e torna disponibile.</p>
       <div class="switch"><span>Obiettivo trazioni e muscle-up<br><span class="small muted">15 trazioni pulite di fila e 2 muscle-up a fine programma: lavoro per tappe dopo i due esercizi principali, test dopo ogni scarico, sospensione in chiusura se resta tempo. Dettagli in Progressi.</span></span>
         <input type="checkbox" id="pullChk" ${S.pullupGoal ? 'checked' : ''}></div>
-      ${SP() ? `<div class="switch"><span>Preparazione Spartan Race<br><span class="small muted">Sprint di ${esc(SP().place)}, ${spDateText()}: burpees e sospensione nella seduta a intervalli, corsa-camminata settimanale dal ${dateIt(isoNoon(SP().runFrom))}, Spartan Race check dopo ogni scarico. Forza A, B e C invariate. Dettagli in Progressi.</span></span>
+      ${SP() ? `<div class="switch"><span>Preparazione Spartan Race<br><span class="small muted">Sprint di ${esc(SP().place)}, ${spDateText()}: burpees e sospensione nella seduta a intervalli, camminata in salita da dicembre e corsa-camminata settimanale dal ${dateIt(isoNoon(SP().runFrom))}, Spartan Race check dopo ogni scarico. Forza A, B e C invariate. Dettagli in Progressi.</span></span>
         <input type="checkbox" id="spChk" ${S.spartan !== false ? 'checked' : ''}></div>` : ''}
       ${TT() ? `<div class="switch"><span>Preparazione Tuscany Trail<br><span class="small muted">${dateIt(isoNoon(TT().event))}-${dateIt(isoNoon(TT().eventEnd))}: uscita in mountain bike ogni domenica, seduta a intervalli sulla bici da spinning, scarico pre-gara di due settimane. Dettagli in Progressi.</span></span>
         <input type="checkbox" id="ttChk" ${S.tuscany !== false ? 'checked' : ''}></div>` : ''}

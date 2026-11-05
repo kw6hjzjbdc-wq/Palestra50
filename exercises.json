@@ -6057,6 +6057,62 @@
    "source": "Esculier et al. 2018, Br J Sports Med 52(10):659-666; Willy et al. 2019, JOSPT 49(9): aumento graduale. Livelli corsa-camminata: regola operativa dell'app"
   },
   {
+   "id": "o_hillwalk",
+   "name": "Camminata veloce in salita all'aperto",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "strength",
+   "group": "Condizionamento",
+   "pattern": "cardio",
+   "load": "time",
+   "kneeFriendly": true,
+   "spartan": true,
+   "primary": [
+    "Cardio"
+   ],
+   "secondary": [
+    "Glutei",
+    "Polpacci",
+    "Quadricipiti"
+   ],
+   "equipment": [
+    "Scarpe da trekking o da corsa"
+   ],
+   "art": {
+    "frames": [
+     "walkA",
+     "walkB"
+    ],
+    "implement": null
+   },
+   "interval": {
+    "sets": 1,
+    "work": 1800,
+    "rest": 0
+   },
+   "cardioModes": [
+    "walk"
+   ],
+   "steps": [
+    "All'aperto, percorso con salite (colline, sterrato, parco): passo svelto, respiro accelerato ma riesci a parlare a frasi brevi.",
+    "In salita: passi corti e frequenti, busto leggermente in avanti, braccia che spingono; il ritmo lo dà il respiro, non la velocità.",
+    "In discesa: passi corti e lenti, ginocchia morbide; se hai i bastoncini usali.",
+    "Da febbraio, se il ginocchio resta tranquillo, uno zaino leggero (3-5 kg)."
+   ],
+   "errors": [
+    "Passo da passeggiata: deve farti respirare più in fretta.",
+    "Scendere veloci le discese ripide.",
+    "Zaino pesante fin dall'inizio."
+   ],
+   "safety": [
+    "Ginocchio: salita e piano sono il terreno più amico; le discese ripide e veloci caricano di più la rotula, quindi vanno fatte piano e a passi corti (regola operativa dell'app).",
+    "Se il ginocchio supera 2 su 10 durante la camminata, o la mattina dopo va peggio, la volta dopo niente zaino e meno discese; se piove o fa troppo freddo «Cambia attrezzo» riporta la bici."
+   ],
+   "source": "WHO 2020 (Bull et al., Br J Sports Med 54(24):1451-1462): 150-300 min/settimana di attività aerobica moderata. Scelta della camminata in salita prima della corsa, tappe mensili e zaino: regola operativa dell'app"
+  },
+  {
    "id": "g_farmercarry",
    "name": "Trasporto del contadino",
    "setup": [

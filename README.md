@@ -213,6 +213,37 @@ Da *Oggi* (sotto il calendario), dalla pagina *Progressi* e dal riquadro *Il per
 
 Nel riepilogo di fine seduta, *Ho ancora tempo: aggiungi esercizi*. Si dichiara quanto tempo resta (5, 10 o 15 minuti) e l'app propone quattro esercizi sui **gruppi più indietro** rispetto al volume previsto per la settimana, con le serie che stanno davvero in quei minuti (tempo di preparazione compreso). Toccandone uno si torna nella seduta, che riprende da quell'esercizio e si chiude normalmente.
 
+### Niente scarico subito dopo il recupero (8.20)
+- Se lo scarico del programma cade nella settimana subito dopo quella di recupero dopo la Spartan Race, non si fa: quella settimana diventa una settimana normale del blocco (profilo «Costruzione», con la nota che lo spiega). Con il calendario previsto è la settimana del 3 maggio. Lo scarico pre-Tuscany Trail dal 5 maggio resta (Bosquet et al. 2007). Regola operativa dell'app.
+
+### Recupero dopo uscite lunghe e dopo la Spartan, forza in mantenimento da aprile (8.19)
+- **Lunedì dopo un'uscita in MTB di 3 ore o più** (registrata domenica o lunedì mattina, `autoSwapAfterLongRide`): se la settimana del programma comincia oggi con Forza A, l'app la scambia con Forza B (parte alta), come farebbe «Seleziona», e lo dice con un avviso. Succede una volta per settimana (`S.autoSwap`): se poi rimetti a mano Forza A al lunedì, l'app non la risposta. Regola operativa dell'app.
+- **Settimana dopo la Spartan Race** (i 7 giorni dopo il 25 aprile, `spartan.recoveryDays`): profilo di scarico con la nota di recupero, quindi stelle fuori dalla progressione e carico suggerito fermo.
+  - Forza leggera: al massimo 2 serie, niente supplementari, finale metabolico, attivazione e trazioni «se resta tempo».
+  - Aerobico solo a ritmo facile, senza intervalli.
+  - La fascia in alto dice «Settimana di recupero dopo la Spartan Race».
+- **Da aprile, forza in mantenimento** (`PROG.maintenance`, dal 1° aprile 2027). Spiering et al. 2021, J Strength Cond Res 35(5):1449-1458: per mantenere la forza conta soprattutto l'intensità, anche riducendo frequenza e volume; negli adulti più anziani, per conservare la massa muscolare, possono servire 2 sedute a settimana con 2-3 serie per esercizio.
+  - Due sedute di forza a settimana (Forza A e B), con i carichi della progressione normale.
+  - 3 serie ai fondamentali e alle trazioni, 2 agli altri esercizi, niente supplementari.
+  - Al posto di Forza C una seduta di mobilità, segnata «al posto di Forza C (mantenimento)».
+  - Lo scarico pre-Tuscany Trail del 5 maggio si applica sopra il mantenimento.
+- **Calendario previsto** (si sposta se salti sedute): 5 aprile scarico; 26 aprile recupero dopo la Spartan; dal 5 maggio scarico pre-Tuscany Trail. Lo scarico del programma del 3 maggio è tolto dalla 8.20.
+- Le date di una seduta si calcolano con `dateFlags`, tenuto in memoria finché non cambiano posizione nel programma, giorno o sedute registrate.
+
+### Corsa da marzo; da dicembre a febbraio camminata veloce in salita (8.18)
+- **Corsa-camminata solo da marzo** (`spartan.runFrom` = 2027-03-01). La fase specifica Spartan resta dal 7 dicembre (`spartan.specFrom`): trasporti nella seduta a intervalli e Spartan Race check. Il check della corsa compare solo da marzo.
+- **Dal 7 dicembre a fine febbraio** la seduta a ritmo costante diventa una **camminata veloce in salita all'aperto** (esercizio nuovo `o_hillwalk`, `walkDay` / `buildWalk`). Occupa tutto il tempo della seduta, fra 15 e 45 minuti (al 60% in settimana di scarico), e vale circa gli stessi minuti aerobici della bici (32′ a 45 minuti). Serve a più obiettivi insieme:
+  - i 150′ settimanali: minuti a intensità moderata (OMS 2020, Bull et al., Br J Sports Med 54(24):1451-1462);
+  - la Spartan Race: 5 km su terreno vario si fanno anche camminando, e salite e sterrato preparano alla corsa di marzo;
+  - il Tuscany Trail: le salite a piedi spingendo la bici carica;
+  - il grasso di pancia e gambe: conta la spesa energetica dell'intera settimana, perché il grasso non si toglie in un punto preciso (sei settimane di esercizi per l'addome non hanno ridotto il grasso addominale: Vispute et al. 2011, J Strength Cond Res 25(9):2559-2564).
+- **Tappe mensili** (regola operativa dell'app):
+  - dicembre: passo svelto con qualche salita;
+  - gennaio: tratti in salita di 2-5 minuti;
+  - febbraio: salite più lunghe e, se il ginocchio è tranquillo, uno zaino leggero (3-5 kg).
+  In discesa passi corti e lenti; ginocchio al massimo 2 su 10. Se piove, «Cambia attrezzo» riporta la bici. La camminata compare fra gli attrezzi solo in quel periodo; la corsa solo da marzo.
+- Con la corsa da marzo restano circa 6-7 corse prima della settimana della gara (una a settimana, scarichi esclusi): il livello finale sarà probabilmente intorno al 6-7 di 10. In gara il tempo non conta e si può alternare corsa e camminata.
+
 ### Seduta di giovedì risultata «svolta»: riparazione a ogni avvio (8.17)
 - **Caso segnalato (4 novembre, sera).** Nel Programma della settimana l'aerobico di giovedì risultava «✓ svolta» senza essere stato fatto. È lo stesso doppione della 8.16: la seduta di mercoledì registrata due volte aveva fatto avanzare il programma di una seduta in più, e la vista della settimana segnava «svolta» ogni seduta precedente alla prossima da fare, anche senza nessuna registrazione.
 - **La riparazione della 8.16 ora gira a ogni avvio**, non una volta sola. È idempotente: la seduta doppia, una volta marcata `merged`, non viene più considerata. Riconosce il doppione anche quando la seconda registrazione non contiene esercizi veri, purché le due sedute siano nella stessa posizione del programma e nello stesso giorno, una vera e una alle dosi previste. Il programma torna indietro di una seduta.
