@@ -9,8 +9,8 @@
   --surface:#16212E;
   --surface2:#1E2C3C;
   --line:#2B3B4E;
-  --text:#EAF1F8;
-  --muted:#93A7BC;
+  --text:#F5F9FD;
+  --muted:#B9C8D8;   /* (8.22) più chiaro: testi secondari più leggibili */
   --amber:#F5A524;      /* sedute di forza, azioni primarie */
   --teal:#4FC3A1;       /* sedute di mobilità */
   --alert:#E8654F;      /* avvertenze, ginocchio, rischi */
@@ -438,7 +438,7 @@ h1,h2{letter-spacing:.005em}
 }
 .splash .ver{
   position:absolute;top:calc(env(safe-area-inset-top) + 18px);right:20px;
-  font-family:var(--cond);font-size:14px;letter-spacing:.1em;color:var(--muted);opacity:.85;
+  font-family:var(--cond);font-size:14px;letter-spacing:.1em;color:var(--muted);
 }
 .splash .quote::before{content:"“"}
 .splash .quote::after{content:"”"}
@@ -699,6 +699,9 @@ body.in-session.mini-on #view-session{padding-bottom:176px}
 .setlog .n{flex:0 0 58px;font-family:var(--cond);color:var(--muted);font-size:14px}
 .setlog .v{flex:1;font-size:15px}
 .setlog .chev{color:var(--muted);font-size:15px}
+/* (8.22) righe registrate in sola lettura (dallo storico) */
+.setlog .setrow-ro{display:flex;align-items:center;gap:10px;background:var(--surface2);border:1px solid var(--line);
+  border-radius:10px;padding:9px 12px;min-height:42px}
 
 /* ============================================================
    SPARTAN RACE (dalla 7S 0)
@@ -804,7 +807,7 @@ body.big .mini #miniCount{font-size:34px}
    ============================================================ */
 body.light{
   --ink:#F3F5F8; --surface:#FFFFFF; --surface2:#EDF1F5; --line:#D3DCE5;
-  --text:#14202B; --muted:#56687A; --amber:#B86E00; --amber2:#F0A93C;
+  --text:#0F1923; --muted:#43566A; --amber:#B86E00; --amber2:#F0A93C;
   --teal:#11866A; --alert:#C23A26; --coral:#C4552A; --sp:#6548D4;
   --glow:0 6px 16px rgba(184,110,0,.22);
   background:var(--ink);
@@ -884,3 +887,34 @@ ul.plan li.isdone .nm b{color:var(--muted)}
 /* (8.12) fine delle serie previste: la scelta in evidenza */
 .extraline.decide{flex-direction:column;align-items:stretch;border:1px solid var(--amber);background:rgba(245,165,36,.08)}
 .extraline.decide .btn{flex:1 1 auto}
+
+/* ============================================================
+   (8.23) VERSO GLI OBIETTIVI
+   ============================================================ */
+.goals .goal{border-top:1px solid var(--line);padding:12px 0 10px;cursor:pointer}
+.goals .goal:first-of-type{border-top:0}
+.goals .goal:active{opacity:.7}
+.goal-h{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:17px}
+.goal-h .chip{flex:0 0 auto}
+.chip.alert{color:var(--alert);border-color:var(--alert)}
+.goalbar{position:relative;height:10px;border-radius:6px;background:rgba(255,255,255,.08);margin:8px 0 4px}
+.goalbar i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,#FFD27A,#F0951A)}
+.goalbar.sp i{background:linear-gradient(90deg,#D9CCFF,var(--sp))}
+.goalbar.teal i{background:linear-gradient(90deg,#A8EBD6,var(--teal))}
+.goalbar b{position:absolute;top:-4px;bottom:-4px;width:3px;margin-left:-1.5px;border-radius:2px;background:var(--text)}
+.sprow .goalbar{margin:0}
+.goalchart{width:100%;height:auto;display:block;margin:8px 0 2px}
+.gc-target{stroke:var(--amber);stroke-width:1.2;stroke-dasharray:2 3;opacity:.9}
+.gc-exp{stroke:var(--muted);stroke-width:1.2;stroke-dasharray:5 4}
+.gc-today{stroke:var(--line);stroke-width:1}
+.gc-line{fill:none;stroke:var(--teal);stroke-width:2.2;stroke-linejoin:round;stroke-linecap:round}
+.gc-dot{fill:var(--teal)}
+.gc-lab{fill:var(--muted);font-size:9px;font-family:var(--cond)}
+.goalsteps{list-style:none;padding:0;margin:10px 0 6px;display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.goalsteps li{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:6px 8px}
+.goalsteps li span{flex:0 0 20px;height:20px;border-radius:50%;display:grid;place-items:center;font-family:var(--cond);font-size:12px;border:1px solid var(--line)}
+.goalsteps li.ok{color:var(--text);border-color:var(--teal)}
+.goalsteps li.ok span{background:var(--teal);color:#07211a;border-color:var(--teal)}
+.goalsteps li.now{color:var(--text);border-color:var(--amber)}
+.goalsteps li.now span{border-color:var(--amber);color:var(--amber)}
+body.light .goalbar{background:#E3E9EF}

@@ -213,6 +213,29 @@ Da *Oggi* (sotto il calendario), dalla pagina *Progressi* e dal riquadro *Il per
 
 Nel riepilogo di fine seduta, *Ho ancora tempo: aggiungi esercizi*. Si dichiara quanto tempo resta (5, 10 o 15 minuti) e l'app propone quattro esercizi sui **gruppi più indietro** rispetto al volume previsto per la settimana, con le serie che stanno davvero in quei minuti (tempo di preparazione compreso). Toccandone uno si torna nella seduta, che riprende da quell'esercizio e si chiude normalmente.
 
+### Verso gli obiettivi (8.23)
+- In cima a **Progressi** c'è un nuovo riquadro, «Verso gli obiettivi» (`goalsHtml`). Toccando un obiettivo si apre il dettaglio già esistente: trazioni, Spartan Race o Tuscany Trail.
+  - **15 trazioni pulite.** Massimo attuale, barra con la tacca di «dove dovresti essere oggi» e grafico dei massimi registrati (test, serie a livelli puliti, valore dichiarato; `liftHistory`). Il grafico mostra anche la linea attesa tratteggiata e il traguardo. Sotto, la tappa del blocco trazioni e la successiva.
+  - **2 muscle-up.** Scala delle 6 tappe: 1, 6 e 12 trazioni, via libera per la spalla, 1 muscle-up, 2 muscle-up. Le tappe raggiunte sono in verde, quella in corso in ambra. Se le 12 trazioni ci sono ma l'opzione spalla è attiva, il giudizio è «sospeso per la spalla».
+  - **Spartan Race.** Barre con la tacca attesa per burpees di fila, sospensione e trazioni (traguardi del blocco Spartan), più il livello della corsa-camminata (da marzo). Grafico dei burpees di fila (`burpeeHistory`, `hangHistory`).
+  - **Tuscany Trail.** Uscita più lunga confrontata con la durata che il piano prevede oggi: 90′ più 15′ a settimana, entro il tetto del periodo (`mtbCap`). Grafico della durata di ogni uscita fino ai 300′ previsti prima dello scarico del 5 maggio.
+- **Giudizio** (`goalTrack`): «in anticipo», «in linea», «indietro» o «raggiunto». Confronta il dato migliore con una linea dritta dal primo dato al traguardo, con una tolleranza pari al maggiore fra l'8% del traguardo e 1 ripetizione (5 s per la sospensione, 2 per i burpees, 15′ per le uscite). È una regola operativa dell'app per leggere l'andamento, non una previsione: forza e resistenza non crescono in linea retta.
+
+### In viaggio, dati del Garmin per la MTB, risultati sempre visibili, testi più chiari (8.22)
+- **Attrezzatura «In viaggio»**, oltre a palestra e casa (`TRAVEL_GEAR`, `travelOk`, `applyTravelSetup`, `S.travelGear`). Valgono gli esercizi di casa che usano solo gli attrezzi portati in viaggio: di base le loop band. In Programma › Profilo si aggiungono ancoraggio per l'elastico, manubri leggeri e ruota per addominali. Tappetino, sedia, muro, gradino e divano si trovano ovunque e non contano. Gli esercizi idonei ricevono `travel` fra le attrezzature, così sedute, alternative e catalogo li trattano come gli altri. La scelta della dotazione entra nella firma del piano.
+- **Frasi motivazionali**: +70 frasi originali (193 in tutto), anche legate a Spartan, Tuscany Trail, trazioni, ginocchio e sonno.
+- **Dati del Garmin dopo l'uscita in MTB.** Nella scheda dell'uscita:
+  - dal Forerunner 55 (riepilogo in Garmin Connect): FC media e FC massima dell'uscita, più la FC massima personale delle zone di Garmin Connect (`S.hrMax`);
+  - dal ciclocomputer: il dislivello, perché l'orologio non ha l'altimetro barometrico (scheda tecnica Garmin).
+  - Intensità con le classi ACSM: moderata 64-76%, vigorosa 77-95% della FC massima, riportate da Scharhag-Rosenberger et al. 2015, J Cancer Surviv 9(4):612-619.
+  - Un'uscita vigorosa conta doppio nei minuti aerobici (OMS 2020). Un'uscita lunga (2 ore o più) vigorosa riceve un avviso: la base è il ritmo da conversazione (regola operativa).
+  - Nuovo riquadro «Le tue uscite» con durata, km, D+, km/h e FC, la più lunga e il confronto con il percorso lungo del Tuscany Trail (440 km in 7 giorni, circa 63 km al giorno).
+- **Risultati sempre visibili:**
+  - nella scheda di ogni esercizio, «I tuoi risultati»: ultime 5 registrazioni serie per serie, comprese quelle della seduta in corso e a qualunque distanza di tempo (`recentResultsHtml`);
+  - nella seduta, un esercizio già registrato mostra le serie salvate anche se non sono più in memoria;
+  - in Progressi tutte le sedute restano consultabili, 10 alla volta con «Mostra altre sedute».
+- **Testi più leggibili**: nel tema scuro il testo secondario passa da `#93A7BC` a `#B9C8D8` e il testo principale si schiarisce; nel tema chiaro il secondario si scurisce (`#43566A`). Tolte le trasparenze che attenuavano le note.
+
 ### Verifica del piano e attrezzi nuovi della sala (8.21)
 - **Attrezzi:**
   - manubri anche da 1 e 3 kg (`RACKS.dumbbell` 1, 2, 3, 4…40);

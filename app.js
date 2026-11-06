@@ -302,7 +302,37 @@ async function loadData() {
   // leggere lo storico, ma non vengono più proposti né elencati
   DB = { all: ex.exercises, exercises: ex.exercises.filter(e => !e.retired), version: ex.version };
   PROG = pr; POSES = po; QUOTES = qu.quotes || [];
+  applyTravelSetup();
 }
+
+/* (8.22) IN VIAGGIO
+   Terza attrezzatura oltre a palestra e casa. Valgono gli esercizi di casa che
+   usano solo gli attrezzi portati in viaggio: di base le loop band; dal
+   Programma si possono aggiungere gli altri attrezzi di casa. Tappetino,
+   sedia, muro, gradino, letto o divano si trovano ovunque (un asciugamano fa
+   da tappetino) e non contano. Gli esercizi idonei ricevono 'travel' fra le
+   attrezzature, così tutta l'app li tratta come gli altri. */
+const TRAVEL_GEAR = [
+  { k: 'loop',   label: 'Loop band (elastici ad anello)',            re: /loop band|mini band|^band$/i },
+  { k: 'anchor', label: 'Ancoraggio per l\'elastico (porta, stipite)', re: /ancoraggio|stipite/i },
+  { k: 'db',     label: 'Manubri leggeri',                           re: /manubri/i },
+  { k: 'wheel',  label: 'Ruota per addominali',                      re: /ruota/i }
+];
+const travelGear = () => Array.isArray(S.travelGear) ? S.travelGear : ['loop'];
+function travelOk(e) {
+  if (!e || !(e.setup || []).includes('home')) return false;
+  if ((e.equipment || []).some(q => /mountain bike/i.test(q))) return false;
+  const have = travelGear();
+  return (e.equipment || []).every(q => { const g = TRAVEL_GEAR.find(t => t.re.test(String(q).trim())); return !g || have.includes(g.k); });
+}
+function applyTravelSetup() {
+  ((DB && DB.all) || []).forEach(e => {
+    if (!Array.isArray(e.setup)) return;
+    e.setup = e.setup.filter(x => x !== 'travel');
+    if (travelOk(e)) e.setup.push('travel');
+  });
+}
+const SETUP_NAMES = { gym: 'Palestra', home: 'Casa', travel: 'In viaggio' };
 const exById = id => (DB.all || DB.exercises).find(e => e.id === id);
 
 /* ---------------------------------------------------------------------------
@@ -3145,6 +3175,27 @@ function mtbThisWeek() {
   const mon = calendarMonday();
   return mtbRides().filter(r => r.ts >= mon).pop() || null;
 }
+/* (8.22) DATI DEL GARMIN DOPO L'USCITA IN MTB
+   Dal Forerunner 55 (riepilogo dell'attività in Garmin Connect): durata,
+   distanza, frequenza cardiaca media e massima; dal ciclocomputer il
+   dislivello, se lo misura (il Forerunner 55 non ha l'altimetro
+   barometrico). A cosa servono:
+     · FC media in % della FC massima personale → intensità dell'uscita con
+       le classi ACSM (moderata 64-76%, vigorosa 77-95% della FC massima,
+       riportate da Scharhag-Rosenberger et al. 2015, J Cancer Surviv
+       9(4):612-619). Un'uscita vigorosa vale il doppio nei minuti aerobici
+       (OMS 2020); un'uscita lunga vigorosa riceve un avviso, perché la base
+       per il Tuscany Trail è il ritmo da conversazione (regola operativa);
+     · distanza e dislivello → andamento delle uscite e confronto con il
+       percorso del Tuscany Trail (440 km in 7 giorni, circa 63 km al giorno).
+   La FC massima personale (S.hrMax) è quella che Garmin Connect mostra fra
+   le zone di frequenza cardiaca. */
+const HR_MOD = 0.64, HR_VIG = 0.77;
+function hrClass(avg, max) {
+  if (!(avg > 0) || !(max > 0)) return null;
+  const f = avg / max;
+  return { pct: Math.round(f * 100), cls: f >= HR_VIG ? 'vigorosa' : f >= HR_MOD ? 'moderata' : 'leggera' };
+}
 function recordMtbRide(o) {
   const t = TT(), now = Date.now(), plan = mtbPlanFor(now);
   const minutes = Math.max(1, Math.round(+o.minutes || 0));
@@ -3152,14 +3203,18 @@ function recordMtbRide(o) {
   const tp = todayPlan();
   const W = tp.W || weekOfIdx(S.sessionIndex);
   const sIdx = weekStart(W) + weekLen(W) - 1;
+  if (o.hrMaxUser > 0) S.hrMax = o.hrMaxUser;
+  const hc = hrClass(o.hrAvg, S.hrMax);
   const ride = { ts: now, sid: now, planned: plan.min || minutes, minutes, km: o.km || null, dplus: o.dplus || null,
+    hrAvg: o.hrAvg || null, hrPeak: o.hrPeak || null, hrPct: hc ? hc.pct : null, intensity: hc ? hc.cls : null,
     loaded: !!o.loaded, kneeDuring: hasNum(o.knee) ? +o.knee : null, kneeNext: null, light: plan.phase === 'taper' || !!mtbState().deload, note: o.note || '' };
   S.mtbRides.push(ride);
   S.logs.push({ ts: now, sid: now, sIdx, exId: 'o_mtb', name: 'Uscita in mountain bike', setup: S.setup, load: '', feedback: 'same',
     sets: 1, setLog: [{ load: '', reps: 1, hold: minutes * 60, rir: null }], repsTarget: 1, repsDone: 1, reps: 1,
-    goal: 'cardioSteady', hold: minutes * 60, rest: 0, setsPlanned: 1, mtb: true, stars: 0, rateText: '' });
+    goal: 'cardioSteady', hold: minutes * 60, rest: 0, setsPlanned: 1, mtb: true, stars: 0, rateText: '',
+    ...(hc && hc.cls === 'vigorosa' ? { vigorous: true } : {}), ...(o.hrAvg ? { hrAvg: o.hrAvg } : {}) });
   S.sessionLog.push({ ts: now, sid: now, idx: sIdx, label: 'Uscita in MTB · Tuscany Trail', kind: 'mtb', minutes,
-    note: [o.km ? `${String(o.km).replace('.', ',')} km` : '', o.dplus ? `${o.dplus} m D+` : '', o.loaded ? 'bici carica' : '', o.note || ''].filter(Boolean).join(' · '),
+    note: [o.km ? `${String(o.km).replace('.', ',')} km` : '', o.dplus ? `${o.dplus} m D+` : '', o.hrAvg ? `FC media ${o.hrAvg}${hc ? ` (${hc.pct}%, ${hc.cls})` : ''}` : '', o.loaded ? 'bici carica' : '', o.note || ''].filter(Boolean).join(' · '),
     ...(hasNum(o.knee) ? { feel: { energy: null, sleep: null, knee: +o.knee, shoulder: null, groin: null } } : {}) });
   logsTouched && logsTouched();
   planCache = null; save();
@@ -3219,6 +3274,27 @@ function openTuscany() {
   $('#ttClose').onclick = () => closeModal();
 }
 /* Pagina dell'uscita della domenica: indicazioni e registrazione. */
+/* (8.22) Le ultime uscite con i dati del Garmin e il confronto con il
+   percorso del Tuscany Trail. */
+function mtbRidesHtml() {
+  const rides = mtbRides();
+  if (!rides.length) return '';
+  const longKm = Math.max(0, ...rides.map(r => +r.km || 0)), longMin = Math.max(...rides.map(r => +r.minutes || 0));
+  const maxD = Math.max(0, ...rides.map(r => +r.dplus || 0));
+  const rows = rides.slice(-8).reverse().map(r => {
+    const kmh = r.km && r.minutes ? (r.km / (r.minutes / 60)) : null;
+    const bits = [fmtMin(r.minutes), r.km ? `${String(r.km).replace('.', ',')} km` : '', r.dplus ? `${r.dplus} m D+` : '',
+      kmh ? `${kmh.toFixed(1).replace('.', ',')} km/h` : '', r.hrAvg ? `FC media ${r.hrAvg}${r.hrPct ? ` · ${r.hrPct}% · ${r.intensity}` : ''}` : '', r.loaded ? 'carica' : ''].filter(Boolean);
+    return `<li><div class="nm" style="flex:1"><b>${esc(new Date(r.ts).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }))}</b>
+      <div class="small muted">${esc(bits.join(' · '))}</div></div></li>`;
+  }).join('');
+  return `<div class="card">
+    <h3 style="font-size:16px;margin:0 0 6px">Le tue uscite</h3>
+    <p class="small muted" style="margin:0 0 6px">Più lunga: ${fmtMin(longMin)}${longKm ? ` · ${String(longKm).replace('.', ',')} km` : ''}${maxD ? ` · dislivello massimo ${maxD} m` : ''}. Il percorso lungo del Tuscany Trail chiede in media circa 63 km al giorno per 7 giorni (440 km).</p>
+    <ul class="plan">${rows}</ul>
+    ${S.hrMax ? '' : '<p class="small muted" style="margin-top:6px">Con la FC massima personale l\'app calcola l\'intensità di ogni uscita (classi ACSM: moderata 64-76%, vigorosa 77-95%).</p>'}
+  </div>`;
+}
 function renderHomeMtb() {
   const plan = mtbPlanFor(Date.now()), st = mtbState(), done = mtbThisWeek();
   $('#topChip').textContent = 'Tuscany Trail';
@@ -3243,13 +3319,18 @@ function renderHomeMtb() {
       <h3 style="font-size:16px;margin-top:14px">${done ? 'Registra un\'altra uscita' : 'Registra l\'uscita'}</h3>
       <div class="field"><label>Durata (minuti)</label><input id="mtbMin" type="number" inputmode="numeric" min="1" max="900" value="${plan.min || 90}"></div>
       <div class="field"><label>Distanza (km, facoltativa)</label><input id="mtbKm" type="text" inputmode="decimal" placeholder="km"></div>
-      <div class="field"><label>Dislivello (m, facoltativo)</label><input id="mtbD" type="number" inputmode="numeric" placeholder="m"></div>
+      <div class="field"><label>Dislivello (m, facoltativo · dal ciclocomputer)</label><input id="mtbD" type="number" inputmode="numeric" placeholder="m"></div>
+      <div class="field"><label>FC media (battiti/min, facoltativa · dal Garmin)</label><input id="mtbHr" type="number" inputmode="numeric" min="60" max="220" placeholder="bpm"></div>
+      <div class="field"><label>FC massima dell'uscita (facoltativa)</label><input id="mtbHrPk" type="number" inputmode="numeric" min="60" max="230" placeholder="bpm"></div>
+      <div class="field"><label>La tua FC massima personale (da Garmin Connect, zone di frequenza cardiaca)</label><input id="mtbHrMax" type="number" inputmode="numeric" min="120" max="230" value="${S.hrMax || ''}" placeholder="bpm"></div>
+      <p class="small muted" style="margin:4px 0 0">Dal Forerunner 55, nel riepilogo dell'attività in Garmin Connect: durata, distanza, FC media e massima. Il dislivello dal ciclocomputer, se lo misura: l'orologio non ha l'altimetro barometrico. Per confrontare le uscite usa sempre lo stesso strumento per la distanza.</p>
       <div class="switch"><span>Bici carica con le borse</span><input type="checkbox" id="mtbLoad" ${plan.loaded ? 'checked' : ''}></div>
       <div class="feelrow"><span class="lab">Ginocchio durante l'uscita<span class="small muted"> 0 nessun dolore · 10 il peggiore</span></span>
         <div class="feelbtns" id="mtbKnee">${Array.from({ length: 11 }, (_, v) => `<button type="button" data-v="${v}">${v}</button>`).join('')}</div></div>
       <div class="field"><label>Nota</label><input id="mtbNote" type="text" placeholder="percorso, sensazioni, attrezzatura"></div>
       <button class="btn teal" id="mtbSave" style="margin-top:10px">Salva l'uscita</button>
     </div>
+    ${mtbRidesHtml()}
     <button class="btn ghost" id="mtbWeek" style="margin-top:10px">Programma della settimana</button>
     <button class="btn ghost backbottom" id="mtbBack2">‹ ${backTxt}</button>`;
   let knee = null;
@@ -3266,9 +3347,12 @@ function renderHomeMtb() {
     if (!(minutes > 0)) { showToast('<div>Indica la durata in minuti.</div>'); return; }
     const km = parseFloat(String($('#mtbKm').value || '').replace(',', '.'));
     const dp = parseInt($('#mtbD').value, 10);
-    recordMtbRide({ minutes, km: isFinite(km) && km > 0 ? Math.round(km * 10) / 10 : null, dplus: dp > 0 ? dp : null,
+    const hr = parseInt($('#mtbHr').value, 10), hp = parseInt($('#mtbHrPk').value, 10), hm = parseInt($('#mtbHrMax').value, 10);
+    const ride = recordMtbRide({ minutes, km: isFinite(km) && km > 0 ? Math.round(km * 10) / 10 : null, dplus: dp > 0 ? dp : null,
+      hrAvg: hr >= 60 && hr <= 220 ? hr : null, hrPeak: hp >= 60 && hp <= 230 ? hp : null, hrMaxUser: hm >= 120 && hm <= 230 ? hm : null,
       loaded: $('#mtbLoad').checked, knee, note: $('#mtbNote').value || '' });
-    showToast(`<div><b>Uscita registrata</b>: ${fmtMin(minutes)}. Domani l'app ti chiede com'è il ginocchio.</div>`, 4200);
+    const hot = ride.intensity === 'vigorosa' && minutes >= 120;
+    showToast(`<div><b>Uscita registrata</b>: ${fmtMin(minutes)}${ride.intensity ? ` · intensità ${ride.intensity} (${ride.hrPct}% della FC massima)` : ''}.${hot ? ' Per le uscite lunghe tieni il ritmo da conversazione: è quello che costruisce la base per il Tuscany Trail.' : ''} Domani l'app ti chiede com'è il ginocchio.</div>`, hot ? 6500 : 4200);
     homeView = null; renderHome(); window.scrollTo(0, 0);
   };
 }
@@ -3796,7 +3880,9 @@ function aeroSum(list) {
   return { mod: Math.round(mod), vig: Math.round(vig), eq: Math.round(mod + 2 * vig) };
 }
 function aerobicMinutes(weekAbs) {
-  return aeroSum(weekLogs(weekAbs).map(l => aeroOf(l.goal, exById(l.exId), l.sets || 0, l.hold || 0, l.rest || 0)));
+  // (8.22) uscita in MTB con FC media da intensità vigorosa: minuti vigorosi
+  return aeroSum(weekLogs(weekAbs).map(l => l.vigorous ? { mod: 0, vig: (l.sets || 1) * (l.hold || 0) / 60 }
+    : aeroOf(l.goal, exById(l.exId), l.sets || 0, l.hold || 0, l.rest || 0)));
 }
 const itemsAerobic = items => aeroSum((items || []).map(it => aeroOf(it.goal, exById(it.exId), it.sets || 0, it.hold || 0, it.rest || 0)));
 
@@ -4093,7 +4179,7 @@ function bindMorning() {
 --------------------------------------------------------------------------- */
 let sessMemo = new Map(), sessMemoKey = null;
 function planSignature() {
-  return [S.programId, S.setup, S.durPref || 45, S.finisher || '', S.kneeCare, S.shoulderCare, !!S.groinCare, S.tuscany !== false,
+  return [S.programId, S.setup, S.setup === 'travel' ? travelGear().join('+') : '', S.durPref || 45, S.finisher || '', S.kneeCare, S.shoulderCare, !!S.groinCare, S.tuscany !== false,
           S.pullupGoal, JSON.stringify(S.pullSelf || null), S.week6From || 0, logsRev, (S.mobilityWeeks || []).join('.'),
           JSON.stringify(S.perms || {}), JSON.stringify(S.sessPick || {}), spSig(), painSig()].join('|');
 }
@@ -4998,6 +5084,172 @@ function openFeel() {
   $('#flClose').onclick = () => closeModal();
 }
 
+/* ===========================================================================
+   (8.23) VERSO GLI OBIETTIVI
+   In cima a Progressi, per ciascun obiettivo (Spartan Race, Tuscany Trail, 15
+   trazioni, 2 muscle-up): dove sei, dove «dovresti» essere oggi su una linea
+   dritta dal primo dato all'obiettivo, un giudizio (in anticipo, in linea,
+   indietro) e un grafico con i dati registrati, la linea attesa e il
+   traguardo. La linea dritta è una regola operativa dell'app per leggere
+   l'andamento, non una previsione: la forza e la resistenza non crescono in
+   modo lineare (all'inizio più in fretta, poi più piano).
+=========================================================================== */
+const DAYM = 864e5;
+/* Serie storica per giorno (il migliore del giorno). */
+function dailyBest(list) {
+  const by = new Map();
+  list.filter(c => c && isFinite(c.v) && c.ts).forEach(c => {
+    const k = new Date(c.ts).toDateString(), o = by.get(k);
+    if (!o || c.v > o.v) by.set(k, { ts: c.ts, v: c.v });
+  });
+  return [...by.values()].sort((a, b) => a.ts - b.ts);
+}
+function liftHistory(exId, okLevels, selfKey) {
+  const out = [];
+  (S.logs || []).forEach(l => {
+    if (!l || l.exId !== exId || l.planned || isDeloadLog(l) || emptyLog(l)) return;
+    const n = bestAtLevels(l, okLevels);
+    if (n > 0 || l.goal === 'pullupTest' || l.goal === 'muTest') out.push({ ts: l.ts, v: n });
+  });
+  if (S.pullSelf && isFinite(S.pullSelf[selfKey]) && S.pullSelf.ts) out.push({ ts: S.pullSelf.ts, v: +S.pullSelf[selfKey] });
+  return dailyBest(out);
+}
+function hangHistory() {
+  return dailyBest((S.logs || []).filter(l => l && l.exId === 'g_deadhang' && !l.planned && !isDeloadLog(l)).map(l => {
+    const rows = setRows(l);
+    return { ts: l.ts, v: rows ? Math.max(0, ...rows.map(r => +r.hold || 0).filter(isFinite)) : (+l.hold || 0) };
+  }));
+}
+function burpeeHistory() {
+  const sp = SP(), id = sp && sp.burpee && sp.burpee.exId;
+  return dailyBest((S.logs || []).filter(l => l && l.exId === id && !l.planned && !isDeloadLog(l) && !emptyLog(l)).map(l => {
+    const rows = setRows(l);
+    return { ts: l.ts, v: rows ? Math.max(0, ...rows.map(r => +r.reps || 0).filter(isFinite)) : bestRepsOf(l) };
+  }));
+}
+/* Dove dovresti essere oggi su una linea dritta dal primo dato al traguardo. */
+function goalTrack(hist, T, endTs, tolAbs) {
+  const now = Date.now();
+  if (!hist.length) return { status: 'nodata', cur: 0, exp: null };
+  const first = hist[0], cur = hist[hist.length - 1].v;
+  const best = Math.max(...hist.map(h => h.v));
+  const span = Math.max(DAYM, endTs - first.ts);
+  const exp = first.v + (T - first.v) * Math.min(1, Math.max(0, (now - first.ts) / span));
+  const tol = Math.max(tolAbs || 1, T * 0.08);
+  const v = Math.max(cur, best);
+  const status = v >= T ? 'done' : v >= exp + tol ? 'ahead' : v >= exp - tol ? 'ontrack' : 'behind';
+  return { status, cur: v, exp, first };
+}
+const GOAL_STATUS = {
+  done: ['raggiunto', 'mobility'], ahead: ['in anticipo', 'mobility'], ontrack: ['in linea', 'strength'],
+  behind: ['indietro', 'alert'], nodata: ['ancora senza dati', ''], wait: ['in attesa', ''], locked: ['sospeso per la spalla', '']
+};
+const goalChip = st => { const g = GOAL_STATUS[st] || GOAL_STATUS.nodata; return `<span class="chip ${g[1]}">${g[0]}</span>`; };
+/* Grafico: dati registrati, linea attesa (tratteggiata), traguardo, oggi. */
+function goalChartSvg(hist, o) {
+  const W = 300, H = 92, padL = 26, padR = 8, padT = 10, padB = 18;
+  const t0 = Math.min(o.t0 || Infinity, hist.length ? hist[0].ts : Infinity, Date.now());
+  const t1 = Math.max(o.t1, Date.now() + DAYM);
+  const vmax = Math.max(o.T * 1.08, ...hist.map(h => h.v), 1);
+  const x = t => padL + (W - padL - padR) * (t - t0) / Math.max(1, t1 - t0);
+  const y = v => padT + (H - padT - padB) * (1 - v / vmax);
+  const pts = hist.map(h => `${x(h.ts).toFixed(1)},${y(h.v).toFixed(1)}`).join(' ');
+  const base = hist.length ? hist[0] : { ts: t0, v: 0 };
+  const today = x(Date.now());
+  const mon = d => new Date(d).toLocaleDateString('it-IT', { month: 'short' });
+  return `<svg class="goalchart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(o.label || 'andamento')}">
+    <line x1="${padL}" y1="${y(o.T)}" x2="${W - padR}" y2="${y(o.T)}" class="gc-target"/>
+    <text x="${padL - 4}" y="${y(o.T) + 3}" class="gc-lab" text-anchor="end">${o.T}</text>
+    <text x="${padL - 4}" y="${y(0) + 3}" class="gc-lab" text-anchor="end">0</text>
+    <line x1="${x(base.ts)}" y1="${y(base.v)}" x2="${x(o.t1)}" y2="${y(o.T)}" class="gc-exp"/>
+    <line x1="${today}" y1="${padT - 4}" x2="${today}" y2="${H - padB}" class="gc-today"/>
+    <text x="${today}" y="${H - 5}" class="gc-lab" text-anchor="middle">oggi</text>
+    ${today - padL > 28 ? `<text x="${padL}" y="${H - 5}" class="gc-lab">${mon(t0)}</text>` : ''}
+    ${W - padR - today > 28 ? `<text x="${W - padR}" y="${H - 5}" class="gc-lab" text-anchor="end">${mon(o.t1)}</text>` : ''}
+    ${hist.length > 1 ? `<polyline points="${pts}" class="gc-line"/>` : ''}
+    ${hist.map(h => `<circle cx="${x(h.ts).toFixed(1)}" cy="${y(h.v).toFixed(1)}" r="2.6" class="gc-dot"/>`).join('')}
+  </svg>`;
+}
+/* Barra con la tacca di «dove dovresti essere oggi». */
+const goalBar = (v, T, exp, cls) => `<div class="goalbar ${cls || ''}"><i style="width:${Math.round(Math.min(1, Math.max(0, v / T)) * 100)}%"></i>${exp != null ? `<b style="left:${Math.round(Math.min(1, Math.max(0, exp / T)) * 100)}%" title="dove dovresti essere oggi"></b>` : ''}</div>`;
+
+function goalsHtml() {
+  const blocks = [];
+  const fmtD = d => dateIt(d);
+  // --- 15 trazioni
+  if (S.pullupGoal !== false && PROG.pullupBlock) {
+    const t = pullTarget(), path = pathStatus();
+    const end = path.p.target ? isoNoon(path.p.target) : path.end;
+    const h = liftHistory('g_pullup', STRICT_LEVELS, 'n'), tr = goalTrack(h, t.n, end.getTime(), 1);
+    const ps = pullStage();
+    blocks.push(`<div class="goal" data-goal="pull">
+      <div class="goal-h"><b>${t.n} trazioni pulite</b>${goalChip(tr.status)}</div>
+      <div class="small muted">Entro il ${fmtD(end)} · ora ${tr.cur} ${tr.cur === 1 ? 'trazione' : 'trazioni'}${tr.exp != null && tr.status !== 'done' ? ` · su una linea dritta oggi saresti a ${String(Math.round(tr.exp * 10) / 10).replace('.', ',')}` : ''}</div>
+      ${goalBar(tr.cur, t.n, tr.exp)}
+      ${goalChartSvg(h, { T: t.n, t1: end.getTime(), label: 'trazioni pulite' })}
+      <div class="small">Tappa: <b>${esc(ps ? ps.stage.label : '—')}</b>${ps && ps.next ? ` · prossima: ${esc(ps.next.label)} da ${ps.next.min} ${ps.next.min === 1 ? 'trazione' : 'trazioni'}` : ''}</div>
+    </div>`);
+    // --- 2 muscle-up: scala delle tappe
+    const mh = liftHistory('g_muscleup', ['Completo'], 'mu'), mu = mh.length ? Math.max(...mh.map(x => x.v)) : 0;
+    const steps = [
+      { l: '1 trazione', ok: tr.cur >= 1 }, { l: '6 trazioni', ok: tr.cur >= 6 }, { l: '12 trazioni', ok: tr.cur >= 12 },
+      { l: 'via libera spalla', ok: !S.shoulderCare }, { l: '1 muscle-up', ok: mu >= 1 }, { l: `${t.mu} muscle-up`, ok: mu >= t.mu }];
+    const reached = steps.filter(x => x.ok).length;
+    const muSt = mu >= t.mu ? 'done' : S.shoulderCare && tr.cur >= 12 ? 'locked' : tr.status === 'nodata' ? 'nodata' : tr.status === 'behind' ? 'behind' : 'ontrack';
+    blocks.push(`<div class="goal" data-goal="pull">
+      <div class="goal-h"><b>${t.mu} muscle-up</b>${goalChip(muSt)}</div>
+      <div class="small muted">Entro il ${fmtD(end)} · ${mu} finora · le tappe del muscle-up si aprono dopo le 12 trazioni${S.shoulderCare ? ' e con il via libera per la spalla (ora l\'opzione «evita gli esercizi dolorosi per la spalla» è attiva)' : ''}</div>
+      <ol class="goalsteps">${steps.map((x, i) => `<li class="${x.ok ? 'ok' : i === reached ? 'now' : ''}"><span>${i + 1}</span>${esc(x.l)}</li>`).join('')}</ol>
+      <div class="small muted">Il ritmo del muscle-up segue quello delle trazioni: ${tr.status === 'behind' ? 'se le trazioni restano indietro, anche il muscle-up si allontana' : 'le trazioni sono la strada'}.</div>
+    </div>`);
+  }
+  // --- Spartan Race
+  if (SP() && spOn() && spPhase(Date.now()) !== 'off') {
+    const sp = SP(), end = isoNoon(sp.date).getTime(), t = sp.targets || {};
+    const comp = [
+      { k: 'burpee', h: burpeeHistory(), T: t.burpees || 30, tol: 2, unit: 'di fila' },
+      { k: 'hang', h: hangHistory(), T: t.hang || 60, tol: 5, unit: 's' },
+      { k: 'pull', h: liftHistory('g_pullup', STRICT_LEVELS, 'n'), T: t.pullups || 8, tol: 1, unit: 'trazioni' }
+    ].map(c => Object.assign(c, { tr: goalTrack(c.h, c.T, end, c.tol) }));
+    const rs = runState(), runOn0 = runOn(Date.now());
+    const runRow = `<div class="sprow"><span>${SP_NAMES.run}</span>${goalBar(rs.L, Math.max(1, rs.max), null, 'sp')}<b>${runOn0 ? `livello ${rs.L + 1} di ${rs.max + 1}` : `dal ${dateIt(isoNoon(sp.runFrom))}`}</b></div>`;
+    const sts = comp.map(c => c.tr.status).filter(x => x !== 'nodata');
+    const overall = !sts.length ? 'nodata' : sts.includes('behind') ? 'behind' : sts.every(x => x === 'done') ? 'done' : sts.some(x => x === 'ahead') && !sts.includes('ontrack') ? 'ahead' : 'ontrack';
+    const bc = comp[0];
+    blocks.push(`<div class="goal" data-goal="spartan">
+      <div class="goal-h"><b>Spartan Race · ${esc(sp.place)}</b>${goalChip(overall)}</div>
+      <div class="small muted">${spDateText()} · ${weeksToRace()} settimane · la tacca su ogni barra è dove dovresti essere oggi</div>
+      ${comp.map(c => `<div class="sprow"><span>${SP_NAMES[c.k]}</span>${goalBar(c.tr.cur, c.T, c.tr.status === 'nodata' ? null : c.tr.exp, 'sp')}<b>${c.tr.cur} ${c.unit} di ${c.T}</b></div>`).join('')}
+      ${runRow}
+      ${bc.h.length ? goalChartSvg(bc.h, { T: bc.T, t1: end, label: 'burpees di fila' }) + '<div class="small muted">Grafico: burpees di fila in forma corretta, verso i 30 della gara.</div>' : ''}
+    </div>`);
+  }
+  // --- Tuscany Trail
+  if (TT() && S.tuscany !== false && ['build', 'taper', 'event'].includes(ttPhase(Date.now()))) {
+    const tt = TT(), rides = mtbRides(), start = isoNoon(tt.start).getTime(), ev = isoNoon(tt.event).getTime();
+    const goalMin = Math.max(...(tt.caps || []).map(c => c.min), 0) || 300;
+    const weeks = Math.max(0, Math.floor((Date.now() - start) / (7 * DAYM)));
+    const expMin = Math.min(mtbCap(Date.now()), tt.firstMin + tt.stepMin * Math.max(0, weeks - 1));
+    const longest = rides.reduce((a, r) => Math.max(a, +r.minutes || 0), 0);
+    const sundays = Math.max(0, Math.floor((Date.now() - start) / (7 * DAYM)) + (new Date().getDay() === 0 ? 1 : 0));
+    const st = !rides.length ? 'nodata' : longest >= goalMin ? 'done' : longest >= expMin + 15 ? 'ahead' : longest >= expMin - 15 ? 'ontrack' : 'behind';
+    const h = rides.map(r => ({ ts: r.ts, v: +r.minutes || 0 }));
+    blocks.push(`<div class="goal" data-goal="tuscany">
+      <div class="goal-h"><b>Tuscany Trail</b>${goalChip(st)}</div>
+      <div class="small muted">Dal ${dateIt(ev)} · ${rides.length} ${rides.length === 1 ? 'uscita registrata' : 'uscite registrate'}${sundays ? ` su ${sundays} ${sundays === 1 ? 'domenica' : 'domeniche'}` : ''} · uscita più lunga ${longest ? fmtMin(longest) : '—'}; secondo il piano oggi saresti intorno a ${fmtMin(expMin)}</div>
+      ${goalBar(longest, goalMin, expMin, 'teal')}
+      ${goalChartSvg(h, { T: goalMin, t0: start, t1: isoNoon(tt.taperFrom).getTime(), label: 'durata delle uscite in minuti' })}
+      <div class="small muted">Grafico: durata di ogni uscita in minuti, fino all'uscita più lunga prevista (${fmtMin(goalMin)}) prima dello scarico del ${dateIt(isoNoon(tt.taperFrom))}.</div>
+    </div>`);
+  }
+  if (!blocks.length) return '';
+  return `<div class="card goals" id="goalsCard">
+    <h2>Verso gli obiettivi</h2>
+    <p class="small muted">Tocca un obiettivo per il dettaglio. «In linea» confronta l'ultimo dato con una linea dritta dal primo dato al traguardo: è un modo di leggere l'andamento, non una previsione (regola operativa dell'app).</p>
+    ${blocks.join('')}
+  </div>`;
+}
+
 function renderProg() {
   $('#topTitle').textContent = 'Progressi';
   $('#topChip').textContent = `${S.logs.length} esercizi registrati`;
@@ -5034,6 +5286,7 @@ function renderProg() {
   const tile = (id, kicker, body) => `<button class="dtile" data-prog="${id}">
       <div class="kicker">${kicker}</div>${body}<span class="chev">›</span></button>`;
   $('#view-prog').innerHTML = `
+    ${(() => { try { return goalsHtml(); } catch (e) { console.warn(e); return ''; } })()}
     ${tile('path', 'Il percorso', pBody)}
     ${tile('upcoming', 'Le prossime settimane', `<div class="dstat">Cosa ti aspetta</div>
       <p class="small muted">Tipo di seduta giorno per giorno, con fasi, scarichi e settimane di sola mobilità.</p>`)}
@@ -5048,6 +5301,10 @@ function renderProg() {
     ${tile('body', 'Misure corporee', bBody)}
     ${tile('history', 'Volume e storico', vBody)}`;
 
+  document.querySelectorAll('[data-goal]').forEach(el => el.onclick = () => {
+    const k = el.dataset.goal;
+    if (k === 'pull') openPullGoal(); else if (k === 'spartan') openSpartan(); else if (k === 'tuscany') openTuscany();
+  });
   document.querySelectorAll('[data-prog]').forEach(el => el.onclick = () => {
     const k = el.dataset.prog;
     if (k === 'path') openPath();
@@ -5823,7 +6080,7 @@ function weeksLeftText(p, weekAbs) {
 }
 
 function todaySession(kind) {
-  const key = `${S.programId}|${S.setup}|${S.sessionIndex}|${kind || ''}|${S.durPref || 45}|${S.finisher || ''}|${pickKey(S.sessionIndex)}|${spSig()}|${painSig()}`;
+  const key = `${S.programId}|${S.setup}${S.setup === 'travel' ? ':' + travelGear().join('+') : ''}|${S.sessionIndex}|${kind || ''}|${S.durPref || 45}|${S.finisher || ''}|${pickKey(S.sessionIndex)}|${spSig()}|${painSig()}`;
   if (!planCache || planCache.key !== key) planCache = { key, sess: buildSession(S.sessionIndex, kind) };
   return planCache.sess;
 }
@@ -6238,7 +6495,9 @@ function renderHomeLunch() {
     <div class="seg" role="group" aria-label="Attrezzatura">
       <button data-setup="gym" aria-pressed="${S.setup === 'gym'}">Palestra</button>
       <button data-setup="home" aria-pressed="${S.setup === 'home'}">Casa</button>
+      <button data-setup="travel" aria-pressed="${S.setup === 'travel'}">In viaggio</button>
     </div>
+    ${S.setup === 'travel' ? `<p class="small muted" style="margin:6px 0 0">In viaggio con: ${esc(travelGear().map(k => (TRAVEL_GEAR.find(t => t.k === k) || {}).label).filter(Boolean).join(', ') || 'nessun attrezzo')}. Si cambia in Programma › Profilo.</p>` : ''}
 
     <div class="card" id="lunchCard">
       <div class="session-head ${core ? 'mobility' : ({ strength: '', cardio: 'cardio' }[s.dayType] ?? 'mobility')}">
@@ -6283,7 +6542,7 @@ function renderHomeLunch() {
     'Salta e riparti', () => { snapForUndo(); skipRestOfWeek(); daySel = null; homeView = null; renderHome(); offerUndo('Sedute rimaste saltate.'); });
   document.querySelectorAll('[data-setup]').forEach(x => x.onclick = () => {
     if (current && !current.finished) return;   // non cambiare attrezzatura a sessione aperta
-    S.setup = x.dataset.setup; save(); renderHome();
+    S.setup = x.dataset.setup; planCache = null; save(); renderHome();
   });
   document.querySelectorAll('[data-dur]').forEach(x => x.onclick = () => {
     const m = +x.dataset.dur;
@@ -7051,7 +7310,16 @@ function recordSet(pos, extra) {
    correggere ciò che è stato annotato male. */
 function setRowsHtml(pos) {
   const c = current, it = c.sess.items[pos], ex = exById(it.exId);
-  const rows = (c.setLog[pos] || []).slice(0, c.setsDone[pos]);
+  let rows = (c.setLog[pos] || []).slice(0, c.setsDone[pos]);
+  // (8.22) esercizio già registrato ma senza le righe in memoria (ripresa dopo
+  // tanto tempo, seduta interrotta): si mostrano quelle salvate nello storico
+  if (!rows.length && c.logRef[pos] >= 0) {
+    const l = S.logs[c.logRef[pos]];
+    if (l && l.exId === it.exId && Array.isArray(l.setLog) && l.setLog.length) {
+      return `<div class="setlog">${l.setLog.map((r, i) => `<div class="setrow-ro"><span class="n">${setLabel(it, i)}</span>
+        <span class="v">${isTimedItem(it, ex) ? `${r.hold || 0}s` : `${r.reps} rip`}${r.load ? ' · ' + esc(String(r.load).replace('.', ',')) + (ex.load === 'weight' ? ' kg' : '') : ''}${hasNum(r.rir) ? ` · RIR ${r.rir}` : ''}</span></div>`).join('')}</div>`;
+    }
+  }
   if (!rows.length) return '';
   const timed = isTimedItem(it, ex);
   return `<div class="setlog">
@@ -7773,6 +8041,22 @@ function celebrate(st) {
 }
 
 /* ---------- scheda esercizio ---------- */
+/* (8.22) I risultati restano visibili: nella scheda dell'esercizio le ultime
+   registrazioni, serie per serie, comprese quelle della seduta di oggi e a
+   qualunque distanza di tempo (lo storico completo è in Progressi). */
+function recentResultsHtml(ex) {
+  if (!ex || ex.type === 'stretch' || isCardioEx(ex)) return '';
+  const mine = S.logs.filter(l => l && l.exId === ex.id && !emptyLog(l) && !l.planned).slice(-5).reverse();
+  if (!mine.length) return '';
+  const unit = ex.load === 'weight' ? ' kg' : '';
+  return `<div class="block"><h3>I tuoi risultati</h3><ul class="plan">${mine.map(l => {
+    const rows = Array.isArray(l.setLog) && l.setLog.length
+      ? l.setLog.map(r => r.hold ? `${r.hold}s` : `${r.reps}${r.load ? '×' + String(r.load).replace('.', ',') + unit : ''}`).join(' · ')
+      : `${l.sets}×${l.repsDone ?? l.reps}${l.load ? ' · ' + String(l.load).replace('.', ',') + unit : ''}`;
+    return `<li><div class="nm" style="flex:1"><b>${esc(new Date(l.ts).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: '2-digit' }))}</b>${l.stars ? ' ' + starsHtml(l.stars) : ''}
+      <div class="small muted">${esc(rows)}${isDeloadLog(l) ? ' · scarico' : ''}</div></div></li>`;
+  }).join('')}</ul></div>`;
+}
 function openSheet(ex, it, ctx) {
   $('#sheetPanel').innerHTML = `
     <h2>${esc(ex.name)}</h2>
@@ -7801,11 +8085,12 @@ function openSheet(ex, it, ctx) {
       if (em) det.push(`max stimato ${em.toFixed(1)} kg`);
       return `<div class="notice" style="margin-top:10px">
         <b>Ultima volta</b> (${new Date(last.ts).toLocaleDateString('it-IT')}): ${esc(last.load || '—')}${det.length ? ' · ' + det.join(' · ') : ''} ${arrow(last.feedback)} ${starsHtml(last.stars)}
-        ${last.rateText ? `<div class="small" style="opacity:.85">${esc(last.rateText)}</div>` : ''}
+        ${last.rateText ? `<div class="small">${esc(last.rateText)}</div>` : ''}
         ${sug.value ? `<div style="margin-top:6px"><b>${isAssist(ex) ? 'Assistenza suggerita oggi' : 'Suggerito oggi'}:</b> ${esc(sug.value)}</div>` : ''}
-        ${sug.reason ? `<div class="small" style="opacity:.85">${esc(sug.reason)}</div>` : ''}
+        ${sug.reason ? `<div class="small">${esc(sug.reason)}</div>` : ''}
       </div>`;
     })()}
+    ${recentResultsHtml(ex)}
     ${ex.assistNote ? `<div class="assistnote">${esc(ex.assistNote)}</div>` : ''}
     ${rackNote(ex) ? `<p class="small muted">${esc(rackNote(ex))}</p>` : ''}
     ${S.exNotes[ex.id] ? `<div class="exnote" style="cursor:default">📌 ${esc(S.exNotes[ex.id])}</div>` : ''}
@@ -7907,7 +8192,9 @@ function renderHistory() {
       <div class="val">${isCardioEx(ex) ? (min ? min + ' min' : '') : ''}</div><div class="chev">›</div></li>`;
   }).join('');
 
-  const sess = S.sessionLog.map((x, i) => [x, i]).filter(pr => pr[0] && pr[0].kind !== 'merged').slice(-10).reverse().map(pair => {
+  // (8.22) tutte le sedute restano consultabili: 10 alla volta, «Mostra altre»
+  const allSess = S.sessionLog.map((x, i) => [x, i]).filter(pr => pr[0] && pr[0].kind !== 'merged');
+  const sess = allSess.slice(-histSessN).reverse().map(pair => {
     const x = pair[0], i = pair[1];
     return `<li data-sess="${i}"><div class="nm" style="flex:1"><b>${esc(sessLabel(x))}</b>${isSkipped(x) ? ' <span class="wkbadge done">saltata</span>' : ''}
       <div class="small muted">${new Date(x.ts).toLocaleDateString('it-IT')}${isSkipped(x) ? '' : ' · ' + x.minutes + ' min'}${x.note ? ' · ' + esc(x.note) : ''}</div></div>
@@ -7924,7 +8211,8 @@ function renderHistory() {
   const aero = aerobicMinutes(curWeek);
   $('#view-history').innerHTML = `
     ${sess ? `<div class="card" id="lastSessCard"><h2>Ultime sedute</h2>
-      <p class="small muted">Tocca una seduta per vedere esercizio per esercizio serie, carichi, stelle e il motivo del giudizio.</p><ul class="hist">${sess}</ul></div>` : ''}
+      <p class="small muted">Tocca una seduta per vedere esercizio per esercizio serie, carichi, stelle e il motivo del giudizio.</p><ul class="hist">${sess}</ul>
+      ${allSess.length > histSessN ? `<button class="btn ghost" id="moreSess" style="margin-top:8px">Mostra altre sedute (${allSess.length - histSessN})</button>` : ''}</div>` : ''}
     ${measuresHtml()}
     ${aerobicHtml(curWeek, aero)}
     ${vol ? `<div class="card"><h2>Volume della settimana ${curWeek}</h2>
@@ -7950,6 +8238,7 @@ function renderHistory() {
   bindMeasures();
   document.querySelectorAll('[data-ex]').forEach(li => li.onclick = () => detailFor(li.dataset.ex, byEx[li.dataset.ex]));
   document.querySelectorAll('[data-sess]').forEach(li => li.onclick = () => openSessionDetail(+li.dataset.sess));
+  if ($('#moreSess')) $('#moreSess').onclick = () => { const y = window.scrollY; histSessN += 10; renderHistory(); window.scrollTo(0, y); };
   document.querySelectorAll('[data-week]').forEach(b => b.onclick = () => openWeekReport(+b.dataset.week));
 }
 
@@ -8746,6 +9035,7 @@ function bigChart(logs) {
    e serve capire cosa si sa fare al suo posto.
 --------------------------------------------------------------------------- */
 let catQuery = '', catFilter = 'tutti', catSetupOnly = true;
+let histSessN = 10;
 let catEquip = 'tutti', catPlace = 'qui', catKnee = false;   // (8) filtri per attrezzo, luogo, ginocchio
 /* (8) Famiglie di attrezzi per il filtro del catalogo. */
 const EQUIP_FAMILIES = [
@@ -8804,7 +9094,7 @@ function renderCatalog() {
     <input class="search" id="catSearch" type="search" placeholder="Cerca per nome, muscolo (es. «bicipiti») o attrezzo"
            aria-label="Cerca un esercizio" value="${esc(catQuery)}">
     <div class="seg" role="group" aria-label="Dove" style="margin-top:10px">
-      ${[['qui', S.setup === 'gym' ? 'Palestra (oggi)' : 'Casa (oggi)'], ['gym', 'Palestra'], ['home', 'Casa'], ['tutti', 'Tutti']]
+      ${[['qui', `${SETUP_NAMES[S.setup] || 'Casa'} (oggi)`], ['gym', 'Palestra'], ['home', 'Casa'], ['travel', 'In viaggio'], ['tutti', 'Tutti']]
         .filter(([k]) => !(k === S.setup))
         .map(([k, l]) => `<button data-place="${k}" aria-pressed="${catPlace === k}">${l}</button>`).join('')}
     </div>
@@ -8938,7 +9228,10 @@ function renderSettings() {
       <div class="switch"><span>Attrezzatura predefinita</span>
         <select id="setupSel" style="width:150px;min-height:44px;background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:0 10px">
           <option value="gym" ${S.setup === 'gym' ? 'selected' : ''}>Palestra</option>
-          <option value="home" ${S.setup === 'home' ? 'selected' : ''}>Casa</option></select></div>
+          <option value="home" ${S.setup === 'home' ? 'selected' : ''}>Casa</option>
+          <option value="travel" ${S.setup === 'travel' ? 'selected' : ''}>In viaggio</option></select></div>
+      <div class="small muted" style="margin:8px 0 4px">Attrezzi che porti in viaggio (fra quelli di casa)</div>
+      ${TRAVEL_GEAR.map(t => `<div class="switch"><span>${esc(t.label)}</span><input type="checkbox" data-tgear="${t.k}" ${travelGear().includes(t.k) ? 'checked' : ''}></div>`).join('')}
       <div class="switch"><span>Priorità agli esercizi che proteggono il ginocchio</span>
         <input type="checkbox" id="kneeChk" ${S.kneeCare ? 'checked' : ''}></div>
       <div class="switch"><span>Evita gli esercizi di solito dolorosi per la spalla</span>
@@ -9066,7 +9359,13 @@ function renderSettings() {
       'Allinea alla cronologia', () => { S.sessionIndex = n; realignHistory(); planCache = null; homeSel = 'session'; save(); renderSettings(); });
   };
   $('#progSel').onchange = e => { S.programId = e.target.value; save(); renderSettings(); };
-  $('#setupSel').onchange = e => { S.setup = e.target.value; save(); };
+  $('#setupSel').onchange = e => { S.setup = e.target.value; planCache = null; save(); };
+  document.querySelectorAll('[data-tgear]').forEach(x => x.onchange = () => {
+    const set = new Set(travelGear());
+    if (x.checked) set.add(x.dataset.tgear); else set.delete(x.dataset.tgear);
+    S.travelGear = TRAVEL_GEAR.map(t => t.k).filter(k => set.has(k));
+    applyTravelSetup(); planCache = null; sessMemo.clear(); save();
+  });
   // (8) togliere le spunte sblocca burpee con salto e muscle-up: prima il fisioterapista
   const careOff = (box, key, what) => {
     if (box.checked) { S[key] = true; planCache = null; save(); return; }
