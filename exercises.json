@@ -3821,7 +3821,7 @@
    "safety": [
     "Spalla: tensione moderata, mai dolore o formicolio."
    ],
-   "source": "ACE – stretching statico",
+   "source": "Borstad & Ludewig 2006, J Shoulder Elbow Surg, pp. 324-330 (fra tre allungamenti del piccolo pettorale, quello allo stipite eseguito da soli ha dato l'allungamento maggiore). Dose: ACSM, Garber et al. 2011, MSSE 43(7):1334-1359 (30-60 s di tenuta negli adulti più anziani, ~60 s totali per muscolo)",
    "perSide": true
   },
   {
@@ -3993,7 +3993,7 @@
    "safety": [
     "Collo: pressione molto leggera, mai dolore o vertigini."
    ],
-   "source": "ACE – stretching statico cervicale",
+   "source": "Ylinen et al. 2007, J Rehabil Med 39:126-132 (allungamento del trapezio superiore in inclinazione laterale, 3×30 s). Dose: ACSM, Garber et al. 2011, MSSE 43(7):1334-1359 (30-60 s di tenuta negli adulti più anziani, ~60 s totali per muscolo)",
    "perSide": true
   },
   {
@@ -7497,6 +7497,348 @@
    ],
    "source": "Mobilità dinamica come preparazione (ACSM). Scelta dell'esercizio: regola operativa dell'app",
    "newFrom": "2026-11-09"
+  },
+  {
+   "id": "s_neckrot",
+   "name": "Rotazione del collo",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "stretch",
+   "group": "Collo",
+   "pattern": "static",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Muscoli rotatori del collo"
+   ],
+   "secondary": [
+    "Trapezio superiore"
+   ],
+   "equipment": [],
+   "art": {
+    "frames": [
+     "stand",
+     "neckTurn"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Seduto o in piedi, piedi appoggiati e spalle basse.",
+    "Gira lentamente la testa da un lato finché senti un leggero allungamento, mento all'altezza abituale.",
+    "Mantieni, torna al centro e ripeti dall'altro lato."
+   ],
+   "errors": [
+    "Inclinare la testa mentre la si gira.",
+    "Forzare la rotazione con la mano."
+   ],
+   "safety": [
+    "Collo: solo tensione leggera; fermati se compaiono vertigini, formicolii o dolore."
+   ],
+   "source": "National Institute on Aging (NIH), Exercise & Physical Activity: Your Everyday Guide (allungamento del collo: rotazione lenta con la testa in piano). Dose: ACSM, Garber et al. 2011, MSSE 43(7):1334-1359 (30-60 s di tenuta negli adulti più anziani, ~60 s totali per muscolo)",
+   "perSide": true
+  },
+  {
+   "id": "s_neckext",
+   "name": "Allungamento degli estensori del collo",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "stretch",
+   "group": "Collo",
+   "pattern": "static",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Estensori del collo"
+   ],
+   "secondary": [
+    "Trapezio superiore"
+   ],
+   "equipment": [
+    "Sedia"
+   ],
+   "art": {
+    "frames": [
+     "seated",
+     "neckFlex"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Seduto, schiena dritta e spalle rilassate.",
+    "Porta lentamente il mento verso lo sterno finché senti tirare dietro il collo.",
+    "Se serve, appoggia le mani sulla nuca solo come peso, senza tirare."
+   ],
+   "errors": [
+    "Arrotondare tutta la schiena invece di piegare il collo.",
+    "Tirare la testa con le braccia."
+   ],
+   "safety": [
+    "Collo: pressione molto leggera; fermati se compaiono vertigini, formicolii o dolore che scende nel braccio."
+   ],
+   "source": "Ylinen et al. 2007, J Rehabil Med 39:126-132 (programma di allungamento per il collo: trapezio superiore, scaleni ed estensori, 3×30 s). Dose: ACSM, Garber et al. 2011, MSSE 43(7):1334-1359 (30-60 s di tenuta negli adulti più anziani, ~60 s totali per muscolo)",
+   "perSide": false
+  },
+  {
+   "id": "s_crossbody",
+   "name": "Allungamento della spalla a braccio incrociato",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "stretch",
+   "group": "Spalle",
+   "pattern": "static",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Capsula e cuffia posteriore della spalla",
+    "Deltoide posteriore"
+   ],
+   "secondary": [
+    "Romboidi"
+   ],
+   "equipment": [],
+   "art": {
+    "frames": [
+     "stand",
+     "crossBody"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "In piedi, porta un braccio teso davanti al petto, all'altezza della spalla o poco sotto.",
+    "Con l'altra mano, appoggiata sopra il gomito, avvicina il braccio al petto.",
+    "Tieni la scapola ferma e bassa: la tensione va sentita dietro la spalla."
+   ],
+   "errors": [
+    "Ruotare il busto per seguire il braccio.",
+    "Alzare la spalla verso l'orecchio."
+   ],
+   "safety": [
+    "Spalla: se senti dolore davanti o in cima alla spalla, abbassa il braccio di qualche centimetro; mai dolore."
+   ],
+   "source": "McClure et al. 2007, J Orthop Sports Phys Ther 37(3):108-114 (rigidità posteriore della spalla: con il braccio incrociato +20° di rotazione interna in 4 settimane, 5×30 s al giorno). Dose: ACSM, Garber et al. 2011, MSSE 43(7):1334-1359 (30-60 s di tenuta negli adulti più anziani, ~60 s totali per muscolo)",
+   "perSide": true
+  },
+  {
+   "id": "s_wallshoulder",
+   "name": "Allungamento delle spalle al muro",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "stretch",
+   "group": "Spalle",
+   "pattern": "static",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Rotatori della spalla"
+   ],
+   "secondary": [
+    "Pettorali"
+   ],
+   "equipment": [
+    "Muro"
+   ],
+   "art": {
+    "frames": [
+     "wallArmsUp",
+     "wallArmsDown"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Schiena al muro, braccia aperte all'altezza delle spalle e gomiti piegati, punte delle dita verso l'alto contro il muro.",
+    "Mantieni, poi ruota lentamente gli avambracci in avanti e in basso, verso il pavimento, e mantieni di nuovo.",
+    "Fermati dove senti un leggero allungamento."
+   ],
+   "errors": [
+    "Staccare la schiena dal muro.",
+    "Forzare l'avambraccio contro il muro."
+   ],
+   "safety": [
+    "Spalla: solo nell'escursione senza dolore; con la spalla dolente si salta (vedi Programma › Profilo)."
+   ],
+   "source": "National Institute on Aging (NIH), Exercise & Physical Activity: Your Everyday Guide (allungamento delle spalle al muro: braccia a livello delle spalle, dita in alto poi in basso). Dose: ACSM, Garber et al. 2011, MSSE 43(7):1334-1359 (30-60 s di tenuta negli adulti più anziani, ~60 s totali per muscolo)",
+   "perSide": false,
+   "shoulderRisk": true
+  },
+  {
+   "id": "s_wallwalk",
+   "name": "Salita delle mani al muro",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "stretch",
+   "group": "Spalle",
+   "pattern": "static",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Gran dorsale",
+    "Muscoli della spalla"
+   ],
+   "secondary": [
+    "Torace"
+   ],
+   "equipment": [
+    "Muro"
+   ],
+   "art": {
+    "frames": [
+     "wallReachLow",
+     "wallReachHigh"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Di fronte al muro, poco più di un braccio di distanza, palmi appoggiati all'altezza delle spalle.",
+    "Con la schiena dritta, fai salire lentamente le mani lungo il muro fino a dove arrivi senza dolore.",
+    "Mantieni, poi riscendi con le mani."
+   ],
+   "errors": [
+    "Inarcare la schiena per salire più in alto.",
+    "Stringere le spalle verso le orecchie."
+   ],
+   "safety": [
+    "Spalla: fermati sotto il punto in cui compare dolore; con la spalla dolente si salta."
+   ],
+   "source": "National Institute on Aging (NIH), Exercise & Physical Activity: Your Everyday Guide (allungamento della parte alta del corpo: mani che salgono lungo il muro). Dose: ACSM, Garber et al. 2011, MSSE 43(7):1334-1359 (30-60 s di tenuta negli adulti più anziani, ~60 s totali per muscolo)",
+   "perSide": false,
+   "shoulderRisk": true
+  },
+  {
+   "id": "s_toweltri",
+   "name": "Allungamento di spalla e tricipite con asciugamano",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "stretch",
+   "group": "Braccia",
+   "pattern": "static",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Tricipite"
+   ],
+   "secondary": [
+    "Rotatori della spalla"
+   ],
+   "equipment": [
+    "Asciugamano"
+   ],
+   "art": {
+    "frames": [
+     "towelUp",
+     "towelPull"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "In piedi, tieni un capo dell'asciugamano con una mano e lascialo cadere dietro la schiena passando sopra la spalla.",
+    "Con l'altra mano, dietro la schiena, afferra il capo inferiore.",
+    "Tira dolcemente verso il basso: senti allungare il tricipite del braccio in alto. Poi cambia braccio."
+   ],
+   "errors": [
+    "Inarcare la schiena.",
+    "Tirare a strappi."
+   ],
+   "safety": [
+    "Spalla: posizione impegnativa per chi ha dolore alla spalla; con la spalla dolente si salta."
+   ],
+   "source": "National Institute on Aging (NIH), Exercise & Physical Activity: Your Everyday Guide (allungamento di spalla e braccio con l'asciugamano; la guida consiglia di sentire il medico in caso di problemi alla spalla). Dose: ACSM, Garber et al. 2011, MSSE 43(7):1334-1359 (30-60 s di tenuta negli adulti più anziani, ~60 s totali per muscolo)",
+   "perSide": true,
+   "shoulderRisk": true
+  },
+  {
+   "id": "s_forearm",
+   "name": "Allungamento di avambraccio e bicipite",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "stretch",
+   "group": "Braccia",
+   "pattern": "static",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Flessori del polso e delle dita"
+   ],
+   "secondary": [
+    "Bicipite"
+   ],
+   "equipment": [],
+   "art": {
+    "frames": [
+     "stand",
+     "forearmStretch"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Braccio teso davanti, all'altezza della spalla o più in basso, palmo verso l'alto.",
+    "Con l'altra mano porta le dita verso il basso e verso di te.",
+    "Gomito disteso ma non bloccato. Poi cambia braccio."
+   ],
+   "errors": [
+    "Piegare il gomito.",
+    "Alzare la spalla."
+   ],
+   "safety": [
+    "Polso e gomito: tensione leggera, mai formicolii."
+   ],
+   "source": "Regola operativa dell'app: esercizio scelto per le tante trazioni e prese del programma, senza uno studio specifico aperto. Dose: ACSM, Garber et al. 2011, MSSE 43(7):1334-1359 (30-60 s di tenuta negli adulti più anziani, ~60 s totali per muscolo)",
+   "perSide": true
+  },
+  {
+   "id": "s_chestback",
+   "name": "Apertura del petto a braccia indietro",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "stretch",
+   "group": "Petto",
+   "pattern": "static",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Gran pettorale"
+   ],
+   "secondary": [
+    "Deltoide anteriore",
+    "Bicipite"
+   ],
+   "equipment": [],
+   "art": {
+    "frames": [
+     "armsFront",
+     "armsBack"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Seduto o in piedi, braccia all'altezza delle spalle, palmi in avanti.",
+    "Porta lentamente le braccia indietro avvicinando le scapole.",
+    "Mantieni respirando, senza inarcare la schiena."
+   ],
+   "errors": [
+    "Spingere avanti la pancia.",
+    "Alzare le spalle."
+   ],
+   "safety": [
+    "Spalla: solo fin dove non fa male."
+   ],
+   "source": "National Institute on Aging (NIH), Exercise & Physical Activity: Your Everyday Guide (allungamento del petto: braccia indietro a livello delle spalle). Dose: ACSM, Garber et al. 2011, MSSE 43(7):1334-1359 (30-60 s di tenuta negli adulti più anziani, ~60 s totali per muscolo)",
+   "perSide": false
   }
  ]
 }

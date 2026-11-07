@@ -918,3 +918,8 @@ ul.plan li.isdone .nm b{color:var(--muted)}
 .goalsteps li.now{color:var(--text);border-color:var(--amber)}
 .goalsteps li.now span{border-color:var(--amber);color:var(--amber)}
 body.light .goalbar{background:#E3E9EF}
+
+/* (8.24) navigazione fra questa settimana e la prossima */
+.weeknav{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:8px;margin-top:10px}
+.weeknav h2{text-align:center;font-size:18px}
+.weeknav .btn.small{width:auto;padding:7px 10px;font-size:13px;margin:0}

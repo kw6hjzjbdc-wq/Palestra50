@@ -2504,48 +2504,193 @@ function buildStrength(meta, budget) {
   return { label: tmpl.label + (meta.recovery ? ' · recupero' : meta.maint ? ' · mantenimento' : ''), type: 'strength', items, dayGoalLabel: gLabel, trimmed };
 }
 
+/* (8.25) ALLUNGAMENTI SECONDO LE ESIGENZE
+   Quali allungamenti proporre non lo decide uno schema fisso: l'app valuta
+   per ogni distretto quanto serve allungarlo, con quattro elementi.
+   1. Copertura (ACSM, Garber et al. 2011): ogni grande gruppo muscolo-tendineo
+      almeno 2-3 giorni a settimana. Si contano i giorni con un allungamento
+      registrato negli ultimi 7: 0 giorni +3, 1 giorno +2.
+   2. Dolori e precauzioni (spalla, ginocchio), attive o segnate di recente:
+      spalla → allungamento posteriore (McClure et al. 2007) e del piccolo
+      pettorale (Borstad & Ludewig 2006), +2; ginocchio → quadricipiti, femorali
+      e polpacci, +1: nel dolore femoro-rotuleo la flessibilità ridotta di
+      questi muscoli è descritta (Willy et al. 2019), ma la linea guida non
+      indica lo stretching come cura, quindi il peso è basso.
+   3. Attività svolte negli ultimi 7 giorni: i 3 gruppi più allenati (≥4 serie)
+      e le uscite in MTB, +1.
+   4. Attività in arrivo nei prossimi 7 giorni: i 3 gruppi più impegnati nelle
+      sedute di forza ancora da fare e l'uscita in MTB della domenica, +1.
+   I pesi 3/2/1 sono una regola operativa dell'app: la letteratura non
+   fornisce un algoritmo per scegliere gli allungamenti di una persona.
+   Gli esercizi passano comunque dalle precauzioni (applyCare): ginocchio,
+   inguine, spalla e «mi dà fastidio». */
+const STRETCH_GROUPS = ['Quadricipiti', 'Catena posteriore', 'Anca', 'Glutei', 'Polpacci', 'Adduttori',
+                        'Colonna', 'Petto', 'Dorso', 'Collo', 'Spalle', 'Braccia'];
+const STRETCH_WORD = { 'Quadricipiti': 'quadricipiti', 'Catena posteriore': 'femorali', 'Anca': 'anche', 'Glutei': 'glutei',
+  'Polpacci': 'polpacci', 'Adduttori': 'adduttori', 'Colonna': 'schiena', 'Petto': 'petto', 'Dorso': 'dorsali',
+  'Collo': 'collo', 'Spalle': 'spalle', 'Braccia': 'braccia' };
+const VOL_TO_STRETCH = { 'Petto': ['Petto'], 'Dorso': ['Dorso'], 'Spalle': ['Spalle'], 'Braccia': ['Braccia'],
+  'Quadricipiti': ['Quadricipiti'], 'Glutei e femorali': ['Glutei', 'Catena posteriore'], 'Polpacci': ['Polpacci'], 'Core': ['Colonna'] };
+const RIDE_STRETCH = ['Anca', 'Quadricipiti', 'Catena posteriore', 'Polpacci'];
+// allungamento preferito per un dolore, quando c'è nell'attrezzatura del giorno
+const PAIN_PREF = { 'Spalle': 's_crossbody', 'Petto': 's_chestdoor' };
+const DYN_FOR = { 'Mobilità spalle': ['Spalle', 'Petto', 'Dorso', 'Braccia'], 'Mobilità colonna': ['Colonna', 'Dorso', 'Collo'],
+  'Mobilità anca': ['Anca', 'Glutei', 'Catena posteriore', 'Adduttori', 'Quadricipiti'] };
+let needsMemo = {}, needsBusy = false;
+function stretchNeeds(meta, opt) {
+  const DAY = DAY_MS, now = Date.now();
+  // senza proiezione delle sedute in arrivo: per mobilità breve e aerobico
+  // (già legati alla seduta del giorno) e durante il calcolo dei volumi
+  const shallow = !!(opt && opt.shallow) || needsBusy || volProbe;
+  let when = now;
+  try { when = Math.max(now, metaDate(meta).getTime()); } catch (e) { /* data non disponibile: oggi */ }
+  const ref = Math.min(when, now);
+  const key = [new Date(ref).toDateString(), new Date(when).toDateString(), meta.idx, logsRev, (S.logs || []).length, S.sessionIndex,
+               S.programId, S.setup, !!S.shoulderCare, !!S.kneeCare, painSig(), mtbRides().length, S.tuscany !== false, shallow].join('|');
+  if (needsMemo[key]) return needsMemo[key];
+  const score = {}, why = {};
+  STRETCH_GROUPS.forEach(g => { score[g] = 0; why[g] = []; });
+  const add = (g, pts, r) => { if (score[g] === undefined) return; score[g] += pts; if (r && !why[g].includes(r)) why[g].push(r); };
+  const from = ref - 7 * DAY;
+  // 1. copertura della settimana
+  const days = {};
+  (S.logs || []).forEach(l => {
+    if (!l || l.superseded || !l.ts || l.ts <= from || l.ts > ref || !(l.sets > 0)) return;
+    const ex = exById(l.exId);
+    if (!ex || ex.type !== 'stretch' || ex.pattern !== 'static') return;
+    (days[ex.group] = days[ex.group] || new Set()).add(new Date(l.ts).toDateString());
+  });
+  // 2. dolori e precauzioni
+  const pc = painCare();
+  if (S.shoulderCare || pc.shoulder) {
+    add('Spalle', 2, 'spalla: rigidità posteriore');
+    add('Petto', 2, 'spalla: piccolo pettorale');
+  }
+  if (S.kneeCare || pc.knee) ['Quadricipiti', 'Catena posteriore', 'Polpacci'].forEach(g => add(g, 1, 'ginocchio'));
+  // 3. attività svolte
+  const done = {};
+  (S.logs || []).forEach(l => {
+    if (!l || l.superseded || !l.ts || l.ts <= from || l.ts > ref) return;
+    addInto(done, groupSetsOf(exById(l.exId), l.sets || 0));
+  });
+  Object.keys(done).filter(g => done[g] >= 4).sort((a, b) => done[b] - done[a]).slice(0, 3)
+    .forEach(g => (VOL_TO_STRETCH[g] || []).forEach(s => add(s, 1, 'molto allenati in settimana')));
+  const rides = mtbRides().filter(r => r.ts > from && r.ts <= ref);
+  if (rides.length) RIDE_STRETCH.forEach(g => add(g, 1, `dopo l'uscita in MTB`));
+  // 4. attività in arrivo
+  if (!shallow) {
+    needsBusy = true;
+    try {
+      const next = {};
+      for (let i = Math.max(meta.idx + 1, S.sessionIndex); i <= meta.idx + 6; i++) {
+        const m = sessionMeta(i);
+        if (!m.isStrength) continue;
+        const s = sessionFor(i);
+        (s.items || []).forEach(it => addInto(next, groupSetsOf(exById(it.exId), it.sets || 0)));
+      }
+      Object.keys(next).filter(g => next[g] >= 4).sort((a, b) => next[b] - next[a]).slice(0, 3)
+        .forEach(g => (VOL_TO_STRETCH[g] || []).forEach(s => add(s, 1, 'impegnati nelle prossime sedute')));
+    } catch (e) { /* proiezione non disponibile: si va avanti senza */ }
+    needsBusy = false;
+  }
+  const sun = new Date(calendarMonday(when) + 6 * DAY + 12 * 3600000);
+  if (sun.getTime() >= noonOf(when).getTime() && ['build', 'taper'].includes(ttPhase(sun)) && !mtbPlanFor(sun).skip
+      && !(mtbRides().some(r => new Date(r.ts).toDateString() === sun.toDateString()))) {
+    const gap = Math.round((sun.getTime() - noonOf(when).getTime()) / DAY);
+    RIDE_STRETCH.forEach(g => add(g, 1, gap === 0 ? 'oggi: MTB' : gap === 1 ? 'domani: MTB' : 'domenica: MTB'));
+  }
+  // la copertura per ultima, così nelle note vengono prima i motivi specifici
+  STRETCH_GROUPS.forEach(g => {
+    const n = days[g] ? days[g].size : 0;
+    if (n === 0) add(g, 3, 'non allungato da 7 giorni');
+    else if (n === 1) add(g, 2, 'allungato 1 volta in 7 giorni');
+  });
+  const out = { score, why };
+  const keys = Object.keys(needsMemo); if (keys.length > 60) needsMemo = {};
+  needsMemo[key] = out;
+  return out;
+}
+/* Distretti in ordine di esigenza; a parità, quelli dello schema del giorno e
+   poi a rotazione, così le sedute non si ripetono identiche. */
+function needOrder(N, groups, pref, rot) {
+  return groups.slice().sort((a, b) => (N.score[b] - N.score[a])
+    || ((pref || []).includes(b) - (pref || []).includes(a))
+    || (((STRETCH_GROUPS.indexOf(a) + rot) % 12) - ((STRETCH_GROUPS.indexOf(b) + rot) % 12)));
+}
+function needPick(pool, g, rot, used, painOn) {
+  const inG = pool.filter(e => e.group === g && !used.has(e.id));
+  if (!inG.length) return null;
+  const pref = painOn && PAIN_PREF[g] && inG.find(e => e.id === PAIN_PREF[g]);
+  if (pref) { used.add(pref.id); return pref; }
+  return pickFrom(inG, rot, used);
+}
+const needNote = (N, g) => { const t = (N.why[g] || []).slice(0, 2).join(' · '); return t ? t.charAt(0).toUpperCase() + t.slice(1) : ''; };
+const needsLabel = groups => { const w = groups.map(g => STRETCH_WORD[g] || g.toLowerCase());
+  const t = w.length > 1 ? w.slice(0, -1).join(', ') + ' e ' + w[w.length - 1] : (w[0] || '');
+  return 'Mobilità · ' + t.charAt(0).toUpperCase() + t.slice(1); };
+
 function buildStretch(meta, budget) {
   const chosen = pickOf(meta.idx) || {};
   const sDays = meta.program.stretchDays;
-  const ti = (chosen.stretch != null && sDays[chosen.stretch]) ? chosen.stretch : meta.tmplIdx;
+  const manual = chosen.stretch != null && !!sDays[chosen.stretch];
+  const ti = manual ? chosen.stretch : meta.tmplIdx;
   const tmpl = sDays[ti];
   const used = new Set(), items = [];
   const dyn = DB.exercises.filter(e => e.type === 'stretch' && e.pattern === 'mobility' && e.setup.includes(S.setup) && (!e.newFrom || metaDate(meta) >= isoNoon(e.newFrom)));
-  const stat = DB.exercises.filter(e => e.type === 'stretch' && e.pattern === 'static' && e.setup.includes(S.setup)
-                                        && tmpl.staticGroups.includes(e.group));
   dyn.sort((a, b) => a.id.localeCompare(b.id));
-  stat.sort((a, b) => a.id.localeCompare(b.id));
+  const allStat = applyCare(DB.exercises.filter(e => e.type === 'stretch' && e.pattern === 'static' && e.setup.includes(S.setup)))
+    .sort((a, b) => a.id.localeCompare(b.id));
   let rot = (meta.mesocycle - 1) * 2 + ti + (meta.weekInCycle - 1);
   // in una settimana di sola mobilità tutte le sedute sono di allungamento: la rotazione
   // scorre a ogni seduta, così non si ripetono gli stessi allungamenti
   if (meta.mobilityWeek) rot += (meta.pos - 1) * 2;
-  for (let i = 0; i < tmpl.dynamic; i++) {
-    const ex = pickFrom(dyn, rot + i, used);
-    if (ex) items.push({ exId: ex.id, note: 'Riscaldamento', goalKey: 'mobility',
-                         alt: { patterns: ['mobility'], types: ['stretch'] },
-                         ...dose('mobility', meta.profile, ex) });
+  const stretchAlt = groups => ({ patterns: ['static'], types: ['stretch'], groups });
+  let label, order = [], N = null;
+  if (manual) {
+    // schema scelto a mano (Cambia la seduta di mobilità): i suoi distretti
+    const stat = allStat.filter(e => tmpl.staticGroups.includes(e.group));
+    for (let i = 0; i < tmpl.dynamic; i++) {
+      const ex = pickFrom(dyn, rot + i, used);
+      if (ex) items.push({ exId: ex.id, note: 'Riscaldamento', goalKey: 'mobility', alt: { patterns: ['mobility'], types: ['stretch'] }, ...dose('mobility', meta.profile, ex) });
+    }
+    for (let i = 0; i < tmpl.count; i++) {
+      const ex = pickFrom(stat, rot + i, used);
+      if (ex) items.push({ exId: ex.id, note: '', goalKey: 'stretch', alt: stretchAlt(tmpl.staticGroups.slice()), ...dose('stretch', meta.profile, ex) });
+    }
+    label = tmpl.label;
+    order = tmpl.staticGroups.slice();
+  } else {
+    // (8.25) secondo le esigenze
+    N = stretchNeeds(meta);
+    const painOn = !!(S.shoulderCare || painCare().shoulder);
+    const groups = Array.from(new Set(allStat.map(e => e.group))).filter(g => STRETCH_GROUPS.includes(g));
+    order = needOrder(N, groups, tmpl.staticGroups, rot);
+    // mobilità dinamica dei distretti che servono di più
+    const dynScore = e => Math.max(0, ...(DYN_FOR[e.group] || STRETCH_GROUPS).map(g => N.score[g] || 0)) - (DYN_FOR[e.group] ? 0 : 0.5);
+    const dynSorted = dyn.slice().sort((a, b) => dynScore(b) - dynScore(a) || a.id.localeCompare(b.id));
+    const dynGroups = Array.from(new Set(dynSorted.map(e => e.group)));
+    for (let i = 0; i < tmpl.dynamic; i++) {
+      const g = dynGroups[i % Math.max(1, dynGroups.length)];
+      const ex = pickFrom(dynSorted.filter(e => e.group === g && !used.has(e.id)), rot, used) || pickFrom(dynSorted.filter(e => !used.has(e.id)), rot, used);
+      if (ex) items.push({ exId: ex.id, note: 'Riscaldamento', goalKey: 'mobility', alt: { patterns: ['mobility'], types: ['stretch'] }, ...dose('mobility', meta.profile, ex) });
+    }
+    const nStat = tmpl.count + 2;
+    for (let i = 0; i < Math.min(nStat, order.length); i++) {
+      const ex = needPick(allStat, order[i], rot, used, painOn);
+      if (ex) items.push({ exId: ex.id, note: needNote(N, order[i]), goalKey: 'stretch', alt: stretchAlt([order[i]]), ...dose('stretch', meta.profile, ex) });
+    }
+    label = needsLabel(order.slice(0, 3));
   }
-  for (let i = 0; i < tmpl.count; i++) {
-    const ex = pickFrom(stat, rot + i, used);
-    if (ex) items.push({ exId: ex.id, note: '', goalKey: 'stretch',
-                         alt: { patterns: ['static'], types: ['stretch'], groups: tmpl.staticGroups.slice() },
-                         ...dose('stretch', meta.profile, ex) });
-  }
-  const label = meta.mobilityWeek ? `${tmpl.label} · seduta ${meta.pos} di ${meta.days}` : tmpl.label;
+  if (meta.mobilityWeek) label = `${label} · seduta ${meta.pos} di ${meta.days}`;
   const trimmed = fitToTime(items, budget || 35, []);
-  // tempo in più: altri allungamenti dello stesso schema, poi una tenuta in più
+  // tempo in più: altri allungamenti, nell'ordine di esigenza, poi tenute più lunghe
   if (!trimmed) {
-    // oltre ai gruppi del giorno, qualunque allungamento statico non ancora usato
-    const anyStat = DB.exercises.filter(e => e.type === 'stretch' && e.pattern === 'static' && e.setup.includes(S.setup))
-      .sort((a, b) => a.id.localeCompare(b.id));
-    for (let i = tmpl.count; i < tmpl.count + 6; i++) {
-      let cand = stat.filter(e => !used.has(e.id));
-      if (!cand.length) cand = anyStat.filter(e => !used.has(e.id));
-      if (!cand.length) break;
-      const ex = cand[(rot + i) % cand.length];
-      const it = { exId: ex.id, note: 'Se resta tempo', goalKey: 'stretch',
-                   alt: { patterns: ['static'], types: ['stretch'], groups: tmpl.staticGroups.slice() },
-                   ...dose('stretch', meta.profile, ex) };
+    const rest = allStat.filter(e => !used.has(e.id))
+      .sort((a, b) => (order.indexOf(a.group) < 0 ? 99 : order.indexOf(a.group)) - (order.indexOf(b.group) < 0 ? 99 : order.indexOf(b.group))
+                      || a.id.localeCompare(b.id));
+    for (let k = 0; k < 6 && rest.length; k++) {
+      const ex = rest.splice((rot + k) % Math.min(rest.length, 3), 1)[0];
+      const it = { exId: ex.id, note: 'Se resta tempo', goalKey: 'stretch', alt: stretchAlt([ex.group]), ...dose('stretch', meta.profile, ex) };
       if (estimateMinutes(items.concat([it])) > (budget || 35)) break;
       used.add(ex.id); items.push(it);
     }
@@ -2562,7 +2707,8 @@ function buildStretch(meta, budget) {
       if (estimateMinutes(items) > (budget || 35)) it.sets -= it.perSide ? 2 : 1;
     });
   }
-  return { label: label + (meta.maintFree ? ' · al posto di Forza C (mantenimento)' : ''), type: 'stretch', items, trimmed };
+  return { label: label + (meta.maintFree ? ' · al posto di Forza C (mantenimento)' : ''), type: 'stretch', items, trimmed,
+           needs: N ? order.slice(0, 4).map(g => ({ g, why: N.why[g].slice() })) : null };
 }
 
 function buildCore(meta) {
@@ -2968,17 +3114,21 @@ function hiitScheme(meta) {
 /* Due allungamenti dopo l'aerobico, per anche, polpacci e cosce: i distretti
    più sollecitati da bici e corsa. */
 function cardioStretches(meta, used) {
-  const stretchPool = DB.exercises.filter(e => e.type === 'stretch' && e.pattern === 'static' &&
-    e.setup.includes(S.setup) && ['Anca', 'Polpacci', 'Catena posteriore', 'Quadricipiti'].includes(e.group))
-    .sort((a, b) => a.id.localeCompare(b.id));
+  // (8.25) i distretti più sollecitati da bici, scalini e camminata in salita,
+  // nell'ordine di esigenza (stretchNeeds)
+  const G = ['Anca', 'Polpacci', 'Catena posteriore', 'Quadricipiti'];
+  const stretchPool = applyCare(DB.exercises.filter(e => e.type === 'stretch' && e.pattern === 'static' &&
+    e.setup.includes(S.setup) && G.includes(e.group))).sort((a, b) => a.id.localeCompare(b.id));
+  const N = stretchNeeds(meta, { shallow: true });
+  const order = needOrder(N, G.filter(g => stretchPool.some(e => e.group === g)), [], meta.weekAbs);
   const out = [];
-  for (let i = 0; i < 2; i++) {
-    const se = pickFrom(stretchPool, meta.weekAbs + i * 3, used);
+  for (let i = 0; i < 2 && i < order.length; i++) {
+    const se = needPick(stretchPool, order[i], meta.weekAbs + i, used, false);
     if (!se) continue;
     const d = dose('stretch', meta.profile, se);
     d.sets = 2;
     out.push({ exId: se.id, note: 'Dopo l\'aerobico', goalKey: 'stretch',
-               alt: { patterns: ['static'], types: ['stretch'] }, ...d });
+               alt: { patterns: ['static'], types: ['stretch'], groups: [order[i]] }, ...d });
   }
   return out;
 }
@@ -3296,7 +3446,7 @@ function mtbRidesHtml() {
   </div>`;
 }
 function renderHomeMtb() {
-  const plan = mtbPlanFor(Date.now()), st = mtbState(), done = mtbThisWeek();
+  const plan = mtbPlanFor(weekdayIdx() === 6 ? Date.now() : upcomingSunday()), st = mtbState(), done = mtbThisWeek();
   $('#topChip').textContent = 'Tuscany Trail';
   $('#topChip').className = 'chip cardio';
   const backTxt = dayFrom === 'week' ? 'Torna al programma della settimana' : 'Torna a Oggi';
@@ -3340,7 +3490,7 @@ function renderHomeMtb() {
   });
   const back = () => { homeView = dayFrom === 'week' ? 'week' : null; renderHome(); window.scrollTo(0, 0); };
   $('#mtbBack').onclick = back; $('#mtbBack2').onclick = back;
-  $('#mtbWeek').onclick = () => { homeView = 'week'; renderHome(); window.scrollTo(0, 0); };
+  $('#mtbWeek').onclick = () => { weekShift = 0; homeView = 'week'; renderHome(); window.scrollTo(0, 0); };
   bindMtbKneeAsk(() => renderHome());
   $('#mtbSave').onclick = () => {
     const minutes = parseInt($('#mtbMin').value, 10);
@@ -4024,13 +4174,18 @@ function buildMorning(weekAbs, day, minutes) {
   const home = e => e.setup.includes('home');
   const used = new Set(), items = [];
   const rot = weekAbs + day;
+  const MN = stretchNeeds(meta, { shallow: true });
   const pickGroups = (pool, groups) => {
-    const pref = pool.filter(e => groups.includes(e.group)).sort((a, b) => groups.indexOf(a.group) - groups.indexOf(b.group) || a.id.localeCompare(b.id));
-    const rest = pool.filter(e => !groups.includes(e.group)).sort((a, b) => a.id.localeCompare(b.id));
+    // (8.25) dentro i distretti del giorno e fra gli altri: prima quelli che servono di più
+    const need = e => (MN.score[e.group] || 0);
+    const pref = pool.filter(e => groups.includes(e.group)).sort((a, b) => need(b) - need(a) || groups.indexOf(a.group) - groups.indexOf(b.group) || a.id.localeCompare(b.id));
+    const rest = pool.filter(e => !groups.includes(e.group)).sort((a, b) => need(b) - need(a) || a.id.localeCompare(b.id));
     return { pref, rest };
   };
   const dynPool = pickGroups(DB.exercises.filter(e => e.type === 'stretch' && e.pattern === 'mobility' && home(e)), focus.dyn || []);
-  const statPool = pickGroups(DB.exercises.filter(e => e.type === 'stretch' && e.pattern === 'static' && home(e)), focus.stat || []);
+  // (8.24) con la precauzione per la spalla restano fuori gli allungamenti segnati come impegnativi
+  const shoulderOk = e => !((S.shoulderCare || painCare().shoulder) && e.shoulderRisk);
+  const statPool = pickGroups(DB.exercises.filter(e => e.type === 'stretch' && e.pattern === 'static' && home(e) && shoulderOk(e)), focus.stat || []);
   const add = (ex, goalKey, note, full) => {
     const d = dose(goalKey, meta.profile, ex);
     if (goalKey === 'mobility') { d.sets = ex.perSide ? 2 : 1; d.rest = 10; }   // un giro, un lato per volta
@@ -5596,7 +5751,8 @@ function scrollToId(id) {
 --------------------------------------------------------------------------- */
 function dayLabel(meta) {
   const p = meta.program;
-  if (meta.mobilityWeek) return ((p.stretchDays || [])[meta.tmplIdx] || {}).label || 'Mobilità';
+  // (8.25) gli allungamenti si scelgono secondo le esigenze del momento
+  if (meta.mobilityWeek) return 'Mobilità · secondo le esigenze';
   if (meta.isStrength) return ((p.strengthDays || [])[meta.tmplIdx] || {}).label || 'Potenziamento';
   if (meta.isCardio) {
     // (7S 0) preparazione Spartan: corsa-camminata e burpees
@@ -5604,7 +5760,7 @@ function dayLabel(meta) {
     const base = ((PROG.cardioDays || [])[meta.tmplIdx] || {}).label || 'Aerobico';
     return meta.tmplIdx === 0 && spPhase(metaDate(meta)) !== 'off' ? base + ' + burpees' : base;
   }
-  return ((p.stretchDays || [])[meta.tmplIdx] || {}).label || 'Mobilità';
+  return 'Mobilità · secondo le esigenze';
 }
 
 /* ---------------------------------------------------------------------------
@@ -5660,7 +5816,7 @@ function cyclesHtml(p, meta) {
     <ul class="small" style="padding-left:18px;margin-top:8px">
       <li><b>Esercizi</b>: a ogni nuovo blocco di ${cw} settimane l'esercizio ruota, a parità di schema di movimento (per esempio un'altra spinta orizzontale al posto della precedente), quando l'attrezzatura offre alternative.</li>
       <li><b>Intervalli</b>: crescono con le settimane di allenamento — 30″ di lavoro e 90″ di recupero fino alla 4ª, 30/60 fino alla 12ª, 45/60 fino alla 24ª, poi 60/60. Ora sei alla settimana ${tw}: ${hiit.work}″ / ${hiit.rest}″.</li>
-      <li><b>Mobilità</b>: i due schemi (anca e gambe; colonna e spalle) si alternano di settimana in settimana; la mobilità breve a casa segue i distretti dell'allenamento dello stesso giorno.</li>
+      <li><b>Mobilità</b>: gli allungamenti li sceglie l'app secondo le esigenze: precauzioni per spalla e ginocchio, muscoli più allenati negli ultimi 7 giorni, sedute e uscite in MTB in arrivo, distretti non allungati da qualche giorno (ACSM: ogni grande gruppo almeno 2-3 giorni a settimana). I due schemi fissi restano selezionabili. La mobilità breve a casa segue i distretti dell'allenamento dello stesso giorno, nello stesso ordine di esigenza.</li>
     </ul>
 
     <h3 style="margin-top:14px;font-size:15px">Secondo i tuoi risultati</h3>
@@ -6024,24 +6180,32 @@ function liveCardioChange(exId, begun) {
 function openStretchPicker(sess, meta) {
   const chosen = pickOf(meta.idx) || {};
   const sDays = meta.program.stretchDays || [];
-  const ti = (chosen.stretch != null && sDays[chosen.stretch]) ? chosen.stretch : meta.tmplIdx;
-  const rows = sDays.map((t, i) => `<li class="${i === ti ? 'cur' : ''}" data-ski="${i}">
+  const manual = chosen.stretch != null && !!sDays[chosen.stretch];
+  const ti = manual ? chosen.stretch : -1;
+  // (8.25) di base gli allungamenti li sceglie l'app secondo le esigenze;
+  // gli schemi fissi restano come scelta manuale
+  let auto = null;
+  try { const p = Object.assign({}, S.sessPick || {}); delete (S.sessPick || {})[meta.idx]; auto = buildStretch(meta, S.durPref || 45); S.sessPick = p; } catch (e) { auto = null; }
+  const whyHtml = auto && auto.needs ? auto.needs.map(n => `<div class="why">${esc(STRETCH_WORD[n.g] || n.g)}: ${esc(n.why.join(', ') || 'a rotazione')}</div>`).join('') : '';
+  const rows = `<li class="${ti < 0 ? 'cur' : ''}" data-ski="-1">
+      <div class="nm" style="flex:1"><b>Secondo le esigenze${auto ? ' · ' + esc(auto.label.replace(/^Mobilità · /, '')) : ''}</b>
+        <div class="small muted">scelti dall'app: precauzioni, allenamenti fatti e in arrivo, distretti poco allungati</div>
+        ${whyHtml}</div>
+      <button class="pick">${ti < 0 ? 'Mantieni' : 'Scegli'}</button></li>` + sDays.map((t, i) => `<li class="${i === ti ? 'cur' : ''}" data-ski="${i}">
       <div class="nm" style="flex:1"><b>${esc(t.label)}</b>
         <div class="small muted">${esc(t.staticGroups.join(' · '))}</div>
-        <div class="why">${i === ti ? 'in programma oggi' : `${t.dynamic} esercizi di mobilità dinamica e ${t.count} allungamenti`}</div></div>
+        <div class="why">schema fisso: ${t.dynamic} esercizi di mobilità dinamica e ${t.count} allungamenti</div></div>
       <button class="pick">${i === ti ? 'Mantieni' : 'Scegli'}</button></li>`).join('');
   openModal(`<h2>Cambia la seduta di mobilità</h2>
-    <p class="small muted">Due schemi, distretti diversi: scegli quello che ti serve oggi. Qui cambia il contenuto; il giorno lo scegli dal calendario della settimana: la mobilità è prevista per ultima, ma puoi farla quando ti conviene.</p>
+    <p class="small muted">Di base gli allungamenti li sceglie l'app, secondo le esigenze della settimana. Puoi preferire uno dei due schemi fissi. Qui cambia il contenuto; il giorno lo scegli dal calendario della settimana: la mobilità è prevista per ultima, ma puoi farla quando ti conviene.</p>
     <ul class="picker" style="margin-top:12px">${rows}</ul>
-    ${chosen.stretch != null ? '<button class="btn ghost" id="skReset" style="margin-top:14px">Torna alla seduta prevista</button>' : ''}
     <button class="btn secondary" id="skClose" style="margin-top:10px">Chiudi</button>`);
 
   document.querySelectorAll('[data-ski]').forEach(li => li.onclick = () => {
-    setPick(meta.idx, { stretch: +li.dataset.ski });
+    const k = +li.dataset.ski;
+    setPick(meta.idx, k < 0 ? null : { stretch: k });
     closeModal(() => { homeSel = 'session'; renderHome(); });
   });
-  if ($('#skReset')) $('#skReset').onclick = () =>
-    closeModal(() => { setPick(meta.idx, null); renderHome(); });
   $('#skClose').onclick = () => closeModal();
 }
 
@@ -6251,7 +6415,7 @@ function renderHomePick() {
     if (k === 'lunch' && (ls.done || ls.skipped)) {
       const i = ls.entry ? S.sessionLog.indexOf(ls.entry) : -1;
       if (i >= 0) { openResult(i, 'pick'); return; }
-      homeView = 'week'; renderHome(); return;
+      weekShift = 0; homeView = 'week'; renderHome(); return;
     }
     if (k === 'lunch' && ls.mtb) { dayFrom = 'pick'; homeView = 'mtb'; renderHome(); window.scrollTo(0, 0); return; }
     if (k === 'lunch') {
@@ -6267,25 +6431,39 @@ function renderHomePick() {
 }
 
 /* Programma della settimana: presentazione e sedute dei giorni. */
+/* (8.24) Quale settimana mostrare. Prima era sempre quella della prossima
+   seduta: finita la settimana in anticipo (sabato, mobilità fatta) si
+   vedeva già la prossima, e l'uscita in bici di domani spariva. Ora si parte
+   dalla settimana di calendario (quella di oggi) e si può passare alla
+   successiva con «Settimana prossima». */
+let weekShift = 0;
+const upcomingSunday = () => new Date(calendarMonday() + 6 * DAY_MS + 12 * 3600000);
 function renderHomeWeek() {
-  const here = posOfIdx(S.sessionIndex);
-  const wStart = S.sessionIndex - here;
-  const nDays = weekLen(weekOfIdx(S.sessionIndex));
-  const s = sessionFor(S.sessionIndex);
-  $('#topChip').textContent = shortWhere(s);
+  const SI = S.sessionIndex, wCur = weekOfIdx(SI), hereCur = posOfIdx(SI);
+  const tpw = todayPlan();
+  const calW = Math.min(wCur, tpw.W || wCur);
+  if (weekShift < 0) weekShift = 0;
+  const W = Math.min(calW + weekShift, wCur + 1);
+  const canNext = W <= wCur, isCal = W === calW;
+  const here = W < wCur ? weekLen(W) : W === wCur ? hereCur : 0;
+  const wStart = weekStart(W);
+  const nDays = weekLen(W);
+  const s = sessionFor(Math.min(SI, wStart + nDays - 1) >= wStart ? Math.max(wStart, Math.min(SI, wStart + nDays - 1)) : wStart);
+  $('#topChip').textContent = shortWhere(sessionFor(SI));
   $('#topChip').className = 'chip';
   let week = '';
-  const tpw = todayPlan();
-  const calQ = (!tpw.rest && !tpw.stale && tpw.W === weekOfIdx(S.sessionIndex)) ? tpw.q : -1;
+  const future = W > wCur;
+  const calQ = (isCal && !tpw.rest && !tpw.stale && tpw.W === W) ? tpw.q : -1;
   for (let q = 0; q < nDays; q++) {
     const alt = sessionFor(wStart + q);          // sola lettura: etichetta, tipo, minuti
-    const state = q < here ? 'done' : (q === calQ || (calQ < 0 && q === here) ? 'now' : 'next');
+    const state = q < here ? 'done' : future ? 'next' : (q === calQ || (calQ < 0 && q === here) ? 'now' : 'next');
     const lg = q < here ? (() => { const i = sessionLogIndexFor(wStart + q); return i >= 0 ? S.sessionLog[i] : null; })() : null;
     // (8.17) una seduta «passata» senza registrazione non è «svolta»: lo si dice
     const badge = q < here ? (lg ? `<span class="wkbadge done">${isSkipped(lg) ? 'saltata' : '✓ svolta'}</span>` : '<span class="wkbadge alt">non registrata</span>')
+                : future ? (q === 0 && here === 0 && W === wCur + 1 && hereCur >= weekLen(wCur) ? '<span class="wkbadge alt">la prossima</span>' : '<span class="chev">›</span>')
                 : q === calQ ? '<span class="wkbadge">di oggi</span>'
                 : q === here ? '<span class="wkbadge alt">la prossima</span>'
-                : `<button class="selbtn" data-sel="${q}" aria-label="Sposta ${esc(alt.label)} come prossima">Seleziona</button>`;
+                : W === wCur ? `<button class="selbtn" data-sel="${q}" aria-label="Sposta ${esc(alt.label)} come prossima">Seleziona</button>` : '<span class="chev">›</span>';
     const ck = q >= here ? spCheckKinds(sessionMeta(wStart + q)) : [];
     week += `<li class="wk ${state}" data-day="${q}">
       <span class="wknum ${typeClass(alt)}">${q < here ? (lg ? '✓' : '?') : q + 1}</span>
@@ -6294,13 +6472,14 @@ function renderHomeWeek() {
       ${badge}</li>`;
   }
   // (8.11) domenica: uscita in mountain bike per il Tuscany Trail (fuori dalle sei sedute)
-  if (nDays === 6 && ['build', 'taper', 'event'].includes(ttPhase(Date.now()))) {
-    const dn = mtbThisWeek(), pl = mtbPlanFor(Date.now());
-    week += `<li class="wk ${dn ? 'done' : (weekdayIdx() === 6 ? 'now' : 'next')}" data-mtb="1">
+  const sunW = new Date(upcomingSunday().getTime() + (W - calW) * 7 * DAY_MS);
+  if (nDays === 6 && ['build', 'taper', 'event'].includes(ttPhase(sunW))) {
+    const dn = isCal ? mtbThisWeek() : null, pl = mtbPlanFor(sunW);
+    week += `<li class="wk ${dn ? 'done' : (isCal && weekdayIdx() === 6 ? 'now' : 'next')}" data-mtb="${isCal ? 1 : ''}">
       <span class="wknum cardio">${dn ? '✓' : 'D'}</span>
       <div class="nm"><b>Uscita in mountain bike</b>
         <div class="small muted">domenica · Preparazione per Tuscany Trail · ${dn ? fmtMin(dn.minutes) + ' fatta' : (pl.skip ? 'niente uscita (Spartan Race)' : fmtMin(pl.min))}</div></div>
-      ${dn ? '<span class="wkbadge done">✓ svolta</span>' : weekdayIdx() === 6 ? '<span class="wkbadge">di oggi</span>' : '<span class="chev">›</span>'}</li>`;
+      ${dn ? '<span class="wkbadge done">✓ svolta</span>' : isCal && weekdayIdx() === 6 ? '<span class="wkbadge">di oggi</span>' : isCal && weekdayIdx() === 5 ? '<span class="wkbadge alt">domani</span>' : '<span class="chev">›</span>'}</li>`;
   }
   const coreS = sessionFor(S.sessionIndex, 'core');
   week += `<li class="wk next extra" data-core="1">
@@ -6320,14 +6499,26 @@ function renderHomeWeek() {
     ${deloadCardHtml()}
     <div class="card">
       ${weekIntroHtml(s)}
-      <h2 style="margin-top:10px">Programma della settimana</h2>
+      <div class="weeknav">
+        ${weekShift > 0 ? '<button class="btn ghost small" id="wkPrev">‹ Questa settimana</button>' : '<span></span>'}
+        <h2 style="margin:0">${isCal ? 'Programma della settimana' : W - calW === 1 ? 'Settimana prossima' : 'Fra due settimane'}</h2>
+        ${canNext ? `<button class="btn ghost small" id="wkNext">${isCal ? 'Settimana prossima' : 'Settimana dopo'} ›</button>` : '<span></span>'}
+      </div>
+      <p class="small muted" style="margin:4px 0 0">${W === wCur ? whereText(sessionMeta(Math.min(SI, wStart + nDays - 1)), { cap: true }) : weekText(sessionMeta(wStart), { cap: true })}${W < wCur ? ' · tutte le sedute svolte' : ''}</p>
       <ul class="week">${week}</ul>
-      ${(() => { try { const W = weekOfIdx(S.sessionIndex), a = aeroForecastText(W); return `<div class="${a.tot >= AERO_TARGET || a.f.protectedWeek ? 'notice' : 'warnbox'}" style="margin-top:10px"><b>Minuti aerobici: ${a.f.done.eq} su ${AERO_TARGET}</b><br><span class="small">${esc(a.text)}</span></div>`; } catch (e) { return ''; } })()}
+      ${(() => { try { const a = aeroForecastText(W); return `<div class="${a.tot >= AERO_TARGET || a.f.protectedWeek ? 'notice' : 'warnbox'}" style="margin-top:10px"><b>Minuti aerobici: ${a.f.done.eq} su ${AERO_TARGET}</b><br><span class="small">${esc(a.text)}</span></div>`; } catch (e) { return ''; } })()}
       <p class="small muted" style="margin-top:10px">Le sedute corrispondono ai giorni da lunedì a sabato. Tocca una seduta per aprirla (quelle svolte mostrano risultati e valutazioni); «Seleziona» la rende la prossima da fare e quella prevista prende il suo posto. La mobilità è prevista per ultima, ma puoi farla in qualunque giorno.</p>
     </div>
     <button class="btn ghost backbottom" id="homeBack2">‹ Torna a Oggi</button>`;
-  const openDay = q => { daySel = q; dayFrom = 'week'; homeSel = 'session'; homeView = 'lunch'; renderHome(); window.scrollTo(0, 0); };
+  const openDay = q => {
+    // (8.24) seduta di un'altra settimana (passata o prossima): anteprima
+    if (W !== wCur) { openSessionPreview(wStart + q); return; }
+    daySel = q; dayFrom = 'week'; homeSel = 'session'; homeView = 'lunch'; renderHome(); window.scrollTo(0, 0);
+  };
+  if ($('#wkNext')) $('#wkNext').onclick = () => { weekShift++; renderHome(); window.scrollTo(0, 0); };
+  if ($('#wkPrev')) $('#wkPrev').onclick = () => { weekShift = 0; renderHome(); window.scrollTo(0, 0); };
   document.querySelectorAll('[data-sel]').forEach(bt => bt.onclick = e => {
+    if (W !== wCur) return;
     e.stopPropagation();
     const q = +bt.dataset.sel;
     snapForUndo();
@@ -6337,10 +6528,11 @@ function renderHomeWeek() {
     offerUndo('Seduta spostata a oggi.');
   });
   // (8.6) le sedute svolte aprono i risultati, non quella prevista
-  if ($('[data-mtb]')) $('[data-mtb]').onclick = () => { dayFrom = 'week'; homeView = 'mtb'; renderHome(); window.scrollTo(0, 0); };
+  if ($('[data-mtb="1"]')) $('[data-mtb="1"]').onclick = () => { dayFrom = 'week'; homeView = 'mtb'; renderHome(); window.scrollTo(0, 0); };
   document.querySelectorAll('[data-day]').forEach(li => li.onclick = () => {
     const q = +li.dataset.day;
     if (q < here) { const i = sessionLogIndexFor(wStart + q); if (i >= 0) { openResult(i, 'week'); return; } }
+    if (W !== wCur) { openSessionPreview(wStart + q); return; }
     // (8.17) l'ultima seduta «passata» ma senza nessuna registrazione: si può
     // rimettere fra quelle da fare (il programma era avanzato senza motivo)
     if (q === here - 1 && sessionLogIndexFor(wStart + q) < 0 && !S.logs.some(l => l && l.sIdx === wStart + q && !l.superseded)) {
@@ -6432,7 +6624,7 @@ function renderHomeResult() {
     <button class="btn ghost backbottom" id="resBack2">‹ ${backTxt}</button>`;
   const back = () => { const to = dayFrom === 'week' ? 'week' : null; homeView = to; renderHome(); window.scrollTo(0, 0); };
   $('#resBack').onclick = back; $('#resBack2').onclick = back;
-  if ($('#resWeek')) $('#resWeek').onclick = () => { homeView = 'week'; renderHome(); window.scrollTo(0, 0); };
+  if ($('#resWeek')) $('#resWeek').onclick = () => { weekShift = 0; homeView = 'week'; renderHome(); window.scrollTo(0, 0); };
   if ($('#resNext')) $('#resNext').onclick = () => { daySel = null; dayFrom = 'pick'; homeSel = 'session'; homeView = 'lunch'; renderHome(); window.scrollTo(0, 0); };
   bindFeelEdit(resultIdx);
   bindSessNote(resultIdx, () => renderHome());
@@ -6536,7 +6728,7 @@ function renderHomeLunch() {
   const back = () => { const to = dayFrom === 'week' ? 'week' : null; daySel = null; homeSel = 'session'; homeView = to; renderHome(); window.scrollTo(0, 0); };
   $('#dayBack').onclick = back;
   $('#dayBack2').onclick = back;
-  if ($('#toWeek')) $('#toWeek').onclick = () => { daySel = null; homeView = 'week'; renderHome(); window.scrollTo(0, 0); };
+  if ($('#toWeek')) $('#toWeek').onclick = () => { daySel = null; weekShift = 0; homeView = 'week'; renderHome(); window.scrollTo(0, 0); };
   if ($('#skipRest')) $('#skipRest').onclick = () => confirmAction('Saltare le sedute rimaste?',
     `Le ${tpl.left} sedute rimaste della settimana ${tpl.W} vengono segnate come saltate (restano nello storico) e si riparte dalla settimana ${tpl.W + 1}.`,
     'Salta e riparti', () => { snapForUndo(); skipRestOfWeek(); daySel = null; homeView = null; renderHome(); offerUndo('Sedute rimaste saltate.'); });
@@ -7335,6 +7527,17 @@ function setRowsHtml(pos) {
    «Allenamento del giorno» (superserie, dosi, note), con lo stato di ogni
    esercizio. Tocca la riga per la scheda, «Vai» per passarci (come scorrere:
    non registra nulla e il timer continua). */
+/* (8.24) Anteprima di una seduta di un'altra settimana: esercizi e dosi. */
+function openSessionPreview(idx) {
+  const s = sessionFor(idx), m = sessionMeta(idx);
+  const rows = s.items.map(it => { const ex = exById(it.exId); if (!ex) return '';
+    return `<li><div class="fig">${figureFor(ex, 1, { ground: false })}</div><div class="nm"><b>${esc(ex.name)}</b><span class="small muted">${doseText(it)}${it.note ? ' · ' + esc(it.note) : ''}</span></div></li>`; }).join('');
+  openModal(`<h2>${esc(s.label)}</h2>
+    <p class="small muted">${esc(whereText(m, { cap: true }))} · ${esc(WEEKDAYS[posOfIdx(idx)] || '')} · ${typeWord(s)} · ${s.minutes} min. Anteprima: esercizi e dosi possono cambiare con i risultati dei prossimi giorni.</p>
+    <ul class="plan" style="margin-top:10px">${rows}</ul>
+    <button class="btn ghost" id="pvClose">Chiudi</button>`);
+  $('#pvClose').onclick = closeModal;
+}
 function openDayPlan() {
   const c = current;
   if (!c || c.finished) return;
