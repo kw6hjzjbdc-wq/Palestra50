@@ -259,6 +259,12 @@ function migrateToMacro() {
    cambiato nulla, e svuotare la memoria delle sedute già costruite, che
    dipendono anche dai risultati registrati. */
 let logsRev = 0, logsSer = null;
+/* (8.30) Da chiamare quando si cambia S.logs fuori dal flusso normale: il
+   prossimo save() riscrive lo storico in IndexedDB. Prima qui si chiamava
+   logsTouched(), che aggiornava il confronto senza scrivere: il save()
+   successivo non vedeva più differenze e la modifica non veniva salvata
+   (così si è persa la registrazione dell'uscita in MTB dell'8 novembre). */
+function logsDirty() { logsSer = null; }
 function logsTouched() {
   const ser = JSON.stringify(S.logs);
   if (ser === logsSer) return false;
@@ -1945,6 +1951,19 @@ function whereText(meta, opt) {
 }
 /* Versione corta per le etichette in alto, dove lo spazio è poco. */
 const shortWhere = meta => `Sett. ${meta.weekAbs} · sess. ${meta.pos} di ${meta.days}`;
+/* (8.28) Posizione «di oggi»: se le sedute della settimana di calendario sono
+   già tutte fatte, oggi siamo ancora in quella settimana; la prossima seduta
+   comincia lunedì. Testi per le schermate che dicono dove sei oggi. */
+function weekDoneEarly() {
+  try { const c = calendarWeekIdx(); return c !== S.sessionIndex ? weekOfIdx(c) : 0; } catch (e) { return 0; }
+}
+function whereNowText(opt) {
+  const o = opt || {}, m = sessionMeta(S.sessionIndex), w = weekDoneEarly();
+  if (!w) return whereText(m, o);
+  const t = `${weekText(sessionMeta(weekStart(w)))} completata · la prossima seduta, sessione ${m.pos} di ${m.days} della settimana ${m.weekAbs}, è da lunedì`;
+  return o.cap ? t.charAt(0).toUpperCase() + t.slice(1) : t;
+}
+const shortWhereNow = () => { const w = weekDoneEarly(); return w ? `Sett. ${w} · completata` : shortWhere(sessionMeta(S.sessionIndex)); };
 
 function sessionMeta(idx) {
   // nessuna posizione prima della prima: un indice negativo arrivava da un
@@ -3403,7 +3422,7 @@ function recordMtbRide(o) {
   S.sessionLog.push({ ts: now, sid: now, idx: sIdx, label: 'Uscita in MTB · Tuscany Trail', kind: 'mtb', minutes,
     note: [o.km ? `${String(o.km).replace('.', ',')} km` : '', o.dplus ? `${o.dplus} m D+` : '', o.hrAvg ? `FC media ${o.hrAvg}${hc ? ` (${hc.pct}%, ${hc.cls})` : ''}` : '', o.loaded ? 'bici carica' : '', o.note || ''].filter(Boolean).join(' · '),
     ...(hasNum(o.knee) ? { feel: { energy: null, sleep: null, knee: +o.knee, shoulder: null, groin: null } } : {}) });
-  logsTouched && logsTouched();
+  logsDirty();
   planCache = null; save();
   return ride;
 }
@@ -4088,6 +4107,51 @@ const itemsAerobic = items => aeroSum((items || []).map(it => aeroOf(it.goal, ex
    Regola operativa dell'app.
 --------------------------------------------------------------------------- */
 const AERO_TARGET = 150;
+/* (8.29) Da dove vengono i minuti della settimana W: una riga per seduta o
+   uscita, con i minuti che contano e quelli esclusi (riscaldamento e
+   defaticamento). Le sedute aerobiche svolte senza minuti registrati sono
+   segnalate. */
+function aeroBreakdown(W) {
+  const bySid = new Map();
+  weekLogs(W).forEach(l => {
+    const ex = exById(l.exId);
+    const a = l.vigorous ? { mod: 0, vig: (l.sets || 1) * (l.hold || 0) / 60 } : aeroOf(l.goal, ex, l.sets || 0, l.hold || 0, l.rest || 0);
+    const k = l.sid || l.ts;
+    const row = bySid.get(k) || { sid: k, ts: l.ts, mod: 0, vig: 0, warm: 0, planned: false };
+    if (a) { row.mod += a.mod; row.vig += a.vig; }
+    else if (ex && ex.pattern === 'cardio' && (l.goal === 'cardioWarm' || l.goal === 'cardioCool')) row.warm += (l.sets || 1) * (l.hold || 0) / 60;
+    if (l.planned) row.planned = true;
+    row.ts = Math.min(row.ts, l.ts);
+    bySid.set(k, row);
+  });
+  const rows = [];
+  bySid.forEach(r => {
+    const sl = (S.sessionLog || []).find(x => x && x.sid === r.sid);
+    const eq = Math.round(r.mod + 2 * r.vig);
+    if (!eq && !r.warm) return;
+    rows.push({ ts: r.ts, label: sl ? sessLabel(sl) : 'Registrazioni senza seduta', eq, mod: Math.round(r.mod), vig: Math.round(r.vig), warm: Math.round(r.warm), planned: r.planned });
+  });
+  // sedute aerobiche del programma svolte senza minuti
+  programWeekLogs(W).forEach(x => {
+    if (isSkipped(x)) return;
+    let m; try { m = sessionMeta(x.idx); } catch (e) { return; }
+    if (!m.isCardio) return;
+    if (S.logs.some(l => l.sid === x.sid && aeroOf(l.goal, exById(l.exId), l.sets || 0, l.hold || 0, l.rest || 0))) return;
+    rows.push({ ts: x.ts, label: sessLabel(x), eq: 0, mod: 0, vig: 0, warm: 0, missing: true });
+  });
+  return rows.sort((a, b) => a.ts - b.ts);
+}
+function aeroBreakdownHtml(W) {
+  let rows; try { rows = aeroBreakdown(W); } catch (e) { return ''; }
+  if (!rows.length) return '';
+  const day = ts => WEEKDAYS[(new Date(ts).getDay() + 6) % 7] || '';
+  return `<details class="aerodet" style="margin-top:8px"><summary class="small"><b>Da dove vengono i minuti</b></summary>
+    <ul class="hist" style="margin-top:6px">${rows.map(r => `<li><div class="nm" style="flex:1"><b>${esc(r.label)}</b>
+      <div class="small muted">${day(r.ts)}${r.missing ? ' · <span style="color:var(--amber)">svolta, ma senza minuti registrati</span>'
+        : ` · ${r.vig ? r.vig + '′ di scatti (×2) + ' : ''}${r.mod}′ a ritmo moderato${r.warm ? ` · ${r.warm}′ di riscaldamento e defaticamento non contati` : ''}${r.planned ? ' · alle dosi previste' : ''}`}</div></div>
+      <div class="val">${r.eq}′</div></li>`).join('')}</ul>
+    <p class="small muted">Contano i minuti a intensità almeno moderata (OMS 2020): un minuto di scatto vale due. Riscaldamento, defaticamento, burpees, sospensione e allungamenti no.</p></details>`;
+}
 /* Domenica della settimana di calendario che corrisponde alla settimana W
    del programma (la settimana di oggi è quella di todayPlan). */
 function sundayOfWeek(W) {
@@ -4273,6 +4337,13 @@ function buildMorning(weekAbs, day, minutes) {
 /* Giorno del mattino da proporre: quello della seduta di pranzo in
    programma oggi, se è fra i primi cinque e non è già stato fatto. */
 function morningToday() {
+  // (8.28) settimana del programma già finita: oggi resta quella di calendario
+  const wd = weekDoneEarly();
+  if (wd) {
+    let tp = {}; try { tp = todayPlan() || {}; } catch (e) { tp = {}; }
+    const d = (tp.q != null ? tp.q : (tp.day != null ? tp.day : 6)) + 1;
+    return { w: wd, day: d, available: d <= weekLen(wd) && morningAvail(wd, d) };
+  }
   const w = weekOfIdx(S.sessionIndex);
   const day = posOfIdx(S.sessionIndex) + 1;
   return { w, day, available: morningAvail(w, day) };
@@ -4447,9 +4518,15 @@ function plannedEntry(sess, it, sid, ts) {
 function markSessionDone(sess, when, sid) {
   const ts = when || Date.now();
   sid = sid || ts;
-  const already = new Set(S.logs.filter(l => l.sid === sid).map(l => l.exId));
+  // (8.29) già registrati: per esercizio E obiettivo, contando le ripetizioni.
+  // Prima bastava l'esercizio: in una seduta aerobica riscaldamento, scatti,
+  // ritmo costante e defaticamento usano lo stesso attrezzo, e con il solo
+  // riscaldamento registrato tutto il resto veniva saltato (minuti persi)
+  const already = {};
+  S.logs.filter(l => l.sid === sid).forEach(l => { const k = l.exId + '|' + (l.goal || ''); already[k] = (already[k] || 0) + 1; });
   sess.items.forEach((it, i) => {
-    if (already.has(it.exId)) return;
+    const k = it.exId + '|' + (it.goal || '');
+    if (already[k] > 0) { already[k]--; return; }
     S.logs.push(plannedEntry(sess, it, sid, ts - (sess.items.length - i) * 60000));
   });
   if (!S.sessionLog.some(x => x.sid === sid)) {
@@ -4772,7 +4849,7 @@ const dashTile = (attr, id, kicker, cls, body) => `<button class="dtile ${cls}" 
 
 function morningTileBody(ms, full) {
   if (ms.done) return `<div class="dstat ok">Fatta ✓</div><p class="small">${esc(ms.verdict.text)} · ${ms.verdict.pct}% delle tenute · ${ms.verdict.minutes} min</p>
-       <p class="small muted">Mobilità brevi della settimana: ${morningsDone(weekOfIdx(S.sessionIndex)).length} di ${MORNING_DAYS}.${full ? ' Puoi ripeterla o recuperarne una.' : ''}</p>`;
+       <p class="small muted">Mobilità brevi della settimana: ${morningsDone(weekOfIdx(calendarWeekIdx())).length} di ${MORNING_DAYS}.${full ? ' Puoi ripeterla o recuperarne una.' : ''}</p>`;
   if (ms.none && ms.rest) return `<div class="dstat">Oggi niente</div><p class="small muted">Domenica: nessuna mobilità breve prevista.${full ? ' Entra se vuoi recuperarne una saltata.' : ''}</p>`;
   if (ms.none) return `<div class="dstat">Oggi niente</div><p class="small muted">Oggi (${WEEKDAYS[ms.day - 1] || ''}) c'è la seduta di mobilità del programma.${full ? ' Entra se vuoi recuperarne una saltata.' : ''}</p>`;
   return `<div class="dstat todo">Da fare · ${ms.m.minutes} min</div><p class="small">${esc(ms.m.focusLabel || '')}</p>
@@ -5453,7 +5530,7 @@ function renderProg() {
   const trendWord = t.recent && t.before ? (t.recent > t.before + 0.2 ? 'in miglioramento' : t.recent < t.before - 0.2 ? 'in calo' : 'stabile') : '';
 
   const pBody = `<div class="dstat">${ph ? esc(ph.ph.name) : esc(path.p.name)}</div>
-    <p class="small">${whereText(path.meta, { cap: true })}${ph ? ` · ${ph.weekInPhase}ª settimana della fase su ${ph.ph.weeks}` : ''}${path.meta.mobilityWeek ? ' · sola mobilità' : ''}</p>
+    <p class="small">${whereNowText({ cap: true })}${ph && !weekDoneEarly() ? ` · ${ph.weekInPhase}ª settimana della fase su ${ph.ph.weeks}` : ''}${path.meta.mobilityWeek ? ' · sola mobilità' : ''}</p>
     <div class="dbar"><i style="width:${path.pct}%"></i></div>
     <p class="small muted">${path.weeksLeft} settimane alla fine · ${dateIt(path.end)}</p>`;
 
@@ -5470,9 +5547,10 @@ function renderProg() {
        <p class="small">Obiettivo ragionevole al ${dateIt(b.end)}: ${b.waist ? `girovita circa ${kg1(b.waist.to)} cm` : 'girovita da stimare (servono due misure a 2 settimane)'}${b.weight ? `, peso ${kg1(b.weight.lo)}-${kg1(b.weight.hi)} kg` : ''}.</p>`
     : `<div class="dstat todo">Nessuna misura</div><p class="small muted">Registra girovita e peso: da lì l'app stima l'obiettivo a fine piano.</p>`;
 
-  const aero = aerobicMinutes(weekOfIdx(S.sessionIndex));
-  const vBody = `<div class="dstat">Settimana ${weekOfIdx(S.sessionIndex)}</div>
-    <p class="small">${aero.eq} minuti aerobici equivalenti su 150 · previsione ${(() => { try { return aeroForecastText(weekOfIdx(S.sessionIndex)).tot + '′'; } catch (e) { return '—'; } })()}</p>
+  const wNow = weekOfIdx(calendarWeekIdx());   // (8.28) settimana di calendario
+  const aero = aerobicMinutes(wNow);
+  const vBody = `<div class="dstat">Settimana ${wNow}</div>
+    <p class="small">${aero.eq} minuti aerobici equivalenti su 150 · previsione ${(() => { try { return aeroForecastText(wNow).tot + '′'; } catch (e) { return '—'; } })()}</p>
     <p class="small muted">Serie per gruppo muscolare, riepiloghi settimanali, carichi esercizio per esercizio e ultime sedute.</p>`;
 
   const tile = (id, kicker, body) => `<button class="dtile" data-prog="${id}">
@@ -5892,7 +5970,15 @@ function spCyclesHtml() {
 }
 
 function openUpcoming(fromWeek) {
-  const start = fromWeek || weekOfIdx(S.sessionIndex);
+  // (8.28) si parte dalla settimana di calendario: «oggi» è la seduta del giorno
+  // (o l'uscita in MTB della domenica), «la prossima» è la prossima da fare
+  const SI = S.sessionIndex, wCur = weekOfIdx(SI);
+  let tp = {}; try { tp = todayPlan() || {}; } catch (e) { tp = {}; }
+  const calW = Math.min(wCur, tp.W || wCur);
+  const start = fromWeek || calW;
+  const todayIdx = (!tp.rest && !tp.stale && tp.W) ? weekStart(tp.W) + tp.q : -1;
+  let mtbToday = false;
+  try { const pl = mtbPlanFor(Date.now()); mtbToday = weekdayIdx() === 6 && !pl.skip && !['off', 'after'].includes(pl.phase); } catch (e) { mtbToday = false; }
   const p = program();
   const weeks = [];
   for (let w = start; w < start + 6; w++) {
@@ -5900,22 +5986,26 @@ function openUpcoming(fromWeek) {
     const first = sessionMeta(weekStart(w));
     const days = [];
     for (let k = 0; k < n; k++) {
-      const meta = sessionMeta(weekStart(w) + k);
-      const cur = weekStart(w) + k === S.sessionIndex;
+      const idx = weekStart(w) + k, meta = sessionMeta(idx);
+      const isToday = idx === todayIdx, isNext = idx === SI && !isToday, isDone = idx < SI;
       const ck = spCheckKinds(meta);
-      days.push(`<li${cur ? ' class="cur"' : ''}>
+      days.push(`<li${isToday || isNext ? ' class="cur"' : ''}>
         <span class="wknum ${typeClass(meta)}" style="flex:0 0 26px">${k + 1}</span>
-        <div class="nm" style="flex:1"><b>${esc(dayLabel(meta))}</b>${cur ? ' <span class="wkbadge">oggi</span>' : ''}${ck.length ? ' <span class="wkbadge sp">Spartan Race check</span>' : ''}
-          <div class="small muted">${typeWord(meta)}${ck.length ? ' · ' + ck.map(x => SP_NAMES[x].toLowerCase()).join(', ') : ''}</div></div></li>`);
+        <div class="nm" style="flex:1"><b>${esc(dayLabel(meta))}</b>${isToday ? ' <span class="wkbadge">oggi</span>' : ''}${isNext ? ' <span class="wkbadge">la prossima</span>' : ''}${ck.length ? ' <span class="wkbadge sp">Spartan Race check</span>' : ''}
+          <div class="small muted">${typeWord(meta)}${isDone ? ' · svolta' : ''}${ck.length ? ' · ' + ck.map(x => SP_NAMES[x].toLowerCase()).join(', ') : ''}</div></div></li>`);
     }
+    if (w === calW && mtbToday) days.push(`<li class="cur">
+        <span class="wknum" style="flex:0 0 26px">D</span>
+        <div class="nm" style="flex:1"><b>Uscita in mountain bike</b> <span class="wkbadge">oggi</span>
+          <div class="small muted">preparazione per il Tuscany Trail</div></div></li>`);
     weeks.push(`<div class="block" style="margin-top:14px">
       <h3 style="font-size:16px;color:var(--muted)">${weekText(first, { cap: true })}${first.phase ? ' · ' + esc(first.phase.ph.name) : ''}${
-        first.mobilityWeek ? ' · sola mobilità' : (first.profile.label === 'Scarico' ? ' · scarico' : '')}</h3>
+        first.mobilityWeek ? ' · sola mobilità' : (first.profile.label === 'Scarico' ? ' · scarico' : '')}${w < wCur ? ' · tutte le sedute svolte' : ''}</h3>
       <ul class="hist">${days.join('')}</ul></div>`);
   }
   openModal(`<h2>Le prossime settimane</h2>
     <p class="small muted">${esc(p.name)}. Gli esercizi esatti vengono scelti quando apri la seduta, in base a carichi, attrezzatura e tempo che hai; qui vedi il tipo di lavoro previsto giorno per giorno.</p>
-    ${start === weekOfIdx(S.sessionIndex) ? cyclesHtml(p, sessionMeta(S.sessionIndex)) : ''}
+    ${start === calW ? cyclesHtml(p, sessionMeta(calendarWeekIdx())) : ''}
     <h3 style="margin-top:16px">Settimana per settimana</h3>
     ${weeks.join('')}
     <div class="btn-row" style="margin-top:14px">
@@ -5944,7 +6034,7 @@ function openPath() {
   openModal(`<h2>Il percorso</h2>
     <p class="small muted">${esc(p.name)} · ${esc(p.periodization || '')}</p>
     <div class="dbar" style="margin:12px 0 6px"><i style="width:${path.pct}%"></i></div>
-    <p class="small">${whereText(meta, { cap: true })} · ${path.weeksLeft} settimane alla fine, previste per il <b>${dateIt(path.end)}</b>${(S.mobilityWeeks || []).length ? ' (le settimane di sola mobilità spostano la data)' : ''}.</p>
+    <p class="small">${whereNowText({ cap: true })} · ${path.weeksLeft} settimane alla fine, previste per il <b>${dateIt(path.end)}</b>${(S.mobilityWeeks || []).length ? ' (le settimane di sola mobilità spostano la data)' : ''}.</p>
     <p class="small">Blocco di 4 settimane: settimana ${meta.weekInCycle} di ${meta.cycleLen} · ${esc(meta.profile.label)}${meta.profile.label === 'Scarico' ? ' (recupero)' : ''}.</p>
     <ul class="hist" style="margin-top:12px">${rows}</ul>
     <button class="btn ghost" id="pathUp" style="margin-top:14px">Vedi le prossime settimane</button>
@@ -6376,7 +6466,7 @@ function bindHomeBanners(saved) {
 /* Schermata del mattino. */
 function renderHomeMorning() {
   const s = todaySession(null);
-  $('#topChip').textContent = shortWhere(s);
+  $('#topChip').textContent = shortWhereNow();
   $('#topChip').className = 'chip mobility';
   const b = homeBanners();
   $('#view-home').innerHTML = `
@@ -6407,16 +6497,17 @@ function renderHomeMorning() {
 let daySel = null;          // posizione nella settimana della seduta aperta (null = quella di oggi)
 let dayFrom = 'pick';       // da dove si è aperta la scheda: 'pick' o 'week'
 
-function weekIntroHtml(s) {
+function weekIntroHtml(s, done) {
   const p = program();
+  const pos = x => done ? weekText(x, { cap: true }) + ' · tutte le sedute svolte' : whereText(x, { cap: true });
   return `<div class="kicker wkkicker">
       ${s.mobilityWeek ? 'Settimana di sola mobilità'
         : s.phase ? `Fase ${s.phase.index + 1} di ${p.phases.length} · ${esc(s.phase.ph.name)}`
                   : `Blocco · settimana ${s.weekInCycle} di ${p.cycleWeeks} · ${esc(p.name)}`}</div>
     ${s.mobilityWeek
       ? `<p class="small muted" style="margin:6px 0 0">Tutte le sedute sono di mobilità e stretching. Il programma di forza riprende la settimana ${s.weekAbs + 1} da dove era rimasto: nessuna settimana di lavoro va persa.</p>`
-      : s.phase ? `<p class="small muted" style="margin:6px 0 0">${whereText(s, { cap: true })}, ${s.phase.weekInPhase}ª della fase su ${s.phase.ph.weeks}${weeksLeftText(p, s.trainingWeek)}. ${esc(s.phase.ph.aim)}</p>`
-      : `<p class="small muted" style="margin:6px 0 0">${whereText(s, { cap: true })}.</p>`}`;
+      : s.phase ? `<p class="small muted" style="margin:6px 0 0">${pos(s)}, ${s.phase.weekInPhase}ª della fase su ${s.phase.ph.weeks}${weeksLeftText(p, s.trainingWeek)}. ${esc(s.phase.ph.aim)}</p>`
+      : `<p class="small muted" style="margin:6px 0 0">${pos(s)}.</p>`}`;
 }
 function weekTileBody() {
   const s = sessionMeta(S.sessionIndex), here = posOfIdx(S.sessionIndex);
@@ -6429,7 +6520,7 @@ function weekTileBody() {
 /* Schermata di scelta: tre riquadri. */
 function renderHomePick() {
   const s = todaySession(null);
-  $('#topChip').textContent = shortWhere(s);
+  $('#topChip').textContent = shortWhereNow();
   $('#topChip').className = 'chip';
   const ms = morningStatus(), ls = lunchStatus();
   const b = homeBanners();
@@ -6486,7 +6577,7 @@ function renderHomeWeek() {
   const wStart = weekStart(W);
   const nDays = weekLen(W);
   const s = sessionFor(Math.min(SI, wStart + nDays - 1) >= wStart ? Math.max(wStart, Math.min(SI, wStart + nDays - 1)) : wStart);
-  $('#topChip').textContent = shortWhere(sessionFor(SI));
+  $('#topChip').textContent = shortWhereNow();
   $('#topChip').className = 'chip';
   let week = '';
   const future = W > wCur;
@@ -6535,7 +6626,7 @@ function renderHomeWeek() {
     ${b.html}
     ${deloadCardHtml()}
     <div class="card">
-      ${weekIntroHtml(s)}
+      ${weekIntroHtml(s, W < wCur)}
       <div class="weeknav">
         ${weekShift > 0 ? '<button class="btn ghost small" id="wkPrev">‹ Questa settimana</button>' : '<span></span>'}
         <h2 style="margin:0">${isCal ? 'Programma della settimana' : W - calW === 1 ? 'Settimana prossima' : 'Fra due settimane'}</h2>
@@ -6543,7 +6634,7 @@ function renderHomeWeek() {
       </div>
       <p class="small muted" style="margin:4px 0 0">${W === wCur ? whereText(sessionMeta(Math.min(SI, wStart + nDays - 1)), { cap: true }) : weekText(sessionMeta(wStart), { cap: true })}${W < wCur ? ' · tutte le sedute svolte' : ''}</p>
       <ul class="week">${week}</ul>
-      ${(() => { try { const a = aeroForecastText(W); return `<div class="${a.tot >= AERO_TARGET || a.f.protectedWeek ? 'notice' : 'warnbox'}" style="margin-top:10px"><b>Minuti aerobici: ${a.f.done.eq} su ${AERO_TARGET}</b><br><span class="small">${esc(a.text)}</span></div>`; } catch (e) { return ''; } })()}
+      ${(() => { try { const a = aeroForecastText(W); return `<div class="${a.tot >= AERO_TARGET || a.f.protectedWeek ? 'notice' : 'warnbox'}" style="margin-top:10px"><b>Minuti aerobici: ${a.f.done.eq} su ${AERO_TARGET}</b><br><span class="small">${esc(a.text)}</span>${aeroBreakdownHtml(W)}</div>`; } catch (e) { return ''; } })()}
       <p class="small muted" style="margin-top:10px">Le sedute corrispondono ai giorni da lunedì a sabato. Tocca una seduta per aprirla (quelle svolte mostrano risultati e valutazioni); «Seleziona» la rende la prossima da fare e quella prevista prende il suo posto. La mobilità è prevista per ultima, ma puoi farla in qualunque giorno.</p>
     </div>
     <button class="btn ghost backbottom" id="homeBack2">‹ Torna a Oggi</button>`;
@@ -8444,7 +8535,7 @@ function renderHistory() {
   const wks = weeksWithData().slice(0, 4).map(w =>
     `<button class="btn ghost" data-week="${w}" style="margin-top:8px">Settimana ${w} · ${weekReport(w).sessions} sedute</button>`).join('');
 
-  const curWeek = weekOfIdx(S.sessionIndex);
+  const curWeek = weekOfIdx(calendarWeekIdx());   // (8.28) settimana di calendario
   const volAna = volumeFor(curWeek);
   const vol = volumeHtml(curWeek, volAna);
 
@@ -8513,6 +8604,7 @@ function aerobicHtml(weekAbs, a) {
       <span class="val">${a.eq}<small class="muted"> / 150</small></span></div>
     <p class="small muted" style="margin-top:6px">${a.vig} min di scatti · ${a.mod} min a ritmo moderato. Contano le sedute aerobiche, il finale metabolico e l'uscita in MTB; riscaldamento e defaticamento no.</p>
     ${weekAbs === weekOfIdx(S.sessionIndex) ? (() => { try { return `<p class="small" style="margin-top:6px"><b>Settimana in corso:</b> ${esc(aeroForecastText(weekAbs).text)}</p>`; } catch (e) { return ''; } })() : ''}
+    ${aeroBreakdownHtml(weekAbs)}
   </div>`;
 }
 
@@ -8803,6 +8895,36 @@ function realignHistory() {
    Una tantum: l'uscita torna normale (nessun dato cancellato; la durata
    proposta accorciata resta in plannedShort) e non pesa sulla progressione
    delle durate. */
+/* (8.30) Uscite in MTB senza la loro registrazione nello storico (persa per
+   l'errore di salvataggio corretto in logsDirty): la si ricostruisce dai dati
+   dell'uscita, che erano salvati, con la settimana della seduta registrata.
+   Si segna restored: true. Poi, se l'uscita era stata segnata «leggera» per
+   lo scarico della settimana dopo (errore corretto nella 8.27), la si
+   corregge come fa migrateMtbDeload. Nessun dato viene cancellato. */
+function restoreMtbLogs() {
+  if (S.mtbLogFix) return;
+  S.mtbLogFix = 1;
+  let n = 0;
+  try {
+    (S.mtbRides || []).forEach(r => {
+      if (!r || !r.ts || !(r.minutes > 0)) return;
+      if ((S.logs || []).some(l => l && l.exId === 'o_mtb' && (l.ts === r.ts || l.sid === r.sid))) return;
+      const sl = (S.sessionLog || []).find(x => x && x.kind === 'mtb' && (x.sid === r.sid || x.ts === r.ts));
+      const sIdx = sl && sl.idx != null ? sl.idx : null;
+      const hc = hrClass(r.hrAvg, S.hrMax);
+      S.logs.push({ ts: r.ts, sid: r.sid || r.ts, sIdx, exId: 'o_mtb', name: 'Uscita in mountain bike', setup: S.setup, load: '', feedback: 'same',
+        sets: 1, setLog: [{ load: '', reps: 1, hold: r.minutes * 60, rir: null }], repsTarget: 1, repsDone: 1, reps: 1,
+        goal: 'cardioSteady', hold: r.minutes * 60, rest: 0, setsPlanned: 1, mtb: true, stars: 0, rateText: '', restored: true,
+        ...(hc && hc.cls === 'vigorosa' ? { vigorous: true } : {}), ...(r.hrAvg ? { hrAvg: r.hrAvg } : {}) });
+      n++;
+      if (r.light && ttPhase(r.ts) !== 'taper' && sIdx != null && !isDeloadWeek(sIdx)) {
+        r.light = false; r.plannedShort = r.planned; r.planned = null; r.fix827 = true;
+      }
+    });
+  } catch (e) { /* dati incompleti: nessuna modifica */ }
+  if (n) logsDirty();
+  planCache = null; save();
+}
 function migrateMtbDeload() {
   if (S.mtbDeloadFix) return;
   S.mtbDeloadFix = 1;
@@ -8860,7 +8982,7 @@ function linkInterrupted() {
       l.sidOrig = l.sid; l.sid = x.sid; n++;
     });
   });
-  if (n) { logsTouched && logsTouched(); planCache = null; save(); }
+  if (n) { logsDirty(); planCache = null; save(); }
   return n;
 }
 function migrateInterrupted() {
@@ -8912,7 +9034,7 @@ function repairDoubleSession() {
     const prevIdx = S.sessionIndex - 1;
     if (S.sessionIndex > 0 && !S.sessionLog.some(x => x && isProgramKind(x.kind) && x.idx === prevIdx)) S.sessionIndex--;
   });
-  if (touched.size) { touched.forEach(id => rerateExercise(id)); logsTouched && logsTouched(); }
+  if (touched.size) { touched.forEach(id => rerateExercise(id)); logsDirty(); }
   if (changed) { planCache = null; save(); }
 }
 
@@ -10629,6 +10751,7 @@ function registerServiceWorker() {
   seedPaceFromHistory();
   migrateRatings();
   migrateInterrupted();
+  restoreMtbLogs();
   migrateMtbDeload();
   applyLook();
   goToday();

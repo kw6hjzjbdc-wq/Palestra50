@@ -213,6 +213,40 @@ Da *Oggi* (sotto il calendario), dalla pagina *Progressi* e dal riquadro *Il per
 
 Nel riepilogo di fine seduta, *Ho ancora tempo: aggiungi esercizi*. Si dichiara quanto tempo resta (5, 10 o 15 minuti) e l'app propone quattro esercizi sui **gruppi più indietro** rispetto al volume previsto per la settimana, con le serie che stanno davvero in quei minuti (tempo di preparazione compreso). Toccandone uno si torna nella seduta, che riprende da quell'esercizio e si chiude normalmente.
 
+### Uscite in MTB salvate davvero (8.30)
+- **Causa dei minuti mancanti** (trovata nei dati esportati dall'utente l'8/11). La registrazione dell'uscita in MTB non arrivava in IndexedDB.
+  - `recordMtbRide` chiamava `logsTouched()` prima di `save()`: il confronto veniva aggiornato senza scrivere, e `save()` non vedeva più differenze.
+  - L'uscita (S.mtbRides) e la riga nel registro delle sedute restavano; la registrazione nello storico spariva alla riapertura dell'app, e con lei i 65 minuti.
+  - Verificato sulla versione precedente: registrazione persa dopo la riapertura.
+- **Correzione.** Nuova `logsDirty()`: il prossimo `save()` riscrive lo storico. È usata in `recordMtbRide`, nel collegamento delle sedute interrotte e nella riparazione dei doppioni.
+- **Recupero una tantum** (`restoreMtbLogs`, `S.mtbLogFix`).
+  - Per ogni uscita senza registrazione, la si ricostruisce dai suoi dati (durata, FC) nella settimana della seduta registrata e la si segna `restored`.
+  - Se l'uscita era rimasta «leggera» per l'errore sullo scarico della 8.27, la si corregge: la migrazione della 8.27 non l'aveva trovata proprio perché mancava la registrazione.
+  - Nessun dato è cancellato.
+- **Con i dati dell'utente:** settimana 8 = 28′ (intervalli) + 30′ (ritmo costante) + 15′ (finale metabolico di Forza C) + 65′ (MTB) = **138′**.
+- **Finale metabolico:** conta nei minuti aerobici dalla 8.14, come gli intervalli (scatti ×2, recuperi a ritmo moderato).
+
+### Minuti aerobici: dettaglio e un errore corretto (8.29)
+- **Da dove vengono i minuti** (`aeroBreakdown`, `aeroBreakdownHtml`). Nel programma della settimana e nello storico, sotto i minuti aerobici, c'è un elenco con una riga per ogni seduta o uscita, che riporta:
+  - i minuti di scatti, contati due volte, e quelli a ritmo moderato;
+  - i minuti di riscaldamento e defaticamento, esclusi dal conteggio;
+  - se la seduta è stata registrata alle dosi previste.
+  - Le sedute aerobiche risultate svolte ma senza minuti registrati sono segnalate.
+  - Criterio invariato (OMS 2020, Bull et al.): contano i minuti ad almeno moderata intensità, e un minuto vigoroso vale due. Riscaldamento e defaticamento, burpees, sospensione e allungamenti non contano.
+- **Errore corretto in «Segna come svolta» e «Era la seduta del giorno»** (`markSessionDone`).
+  - Prima, gli esercizi già registrati si riconoscevano solo dall'attrezzo. In una seduta aerobica riscaldamento, scatti, ritmo costante e defaticamento usano lo stesso attrezzo. Bastava il riscaldamento registrato dal vivo (per esempio app chiusa subito dopo) perché tutto il resto venisse saltato, e con esso i minuti.
+  - Ora il confronto è per esercizio e obiettivo, contando le ripetizioni.
+
+### «Oggi» dalla settimana di calendario anche altrove (8.28)
+- **Stesso errore della 8.27, in altre schermate.** Con la settimana del programma finita prima di domenica, diverse schermate trattavano già da «oggi» la prima seduta della settimana dopo.
+- **Le prossime settimane** (`openUpcoming`):
+  - l'elenco parte dalla settimana di calendario, con le sedute fatte segnate «svolta»;
+  - «oggi» indica la seduta del giorno o, la domenica, l'uscita in MTB;
+  - la prossima seduta da fare porta «la prossima»;
+  - anche «Come cambia il programma» indica la posizione della settimana di calendario.
+- **Posizione** (`weekDoneEarly`, `whereNowText`, `shortWhereNow`): in Progressi › Il percorso compare «Settimana 8 di 37 completata · la prossima seduta, sessione 1 di 6 della settimana 9, è da lunedì»; in alto in Oggi «Sett. 8 · completata». Durante la settimana i testi restano quelli di prima.
+- **Mobilità breve, minuti aerobici, volume:** riguardano la settimana di calendario, quindi l'uscita della domenica conta nella settimana in cui è stata fatta.
+
 ### Scarico dalla settimana di calendario (8.27)
 - **Errore corretto.** Finite le sei sedute prima di domenica, la prossima seduta del programma appartiene già alla settimana dopo. Se quella è di scarico, l'app accendeva la fascia rossa e il riquadro «Non aumentare i carichi» già la domenica, e accorciava al 60% l'uscita in MTB della domenica.
 - **Ora le indicazioni seguono la settimana di calendario** (`calendarWeekIdx`, `deloadToday`):
