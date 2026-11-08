@@ -7839,6 +7839,384 @@
    ],
    "source": "National Institute on Aging (NIH), Exercise & Physical Activity: Your Everyday Guide (allungamento del petto: braccia indietro a livello delle spalle). Dose: ACSM, Garber et al. 2011, MSSE 43(7):1334-1359 (30-60 s di tenuta negli adulti più anziani, ~60 s totali per muscolo)",
    "perSide": false
+  },
+  {
+   "id": "g_peckback",
+   "name": "Alzate posteriori alla macchina (peck back)",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Spalle",
+   "pattern": "pullH",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Deltoide posteriore"
+   ],
+   "secondary": [
+    "Romboidi",
+    "Trapezio medio"
+   ],
+   "equipment": [
+    "Macchina peck back (pectoral/rear delt)"
+   ],
+   "art": {
+    "frames": [
+     "seatedArmsFwd",
+     "seatedArmsBack"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Siediti di fronte allo schienale, petto appoggiato: regola il sedile con le impugnature all'altezza delle spalle.",
+    "Impugna le maniglie a braccia tese davanti a te e apri le braccia indietro, gomiti appena flessi, fino alla linea delle spalle.",
+    "Torna in 2-3 secondi senza far toccare le piastre."
+   ],
+   "errors": [
+    "Portare le braccia oltre la linea delle spalle.",
+    "Alzare le spalle verso le orecchie."
+   ],
+   "safety": [
+    "Spalla: lavoro della parte posteriore e delle scapole, in genere ben tollerato; resta nell'escursione senza dolore."
+   ],
+   "source": "Regola operativa dell'app per la scelta: versione guidata delle alzate posteriori, con carico regolabile a passi di 2,5 kg. Desmeules et al. 2025, JOSPT 55(4):235-274 (tendinopatia della cuffia dei rotatori: esercizio contro resistenza raccomandato, grado A, adattato al dolore; interventi mirati alla scapola con effetti moderati-ampi sulla disabilità, evidenza di livello II). Haugen et al. 2023, BMC Sports Sci Med Rehabil 15, doi 10.1186/s13102-023-00713-4 (meta-analisi: macchine e pesi liberi senza differenze di ipertrofia; la forza migliora soprattutto nel mezzo con cui ci si allena)",
+   "rack": "machine",
+   "newFrom": "2026-11-23",
+   "focus": [
+    "reardelt"
+   ],
+   "focusOnly": true
+  },
+  {
+   "id": "g_rowmachine",
+   "name": "Rematore alla macchina con appoggio al petto",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Dorso",
+   "pattern": "pullH",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Gran dorsale",
+    "Trapezio medio",
+    "Romboidi"
+   ],
+   "secondary": [
+    "Bicipiti",
+    "Deltoide posteriore"
+   ],
+   "equipment": [
+    "Rowing machine convergente o circolare"
+   ],
+   "art": {
+    "frames": [
+     "seatedArmsFwd",
+     "seatedElbowsBack"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Regola il sedile in modo che lo sterno poggi sul cuscinetto e le maniglie siano all'altezza del petto.",
+    "Tira portando i gomiti indietro vicino al busto e avvicinando le scapole.",
+    "Torna lentamente a braccia distese, senza staccare il petto dall'appoggio."
+   ],
+   "errors": [
+    "Staccare il petto dal cuscinetto per aiutarsi.",
+    "Tirare con le spalle alzate."
+   ],
+   "safety": [
+    "Con il petto appoggiato la schiena non regge il carico: utile nei giorni vicini alle uscite lunghe in MTB."
+   ],
+   "source": "Regola operativa dell'app per la scelta (petto appoggiato, nessun carico sulla zona lombare). Haugen et al. 2023, BMC Sports Sci Med Rehabil 15, doi 10.1186/s13102-023-00713-4 (meta-analisi: macchine e pesi liberi senza differenze di ipertrofia; la forza migliora soprattutto nel mezzo con cui ci si allena)",
+   "rack": "machine",
+   "newFrom": "2026-11-23",
+   "focus": [
+    "chestSupported"
+   ]
+  },
+  {
+   "id": "g_latconv",
+   "name": "Lat machine convergente",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Dorso",
+   "pattern": "pullV",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Gran dorsale"
+   ],
+   "secondary": [
+    "Bicipiti",
+    "Romboidi",
+    "Grande rotondo"
+   ],
+   "equipment": [
+    "Lat pulldown convergente"
+   ],
+   "art": {
+    "frames": [
+     "latSeatStart",
+     "latSeatEnd"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Cosce bloccate sotto i cuscinetti; se ci sono, usa le impugnature a presa neutra, altrimenti una presa non più larga delle spalle.",
+    "Abbassa prima le scapole, poi tira portando i gomiti verso i fianchi.",
+    "Risali controllato fino a braccia quasi tese, senza lasciare salire le spalle."
+   ],
+   "errors": [
+    "Tirare dietro la nuca.",
+    "Sbilanciare il busto all'indietro."
+   ],
+   "safety": [
+    "Spalla: gomiti davanti al busto e presa stretta o neutra; fermati prima del punto di dolore."
+   ],
+   "source": "Regola operativa dell'app per la scelta: tirata verticale con carico regolabile, complementare alle trazioni (la forza cresce soprattutto nel gesto allenato: le trazioni restano al centro del blocco). Haugen et al. 2023, BMC Sports Sci Med Rehabil 15, doi 10.1186/s13102-023-00713-4 (meta-analisi: macchine e pesi liberi senza differenze di ipertrofia; la forza migliora soprattutto nel mezzo con cui ci si allena)",
+   "rack": "machine",
+   "newFrom": "2026-11-23"
+  },
+  {
+   "id": "g_inclinepressm",
+   "name": "Chest press inclinata alla macchina",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Petto",
+   "pattern": "pushH",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Gran pettorale (fasci clavicolari)"
+   ],
+   "secondary": [
+    "Tricipiti",
+    "Deltoide anteriore"
+   ],
+   "equipment": [
+    "Macchina inclined chest press"
+   ],
+   "art": {
+    "frames": [
+     "seatedPressStart",
+     "inclinePressEnd"
+    ],
+    "implement": "machineBack"
+   },
+   "steps": [
+    "Regola il sedile in modo che, da seduto, le impugnature siano all'altezza della metà dello sterno.",
+    "Spingi in alto e in avanti tenendo la schiena appoggiata, senza bloccare i gomiti di scatto.",
+    "Ritorna in 2-3 secondi senza portare i gomiti oltre la linea del busto."
+   ],
+   "errors": [
+    "Staccare la schiena dallo schienale.",
+    "Aprire i gomiti a 90°."
+   ],
+   "safety": [
+    "Spalla: gomiti a circa 45° dal busto ed escursione senza dolore."
+   ],
+   "source": "Indicazioni di regolazione dalla targa della macchina; scelta: regola operativa dell'app (fasci alti del petto con carico guidato). Haugen et al. 2023, BMC Sports Sci Med Rehabil 15, doi 10.1186/s13102-023-00713-4 (meta-analisi: macchine e pesi liberi senza differenze di ipertrofia; la forza migliora soprattutto nel mezzo con cui ci si allena)",
+   "rack": "machine",
+   "newFrom": "2026-11-23",
+   "focus": [
+    "upperChest"
+   ]
+  },
+  {
+   "id": "g_abdmachine",
+   "name": "Abductor machine",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Glutei",
+   "pattern": "hipAbd",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Medio gluteo",
+    "Piccolo gluteo"
+   ],
+   "secondary": [
+    "Tensore della fascia lata"
+   ],
+   "equipment": [
+    "Abductor machine"
+   ],
+   "art": {
+    "frames": [
+     "frontSeatClosed",
+     "frontSeatOpen"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Siediti con la schiena appoggiata e i piedi sulle pedane, la parte esterna del ginocchio contro i cuscinetti.",
+    "Regola con la leva l'apertura di partenza e apri le gambe verso l'esterno.",
+    "Torna piano senza far sbattere le piastre."
+   ],
+   "errors": [
+    "Staccare la schiena per spingere.",
+    "Andare a strappi."
+   ],
+   "safety": [
+    "Ginocchio: il medio gluteo stabilizza il ginocchio; carico moderato, movimento controllato."
+   ],
+   "source": "Willy et al. 2019, JOSPT 49(9), sintesi AAFP (Marra 2020, Am Fam Physician 102(7):442-443): nel dolore femoro-rotuleo la cura principale combina esercizi per la parte posteriore e laterale dell'anca e per il quadricipite. Scelta dell'esercizio: regola operativa dell'app (carico regolabile e misurabile). Haugen et al. 2023, BMC Sports Sci Med Rehabil 15, doi 10.1186/s13102-023-00713-4 (meta-analisi: macchine e pesi liberi senza differenze di ipertrofia; la forza migliora soprattutto nel mezzo con cui ci si allena)",
+   "rack": "machine",
+   "newFrom": "2026-11-23",
+   "focus": [
+    "abductors"
+   ]
+  },
+  {
+   "id": "g_addmachine",
+   "name": "Adductor machine",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Adduttori",
+   "pattern": "hipAdd",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Adduttori"
+   ],
+   "secondary": [
+    "Gracile"
+   ],
+   "equipment": [
+    "Adductor machine"
+   ],
+   "art": {
+    "frames": [
+     "frontSeatOpen",
+     "frontSeatClosed"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Siediti con la schiena appoggiata, la parte interna del ginocchio contro i cuscinetti.",
+    "Scegli con la leva un'apertura di partenza comoda, senza tirare l'inguine.",
+    "Chiudi le gambe e torna lentamente."
+   ],
+   "errors": [
+    "Partire da un'apertura eccessiva.",
+    "Chiudere di scatto."
+   ],
+   "safety": [
+    "Inguine: con dolore all'inguine non ancora valutato si salta (precauzione inguine in Programma › Profilo)."
+   ],
+   "source": "Regola operativa dell'app: lavoro diretto sugli adduttori con carico regolabile. Haugen et al. 2023, BMC Sports Sci Med Rehabil 15, doi 10.1186/s13102-023-00713-4 (meta-analisi: macchine e pesi liberi senza differenze di ipertrofia; la forza migliora soprattutto nel mezzo con cui ci si allena)",
+   "rack": "machine",
+   "newFrom": "2026-11-23",
+   "focus": [
+    "adductors"
+   ],
+   "groinRisk": true
+  },
+  {
+   "id": "g_pecdeck",
+   "name": "Pectoral machine (pec deck)",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Petto",
+   "pattern": "pushH",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Gran pettorale"
+   ],
+   "secondary": [
+    "Deltoide anteriore"
+   ],
+   "equipment": [
+    "Pectoral machine"
+   ],
+   "art": {
+    "frames": [
+     "frontPecOpen",
+     "frontPecClose"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Regola il sedile con le braccia all'altezza delle spalle e gli avambracci contro i cuscinetti.",
+    "Porta i cuscinetti uno verso l'altro davanti al petto.",
+    "Torna lentamente senza aprire oltre la linea delle spalle."
+   ],
+   "errors": [
+    "Aprire troppo indietro cercando l'allungamento.",
+    "Staccare la schiena."
+   ],
+   "safety": [
+    "Spalla: braccio aperto e ruotato all'esterno sotto carico; con la spalla dolente si salta."
+   ],
+   "source": "Regola operativa dell'app: petto in adduzione con carico guidato. Haugen et al. 2023, BMC Sports Sci Med Rehabil 15, doi 10.1186/s13102-023-00713-4 (meta-analisi: macchine e pesi liberi senza differenze di ipertrofia; la forza migliora soprattutto nel mezzo con cui ci si allena)",
+   "rack": "machine",
+   "newFrom": "2026-11-23",
+   "focus": [
+    "chestAdd"
+   ],
+   "shoulderRisk": true
+  },
+  {
+   "id": "g_dipspress",
+   "name": "Dips press alla macchina",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Braccia",
+   "pattern": "arms",
+   "load": "weight",
+   "kneeFriendly": true,
+   "primary": [
+    "Tricipiti"
+   ],
+   "secondary": [
+    "Gran pettorale",
+    "Deltoide anteriore"
+   ],
+   "equipment": [
+    "Macchina dips press"
+   ],
+   "art": {
+    "frames": [
+     "dipPressTop",
+     "dipPressBottom"
+    ],
+    "implement": "machineBack"
+   },
+   "steps": [
+    "Seduto con la schiena appoggiata, impugna le maniglie ai lati del busto.",
+    "Spingi verso il basso fino a braccia quasi tese.",
+    "Risali lentamente senza lasciare che le spalle si portino in avanti oltre il comodo."
+   ],
+   "errors": [
+    "Inclinare il busto in avanti per spingere.",
+    "Risalire troppo in alto con i gomiti."
+   ],
+   "safety": [
+    "Spalla: estensione della spalla sotto carico, come nelle dip; con la spalla dolente si salta."
+   ],
+   "source": "Regola operativa dell'app: tricipiti con carico regolabile, utile anche come preparazione alle dip del muscle-up. Haugen et al. 2023, BMC Sports Sci Med Rehabil 15, doi 10.1186/s13102-023-00713-4 (meta-analisi: macchine e pesi liberi senza differenze di ipertrofia; la forza migliora soprattutto nel mezzo con cui ci si allena)",
+   "rack": "machine",
+   "newFrom": "2026-11-23",
+   "focus": [
+    "triceps"
+   ],
+   "shoulderRisk": true
   }
  ]
 }

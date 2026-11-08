@@ -213,6 +213,35 @@ Da *Oggi* (sotto il calendario), dalla pagina *Progressi* e dal riquadro *Il per
 
 Nel riepilogo di fine seduta, *Ho ancora tempo: aggiungi esercizi*. Si dichiara quanto tempo resta (5, 10 o 15 minuti) e l'app propone quattro esercizi sui **gruppi più indietro** rispetto al volume previsto per la settimana, con le serie che stanno davvero in quei minuti (tempo di preparazione compreso). Toccandone uno si torna nella seduta, che riprende da quell'esercizio e si chiude normalmente.
 
+### Scarico dalla settimana di calendario (8.27)
+- **Errore corretto.** Finite le sei sedute prima di domenica, la prossima seduta del programma appartiene già alla settimana dopo. Se quella è di scarico, l'app accendeva la fascia rossa e il riquadro «Non aumentare i carichi» già la domenica, e accorciava al 60% l'uscita in MTB della domenica.
+- **Ora le indicazioni seguono la settimana di calendario** (`calendarWeekIdx`, `deloadToday`):
+  - **la domenica prima dello scarico:** niente fascia né riquadro rosso. In Oggi c'è solo l'avviso neutro «Da lunedì: settimana N di scarico».
+  - **uscita in MTB della domenica:** non viene più accorciata, e quando la registri non è segnata come «leggera».
+  - **dettaglio della prossima seduta e seduta avviata in anticipo:** mostrano lo scarico, perché riguarda proprio quella seduta. Anche il carico suggerito resta fermo come prima.
+- **Correzione una tantum** (`migrateMtbDeload`). Un'uscita già registrata come «leggera» per questo errore torna normale. La durata accorciata proposta non si perde: resta in `plannedShort`. Nessun dato è cancellato.
+
+### Macchine della sala (8.26)
+- **Inventario dalle foto dell'utente** (Panatta): triceps station, lat pulldown e lat pulldown convergente, cable crossover, high-low pulley, peck back, dips press, curling machine, triceps machine, inclined e vertical chest press, rowing machine circolare e convergente, standing leg curling, gluteus machine, leg curling, leg extension, abductor e adductor machine, pectoral machine, deltoid press, lower back, abdominal crunch, leg press orizzontale regolabile.
+- **Fondamento.** Haugen et al. 2023 (BMC Sports Sci Med Rehabil 15, doi 10.1186/s13102-023-00713-4), meta-analisi:
+  - fra macchine e pesi liberi non c'è differenza di ipertrofia;
+  - nel confronto diretto nessuno dei due è superiore per la forza;
+  - la forza cresce soprattutto nel mezzo con cui ci si allena.
+  - Ne segue che le macchine servono dove semplificano o proteggono, non per sostituire ciò che funziona. Le trazioni restano al centro del blocco trazioni.
+- **Otto esercizi nuovi**, carico sui passi delle macchine (10-120 kg, 2,5 kg):
+  - **Alzate posteriori alla macchina (peck back)**, slot «Deltoide posteriore». Desmeules et al. 2025: esercizio contro resistenza raccomandato (grado A); interventi mirati alla scapola con effetti moderati-ampi (livello II). Esercizio «solo mirato»: non occupa lo slot del rematore.
+  - **Rematore alla macchina con appoggio al petto** (rowing convergente o circolare). Diventa il rematore di **Forza C**, che ha già due esercizi d'anca (slancio o lancio, glutei). Così la zona lombare non lavora una terza volta a due giorni dall'uscita lunga in MTB (regola operativa dell'app). A casa o senza macchina, lo schema generico.
+  - **Lat machine convergente**: presa neutra o non più larga delle spalle, complementare alle trazioni.
+  - **Chest press inclinata alla macchina**, slot «Petto, fasci alti». Regolazione dalla targa: impugnature a metà sterno.
+  - **Abductor machine**, slot del medio gluteo. Willy et al. 2019 (sintesi AAFP, Marra 2020): nel dolore femoro-rotuleo la cura principale combina esercizi per l'anca posteriore e laterale e per il quadricipite.
+  - **Adductor machine** (`groinRisk`: esclusa con la precauzione inguine).
+  - **Pectoral machine** e **Dips press** (`shoulderRisk`: escluse con la precauzione spalla). La dips press prepara anche le dip del muscle-up quando la spalla è libera.
+- **Tirate più complete.** Negli slot generici di tirata, alzate posteriori e face pull non prendono più il posto del rematore o della lat machine: il deltoide posteriore ha già il suo slot in Forza A (regola operativa dell'app).
+- **Quando cambia.** Le novità valgono dal blocco che comincia il 23/11/2026 (`MACHINES_FROM`, `newFrom`). Il blocco in corso resta identico, verificato confrontando le sedute con la versione precedente. Così il 2-for-2 e le stelle restano confrontabili.
+- **Macchine non aggiunte**, perché il piano ha già un esercizio equivalente o perché non servono agli obiettivi:
+  - già nel piano: deltoid press, vertical chest press, leg press, leg extension, leg curling, lower back, cable crossover e high-low pulley;
+  - non utili agli obiettivi: curling machine, triceps machine e triceps station (curl e push-down bastano); gluteus machine e standing leg curling (niente ipertrofia delle gambe); abdominal crunch (flessione dell'addome sotto carico con dolore all'inguine non valutato).
+
 ### Allungamenti secondo le esigenze (8.25)
 - **Gli allungamenti li sceglie l'app**, non uno schema fisso né una lista imposta (`stretchNeeds`, `needOrder`, `needPick`). Toglie la regola fissa della 8.24 (collo, petto, spalle e braccia in ogni seduta). Per ogni distretto l'app calcola un'esigenza con quattro elementi:
   1. **Copertura della settimana.** ACSM (Garber et al. 2011, MSSE 43(7):1334-1359) indica di allungare ogni grande gruppo muscolo-tendineo almeno 2-3 giorni a settimana. Si contano i giorni con un allungamento registrato negli ultimi 7: nessuno +3, uno +2, due o più 0.

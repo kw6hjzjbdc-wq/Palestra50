@@ -607,7 +607,12 @@
       {
        "patterns": [
         "pullH"
-       ]
+       ],
+       "focus": [
+        "chestSupported"
+       ],
+       "loose": true,
+       "note": "Rematore con il petto appoggiato: la schiena lavora già negli slanci e nei glutei"
       },
       {
        "patterns": [

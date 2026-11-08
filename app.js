@@ -897,16 +897,31 @@ function isDeloadWeek(idx) {
     return !m.mobilityWeek && !!m.profile && m.profile.label === 'Scarico';
   } catch (e) { return false; }
 }
-function deloadText() {
-  try { const m = sessionMeta(S.sessionIndex);
+/* (8.27) La settimana «di oggi» è quella di calendario. Se le sedute di una
+   settimana del programma sono finite prima di domenica, la successiva (e il
+   suo eventuale scarico) comincia lunedì: fino ad allora niente fascia rossa.
+   Dentro una seduta conta la seduta che si sta facendo. */
+function calendarWeekIdx() {
+  try {
+    const tp = todayPlan();
+    if (tp && tp.W && tp.W < weekOfIdx(S.sessionIndex)) return weekStart(tp.W);
+  } catch (e) { /* calendario non disponibile: la prossima seduta */ }
+  return S.sessionIndex;
+}
+const inSessionView = () => document.body.classList.contains('in-session') && !!current;
+const deloadIdxNow = () => inSessionView() ? S.sessionIndex : calendarWeekIdx();
+const deloadToday = () => isDeloadWeek(deloadIdxNow());
+function deloadText(idx) {
+  try { const m = sessionMeta(idx == null ? S.sessionIndex : idx);
     if (m.recovery) return 'Settimana di recupero dopo la Spartan Race · forza leggera, aerobico facile';
     return `Settimana ${m.weekAbs} di scarico · non aumentare i carichi`; }
   catch (e) { return 'Settimana di scarico · non aumentare i carichi'; }
 }
 /* Aggiorna la fascia in cima e quella del timer a tutto schermo. */
 function refreshDeload() {
-  const on = isDeloadWeek();
-  const txt = on ? '⚠ ' + deloadText() : '';
+  const idx = deloadIdxNow();
+  const on = isDeloadWeek(idx);
+  const txt = on ? '⚠ ' + deloadText(idx) : '';
   const bar = $('#deloadBar'), strip = $('#deloadTimerBar');
   if (bar) { bar.hidden = !on; bar.textContent = txt; bar.onclick = openDeloadInfo; }
   if (strip) { strip.hidden = !on; strip.textContent = txt; }
@@ -924,10 +939,20 @@ function openDeloadInfo() {
   $('#dlOk').onclick = () => closeModal();
 }
 /* Riquadro esteso, nelle schermate di Oggi. */
-function deloadCardHtml() {
-  if (!isDeloadWeek()) return '';
+function deloadCardHtml(idx) {
+  if (idx == null) idx = calendarWeekIdx();
+  if (!isDeloadWeek(idx)) {
+    // settimana del programma finita in anticipo e la prossima è di scarico:
+    // un avviso neutro, non la fascia rossa
+    if (idx !== S.sessionIndex && isDeloadWeek(S.sessionIndex)) {
+      let w = ''; try { w = ` ${sessionMeta(S.sessionIndex).weekAbs}`; } catch (e) {}
+      const rec = (() => { try { return !!sessionMeta(S.sessionIndex).recovery; } catch (e) { return false; } })();
+      return `<div class="notice" style="margin-top:12px">Da lunedì: settimana${w} ${rec ? 'di recupero dopo la Spartan Race' : 'di scarico'}. Questa settimana si chiude come le altre; le indicazioni dello scarico valgono dalla prossima seduta.</div>`;
+    }
+    return '';
+  }
   let note = '';
-  try { note = sessionMeta(S.sessionIndex).profile.note || ''; } catch (e) {}
+  try { note = sessionMeta(idx).profile.note || ''; } catch (e) {}
   return `<div class="card deload-card">
     <div class="kicker">⚠ Settimana di scarico</div>
     <h2 style="margin-top:2px">Non aumentare i carichi</h2>
@@ -2341,6 +2366,8 @@ const EXTRA_PATTERNS = {
   'Polpacci': ['calf'], 'Core': ['coreAnti', 'coreFlex']
 };
 const MAX_EXTRAS = 2;
+// (8.26) macchine della sala aggiunte nella 8.26: entrano dal blocco successivo
+const MACHINES_FROM = '2026-11-23';
 const LEG_GROUPS = ['Quadricipiti', 'Glutei e femorali', 'Polpacci'];
 
 function buildStrength(meta, budget) {
@@ -2364,6 +2391,9 @@ function buildStrength(meta, budget) {
     // (8.21) esercizi nuovi solo dal blocco che comincia dopo la loro aggiunta
     const d0 = metaDate(meta), isNew = e => !!e.newFrom && d0 < isoNoon(e.newFrom);
     pool = pool.filter(e => !isNew(e));
+    // (8.26) slot con un muscolo o un attrezzo preciso ancora «nuovo» (prima del
+    // suo blocco) o assente: se lo slot lo consente, schema generico
+    if (!pool.length && slot.loose) pool = slotPool(slot.patterns).filter(e => !isNew(e) && !e.focusOnly);
     if (slot.cycleFocus && slot.focus && slot.focus.length > 1) {
       const blk = Math.floor((meta.trainingWeek - 1) / 4);
       const sub = focusPool([slot.focus[blk % slot.focus.length]]).filter(e => !isNew(e));
@@ -2375,6 +2405,13 @@ function buildStrength(meta, budget) {
     if (!slot.focus && dayFocus.size) {
       const free = pool.filter(e => !(e.focus || []).some(f => dayFocus.has(f)));
       if (free.length) pool = free;
+    }
+    // (8.26) dal blocco che parte con le macchine nuove, negli slot generici di
+    // tirata le alzate posteriori e il face pull non prendono il posto del
+    // rematore o della lat machine: il deltoide posteriore ha il suo slot
+    if ((!slot.focus || !(slot.focus || []).includes('reardelt')) && slot.patterns.some(pt => pt === 'pullH' || pt === 'pullV') && d0 >= isoNoon(MACHINES_FROM)) {
+      const rows = pool.filter(e => !(e.focus || []).includes('reardelt'));
+      if (rows.length) pool = rows;
     }
     let rot = (meta.mesocycle - 1) * (meta.tmplIdx + 2) + i;   // rotazione per mesociclo
     // (8.21) slot che alternano gli esercizi a ogni blocco (esplosività:
@@ -3296,7 +3333,7 @@ function mtbState() {
   });
   const now = Date.now();
   let min = Math.min(planned, mtbCap(now));
-  const deload = isDeloadWeek(S.sessionIndex);
+  const deload = isDeloadWeek(calendarWeekIdx());   // (8.27) settimana di calendario
   if (deload && ttPhase(now) === 'build') min = Math.max(t.minMin, Math.round(min * 0.6 / 15) * 15);
   const pending = rides.slice().reverse().find(r => r.kneeNext == null && now - r.ts > 10 * 3600e3 && now - r.ts < 4 * DAY_MS);
   return { min, planned, deload, rides, pending };
@@ -6681,7 +6718,7 @@ function renderHomeLunch() {
   $('#view-home').innerHTML = `
     <button class="btn ghost" id="dayBack" style="margin-top:14px">‹ ${dayFrom === 'week' ? 'Torna al programma della settimana' : 'Torna a Oggi'}</button>
     ${b.html}
-    ${deloadCardHtml()}
+    ${deloadCardHtml(isToday || core ? S.sessionIndex : wStart + q)}
     ${core || !isToday ? '' : spartanTodayHtml(s)}
     ${notToday}${doneNote}${staleNote}${restNote}
     <div class="seg" role="group" aria-label="Attrezzatura">
@@ -8760,6 +8797,25 @@ function realignHistory() {
    grandezze diverse — volume contro massimale stimato — e potevano dare una
    stella a una seduta migliorata. Qui vengono ricalcolate con la regola nuova,
    in ordine di data; nessun'altra informazione viene toccata. */
+/* (8.27) Fino alla 8.26 lo scarico dell'uscita in MTB seguiva la prossima
+   seduta del programma invece della settimana di calendario: un'uscita della
+   domenica prima dello scarico poteva risultare «leggera» e proposta al 60%.
+   Una tantum: l'uscita torna normale (nessun dato cancellato; la durata
+   proposta accorciata resta in plannedShort) e non pesa sulla progressione
+   delle durate. */
+function migrateMtbDeload() {
+  if (S.mtbDeloadFix) return;
+  S.mtbDeloadFix = 1;
+  try {
+    (S.mtbRides || []).forEach(r => {
+      if (!r || !r.light || !r.ts || ttPhase(r.ts) === 'taper') return;
+      const lg = (S.logs || []).find(l => l && l.exId === 'o_mtb' && l.ts === r.ts);
+      if (!lg || lg.sIdx == null || isDeloadWeek(lg.sIdx)) return;
+      r.light = false; r.plannedShort = r.planned; r.planned = null; r.fix827 = true;
+    });
+  } catch (e) { /* dati incompleti: nessuna modifica */ }
+  save();
+}
 function migrateRatings() {
   // 6.5: regole nuove (confronto per serie, scarico, riferimento corretto,
   // niente stelle ad aerobico e sedute segnate come fatte): stesso ricalcolo,
@@ -10573,6 +10629,7 @@ function registerServiceWorker() {
   seedPaceFromHistory();
   migrateRatings();
   migrateInterrupted();
+  migrateMtbDeload();
   applyLook();
   goToday();
   // l'intro si anima per 3 secondi e resta sull'ultimo fotogramma: sparisce solo
