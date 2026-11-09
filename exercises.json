@@ -8217,6 +8217,52 @@
     "triceps"
    ],
    "shoulderRisk": true
+  },
+  {
+   "id": "g_straightarm",
+   "name": "Pulldown a braccia tese ai cavi",
+   "setup": [
+    "gym"
+   ],
+   "type": "strength",
+   "group": "Dorso",
+   "pattern": "pullV",
+   "load": "weight",
+   "kneeFriendly": true,
+   "shoulderRisk": true,
+   "primary": [
+    "Gran dorsale"
+   ],
+   "secondary": [
+    "Grande rotondo",
+    "Tricipite (capo lungo)",
+    "Core"
+   ],
+   "equipment": [
+    "Cavo alto (cable crossover o high-low pulley)"
+   ],
+   "art": {
+    "frames": [
+     "straightArmTop",
+     "straightArmBottom"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "In piedi davanti al cavo alto, busto leggermente inclinato in avanti, barra o corda impugnata a braccia quasi tese all'altezza della fronte.",
+    "Porta le mani verso le cosce con un arco, gomiti fermi e leggermente flessi.",
+    "Risali lentamente fino all'altezza della fronte, non oltre."
+   ],
+   "errors": [
+    "Piegare i gomiti trasformandolo in un push-down.",
+    "Inarcare la schiena."
+   ],
+   "safety": [
+    "Spalla: parte con le braccia alte; con la spalla dolente si salta."
+   ],
+   "source": "Regola operativa dell'app: alternativa di tirata con il gran dorsale come motore principale e i gomiti fermi. Ha l'attrezzatura per macchine e cavi: Haugen et al. 2023 (macchine e pesi liberi senza differenze di ipertrofia).",
+   "rack": "machine",
+   "newFrom": "2026-11-23"
   }
  ]
 }

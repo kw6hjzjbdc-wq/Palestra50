@@ -2400,9 +2400,17 @@ function buildStrength(meta, budget) {
   const main = [];
   // (8.3) i muscoli che il giorno allena con uno slot dedicato non occupano gli
   // slot generici (per esempio le alzate posteriori al posto del rematore)
+  // (8.31) slot con una data: «from» = attivo da quel giorno, «until» = fino a
+  // quel giorno (così un cambio parte con il blocco successivo e quello in
+  // corso resta identico); «keep» (true o una data) = complementare che
+  // quando la seduta va accorciata si toglie per ultimo
+  const dStart = metaDate(meta);
+  const slotOn = sl => !(sl.from && dStart < isoNoon(sl.from)) && !(sl.until && dStart > isoNoon(sl.until));
+  const keepOn = sl => sl.keep === true || (typeof sl.keep === 'string' && dStart >= isoNoon(sl.keep));
   const dayFocus = new Set();
-  tmpl.slots.forEach(sl => (sl.focus || []).concat(sl.fallback || []).forEach(f => dayFocus.add(f)));
+  tmpl.slots.forEach(sl => { if (slotOn(sl)) (sl.focus || []).concat(sl.fallback || []).forEach(f => dayFocus.add(f)); });
   tmpl.slots.forEach((slot, i) => {
+    if (!slotOn(slot)) return;
     if (slot.skipIfPullBlock && pullMain.length) return;   // la tirata verticale c'è già
     let pool = slotPoolFor(slot);
     // (8.21) slot che alternano il muscolo a ogni blocco di 4 settimane
@@ -2449,6 +2457,7 @@ function buildStrength(meta, budget) {
     main.push({ exId: ex.id, note: slot.note || '', baseNote: slot.note || '', goalKey, role: main.length < 2 ? 'key' : 'main',
                 alt: { patterns: slot.patterns.slice(), types: ['strength', 'core'], ...(slot.focus ? { focus: slot.focus.concat(slot.fallback || []) } : {}) },
                 ...(slot.ss ? { ssSlot: slot.ss } : {}),
+                ...(keepOn(slot) ? { keep: true } : {}),
                 ...(slot.looseGoal && slot.focus ? { looseGoal: slot.looseGoal, focusList: slot.focus.slice(), slotGoal: slot.goal || dayGoal } : {}),
                 ...dose(goalKey, meta.profile, ex) });
     main[main.length - 1].doseSets = main[main.length - 1].sets;
@@ -3032,7 +3041,10 @@ function fitToTime(items, maxMin, tail) {
     if (pull2) { minus(pull2); continue; }
     const key = items.slice().reverse().find(it => it.role === 'key' && it.sets > 2);
     if (key) { minus(key); continue; }
-    const last = items.map((it, i) => [it, i]).reverse().find(([it]) => it.role === 'main' || !it.role);
+    // (8.31) i complementari segnati «keep» (deltoide laterale e posteriore,
+    // cuffia dei rotatori) si tolgono per ultimi
+    const last = items.map((it, i) => [it, i]).reverse().find(([it]) => (it.role === 'main' || !it.role) && !it.keep)
+      || items.map((it, i) => [it, i]).reverse().find(([it]) => it.role === 'main' || !it.role);
     if (last && items.length > 4) { items.splice(last[1], 1); trimmed = true; continue; }
     break;
   }
@@ -3339,6 +3351,36 @@ function mtbCap(date) {
   return c ? c.min : (t.caps || []).slice(-1)[0].min;
 }
 const mtbRides = () => (Array.isArray(S.mtbRides) ? S.mtbRides : []).filter(r => r && r.ts).sort((a, b) => a.ts - b.ts);
+/* (8.32) ALTERNATIVE ALL'USCITA IN MTB
+   Se la bici non c'è o non si può uscire (meteo, guasto, viaggio), la seduta
+   della domenica si fa con un'altra attività, come per la palestra «Cambia
+   attrezzo». Ordine di scelta (regola operativa dell'app: per il Tuscany
+   Trail l'allenamento più specifico resta pedalare):
+     · bici da spinning, poi cyclette orizzontale: stessa durata e stesso
+       ritmo da conversazione; contano per la progressione delle uscite;
+     · camminata veloce o in salita all'aperto: stessa durata; conta per i
+       minuti aerobici (OMS 2020) ma non fa salire la durata delle uscite.
+   La corsa non è un'alternativa: con il dolore femoro-rotuleo l'app la usa
+   solo come corsa-camminata a livelli per la Spartan Race, dal marzo 2027,
+   con i criteri del giorno dopo (Esculier et al. 2018); sostituire uscite di
+   una-tre ore con la corsa non è compatibile con quella progressione.
+   Vogatore e scalini restano fuori per la priorità al ginocchio.
+   Dati dal Forerunner 55: per la bici al chiuso il GPS è spento e senza
+   sensore di velocità o cadenza l'orologio non registra né velocità né
+   distanza (manuale Garmin): bastano durata, FC media e massima. Per la
+   camminata all'aperto anche la distanza (GPS). */
+const MTB_MODES = {
+  mtb: { name: 'Uscita in mountain bike', short: 'MTB', exId: 'o_mtb', cycling: true, outdoor: true,
+    garmin: 'Attività in bici all\'aperto, con il GPS. Dal riepilogo in Garmin Connect: durata, distanza, FC media e massima. Il dislivello dal ciclocomputer, se lo misura: l\'orologio non ha l\'altimetro barometrico.' },
+  spin: { name: 'Bici da spinning', short: 'spinning', exId: 'a_spinning', cycling: true,
+    garmin: 'Attività in bici al chiuso: il GPS è spento e, senza sensore di velocità o cadenza, l\'orologio non registra né velocità né distanza (manuale Garmin). Riporta durata, FC media e FC massima. I km del display della bici non si confrontano con le uscite.' },
+  recumbent: { name: 'Cyclette orizzontale', short: 'cyclette', exId: 'a_recumbent', cycling: true,
+    garmin: 'Come lo spinning: attività in bici al chiuso, senza distanza. Riporta durata, FC media e FC massima.' },
+  walk: { name: 'Camminata veloce o in salita', short: 'camminata', exId: 'o_hillwalk', cycling: false, outdoor: true,
+    garmin: 'Attività di camminata all\'aperto, con il GPS. Riporta durata, distanza, FC media e FC massima.' }
+};
+const rideMode = r => (r && MTB_MODES[r.mode]) ? r.mode : 'mtb';
+const rideCycling = r => MTB_MODES[rideMode(r)].cycling;
 /* Durata proposta per la prossima uscita e uscita in attesa del riscontro
    del ginocchio. */
 function mtbState() {
@@ -3348,7 +3390,7 @@ function mtbState() {
   let planned = t.firstMin;
   rides.forEach(r => {
     if (r.kneeNext === 2) planned = Math.max(t.minMin, planned - t.stepMin);
-    else if (r.kneeNext === 0 && r.minutes >= (r.planned || planned) * 0.9 && !r.light) planned = Math.min(mtbCap(r.ts), planned + t.stepMin);
+    else if (r.kneeNext === 0 && r.minutes >= (r.planned || planned) * 0.9 && !r.light && rideCycling(r)) planned = Math.min(mtbCap(r.ts), planned + t.stepMin);   // (8.32) la camminata non fa salire le uscite
   });
   const now = Date.now();
   let min = Math.min(planned, mtbCap(now));
@@ -3404,6 +3446,7 @@ function hrClass(avg, max) {
 }
 function recordMtbRide(o) {
   const t = TT(), now = Date.now(), plan = mtbPlanFor(now);
+  const mode = MTB_MODES[o.mode] ? o.mode : 'mtb', MD = MTB_MODES[mode];
   const minutes = Math.max(1, Math.round(+o.minutes || 0));
   S.mtbRides = Array.isArray(S.mtbRides) ? S.mtbRides : [];
   const tp = todayPlan();
@@ -3413,13 +3456,14 @@ function recordMtbRide(o) {
   const hc = hrClass(o.hrAvg, S.hrMax);
   const ride = { ts: now, sid: now, planned: plan.min || minutes, minutes, km: o.km || null, dplus: o.dplus || null,
     hrAvg: o.hrAvg || null, hrPeak: o.hrPeak || null, hrPct: hc ? hc.pct : null, intensity: hc ? hc.cls : null,
-    loaded: !!o.loaded, kneeDuring: hasNum(o.knee) ? +o.knee : null, kneeNext: null, light: plan.phase === 'taper' || !!mtbState().deload, note: o.note || '' };
+    loaded: mode === 'mtb' && !!o.loaded, kneeDuring: hasNum(o.knee) ? +o.knee : null, kneeNext: null, light: plan.phase === 'taper' || !!mtbState().deload, note: o.note || '',
+    ...(mode !== 'mtb' ? { mode } : {}) };
   S.mtbRides.push(ride);
-  S.logs.push({ ts: now, sid: now, sIdx, exId: 'o_mtb', name: 'Uscita in mountain bike', setup: S.setup, load: '', feedback: 'same',
+  S.logs.push({ ts: now, sid: now, sIdx, exId: MD.exId, name: MD.name, setup: S.setup, load: '', feedback: 'same',
     sets: 1, setLog: [{ load: '', reps: 1, hold: minutes * 60, rir: null }], repsTarget: 1, repsDone: 1, reps: 1,
     goal: 'cardioSteady', hold: minutes * 60, rest: 0, setsPlanned: 1, mtb: true, stars: 0, rateText: '',
     ...(hc && hc.cls === 'vigorosa' ? { vigorous: true } : {}), ...(o.hrAvg ? { hrAvg: o.hrAvg } : {}) });
-  S.sessionLog.push({ ts: now, sid: now, idx: sIdx, label: 'Uscita in MTB · Tuscany Trail', kind: 'mtb', minutes,
+  S.sessionLog.push({ ts: now, sid: now, idx: sIdx, label: mode === 'mtb' ? 'Uscita in MTB · Tuscany Trail' : `${MD.name} al posto della MTB · Tuscany Trail`, kind: 'mtb', minutes,
     note: [o.km ? `${String(o.km).replace('.', ',')} km` : '', o.dplus ? `${o.dplus} m D+` : '', o.hrAvg ? `FC media ${o.hrAvg}${hc ? ` (${hc.pct}%, ${hc.cls})` : ''}` : '', o.loaded ? 'bici carica' : '', o.note || ''].filter(Boolean).join(' · '),
     ...(hasNum(o.knee) ? { feel: { energy: null, sleep: null, knee: +o.knee, shoulder: null, groin: null } } : {}) });
   logsDirty();
@@ -3462,7 +3506,7 @@ function mtbTileBody() {
 function openTuscany() {
   const t = TT(), st = mtbState();
   const rows = st.rides.slice().reverse().slice(0, 12).map(r => `<li><div class="nm" style="flex:1"><b>${esc(new Date(r.ts).toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' }))}</b>
-      <div class="small muted">${fmtMin(r.minutes)}${r.km ? ` · ${String(r.km).replace('.', ',')} km` : ''}${r.dplus ? ` · ${r.dplus} m D+` : ''}${r.loaded ? ' · bici carica' : ''}${r.kneeNext === 2 ? ' · ginocchio peggio il giorno dopo' : r.kneeNext === 0 ? ' · ginocchio tranquillo' : ''}</div></div></li>`).join('');
+      <div class="small muted">${rideMode(r) !== 'mtb' ? esc(MTB_MODES[rideMode(r)].name) + ' · ' : ''}${fmtMin(r.minutes)}${r.km ? ` · ${String(r.km).replace('.', ',')} km` : ''}${r.dplus ? ` · ${r.dplus} m D+` : ''}${r.loaded ? ' · bici carica' : ''}${r.kneeNext === 2 ? ' · ginocchio peggio il giorno dopo' : r.kneeNext === 0 ? ' · ginocchio tranquillo' : ''}</div></div></li>`).join('');
   openModal(`<h2>Tuscany Trail · ${esc(t.place)}</h2>
     <p class="small muted">${dateIt(isoNoon(t.event))} - ${dateIt(isoNoon(t.eventEnd))} · ${esc(t.routes)} · nessun tempo massimo.</p>
     <div class="block" style="margin-top:12px"><h3 style="font-size:16px;color:var(--muted)">Come si prepara l'app</h3>
@@ -3485,11 +3529,11 @@ function openTuscany() {
 function mtbRidesHtml() {
   const rides = mtbRides();
   if (!rides.length) return '';
-  const longKm = Math.max(0, ...rides.map(r => +r.km || 0)), longMin = Math.max(...rides.map(r => +r.minutes || 0));
+  const cyc = rides.filter(rideCycling), longKm = Math.max(0, ...rides.filter(r => rideMode(r) === 'mtb').map(r => +r.km || 0)), longMin = Math.max(0, ...cyc.map(r => +r.minutes || 0));
   const maxD = Math.max(0, ...rides.map(r => +r.dplus || 0));
   const rows = rides.slice(-8).reverse().map(r => {
     const kmh = r.km && r.minutes ? (r.km / (r.minutes / 60)) : null;
-    const bits = [fmtMin(r.minutes), r.km ? `${String(r.km).replace('.', ',')} km` : '', r.dplus ? `${r.dplus} m D+` : '',
+    const bits = [rideMode(r) !== 'mtb' ? MTB_MODES[rideMode(r)].name : '', fmtMin(r.minutes), r.km ? `${String(r.km).replace('.', ',')} km` : '', r.dplus ? `${r.dplus} m D+` : '',
       kmh ? `${kmh.toFixed(1).replace('.', ',')} km/h` : '', r.hrAvg ? `FC media ${r.hrAvg}${r.hrPct ? ` · ${r.hrPct}% · ${r.intensity}` : ''}` : '', r.loaded ? 'carica' : ''].filter(Boolean);
     return `<li><div class="nm" style="flex:1"><b>${esc(new Date(r.ts).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }))}</b>
       <div class="small muted">${esc(bits.join(' · '))}</div></div></li>`;
@@ -3501,7 +3545,9 @@ function mtbRidesHtml() {
     ${S.hrMax ? '' : '<p class="small muted" style="margin-top:6px">Con la FC massima personale l\'app calcola l\'intensità di ogni uscita (classi ACSM: moderata 64-76%, vigorosa 77-95%).</p>'}
   </div>`;
 }
+let mtbMode = 'mtb';
 function renderHomeMtb() {
+  if (!MTB_MODES[mtbMode]) mtbMode = 'mtb';
   const plan = mtbPlanFor(weekdayIdx() === 6 ? Date.now() : upcomingSunday()), st = mtbState(), done = mtbThisWeek();
   $('#topChip').textContent = 'Tuscany Trail';
   $('#topChip').className = 'chip cardio';
@@ -3522,23 +3568,35 @@ function renderHomeMtb() {
         <li>Sella: ginocchio piegato di circa 25-30° con il pedale in basso (Bini et al. 2011).</li>
         <li>Ginocchio: se durante l'uscita supera 2 su 10, accorcia e torna con calma.</li>
       </ul>
-      <h3 style="font-size:16px;margin-top:14px">${done ? 'Registra un\'altra uscita' : 'Registra l\'uscita'}</h3>
+      <h3 style="font-size:16px;margin-top:14px">Se non puoi uscire in bici</h3>
+      <p class="small muted" style="margin:4px 0 8px">Bici assente o guasta, maltempo, viaggio: scegli che cosa fai al posto dell'uscita. Stessa durata, ritmo da conversazione.</p>
+      <div class="seg mtbmodes" id="mtbModes">${Object.entries(MTB_MODES).map(([k, m]) => `<button type="button" data-mode="${k}" aria-pressed="${k === mtbMode}">${esc(k === 'mtb' ? 'Mountain bike' : k === 'walk' ? 'Camminata' : m.name)}</button>`).join('')}</div>
+      <ul class="small" style="margin:8px 0 0 18px">
+        <li><b>Bici da spinning</b> o, in alternativa, <b>cyclette orizzontale</b> in palestra: si pedala comunque, e contano per far salire la durata delle uscite.</li>
+        <li><b>Camminata veloce o in salita</b> all'aperto, se non hai una bici a disposizione: vale per i minuti aerobici, ma non fa salire la durata delle uscite.</li>
+        <li><b>La corsa non è un'alternativa</b>: con il ginocchio l'app la usa solo come corsa-camminata a livelli per la Spartan Race, da marzo, e non per sedute di una-tre ore.</li>
+      </ul>
+      <h3 style="font-size:16px;margin-top:14px">${done ? 'Registra un\'altra seduta' : mtbMode === 'mtb' ? 'Registra l\'uscita' : 'Registra la seduta: ' + esc(MTB_MODES[mtbMode].name.toLowerCase())}</h3>
       <div class="field"><label>Durata (minuti)</label><input id="mtbMin" type="number" inputmode="numeric" min="1" max="900" value="${plan.min || 90}"></div>
-      <div class="field"><label>Distanza (km, facoltativa)</label><input id="mtbKm" type="text" inputmode="decimal" placeholder="km"></div>
-      <div class="field"><label>Dislivello (m, facoltativo · dal ciclocomputer)</label><input id="mtbD" type="number" inputmode="numeric" placeholder="m"></div>
+      ${MTB_MODES[mtbMode].outdoor ? `<div class="field"><label>Distanza (km, facoltativa · dal Garmin)</label><input id="mtbKm" type="text" inputmode="decimal" placeholder="km"></div>` : ''}
+      ${mtbMode === 'mtb' ? `<div class="field"><label>Dislivello (m, facoltativo · dal ciclocomputer)</label><input id="mtbD" type="number" inputmode="numeric" placeholder="m"></div>` : ''}
       <div class="field"><label>FC media (battiti/min, facoltativa · dal Garmin)</label><input id="mtbHr" type="number" inputmode="numeric" min="60" max="220" placeholder="bpm"></div>
       <div class="field"><label>FC massima dell'uscita (facoltativa)</label><input id="mtbHrPk" type="number" inputmode="numeric" min="60" max="230" placeholder="bpm"></div>
       <div class="field"><label>La tua FC massima personale (da Garmin Connect, zone di frequenza cardiaca)</label><input id="mtbHrMax" type="number" inputmode="numeric" min="120" max="230" value="${S.hrMax || ''}" placeholder="bpm"></div>
-      <p class="small muted" style="margin:4px 0 0">Dal Forerunner 55, nel riepilogo dell'attività in Garmin Connect: durata, distanza, FC media e massima. Il dislivello dal ciclocomputer, se lo misura: l'orologio non ha l'altimetro barometrico. Per confrontare le uscite usa sempre lo stesso strumento per la distanza.</p>
-      <div class="switch"><span>Bici carica con le borse</span><input type="checkbox" id="mtbLoad" ${plan.loaded ? 'checked' : ''}></div>
-      <div class="feelrow"><span class="lab">Ginocchio durante l'uscita<span class="small muted"> 0 nessun dolore · 10 il peggiore</span></span>
+      <p class="small muted" style="margin:4px 0 0"><b>Dal Forerunner 55</b> · ${esc(MTB_MODES[mtbMode].garmin)}${mtbMode === 'mtb' ? ' Per confrontare le uscite usa sempre lo stesso strumento per la distanza.' : ''}</p>
+      ${mtbMode === 'mtb' ? `<div class="switch"><span>Bici carica con le borse</span><input type="checkbox" id="mtbLoad" ${plan.loaded ? 'checked' : ''}></div>` : ''}
+      <div class="feelrow"><span class="lab">Ginocchio durante ${mtbMode === 'mtb' ? 'l\'uscita' : 'la seduta'}<span class="small muted"> 0 nessun dolore · 10 il peggiore</span></span>
         <div class="feelbtns" id="mtbKnee">${Array.from({ length: 11 }, (_, v) => `<button type="button" data-v="${v}">${v}</button>`).join('')}</div></div>
       <div class="field"><label>Nota</label><input id="mtbNote" type="text" placeholder="percorso, sensazioni, attrezzatura"></div>
-      <button class="btn teal" id="mtbSave" style="margin-top:10px">Salva l'uscita</button>
+      <button class="btn teal" id="mtbSave" style="margin-top:10px">${mtbMode === 'mtb' ? 'Salva l\'uscita' : 'Salva la seduta'}</button>
     </div>
     ${mtbRidesHtml()}
     <button class="btn ghost" id="mtbWeek" style="margin-top:10px">Programma della settimana</button>
     <button class="btn ghost backbottom" id="mtbBack2">‹ ${backTxt}</button>`;
+  document.querySelectorAll('#mtbModes [data-mode]').forEach(b => b.onclick = () => {
+    mtbMode = b.dataset.mode; renderHomeMtb();
+    const h = document.getElementById('mtbModes'); if (h) h.scrollIntoView({ block: 'center' });
+  });
   let knee = null;
   document.querySelectorAll('#mtbKnee button').forEach(b => b.onclick = () => {
     knee = knee === +b.dataset.v ? null : +b.dataset.v;
@@ -3551,14 +3609,15 @@ function renderHomeMtb() {
   $('#mtbSave').onclick = () => {
     const minutes = parseInt($('#mtbMin').value, 10);
     if (!(minutes > 0)) { showToast('<div>Indica la durata in minuti.</div>'); return; }
-    const km = parseFloat(String($('#mtbKm').value || '').replace(',', '.'));
-    const dp = parseInt($('#mtbD').value, 10);
+    const km = $('#mtbKm') ? parseFloat(String($('#mtbKm').value || '').replace(',', '.')) : NaN;
+    const dp = $('#mtbD') ? parseInt($('#mtbD').value, 10) : NaN;
     const hr = parseInt($('#mtbHr').value, 10), hp = parseInt($('#mtbHrPk').value, 10), hm = parseInt($('#mtbHrMax').value, 10);
     const ride = recordMtbRide({ minutes, km: isFinite(km) && km > 0 ? Math.round(km * 10) / 10 : null, dplus: dp > 0 ? dp : null,
       hrAvg: hr >= 60 && hr <= 220 ? hr : null, hrPeak: hp >= 60 && hp <= 230 ? hp : null, hrMaxUser: hm >= 120 && hm <= 230 ? hm : null,
-      loaded: $('#mtbLoad').checked, knee, note: $('#mtbNote').value || '' });
+      loaded: !!($('#mtbLoad') && $('#mtbLoad').checked), knee, note: $('#mtbNote').value || '', mode: mtbMode });
     const hot = ride.intensity === 'vigorosa' && minutes >= 120;
-    showToast(`<div><b>Uscita registrata</b>: ${fmtMin(minutes)}${ride.intensity ? ` · intensità ${ride.intensity} (${ride.hrPct}% della FC massima)` : ''}.${hot ? ' Per le uscite lunghe tieni il ritmo da conversazione: è quello che costruisce la base per il Tuscany Trail.' : ''} Domani l'app ti chiede com'è il ginocchio.</div>`, hot ? 6500 : 4200);
+    showToast(`<div><b>${mtbMode === 'mtb' ? 'Uscita registrata' : MTB_MODES[mtbMode].name + ' registrata'}</b>: ${fmtMin(minutes)}${ride.intensity ? ` · intensità ${ride.intensity} (${ride.hrPct}% della FC massima)` : ''}.${hot ? ' Per le uscite lunghe tieni il ritmo da conversazione: è quello che costruisce la base per il Tuscany Trail.' : ''} Domani l'app ti chiede com'è il ginocchio.</div>`, hot ? 6500 : 4200);
+    mtbMode = 'mtb';
     homeView = null; renderHome(); window.scrollTo(0, 0);
   };
 }
@@ -4859,7 +4918,7 @@ function morningTileBody(ms, full) {
 function lunchTileBody(ls, full) {
   const wd = WEEKDAYS[weekdayIdx()];
   if (ls.rest && ls.mtb) { const dn = mtbThisWeek(), pl = mtbPlanFor(Date.now());
-    return dn ? `<div class="dstat ok">Fatta ✓</div><p class="small">Domenica · <b>Uscita in MTB</b> · ${fmtMin(dn.minutes)}${dn.km ? ` · ${String(dn.km).replace('.', ',')} km` : ''}</p><p class="small muted">Preparazione per Tuscany Trail. Tocca per i dettagli.</p>`
+    return dn ? `<div class="dstat ok">Fatta ✓</div><p class="small">Domenica · <b>${rideMode(dn) === 'mtb' ? 'Uscita in MTB' : esc(MTB_MODES[rideMode(dn)].name) + ' al posto della MTB'}</b> · ${fmtMin(dn.minutes)}${dn.km ? ` · ${String(dn.km).replace('.', ',')} km` : ''}</p><p class="small muted">Preparazione per Tuscany Trail. Tocca per i dettagli.</p>`
       : `<div class="dstat todo">${pl.skip || pl.event ? 'Oggi' : 'Da fare · ' + fmtMin(pl.min)}</div><p class="small">Domenica · <b>Uscita in mountain bike</b></p><p class="small muted">Preparazione per Tuscany Trail · ${pl.skip || pl.event ? esc(pl.notes[0] || '') : 'sterrato, ritmo da conversazione'}.</p>`; }
   if (ls.rest) return `<div class="dstat">Domenica · riposo</div><p class="small">Nessuna seduta prevista oggi.</p>
        <p class="small muted">La prossima è «${esc(ls.s.label)}» (lunedì) · tocca per vederla o farla lo stesso.</p>`;
@@ -5499,7 +5558,7 @@ function goalsHtml() {
     const goalMin = Math.max(...(tt.caps || []).map(c => c.min), 0) || 300;
     const weeks = Math.max(0, Math.floor((Date.now() - start) / (7 * DAYM)));
     const expMin = Math.min(mtbCap(Date.now()), tt.firstMin + tt.stepMin * Math.max(0, weeks - 1));
-    const longest = rides.reduce((a, r) => Math.max(a, +r.minutes || 0), 0);
+    const longest = rides.filter(rideCycling).reduce((a, r) => Math.max(a, +r.minutes || 0), 0);   // (8.32) la camminata non conta
     const sundays = Math.max(0, Math.floor((Date.now() - start) / (7 * DAYM)) + (new Date().getDay() === 0 ? 1 : 0));
     const st = !rides.length ? 'nodata' : longest >= goalMin ? 'done' : longest >= expMin + 15 ? 'ahead' : longest >= expMin - 15 ? 'ontrack' : 'behind';
     const h = rides.map(r => ({ ts: r.ts, v: +r.minutes || 0 }));
@@ -6606,7 +6665,7 @@ function renderHomeWeek() {
     week += `<li class="wk ${dn ? 'done' : (isCal && weekdayIdx() === 6 ? 'now' : 'next')}" data-mtb="${isCal ? 1 : ''}">
       <span class="wknum cardio">${dn ? '✓' : 'D'}</span>
       <div class="nm"><b>Uscita in mountain bike</b>
-        <div class="small muted">domenica · Preparazione per Tuscany Trail · ${dn ? fmtMin(dn.minutes) + ' fatta' : (pl.skip ? 'niente uscita (Spartan Race)' : fmtMin(pl.min))}</div></div>
+        <div class="small muted">domenica · Preparazione per Tuscany Trail · ${dn ? fmtMin(dn.minutes) + (rideMode(dn) === 'mtb' ? ' fatta' : ` fatta con ${MTB_MODES[rideMode(dn)].short}`) : (pl.skip ? 'niente uscita (Spartan Race)' : fmtMin(pl.min) + ' · se non puoi uscire: spinning, cyclette o camminata')}</div></div>
       ${dn ? '<span class="wkbadge done">✓ svolta</span>' : isCal && weekdayIdx() === 6 ? '<span class="wkbadge">di oggi</span>' : isCal && weekdayIdx() === 5 ? '<span class="wkbadge alt">domani</span>' : '<span class="chev">›</span>'}</li>`;
   }
   const coreS = sessionFor(S.sessionIndex, 'core');
@@ -8908,7 +8967,7 @@ function restoreMtbLogs() {
   try {
     (S.mtbRides || []).forEach(r => {
       if (!r || !r.ts || !(r.minutes > 0)) return;
-      if ((S.logs || []).some(l => l && l.exId === 'o_mtb' && (l.ts === r.ts || l.sid === r.sid))) return;
+      if ((S.logs || []).some(l => l && (l.exId === 'o_mtb' || l.mtb) && (l.ts === r.ts || l.sid === r.sid))) return;
       const sl = (S.sessionLog || []).find(x => x && x.kind === 'mtb' && (x.sid === r.sid || x.ts === r.ts));
       const sIdx = sl && sl.idx != null ? sl.idx : null;
       const hc = hrClass(r.hrAvg, S.hrMax);

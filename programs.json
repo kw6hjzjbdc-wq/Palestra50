@@ -443,7 +443,8 @@
        ],
        "goal": "hypertrophy",
        "note": "Deltoide posteriore",
-       "ss": "2"
+       "ss": "2",
+       "keep": "2026-11-23"
       },
       {
        "patterns": [
@@ -634,7 +635,8 @@
         "lateralDelt"
        ],
        "note": "Spalle: deltoide laterale o cuffia dei rotatori, a blocchi alterni",
-       "cycleFocus": true
+       "cycleFocus": true,
+       "until": "2026-11-22"
       },
       {
        "patterns": [
@@ -693,7 +695,35 @@
        ],
        "goal": "legTone",
        "note": "Anca: medio gluteo e adduttori",
-       "ss": "3"
+       "ss": "3",
+       "until": "2026-11-22"
+      },
+      {
+       "patterns": [
+        "shoulderIso"
+       ],
+       "focus": [
+        "lateralDelt"
+       ],
+       "ss": "1",
+       "keep": "2026-11-23",
+       "from": "2026-11-23",
+       "note": "Deltoide laterale: ogni settimana"
+      },
+      {
+       "patterns": [
+        "shoulderIso"
+       ],
+       "focus": [
+        "cuff"
+       ],
+       "fallback": [
+        "lateralDelt"
+       ],
+       "ss": "3",
+       "keep": "2026-11-23",
+       "from": "2026-11-23",
+       "note": "Cuffia dei rotatori: ogni settimana (medio gluteo e adduttori restano in Forza A)"
       }
      ]
     }

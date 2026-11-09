@@ -213,6 +213,36 @@ Da *Oggi* (sotto il calendario), dalla pagina *Progressi* e dal riquadro *Il per
 
 Nel riepilogo di fine seduta, *Ho ancora tempo: aggiungi esercizi*. Si dichiara quanto tempo resta (5, 10 o 15 minuti) e l'app propone quattro esercizi sui **gruppi più indietro** rispetto al volume previsto per la settimana, con le serie che stanno davvero in quei minuti (tempo di preparazione compreso). Toccandone uno si torna nella seduta, che riprende da quell'esercizio e si chiude normalmente.
 
+### Alternative all'uscita in MTB (8.32)
+- **«Se non puoi uscire in bici»** (`MTB_MODES`, `rideMode`, `rideCycling`). Nella pagina della domenica si sceglie l'attività al posto dell'uscita, come «Cambia attrezzo» per la palestra.
+  - Stessa durata proposta e stesso ritmo da conversazione.
+  - Ordine di scelta, per specificità rispetto al Tuscany Trail (regola operativa dell'app):
+    1. **Bici da spinning**, poi **cyclette orizzontale**: si pedala comunque; contano per la progressione della durata delle uscite.
+    2. **Camminata veloce o in salita** all'aperto: conta nei minuti aerobici (OMS 2020), ma non fa salire la durata delle uscite e non entra nell'«uscita più lunga» di Progressi.
+  - **Corsa: non inserita.** Con il dolore femoro-rotuleo l'app la usa solo come corsa-camminata a livelli per la Spartan Race, da marzo 2027, con i criteri del giorno dopo (Esculier et al. 2018). Sostituire uscite di una-tre ore con la corsa non è compatibile con quella progressione né con la regola permanente dell'utente.
+  - **Vogatore e scalini:** restano fuori per la priorità al ginocchio.
+- **Dati dal Forerunner 55** (manuale Garmin, «Indoor Activities»):
+  - **MTB:** attività in bici all'aperto con il GPS. Durata, distanza, FC media e massima; dislivello dal ciclocomputer.
+  - **Spinning e cyclette:** attività in bici al chiuso. Il GPS è spento e, senza sensore di velocità o cadenza, l'orologio non registra né velocità né distanza: durata, FC media e massima. Il modulo nasconde distanza, dislivello e «bici carica».
+  - **Camminata:** attività all'aperto con il GPS. Durata, distanza, FC media e massima.
+  - In tutti i casi la FC media, con la FC massima personale delle zone di Garmin Connect, dà l'intensità (classi ACSM, moderata 64-76%, vigorosa 77-95%); un minuto vigoroso vale due.
+- **Registrazione:** esercizio della seduta sostituita (`a_spinning`, `a_recumbent`, `o_hillwalk`), con l'etichetta «… al posto della MTB». La domanda sul ginocchio del giorno dopo resta per tutte le attività; una risposta «peggio del solito» accorcia comunque la prossima uscita.
+
+### Deltoidi laterali e posteriori ogni settimana (8.31)
+- **Verifica (8/11)**, sulle settimane 9-37 con i dati dell'utente, a 45 minuti e con le precauzioni attive. Le immagini inviate riportavano deltoidi anteriori, laterali e posteriori e gran dorsale «alto, intero, basso, centrale».
+  - Deltoide anteriore e gran dorsale: ogni settimana.
+  - Deltoide laterale: lavoro diretto in 21 settimane su 29.
+  - Deltoide posteriore: lavoro diretto in 15 settimane su 29.
+  - Causa: lo slot del posteriore (Forza A) era il primo a cadere quando la seduta va accorciata; il laterale (Forza C) si alternava a blocchi con la cuffia dei rotatori.
+  - Il volume dell'app è contato per gruppi ampi («Spalle»), quindi le spinte coprivano il conteggio senza allenare davvero laterale e posteriore.
+- **Dal blocco del 23/11/2026** (slot con `from`/`until`; il blocco in corso è rimasto identico, verificato contro la 8.30):
+  - **Forza C:** deltoide laterale **ogni settimana** (superserie con il brachiale) e cuffia dei rotatori **ogni settimana** (superserie con i glutei). Esce lo slot «Anca: medio gluteo e adduttori», che resta in Forza A, dove gli slot per abduttori e adduttori sono due.
+  - **Forza A:** lo slot del deltoide posteriore diventa `keep`.
+  - **`keep`:** quando la seduta va accorciata, questi complementari si tolgono per ultimi (prima si riducono le serie, poi si tolgono gli altri complementari). Risultato: laterale, posteriore e cuffia in ogni settimana di forza a 40-50 minuti; a 35 minuti quasi sempre.
+  - Nella fase di mantenimento (da aprile, due sedute di forza, Spiering et al. 2021) il volume resta ridotto come previsto.
+- **Nuovo esercizio:** *Pulldown a braccia tese ai cavi* (`g_straightarm`), tirata con il gran dorsale come motore e i gomiti fermi, solo come alternativa a rotazione nelle tirate verticali. Parte con le braccia alte: `shoulderRisk`, quindi escluso con la precauzione spalla. È una regola operativa dell'app.
+- **Fonti:** ACSM 2026 (almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia). La divisione del gran dorsale in parte «alta», «bassa» e «centrale» è divulgativa: non ho una fonte verificata su una crescita regionale del muscolo che dipenda dall'esercizio, quindi non è trattata come requisito.
+
 ### Uscite in MTB salvate davvero (8.30)
 - **Causa dei minuti mancanti** (trovata nei dati esportati dall'utente l'8/11). La registrazione dell'uscita in MTB non arrivava in IndexedDB.
   - `recordMtbRide` chiamava `logsTouched()` prima di `save()`: il confronto veniva aggiornato senza scrivere, e `save()` non vedeva più differenze.
