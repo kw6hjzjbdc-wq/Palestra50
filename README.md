@@ -213,6 +213,18 @@ Da *Oggi* (sotto il calendario), dalla pagina *Progressi* e dal riquadro *Il per
 
 Nel riepilogo di fine seduta, *Ho ancora tempo: aggiungi esercizi*. Si dichiara quanto tempo resta (5, 10 o 15 minuti) e l'app propone quattro esercizi sui **gruppi più indietro** rispetto al volume previsto per la settimana, con le serie che stanno davvero in quei minuti (tempo di preparazione compreso). Toccandone uno si torna nella seduta, che riprende da quell'esercizio e si chiude normalmente.
 
+### Dati del Forerunner 55 nelle sedute aerobiche (8.33)
+- **Perché è utile.**
+  - **Intensità.** La FC media rispetto alla FC massima personale dà la classe ACSM: moderata 64-76%, vigorosa 77-95% (Garber et al. 2011; Scharhag-Rosenberger 2015). Per l'OMS 2020 un minuto vigoroso vale due; prima l'app contava sempre come moderati i minuti a ritmo costante.
+  - **Corsa-camminata (da marzo):** la distanza percorsa, verso i 5 km della Spartan Sprint.
+- **Dove.** A fine seduta aerobica (spinning, cyclette, sacco, camminata, corsa-camminata) nella finestra «Sessione completata», oppure dopo, dalla scheda della seduta nello storico, quando i dati sono arrivati in Garmin Connect.
+  - Campi facoltativi: FC media e FC massima; la distanza solo per la corsa-camminata.
+  - Per spinning e cyclette non si chiede la distanza: al chiuso il GPS è spento e senza sensore l'orologio non la registra (manuale Garmin).
+- **Cosa cambia nel conteggio** (`applyGarmin`):
+  - **Sedute a ritmo costante con FC media da intensità vigorosa:** i minuti a ritmo costante contano come vigorosi (`vigorous`, `vigFromHr`). La media include riscaldamento e defaticamento, quindi la stima è prudente. Se la FC viene corretta, il conteggio torna indietro: nessun dato perso.
+  - **Sedute a intervalli:** la media mescola scatti e recuperi. La FC si registra ma non cambia il conteggio, perché gli scatti contano già come vigorosi.
+- **Dove si vede.** FC media, percentuale e classe compaiono in «Da dove vengono i minuti». La distanza della corsa-camminata va anche nella corsa registrata (`S.spartanRuns`).
+
 ### Alternative all'uscita in MTB (8.32)
 - **«Se non puoi uscire in bici»** (`MTB_MODES`, `rideMode`, `rideCycling`). Nella pagina della domenica si sceglie l'attività al posto dell'uscita, come «Cambia attrezzo» per la palestra.
   - Stessa durata proposta e stesso ritmo da conversazione.

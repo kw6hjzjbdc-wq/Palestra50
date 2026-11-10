@@ -3444,6 +3444,55 @@ function hrClass(avg, max) {
   const f = avg / max;
   return { pct: Math.round(f * 100), cls: f >= HR_VIG ? 'vigorosa' : f >= HR_MOD ? 'moderata' : 'leggera' };
 }
+/* (8.33) DATI DEL FORERUNNER 55 NELLE SEDUTE AEROBICHE
+   A fine seduta aerobica (spinning, cyclette, sacco, camminata, corsa-
+   camminata) si possono riportare FC media e FC massima e, per la corsa-
+   camminata, la distanza. Servono a due cose verificate:
+   · intensità: FC media / FC massima personale → classe ACSM (Garber et al.
+     2011; Scharhag-Rosenberger 2015: moderata 64-76%, vigorosa 77-95%).
+     Nelle sedute a ritmo costante, se la FC media è da intensità vigorosa, i
+     minuti a ritmo costante contano come vigorosi (OMS 2020: un minuto
+     vigoroso vale due). La media include riscaldamento e defaticamento, quindi
+     la stima è prudente. Nelle sedute a intervalli la media mescola scatti e
+     recuperi: si registra, ma non cambia il conteggio (gli scatti contano già
+     come vigorosi);
+   · corsa-camminata: la distanza percorsa, verso i 5 km della Spartan Sprint.
+   Distanza e velocità di spinning e cyclette non ci sono: al chiuso il GPS è
+   spento e senza sensore l'orologio non le registra (manuale Garmin). */
+function garminFieldsHtml(x, opt) {
+  const run = !!(opt && opt.run);
+  return `<div class="block" style="margin-top:10px"><h3 style="font-size:15px">Dati dal Forerunner 55 <span class="small muted">· facoltativi</span></h3>
+    <div class="field"><label>FC media (bpm)</label><input id="gHrAvg" type="number" inputmode="numeric" min="60" max="220" value="${x && x.hrAvg || ''}" placeholder="bpm"></div>
+    <div class="field"><label>FC massima (bpm)</label><input id="gHrMax" type="number" inputmode="numeric" min="60" max="230" value="${x && x.hrMax || ''}" placeholder="bpm"></div>
+    ${run ? `<div class="field"><label>Distanza (km, con il GPS)</label><input id="gKm" type="text" inputmode="decimal" value="${x && x.km ? String(x.km).replace('.', ',') : ''}" placeholder="km"></div>` : ''}
+    <p class="small muted" style="margin:4px 0 0">Dal riepilogo dell'attività in Garmin Connect. ${S.hrMax ? `Con la tua FC massima (${S.hrMax}) l'app calcola l'intensità: se a ritmo costante sei stato in zona vigorosa, quei minuti valgono doppio nei 150′.` : 'Per calcolare l\'intensità serve la tua FC massima personale (Garmin Connect, zone di frequenza cardiaca): la inserisci nella pagina dell\'uscita in MTB.'}</p></div>`;
+}
+function readGarminFields() {
+  const n = id => { const e = document.getElementById(id); if (!e) return null; const v = parseFloat(String(e.value || '').replace(',', '.')); return v > 0 ? v : null; };
+  return { hrAvg: n('gHrAvg') ? Math.round(n('gHrAvg')) : null, hrMax: n('gHrMax') ? Math.round(n('gHrMax')) : null, km: n('gKm') };
+}
+function applyGarmin(i, g) {
+  const x = S.sessionLog[i];
+  if (!x || !g) return;
+  ['hrAvg', 'hrMax', 'km'].forEach(k => { if (g[k] != null) x[k] = g[k]; else if (k in g) delete x[k]; });
+  const logs = S.logs.filter(l => l && l.sid === x.sid);
+  const intervals = logs.some(l => l.goal === 'cardioHiit' || l.goal === 'cardioRun');
+  const hc = hrClass(x.hrAvg, S.hrMax);
+  logs.forEach(l => {
+    const ex = exById(l.exId);
+    if (!ex || ex.pattern !== 'cardio' || l.goal !== 'cardioSteady' || l.mtb) return;
+    if (!intervals && hc && hc.cls === 'vigorosa') { l.vigorous = true; l.vigFromHr = true; }
+    else if (l.vigFromHr) { delete l.vigorous; delete l.vigFromHr; }
+  });
+  if (x.km != null) (S.spartanRuns || []).forEach(r => { if (r && r.sid === x.sid) r.km = x.km; });
+  logsDirty(); planCache = null; save();
+}
+const isAeroSession = x => { try { return !!x && x.kind !== 'mtb' && x.kind !== 'morning' && x.kind !== 'skipped' && x.idx != null && sessionMeta(x.idx).isCardio; } catch (e) { return false; } };
+function garminSummary(x) {
+  if (!x || !(x.hrAvg || x.km)) return '';
+  const hc = hrClass(x.hrAvg, S.hrMax);
+  return [x.hrAvg ? `FC media ${x.hrAvg}${hc ? ` (${hc.pct}% · ${hc.cls})` : ''}` : '', x.hrMax ? `max ${x.hrMax}` : '', x.km ? `${String(x.km).replace('.', ',')} km` : ''].filter(Boolean).join(' · ');
+}
 function recordMtbRide(o) {
   const t = TT(), now = Date.now(), plan = mtbPlanFor(now);
   const mode = MTB_MODES[o.mode] ? o.mode : 'mtb', MD = MTB_MODES[mode];
@@ -4188,7 +4237,7 @@ function aeroBreakdown(W) {
     const sl = (S.sessionLog || []).find(x => x && x.sid === r.sid);
     const eq = Math.round(r.mod + 2 * r.vig);
     if (!eq && !r.warm) return;
-    rows.push({ ts: r.ts, label: sl ? sessLabel(sl) : 'Registrazioni senza seduta', eq, mod: Math.round(r.mod), vig: Math.round(r.vig), warm: Math.round(r.warm), planned: r.planned });
+    rows.push({ ts: r.ts, label: sl ? sessLabel(sl) : 'Registrazioni senza seduta', eq, mod: Math.round(r.mod), vig: Math.round(r.vig), warm: Math.round(r.warm), planned: r.planned, garmin: sl ? garminSummary(sl) : '' });
   });
   // sedute aerobiche del programma svolte senza minuti
   programWeekLogs(W).forEach(x => {
@@ -4207,7 +4256,7 @@ function aeroBreakdownHtml(W) {
   return `<details class="aerodet" style="margin-top:8px"><summary class="small"><b>Da dove vengono i minuti</b></summary>
     <ul class="hist" style="margin-top:6px">${rows.map(r => `<li><div class="nm" style="flex:1"><b>${esc(r.label)}</b>
       <div class="small muted">${day(r.ts)}${r.missing ? ' · <span style="color:var(--amber)">svolta, ma senza minuti registrati</span>'
-        : ` · ${r.vig ? r.vig + '′ di scatti (×2) + ' : ''}${r.mod}′ a ritmo moderato${r.warm ? ` · ${r.warm}′ di riscaldamento e defaticamento non contati` : ''}${r.planned ? ' · alle dosi previste' : ''}`}</div></div>
+        : ` · ${r.vig ? r.vig + '′ vigorosi (×2) + ' : ''}${r.mod}′ a ritmo moderato${r.warm ? ` · ${r.warm}′ di riscaldamento e defaticamento non contati` : ''}${r.planned ? ' · alle dosi previste' : ''}${r.garmin ? ' · ' + esc(r.garmin) : ''}`}</div></div>
       <div class="val">${r.eq}′</div></li>`).join('')}</ul>
     <p class="small muted">Contano i minuti a intensità almeno moderata (OMS 2020): un minuto di scatto vale due. Riscaldamento, defaticamento, burpees, sospensione e allungamenti no.</p></details>`;
 }
@@ -8152,6 +8201,7 @@ function endSession() {
     <h2>Sessione completata</h2>
     <p class="small muted">${esc(s.label)} · ${mins} minuti effettivi.</p>
     ${s.kind === 'core' ? '' : `<p class="small muted" style="margin:10px 0 4px">Com'è andata? Bastano due tocchi, tutto facoltativo.</p>${feelPickerHtml()}`}
+    ${s.type === 'cardio' ? garminFieldsHtml(null, { run: !!s.run }) : ''}
     <div class="field"><label>Note</label><input id="sNote" type="text" placeholder="sensazioni, ginocchio, ecc."></div>
     <button class="btn" id="saveSession">Salva e chiudi</button>
     <button class="btn ghost" id="skipSave" style="margin-top:10px">Chiudi senza note</button>
@@ -8167,6 +8217,7 @@ function endSession() {
     if (b) b.click();
   });
   const finish = (withNote) => {
+    const garmin = s.type === 'cardio' ? readGarminFields() : null;
     const sid = current ? current.started : 0;
     const hasFeel = Object.keys(feel).some(k => feel[k] !== null && feel[k] !== undefined);
     S.sessionLog.push({ ts: Date.now(), sid: sid, idx: s.idx,
@@ -8180,6 +8231,7 @@ function endSession() {
       const mi = s.items.findIndex(it => it.goal === 'cardioRun');
       recordRun(s, mi >= 0 ? (current.setsDone[mi] || 0) : 0, sid, Date.now());
     }
+    if (garmin && (garmin.hrAvg || garmin.hrMax || garmin.km)) applyGarmin(S.sessionLog.length - 1, garmin);
     planCache = null; homeSel = 'session';
     const weekDone = (isProgramKind(s.kind) && posOfIdx(S.sessionIndex) === 0) ? weekOfIdx(S.sessionIndex) - 1 : 0;
     if (weekDone) S.lastRecap = weekDone;
@@ -8809,12 +8861,14 @@ function openSessionDetail(i) {
     ${sessNoteHtml(i)}
     <ul class="hist">${rows || '<li><span class="small muted">Nessun esercizio registrato per questa seduta.</span></li>'}</ul>
     ${feelEditHtml(i)}
+    ${isAeroSession(x) ? garminFieldsHtml(x, { run: S.logs.some(l => l.sid === x.sid && l.goal === 'cardioRun') }) + '<button class="btn secondary" id="gSave" style="margin-top:8px">Salva i dati del Garmin</button>' : ''}
     <button class="btn ghost" id="addMissing" style="margin-top:16px">Aggiungi un esercizio non registrato</button>
     <button class="btn secondary" id="closeModal2" style="margin-top:10px">Chiudi</button>`);
   $('#closeModal2').onclick = closeModal;
   bindFeelEdit(i);
   bindSessNote(i, () => openSessionDetail(i));
   $('#addMissing').onclick = () => closeModal(() => addMissingLog(i));
+  if ($('#gSave')) $('#gSave').onclick = () => { applyGarmin(i, readGarminFields()); showToast('<div><b>Dati del Garmin salvati</b></div>'); openSessionDetail(i); };
   document.querySelectorAll('[data-dellog]').forEach(b => b.onclick = () => {
     const l = S.logs[+b.dataset.dellog];
     if (current && !current.finished) return;   // durante una seduta gli indici devono restare fermi
