@@ -916,7 +916,6 @@ function calendarWeekIdx() {
 }
 const inSessionView = () => document.body.classList.contains('in-session') && !!current;
 const deloadIdxNow = () => inSessionView() ? S.sessionIndex : calendarWeekIdx();
-const deloadToday = () => isDeloadWeek(deloadIdxNow());
 function deloadText(idx) {
   try { const m = sessionMeta(idx == null ? S.sessionIndex : idx);
     if (m.recovery) return 'Settimana di recupero dopo la Spartan Race · forza leggera, aerobico facile';
@@ -962,9 +961,8 @@ function deloadCardHtml(idx) {
   return `<div class="card deload-card">
     <div class="kicker">⚠ Settimana di scarico</div>
     <h2 style="margin-top:2px">Non aumentare i carichi</h2>
-    <p class="small" style="margin:6px 0 0">${esc(note)}</p>
-    <p class="small" style="margin:6px 0 0">Il carico suggerito resta quello della settimana scorsa anche dove hai soddisfatto la regola 2-for-2: l'aumento scatta la settimana prossima.</p>
-    <p class="small" style="margin:6px 0 0">Quello che fai questa settimana resta nello storico ma non entra nella progressione: niente stelle, niente punti nei grafici, e la prossima settimana il confronto si fa con l'ultima seduta normale.</p>
+    <p class="small" style="margin:6px 0 0">${esc(note || 'Stessi carichi, qualche serie e ripetizione in meno per recuperare.')} Anche dove hai soddisfatto la regola 2-for-2 l'aumento scatta la settimana prossima.</p>
+    <p class="small muted" style="margin:6px 0 0">Le sedute di questa settimana restano nello storico, senza stelle né punti nei grafici.</p>
   </div>`;
 }
 
@@ -2350,12 +2348,6 @@ function baseSessionVolumes(weekAbs) {
   baseVolMemo.set(weekAbs, out);
   return out;
 }
-/* Volume previsto dal programma per la settimana, senza supplementari. */
-function weekBaseVolume(weekAbs) {
-  const acc = {};
-  baseSessionVolumes(weekAbs).forEach(x => addInto(acc, x.acc));
-  return acc;
-}
 /* Serie registrate per gruppo nella seduta idx. */
 function doneInSession(idx) {
   const acc = {};
@@ -2903,7 +2895,6 @@ function presetSupersets(list) {
    costa poco), altrimenti verso il basso. Regola operativa dell'app. */
 // nel giro di superserie ogni serie è un turno (un esercizio per lato alterna
 // il lato a ogni giro): i giri sono le serie, pari se c'è un esercizio per lato
-const roundsOf = it => it.sets;
 function equalizeSupersets(items, budget, down) {
   const est = () => estimateMinutes(items.filter(it => !it.aero));
   const ids = [...new Set(items.filter(it => it.ss).map(it => it.ss))];
@@ -3331,7 +3322,6 @@ function buildCardio(meta, budget) {
    pratici degli organizzatori (guida 2027), non studi.
 =========================================================================== */
 const TT = () => (PROG && PROG.tuscany) || null;
-const ttOn = () => !!TT() && S.tuscany !== false;
 function ttPhase(date) {
   const t = TT();
   if (!t || S.tuscany === false) return 'off';
@@ -3527,9 +3517,9 @@ function mtbKneeAskHtml() {
     <h3 style="margin:4px 0 6px">Com'è il ginocchio dopo l'uscita di ${esc(new Date(r.ts).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' }))}?</h3>
     <p class="small muted">Da questa risposta dipende la durata della prossima uscita (stesso criterio usato per la corsa: Esculier et al. 2018).</p>
     <div class="spknee">
-      <button class="btn ghost" data-mtbknee="0">Stamattina come prima: tutto tranquillo</button>
-      <button class="btn ghost" data-mtbknee="1">Un po' di fastidio, ma stamattina come prima</button>
-      <button class="btn ghost" data-mtbknee="2">Stamattina il ginocchio va peggio del solito</button>
+      <button class="btn ghost" data-mtbknee="0">Oggi come prima: tutto tranquillo</button>
+      <button class="btn ghost" data-mtbknee="1">Un po' di fastidio, ma oggi come prima</button>
+      <button class="btn ghost" data-mtbknee="2">Oggi il ginocchio va peggio del solito</button>
     </div></div>`;
 }
 function bindMtbKneeAsk(after) {
@@ -3620,11 +3610,12 @@ function renderHomeMtb() {
       <h3 style="font-size:16px;margin-top:14px">Se non puoi uscire in bici</h3>
       <p class="small muted" style="margin:4px 0 8px">Bici assente o guasta, maltempo, viaggio: scegli che cosa fai al posto dell'uscita. Stessa durata, ritmo da conversazione.</p>
       <div class="seg mtbmodes" id="mtbModes">${Object.entries(MTB_MODES).map(([k, m]) => `<button type="button" data-mode="${k}" aria-pressed="${k === mtbMode}">${esc(k === 'mtb' ? 'Mountain bike' : k === 'walk' ? 'Camminata' : m.name)}</button>`).join('')}</div>
+      <details style="margin-top:8px"><summary class="small"><b>Perché queste alternative</b></summary>
       <ul class="small" style="margin:8px 0 0 18px">
         <li><b>Bici da spinning</b> o, in alternativa, <b>cyclette orizzontale</b> in palestra: si pedala comunque, e contano per far salire la durata delle uscite.</li>
         <li><b>Camminata veloce o in salita</b> all'aperto, se non hai una bici a disposizione: vale per i minuti aerobici, ma non fa salire la durata delle uscite.</li>
         <li><b>La corsa non è un'alternativa</b>: con il ginocchio l'app la usa solo come corsa-camminata a livelli per la Spartan Race, da marzo, e non per sedute di una-tre ore.</li>
-      </ul>
+      </ul></details>
       <h3 style="font-size:16px;margin-top:14px">${done ? 'Registra un\'altra seduta' : mtbMode === 'mtb' ? 'Registra l\'uscita' : 'Registra la seduta: ' + esc(MTB_MODES[mtbMode].name.toLowerCase())}</h3>
       <div class="field"><label>Durata (minuti)</label><input id="mtbMin" type="number" inputmode="numeric" min="1" max="900" value="${plan.min || 90}"></div>
       ${MTB_MODES[mtbMode].outdoor ? `<div class="field"><label>Distanza (km, facoltativa · dal Garmin)</label><input id="mtbKm" type="text" inputmode="decimal" placeholder="km"></div>` : ''}
@@ -4979,7 +4970,7 @@ function lunchTileBody(ls, full) {
        ${ls.verdict ? `<p class="small">${esc(ls.verdict.text)} · ${ls.verdict.pct}% delle serie · ${ls.verdict.minutes} min${ls.verdict.avg ? ' · ' + starsHtml(Math.round(ls.verdict.avg)) : ''}</p>` : ''}
        <p class="small muted">Tocca per svolgimento, risultati e valutazioni.</p>`;
   return `<div class="dstat todo">Da fare · ${ls.s.minutes} min</div><p class="small">Seduta di oggi (${wd}): <b>${esc(ls.s.label)}</b></p>
-       <p class="small muted">${typeWord(ls.s)} · ${ls.s.items.length} esercizi${ls.tp && ls.tp.pending ? ` · prima ${ls.tp.pending === 1 ? 'c\'è 1 seduta' : `ci sono ${ls.tp.pending} sedute`} dei giorni scorsi non svolte` : ''}.</p>`;
+       <p class="small muted">${typeWord(ls.s)} · ${ls.s.items.length} esercizi${ls.tp && ls.tp.pending ? ` · prima ${ls.tp.pending === 1 ? 'c\'è 1 seduta dei giorni scorsi non svolta' : `ci sono ${ls.tp.pending} sedute dei giorni scorsi non svolte`}` : ''}.</p>`;
 }
 
 /* Pagina Progressi: percorso, prossime settimane, trazioni, esercizi, misure,
@@ -5179,10 +5170,6 @@ function painRising(part) {
   const [a, b, c] = v.slice(-3);
   return c > b && b > a;
 }
-function lastPain(part) {
-  const v = feelRows().map(x => x.feel[part]).filter(n => isFinite(n) && n !== null);
-  return v.length ? v[v.length - 1] : null;
-}
 const KNEE_PATTERNS = ['squat', 'lunge', 'quadIso'];
 const SHOULDER_PATTERNS = ['pushV', 'pushH', 'shoulderIso', 'pullV', 'pullup'];
 const PAIN_NAME = { knee: 'Ginocchio', shoulder: 'Spalla', groin: 'Inguine' };
@@ -5269,7 +5256,6 @@ function painInfo(ex, it) {
   return null;
 }
 /* Compatibilità: distretto da alleggerire. */
-function painPartFor(ex) { const p = painInfo(ex); return p ? p.part : null; }
 /* Un passo più leggero: −10% sul carico (più assistenza se assistito) o un
    gradino più facile. */
 function lighterValue(ex, value, it) {
@@ -5668,9 +5654,9 @@ function renderProg() {
     ${tile('path', 'Il percorso', pBody)}
     ${tile('upcoming', 'Le prossime settimane', `<div class="dstat">Cosa ti aspetta</div>
       <p class="small muted">Tipo di seduta giorno per giorno, con fasi, scarichi e settimane di sola mobilità.</p>`)}
-    ${SP() && (S.spartan !== false || spPhase(Date.now()) !== 'off') ? tile('spartan', 'Spartan Race · Sprint di Orte', spartanTileBody()) : ''}
-    ${TT() && ttPhase(Date.now()) !== 'off' ? tile('tuscany', 'Tuscany Trail · ' + esc(TT().place), mtbTileBody()) : ''}
-    ${S.pullupGoal ? tile('pull', 'Trazioni e muscle-up', pullTileBody()) : ''}
+    ${/* (9.0) gare e trazioni sono già in «Verso gli obiettivi»: il riquadro resta solo a gara conclusa */ ''}
+    ${spOn() && spPhase(Date.now()) === 'off' ? tile('spartan', 'Spartan Race · Sprint di Orte', spartanTileBody()) : ''}
+    ${TT() && ttPhase(Date.now()) === 'after' ? tile('tuscany', 'Tuscany Trail · ' + esc(TT().place), mtbTileBody()) : ''}
     ${tile('week', 'Riepilogo della settimana', weekRecapTile())}
     ${tile('trend', 'Progressione negli esercizi', eBody + eNote)}
     ${tile('records', 'Record personali', recordsTile())}
@@ -5687,7 +5673,6 @@ function renderProg() {
     const k = el.dataset.prog;
     if (k === 'path') openPath();
     else if (k === 'upcoming') openUpcoming();
-    else if (k === 'pull') openPullGoal();
     else if (k === 'spartan') openSpartan();
     else if (k === 'tuscany') openTuscany();
     else if (k === 'week') openWeekReport(recapWeek());
@@ -5710,14 +5695,6 @@ function renderProg() {
 function pullTarget() {
   const t = (PROG.pullupBlock && PROG.pullupBlock.target) || {};
   return { n: t.pullups || 15, mu: t.muscleUps || 2 };
-}
-function pullTileBody() {
-  const ps = pullStage(), t = pullTarget();
-  if (!ps) return '<p class="small muted">Blocco trazioni non configurato.</p>';
-  const pct = Math.min(100, Math.round((Math.min(ps.m, t.n) / t.n * 0.6 + Math.min(ps.mu, t.mu) / t.mu * 0.4) * 100));
-  return `<div class="dstat">${ps.m} ${ps.m === 1 ? 'trazione' : 'trazioni'} · ${ps.mu} muscle-up</div>
-    <div class="dbar"><i style="width:${pct}%"></i></div>
-    <p class="small">Obiettivo: ${t.n} trazioni pulite di fila e ${t.mu} muscle-up · tappa: ${esc(ps.stage.label)}</p>`;
 }
 function openPullGoal() {
   const ps = pullStage(), t = pullTarget(), path = pathStatus();
@@ -5794,9 +5771,9 @@ function kneeAskHtml(r) {
     <h3 style="margin:4px 0 6px">Com'è andata la corsa-camminata di ${esc(new Date(r.ts).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' }))}?</h3>
     <p class="small muted">Da questa risposta dipende il livello della prossima corsa (criteri di Esculier et al. 2018).</p>
     <div class="spknee">
-      <button class="btn ghost" data-knee="0">Tutto tranquillo: durante al massimo 2 su 10, passato entro un'ora, stamattina come prima</button>
-      <button class="btn ghost" data-knee="1">Più di 2 su 10, o più di un'ora per passare, ma stamattina come prima</button>
-      <button class="btn ghost" data-knee="2">Stamattina il ginocchio va peggio del solito</button>
+      <button class="btn ghost" data-knee="0">Tutto tranquillo: durante al massimo 2 su 10, passato entro un'ora, oggi come prima</button>
+      <button class="btn ghost" data-knee="1">Più di 2 su 10, o più di un'ora per passare, ma oggi come prima</button>
+      <button class="btn ghost" data-knee="2">Oggi il ginocchio va peggio del solito</button>
     </div>
     <label class="small" style="display:flex;align-items:center;gap:8px;margin-top:10px">Distanza dal Garmin (facoltativa)
       <input id="kneeKm" type="text" inputmode="decimal" placeholder="km" style="width:80px"></label>
@@ -5904,7 +5881,7 @@ function openSpartan() {
       <div class="small muted">${esc(o.need)}${o.tip ? ' · ' + esc(o.tip) : ''}</div></div></li>`;
   }).join('');
   const runRows = rs.runs.slice(-6).reverse().map(r => `<li><div class="nm" style="flex:1">${dateIt(r.ts)} · livello ${(r.level || 0) + 1}${r.full ? '' : ' (non completa)'}${r.light ? ' · leggera' : ''}${r.check ? ' · check' : ''}
-      <div class="small muted">Ginocchio: ${r.knee === 0 ? 'tranquillo' : r.knee === 1 ? 'oltre 2/10 o lento a passare' : r.knee === 2 ? 'peggio la mattina dopo' : 'risposta mancante'}${isFinite(r.km) && r.km ? ` · ${String(r.km).replace('.', ',')} km` : ''}</div></div></li>`).join('');
+      <div class="small muted">Ginocchio: ${r.knee === 0 ? 'tranquillo' : r.knee === 1 ? 'oltre 2/10 o lento a passare' : r.knee === 2 ? 'peggio il giorno dopo' : 'risposta mancante'}${isFinite(r.km) && r.km ? ` · ${String(r.km).replace('.', ',')} km` : ''}</div></div></li>`).join('');
   const runFrom = isoNoon(sp.runFrom), specFrom = isoNoon(sp.specFrom || sp.runFrom);
   openModal(`<h2>Spartan Race · Sprint di ${esc(sp.place)}</h2>
     <p class="small muted">${spDateText()} · ${sp.distanceKm} km e ${sp.obstacles} ostacoli · ${weeksToRace()} settimane.</p>
@@ -6069,7 +6046,7 @@ function spCyclesHtml() {
   return `<h3 style="margin-top:14px;font-size:15px">Preparazione Spartan Race (fino al ${spDateText()})</h3>
     <ul class="small" style="padding-left:18px">
       <li><b>Per calendario</b>: da ora burpees e sospensione alla sbarra nella seduta a intervalli; dal ${specFrom} si aggiunge un trasporto e la seduta a ritmo costante diventa camminata veloce in salita all'aperto, dal ${runFrom} corsa-camminata (una volta a settimana); settimana della gara leggera; dopo la gara il piano torna com'era. Forza A, B e C non cambiano.</li>
-      <li><b>Secondo i tuoi risultati</b>: il livello dei burpees sale con ${(sp.burpee.advance || []).join(' e ')} di fila; le ripetizioni sono circa il 60-70% del tuo massimo; la sospensione il 60% del tuo massimo; la corsa sale di un livello solo se il giorno dopo il ginocchio è tranquillo, resta ferma se ha dato fastidio, scende se la mattina dopo andava peggio.</li>
+      <li><b>Secondo i tuoi risultati</b>: il livello dei burpees sale con ${(sp.burpee.advance || []).join(' e ')} di fila; le ripetizioni sono circa il 60-70% del tuo massimo; la sospensione il 60% del tuo massimo; la corsa sale di un livello solo se il giorno dopo il ginocchio è tranquillo, resta ferma se ha dato fastidio, scende se il giorno dopo andava peggio.</li>
       <li><b>Spartan Race check</b> nella prima settimana di ogni blocco: trazioni (Forza A), burpees e sospensione (intervalli), corsa-camminata (dal ${runFrom}). Dettagli e date in Progressi › Spartan Race.</li>
       <li><b>Settimana dopo la gara</b>: recupero, cioè forza leggera (al massimo 2 serie, stessi carichi), aerobico solo a ritmo facile e mobilità; stelle fuori dalla progressione come nello scarico.</li>
       ${PROG.maintenance ? `<li><b>Dal ${dateIt(isoNoon(PROG.maintenance.from))}, forza in mantenimento</b>: due sedute a settimana (Forza A e B, stessi carichi, 3 serie ai fondamentali e alle trazioni, 2 agli altri, niente supplementari); al posto di Forza C una seduta di mobilità. Spiering et al. 2021: per mantenere la forza conta l'intensità; negli adulti più anziani possono servire 2 sedute con 2-3 serie.</li>` : ''}
@@ -6740,7 +6717,6 @@ function renderHomeWeek() {
         <h2 style="margin:0">${isCal ? 'Programma della settimana' : W - calW === 1 ? 'Settimana prossima' : 'Fra due settimane'}</h2>
         ${canNext ? `<button class="btn ghost small" id="wkNext">${isCal ? 'Settimana prossima' : 'Settimana dopo'} ›</button>` : '<span></span>'}
       </div>
-      <p class="small muted" style="margin:4px 0 0">${W === wCur ? whereText(sessionMeta(Math.min(SI, wStart + nDays - 1)), { cap: true }) : weekText(sessionMeta(wStart), { cap: true })}${W < wCur ? ' · tutte le sedute svolte' : ''}</p>
       <ul class="week">${week}</ul>
       ${(() => { try { const a = aeroForecastText(W); return `<div class="${a.tot >= AERO_TARGET || a.f.protectedWeek ? 'notice' : 'warnbox'}" style="margin-top:10px"><b>Minuti aerobici: ${a.f.done.eq} su ${AERO_TARGET}</b><br><span class="small">${esc(a.text)}</span>${aeroBreakdownHtml(W)}</div>`; } catch (e) { return ''; } })()}
       <p class="small muted" style="margin-top:10px">Le sedute corrispondono ai giorni da lunedì a sabato. Tocca una seduta per aprirla (quelle svolte mostrano risultati e valutazioni); «Seleziona» la rende la prossima da fare e quella prevista prende il suo posto. La mobilità è prevista per ultima, ma puoi farla in qualunque giorno.</p>
@@ -6905,7 +6881,7 @@ function renderHomeLunch() {
   const calToday = !tpl.rest && !tpl.stale && tpl.W === weekOfIdx(S.sessionIndex) && tpl.q === q;
   const notToday = !core && !isToday && !done
     ? (calToday
-      ? `<div class="notice" style="margin-top:12px">È la seduta di oggi (${WEEKDAYS[q]}). Prima ${q - here === 1 ? 'c\'è 1 seduta' : `ci sono ${q - here} sedute`} dei giorni scorsi non svolte: se avvii questa o la segni come svolta, quelle si spostano più avanti nella settimana. Per saltarle usa il programma della settimana.</div>`
+      ? `<div class="notice" style="margin-top:12px">È la seduta di oggi (${WEEKDAYS[q]}). Prima ${q - here === 1 ? 'c\'è 1 seduta dei giorni scorsi non svolta: se avvii questa o la segni come svolta, quella si sposta' : `ci sono ${q - here} sedute dei giorni scorsi non svolte: se avvii questa o la segni come svolta, quelle si spostano`} più avanti nella settimana. ${q - here === 1 ? 'Per saltarla' : 'Per saltarle'} usa il programma della settimana.</div>`
       : `<div class="notice" style="margin-top:12px">Questa seduta è prevista per ${WEEKDAYS[q] || 'il giorno ' + (q + 1)}. Se la avvii, la salti o la segni come svolta, diventa la prossima da fare e quella prevista prende il suo posto.</div>`) : '';
   const staleNote = !core && tpl.stale && isToday
     ? `<div class="notice" style="margin-top:12px">La settimana ${tpl.W} del programma è iniziata la settimana scorsa ed è rimasta a metà (${tpl.left === 1 ? 'manca 1 seduta' : `mancano ${tpl.left} sedute`}). Puoi proseguire da qui oppure saltare il resto e ripartire con la settimana nuova dal lunedì.
@@ -8286,6 +8262,28 @@ function extraCandidates(minutes) {
     .sort((a, b) => a.have - b.have);
   const out = [], used = new Set(inSession);
   const stretchDay = c.sess.type === 'stretch';
+  // (9.0) seduta di mobilità o mobilità breve: solo esercizi di mobilità e
+  // allungamento, nell'ordine di esigenza (stretchNeeds), uno per distretto
+  if (stretchDay) {
+    const N = stretchNeeds(meta, { shallow: true });
+    const need = e => e.pattern === 'mobility' ? Math.max(0, ...(DYN_FOR[e.group] || []).map(g => N.score[g] || 0)) : (N.score[e.group] || 0);
+    const pool = applyCare(DB.exercises.filter(e => e.type === 'stretch' && e.setup.includes(S.setup) && !used.has(e.id)))
+      .sort((a, b) => need(b) - need(a) || a.id.localeCompare(b.id));
+    const seen = new Set();
+    pool.forEach(ex => {
+      if (out.length >= 4 || seen.has(ex.group)) return;
+      seen.add(ex.group);
+      const goalKey = ex.pattern === 'mobility' ? 'mobility' : 'stretch';
+      const d = dose(goalKey, meta.profile, ex);
+      let sets = d.perSide ? 2 : 1;
+      const fits = n => itemMinutes(Object.assign({}, d, { exId: ex.id, sets: n, goal: goalKey })) <= minutes;
+      while (sets + (d.perSide ? 2 : 1) <= d.sets && fits(sets + (d.perSide ? 2 : 1))) sets += d.perSide ? 2 : 1;
+      out.push({ group: STRETCH_WORD[ex.group] ? STRETCH_WORD[ex.group].charAt(0).toUpperCase() + STRETCH_WORD[ex.group].slice(1) : ex.group,
+        item: Object.assign(d, { exId: ex.id, note: 'Aggiunto a fine seduta', goalKey, role: 'extra', sets,
+          alt: { patterns: [ex.pattern], types: ['stretch'] } }) });
+    });
+    return out;
+  }
   groups.forEach(({ g }) => {
     if (out.length >= 4) return;
     let pool = [];
@@ -8321,7 +8319,7 @@ function openExtraPicker(minutes) {
     <div class="seg dur" role="group" aria-label="Minuti disponibili" style="margin-top:10px">
       ${[5, 10, 15].map(v => `<button data-xmin="${v}" aria-pressed="${v === min}">${v}′</button>`).join('')}
     </div>
-    <p class="small muted" style="margin-top:10px">Proposte sui gruppi più indietro rispetto al programma di questa settimana. Tocca quelli che vuoi fare: si aggiungono alla seduta.</p>
+    <p class="small muted" style="margin-top:10px">${current && current.sess.type === 'stretch' ? 'Solo mobilità e allungamenti: prima i distretti che ne hanno più bisogno.' : 'Proposte sui gruppi più indietro rispetto al programma di questa settimana.'} Tocca quelli che vuoi fare: si aggiungono alla seduta.</p>
     <ul class="hist">${rows || '<li><span class="small muted">Nessuna proposta disponibile.</span></li>'}</ul>
     <button class="btn ghost" id="xClose" style="margin-top:12px">Chiudi la seduta</button>`);
   document.querySelectorAll('[data-xmin]').forEach(b => b.onclick = () => closeModal(() => openExtraPicker(+b.dataset.xmin)));
@@ -8340,7 +8338,7 @@ function extraItemFor(id) {
   if (!ex) return null;
   if (ex.pattern === 'finisher') { const f = finisherItem(meta, ex.id); if (f) return Object.assign(f, { note: 'In più, a scelta' }); }
   const legs = primaryGroups(ex).some(g => LEG_GROUPS.includes(g));
-  const goalKey = ex.type === 'stretch' ? 'stretch' : ex.type === 'core' ? 'core' : legs ? 'legTone' : 'hypertrophy';
+  const goalKey = ex.type === 'stretch' ? (ex.pattern === 'mobility' ? 'mobility' : 'stretch') : ex.type === 'core' ? 'core' : legs ? 'legTone' : 'hypertrophy';
   return Object.assign({ exId: id, note: 'In più, a scelta', baseNote: 'In più, a scelta', goalKey, role: 'extra',
     alt: { patterns: [ex.pattern], types: [ex.type] } }, dose(goalKey, meta.profile, ex));
 }
@@ -8350,12 +8348,14 @@ function openAddChoice() {
   const draw = () => {
     const q = (catQuery || '').trim().toLowerCase();
     const inUse = new Set(current ? current.sess.items.map(i => i.exId) : []);
-    const all = catalogList().filter(ex => !inUse.has(ex.id) && !(ex.cardioModes || []).includes('mtb'));
+    // (9.0) nelle sedute di mobilità solo esercizi di mobilità e allungamento
+    const stretchOnly = !!(current && current.sess.type === 'stretch');
+    const all = catalogList().filter(ex => !inUse.has(ex.id) && !(ex.cardioModes || []).includes('mtb') && (!stretchOnly || ex.type === 'stretch'));
     const list = (q ? all : sugg.map(exById).filter(Boolean).concat(all.filter(e => !sugg.includes(e.id)))).slice(0, 60);
     const rows = list.map(ex => `<li class="${picked.includes(ex.id) ? 'cur' : ''}" data-addex="${ex.id}">
       <div class="fig">${figureFor(ex, 1, { ground: false })}</div>
       <div class="nm"><b>${esc(ex.name)}</b>
-        <div class="small muted">${esc(ex.group)}${sugg.includes(ex.id) ? ' · proposto: gruppo indietro questa settimana' : ''}</div></div>
+        <div class="small muted">${esc(ex.group)}${sugg.includes(ex.id) ? (stretchOnly ? ' · proposto: distretto che ne ha bisogno' : ' · proposto: gruppo indietro questa settimana') : ''}</div></div>
       <button class="pick">${picked.includes(ex.id) ? '✓ scelto' : 'Aggiungi'}</button></li>`).join('');
     openModal(`<h2>Esercizi in più</h2>
       <p class="small muted">Scegli quelli che vuoi fare prima di chiudere: in cima le proposte per i gruppi più indietro questa settimana, poi tutto il catalogo. Si registrano come gli altri e contano nel volume.</p>
@@ -8733,7 +8733,7 @@ function measuresHtml() {
       <div class="val">${fmt(x.waist)} cm · ${fmt(x.weight)} kg</div></li>`).join('');
   const due = !last || (Date.now() - last.ts) > 14 * 86400000;
   return `<div class="card" id="bodyCard"><h2>Girovita e peso</h2>
-    <p class="small muted">Misura il girovita all'altezza dell'ombelico, a fine espirazione, al mattino, ogni 2-4 settimane: è l'indicatore più diretto del grasso addominale. Il peso da solo inganna, perché il muscolo che costruisci pesa.</p>
+    <p class="small muted">Misura il girovita all'altezza dell'ombelico, a fine espirazione, sempre nelle stesse condizioni, ogni 2-4 settimane: è l'indicatore più diretto del grasso addominale. Il peso da solo inganna, perché il muscolo che costruisci pesa.</p>
     ${m.length > 1 ? `<p class="small" style="margin-top:8px">Girovita: ${delta('waist', 'cm') || '—'}<br>Peso: ${delta('weight', 'kg') || '—'}</p>` : ''}
     ${due ? `<div class="btn-row" style="margin-top:10px;align-items:center">
       <input id="msWaist" type="number" inputmode="decimal" step="0.5" placeholder="girovita cm" aria-label="Girovita in centimetri">
@@ -9806,7 +9806,7 @@ function renderSettings() {
 
     <div class="card flat">
       <h2>Avvertenza</h2>
-      <p class="small muted">Questa app propone programmi generici costruiti sulle linee guida ACSM, NSCA, ACE e OMS per adulti sani. Non sostituisce una valutazione medica. Prima di iniziare, e in particolare per la sensibilità al ginocchio, consulta un medico o un fisioterapista. Interrompi subito in caso di dolore acuto, vertigini o dolore toracico.</p>
+      <p class="small muted">Questa app propone programmi costruiti su linee guida e studi verificati (ACSM, OMS e le fonti indicate in ogni esercizio) per adulti sani; dove una scelta non ha una fonte verificata è indicata come regola operativa dell'app. Non sostituisce una valutazione medica. Prima di iniziare, e in particolare per la sensibilità al ginocchio, consulta un medico o un fisioterapista. Interrompi subito in caso di dolore acuto, vertigini o dolore toracico.</p>
     </div>`;
 
   const setMobWeek = w => {
@@ -10728,7 +10728,7 @@ document.querySelectorAll('.nav button').forEach(b => b.onclick = () => {
 
 function disclaimer() {
   openModal(`<h2>Prima di iniziare</h2>
-    <p class="small">I programmi di questa app sono costruiti su linee guida generali (ACSM, NSCA, ACE, OMS) per adulti sani e non sostituiscono il parere di un professionista sanitario.</p>
+    <p class="small">I programmi di questa app sono costruiti su linee guida e studi verificati (ACSM, OMS e le fonti indicate in ogni esercizio) per adulti sani e non sostituiscono il parere di un professionista sanitario.</p>
     <p class="small">Vista la sensibilità al ginocchio indicata nel profilo, fai valutare la situazione da un medico o da un fisioterapista prima di cominciare. Durante gli esercizi, fermati se compare dolore articolare acuto, e riduci escursione o carico se il fastidio si ripresenta.</p>
     <p class="small">Interrompi immediatamente in caso di dolore al petto, mancanza di respiro insolita o vertigini.</p>
     <div class="notice">L'app suggerisce carichi solo a partire da ciò che annoti tu: il primo carico scegli sempre in modo prudente.</div>

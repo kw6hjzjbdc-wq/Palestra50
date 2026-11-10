@@ -8,7 +8,7 @@
    "repsHigh": 12,
    "rest": 75,
    "rpe": "7-8",
-   "source": "ACSM 2026 (Position Stand, MSSE): ~10 serie settimanali per gruppo, 2-3 ripetizioni di riserva; Singer 2024: recuperi oltre 60 s lievemente migliori, nessun vantaggio oltre 90 s"
+   "source": "ACSM 2026 (Currier et al.): almeno 10 serie settimanali per gruppo muscolare (un minimo, con benefici che crescono fino a 18-20); il cedimento non è necessario e le prove non fissano valori precisi di RIR (2-3 ripetizioni di riserva: regola operativa dell'app). Singer et al. 2024: recuperi oltre 60 s lievemente migliori, nessun vantaggio oltre 90 s"
   },
   "strength": {
    "label": "Forza",
@@ -17,7 +17,7 @@
    "repsHigh": 6,
    "rest": 120,
    "rpe": "8",
-   "source": "ACSM 2026: carichi ≥80% 1RM (4-6 ripetizioni) per 2-3 serie per esercizio, esercizi chiave all'inizio; NSCA: 2-3 min di recupero"
+   "source": "ACSM 2026 (Currier et al.): forza con carichi ≥80% del massimale per 2-3 serie per esercizio, esercizi chiave all'inizio. 4-6 ripetizioni e 2-3 minuti di recupero: regola operativa dell'app"
   },
   "endurance": {
    "label": "Resistenza muscolare",
@@ -26,7 +26,7 @@
    "repsHigh": 20,
    "rest": 40,
    "rpe": "7",
-   "source": "ACSM 2026 / NSCA – resistenza muscolare: 15-20 ripetizioni, recuperi brevi; usata nelle fasi di adattamento e densità"
+   "source": "ACSM 2026 (Currier et al.): nessuna prova affidabile su quali variabili migliorino la resistenza muscolare. 15-20 ripetizioni e recuperi brevi sono una regola operativa dell'app, usata nelle fasi di adattamento e densità"
   },
   "core": {
    "label": "Core",
@@ -35,7 +35,7 @@
    "repsHigh": 15,
    "rest": 40,
    "rpe": "7",
-   "source": "ACSM 2026 – tutti i gruppi principali almeno 2 volte a settimana; core: 2-3 serie, recuperi brevi"
+   "source": "ACSM 2026: tutti i gruppi muscolari principali almeno 2 volte a settimana. Dosi del core (2-3 serie, recuperi brevi): regola operativa dell'app"
   },
   "stretch": {
    "label": "Allungamento",
@@ -55,7 +55,7 @@
    "rest": 15,
    "hold": 0,
    "rpe": "riscaldamento",
-   "source": "ACSM (Garber et al. 2011) – mobilità dinamica come preparazione all'attività"
+   "source": "Behm et al. 2016, Appl Physiol Nutr Metab 41(1):1-11 (revisione sistematica): lo stretching dinamico fatto pochi minuti prima dell'attività migliora la prestazione in misura piccola-moderata; tutti i tipi di allungamento aumentano l'escursione articolare. Scelta degli esercizi: regola operativa dell'app"
   },
   "pullupActivation": {
    "label": "Trazioni · attivazione",
@@ -65,7 +65,7 @@
    "rest": 45,
    "hold": 20,
    "rpe": "5-6",
-   "source": "Progressione trazioni – attivazione scapolare e sospensione"
+   "source": "Progressione trazioni: attivazione scapolare e sospensione (regola operativa dell'app)"
   },
   "pullupStrength": {
    "label": "Trazioni · eccentriche",
@@ -84,7 +84,7 @@
    "rest": 90,
    "hold": 10,
    "rpe": "7-8",
-   "source": "Progressione trazioni – tenute di 8-12 s nell'angolo critico"
+   "source": "Progressione trazioni: tenute di 8-12 s nell'angolo critico (regola operativa dell'app)"
   },
   "pullupVolume": {
    "label": "Trazioni · volume assistito",
@@ -123,7 +123,7 @@
    "rest": 0,
    "hold": 1200,
    "rpe": "5-6/10, frasi brevi",
-   "source": "WHO 2020: 150-300 min/settimana di attività aerobica moderata; ACSM: 20-60 min continui"
+   "source": "OMS 2020 (Bull et al., Br J Sports Med 54(24):1451-1462): 150-300 min/settimana di attività aerobica moderata o 75-150 vigorosa. Durata delle sedute: regola operativa dell'app"
   },
   "pullupStrict": {
    "label": "Trazioni · serie pulite",
@@ -1377,7 +1377,7 @@
    15
   ],
   "note": "Cinque sessioni brevi, a casa e senza attrezzi pesanti, nei giorni 1-5; il sesto giorno c'è solo la seduta di mobilità del programma.",
-  "source": "ACSM – flessibilità: allungare quasi ogni giorno dà i risultati migliori; tenute di 30-60 s negli adulti più anziani, ~60 s totali per muscolo. ACSM – mobilità dinamica come preparazione. Allungamenti brevi (<60 s per muscolo) ore prima dell'allenamento non riducono forza e prestazione.",
+  "source": "ACSM (Garber et al. 2011): allungare quasi ogni giorno dà i risultati migliori; tenute di 30-60 s negli adulti più anziani, ~60 s totali per muscolo. Behm et al. 2016, Appl Physiol Nutr Metab 41(1):1-11 (revisione sistematica): con meno di 60 s di allungamento statico per muscolo il calo di prestazione è minimo (−1,1%, contro −4,6% oltre i 60 s); la mobilità dinamica prima dell'attività la migliora. Scelta dei distretti: regola operativa dell'app",
   "focus": {
    "strength-0": {
     "label": "in vista di Forza A: anche, quadricipiti e polpacci",

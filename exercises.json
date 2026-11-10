@@ -43,7 +43,7 @@
    "safety": [
     "Ginocchio: fermati a 90° e mantieni le rotule in linea con le punte dei piedi; se senti dolore anteriore, riduci l'escursione."
    ],
-   "source": "NSCA – ipertrofia arti inferiori",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "rack": "machine"
   },
   {
@@ -88,7 +88,7 @@
    "safety": [
     "Ginocchio: scendi solo fino a dove mantieni il controllo, il carico frontale aiuta a tenere il busto eretto e scarica la rotula."
    ],
-   "source": "NSCA – ipertrofia, schema multiarticolare",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "rack": "dumbbell"
   },
   {
@@ -129,7 +129,7 @@
    "safety": [
     "Ginocchio: rinforzo utile per la stabilità della rotula solo se resti nel range indolore; carichi moderati, alte ripetizioni."
    ],
-   "source": "ACSM – rinforzo mirato in presenza di sensibilità femoro-rotulea",
+   "source": "Willy et al. 2019, JOSPT 49(9); Morri et al. 2025, BMC Sports Sci Med Rehabil 17:303: rinforzo come prima scelta nel dolore femoro-rotuleo, nessun tipo superiore. Scelta dell'esercizio: regola operativa dell'app",
    "rack": "machine"
   },
   {
@@ -176,7 +176,7 @@
    "safety": [
     "Ginocchio: allunga il passo e inclina leggermente il busto avanti per spostare il lavoro su glutei e femorali."
    ],
-   "source": "NSCA – lavoro unilaterale per equilibrio e stabilità",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "perSide": true,
    "rack": "dumbbell"
   },
@@ -222,7 +222,7 @@
    "safety": [
     "Ginocchio: se compare fastidio, sostituisci con affondo inverso, meno impattante sulla rotula."
    ],
-   "source": "NSCA – pattern di affondo, ipertrofia",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "rack": "dumbbell"
   },
   {
@@ -266,7 +266,7 @@
    "safety": [
     "Schiena: mantieni il bilanciere a contatto con la gamba, l'escursione la decide la tensione sui femorali, non il pavimento."
    ],
-   "source": "NSCA – schema di hip hinge, forza e ipertrofia",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "rack": "barbell"
   },
   {
@@ -308,7 +308,7 @@
    "safety": [
     "Ginocchio: femorali forti stabilizzano l'articolazione e bilanciano il lavoro del quadricipite."
    ],
-   "source": "NSCA – ipertrofia, isolamento femorali",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "rack": "machine",
    "focus": [
     "hamstrings"
@@ -356,7 +356,7 @@
    "safety": [
     "Mantieni il mento leggermente raccolto e le costole basse per non caricare la lombare."
    ],
-   "source": "NSCA – estensione d'anca, ipertrofia glutei",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "rack": "barbell",
    "focus": [
     "glute"
@@ -403,7 +403,7 @@
    "safety": [
     "Sulla panca orizzontale l'escursione è maggiore rispetto alla versione a 45°: controlla la discesa e fermati all'allineamento in risalita."
    ],
-   "source": "ACSM – rinforzo della muscolatura estensoria del tronco",
+   "source": "Regola operativa dell'app per la scelta (nessuno studio verificato su questo esercizio specifico). ACSM 2026: tutti i gruppi muscolari principali almeno 2 volte a settimana",
    "levels": [
     "Braccia lungo i fianchi",
     "Mani al petto",
@@ -453,7 +453,7 @@
    "safety": [
     "Inizia con il solo bilanciere: la tecnica qui conta più del carico."
    ],
-   "source": "NSCA – hip hinge, forza",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "rack": "barbell"
   },
   {
@@ -497,7 +497,7 @@
    "safety": [
     "Spalla: non scendere oltre il punto in cui i gomiti superano nettamente la linea del busto."
    ],
-   "source": "NSCA – spinta orizzontale, ipertrofia",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "rack": "dumbbell"
   },
   {
@@ -541,7 +541,7 @@
    "safety": [
     "Usa i fermi o un assistente quando lavori vicino al cedimento."
    ],
-   "source": "NSCA – forza/ipertrofia parte superiore",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "shoulderRisk": true,
    "rack": "barbell",
    "focus": [
@@ -588,7 +588,7 @@
    "safety": [
     "Ottimo per lavorare vicino al cedimento in sicurezza, senza necessità di assistenza."
    ],
-   "source": "ACSM – macchine guidate per adulti over 50",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app. Haugen et al. 2023, BMC Sports Sci Med Rehabil 15: macchine e pesi liberi senza differenze di ipertrofia",
    "rack": "machine"
   },
   {
@@ -630,7 +630,7 @@
    "safety": [
     "Spalla: l'apertura si ferma dove il petto è teso ma la spalla resta comoda."
    ],
-   "source": "NSCA – isolamento, ipertrofia",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "shoulderRisk": true,
    "rack": "machine",
    "focus": [
@@ -679,7 +679,7 @@
    "safety": [
     "Se serve, appoggia le mani su un rialzo per ridurre il carico mantenendo la tecnica."
    ],
-   "source": "ACSM – esercizio a corpo libero, resistenza muscolare",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "levels": [
     "Mani su rialzo alto",
     "Mani su panca",
@@ -729,7 +729,7 @@
    "safety": [
     "Il movimento parte dalle scapole, non dalle mani: così si protegge la spalla."
    ],
-   "source": "NSCA – trazione verticale, ipertrofia",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "shoulderRisk": true,
    "rack": "machine"
   },
@@ -776,7 +776,7 @@
    "safety": [
     "Schiena: mantieni il collo in linea, sguardo verso il pavimento."
    ],
-   "source": "NSCA – trazione orizzontale, ipertrofia",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "perSide": true,
    "rack": "dumbbell"
   },
@@ -821,7 +821,7 @@
    "safety": [
     "Schiena: se la posizione stanca la lombare, sostituisci con il rematore appoggiato al petto."
    ],
-   "source": "NSCA – forza multiarticolare dorso",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "rack": "barbell"
   },
   {
@@ -865,7 +865,7 @@
    "safety": [
     "Ottimo per la postura: contrasta l'anteposizione delle spalle."
    ],
-   "source": "ACSM – rinforzo posturale",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "rack": "machine"
   },
   {
@@ -909,7 +909,7 @@
    "safety": [
     "Spalla: esercizio di prevenzione, meglio carichi bassi e 12-15 ripetizioni."
    ],
-   "source": "NSCA – salute della spalla, resistenza muscolare",
+   "source": "Desmeules et al. 2025, JOSPT 55(4):235-274: nella tendinopatia della cuffia dei rotatori (che comprende il conflitto subacromiale) l'esercizio contro resistenza è raccomandato con prove forti, adattato alla tolleranza al dolore. Scelta dell'esercizio: regola operativa dell'app",
    "rack": "machine",
    "focus": [
     "reardelt"
@@ -956,7 +956,7 @@
    "safety": [
     "Se la spalla è sensibile, usa presa neutra (palmi affacciati)."
    ],
-   "source": "NSCA – spinta verticale, ipertrofia",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "shoulderRisk": true,
    "rack": "dumbbell"
   },
@@ -999,7 +999,7 @@
    "safety": [
     "Carichi leggeri e alte ripetizioni: qui il peso eccessivo peggiora solo la tecnica."
    ],
-   "source": "NSCA – isolamento deltoide, ipertrofia",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "rack": "dumbbell",
    "focus": [
     "lateralDelt"
@@ -1046,7 +1046,7 @@
    "safety": [
     "Utile per compensare il lavoro di spinta e migliorare la postura."
    ],
-   "source": "ACSM – equilibrio muscolare spinta/trazione",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "rack": "dumbbell",
    "focus": [
     "reardelt"
@@ -1093,7 +1093,7 @@
    "safety": [
     "Schiena: glutei e addome contratti per tutta la serie."
    ],
-   "source": "NSCA – forza spinta verticale",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "shoulderRisk": true,
    "rack": "barbell"
   },
@@ -1137,7 +1137,7 @@
    "safety": [
     "Gomito: non estendere di scatto in fondo alla discesa."
    ],
-   "source": "NSCA – isolamento, ipertrofia",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "rack": "dumbbell",
    "focus": [
     "biceps"
@@ -1182,7 +1182,7 @@
    "safety": [
     "La barra EZ riduce lo stress su polso e gomito rispetto alla barra dritta."
    ],
-   "source": "NSCA – ipertrofia braccia",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "rack": "barbell",
    "focus": [
     "biceps"
@@ -1228,7 +1228,7 @@
    "safety": [
     "Presa neutra: comoda per i gomiti sensibili."
    ],
-   "source": "NSCA – ipertrofia braccia",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "rack": "dumbbell",
    "focus": [
     "brachialis"
@@ -1274,7 +1274,7 @@
    "safety": [
     "Gomito: evita blocchi bruschi in estensione completa."
    ],
-   "source": "NSCA – isolamento tricipite",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "rack": "machine",
    "focus": [
     "triceps"
@@ -1320,7 +1320,7 @@
    "safety": [
     "Spalla e gomito: scendi solo fino a dove il movimento resta indolore."
    ],
-   "source": "NSCA – ipertrofia tricipite",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "shoulderRisk": true,
    "rack": "dumbbell",
    "focus": [
@@ -1367,7 +1367,7 @@
    "safety": [
     "Polpacci forti migliorano la stabilità di caviglia e ginocchio."
    ],
-   "source": "NSCA – resistenza muscolare polpaccio",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "rack": "machine"
   },
   {
@@ -1410,7 +1410,7 @@
    "safety": [
     "Con ginocchio esteso il lavoro si concentra sul gastrocnemio: polpacci forti stabilizzano caviglia e ginocchio."
    ],
-   "source": "NSCA – ipertrofia polpaccio alla macchina",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "rack": "machine"
   },
   {
@@ -1453,7 +1453,7 @@
    "safety": [
     "Ginocchio: il tempo lento aumenta la difficoltà senza aggiungere carico sulla rotula."
    ],
-   "source": "NSCA – tempo under tension in assenza di sovraccarico",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "levels": [
     "Con appoggio alla sedia",
     "A corpo libero",
@@ -1502,7 +1502,7 @@
    "safety": [
     "Cambia band (azzurra → gialla → rossa → viola) per progredire di carico."
    ],
-   "source": "ACSM – resistenza elastica come alternativa ai pesi liberi"
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app"
   },
   {
    "id": "h_reverselunge",
@@ -1545,7 +1545,7 @@
    "safety": [
     "Ginocchio: la versione inversa riduce la forza di frenata sulla rotula rispetto all'affondo in avanti."
    ],
-   "source": "NSCA – lavoro unilaterale a basso impatto",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "levels": [
     "Con appoggio alla parete",
     "Senza appoggio",
@@ -1595,7 +1595,7 @@
    "safety": [
     "Ginocchio: mantieni la tibia anteriore il più possibile verticale."
    ],
-   "source": "NSCA – unilaterale, resistenza muscolare",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "perSide": true,
    "rack": "home"
   },
@@ -1638,7 +1638,7 @@
    "safety": [
     "Ginocchio: l'isometria è ben tollerata anche in caso di sensibilità femoro-rotulea; scegli l'angolo indolore."
    ],
-   "source": "ACSM – rinforzo isometrico, protocollo ben tollerato"
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app"
   },
   {
    "id": "h_gluteband",
@@ -1681,7 +1681,7 @@
    "safety": [
     "Movimento a basso impatto, adatto anche nei giorni in cui il ginocchio è sensibile."
    ],
-   "source": "NSCA – attivazione ed estensione d'anca",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "focus": [
     "glute"
    ]
@@ -1726,7 +1726,7 @@
    "safety": [
     "Rinforzo unilaterale utile per correggere asimmetrie che sovraccaricano un ginocchio."
    ],
-   "source": "NSCA – progressione unilaterale",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "perSide": true,
    "levels": [
     "Piede d'appoggio piatto",
@@ -1778,7 +1778,7 @@
    "safety": [
     "Schiena: scendi solo finché mantieni la curva lombare naturale."
    ],
-   "source": "NSCA – hip hinge con resistenza elastica"
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app"
   },
   {
    "id": "h_goodmorningband",
@@ -1820,7 +1820,7 @@
    "safety": [
     "Usa una band leggera (azzurra o gialla) e concentrati sul controllo."
    ],
-   "source": "NSCA – hip hinge, resistenza muscolare"
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app"
   },
   {
    "id": "h_kickback",
@@ -1863,7 +1863,7 @@
    "safety": [
     "Mantieni l'addome attivo: il movimento arriva dall'anca, non dalla schiena."
    ],
-   "source": "ACE – attivazione glutei a basso impatto",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "perSide": true
   },
   {
@@ -1908,7 +1908,7 @@
    "safety": [
     "Assicurati che l'appoggio dei piedi sia stabile prima di iniziare."
    ],
-   "source": "NSCA – progressione del piegamento",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "levels": [
     "Piedi a terra",
     "Piedi su gradino",
@@ -1960,7 +1960,7 @@
    "safety": [
     "Controlla che la band sia ben bloccata sotto le mani prima di partire."
    ],
-   "source": "NSCA – sovraccarico con resistenza elastica"
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app"
   },
   {
    "id": "h_floorpressband",
@@ -2003,7 +2003,7 @@
    "safety": [
     "La versione a terra limita l'escursione e protegge la spalla."
    ],
-   "source": "NSCA – spinta orizzontale, resistenza elastica"
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app"
   },
   {
    "id": "h_pushupnarrow",
@@ -2045,7 +2045,7 @@
    "safety": [
     "Polso: se fastidioso, appoggia i pugni o usa impugnature."
    ],
-   "source": "NSCA – variante per tricipiti",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "levels": [
     "Ginocchia a terra",
     "Mani su rialzo",
@@ -2093,7 +2093,7 @@
    "safety": [
     "Con carichi leggeri lavora ad alte ripetizioni (15-20) e tempo lento."
    ],
-   "source": "ACSM – resistenza muscolare con carichi leggeri",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "rack": "home",
    "focus": [
     "chestAdd"
@@ -2140,7 +2140,7 @@
    "safety": [
     "Schiena: mantieni il busto eretto, se necessario siediti su un cuscino."
    ],
-   "source": "NSCA – trazione orizzontale con elastici"
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app"
   },
   {
    "id": "h_pulldownband",
@@ -2183,7 +2183,7 @@
    "safety": [
     "Verifica sempre la tenuta dell'ancoraggio e l'integrità della band prima della serie."
    ],
-   "source": "NSCA – trazione verticale, alternativa domestica"
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app"
   },
   {
    "id": "h_rowsingle",
@@ -2225,7 +2225,7 @@
    "safety": [
     "Lavorare un lato alla volta aiuta a correggere squilibri tra destra e sinistra."
    ],
-   "source": "NSCA – unilaterale dorso",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "perSide": true
   },
   {
@@ -2268,7 +2268,7 @@
    "safety": [
     "Schiena: ampiezza ridotta e controllo, senza slanci."
    ],
-   "source": "ACSM – rinforzo estensori del tronco",
+   "source": "Regola operativa dell'app per la scelta (nessuno studio verificato su questo esercizio specifico). ACSM 2026: tutti i gruppi muscolari principali almeno 2 volte a settimana",
    "levels": [
     "Solo braccia",
     "Solo gambe",
@@ -2316,7 +2316,7 @@
    "safety": [
     "Ottimo riscaldamento per le spalle prima delle spinte."
    ],
-   "source": "ACE – salute della spalla e postura",
+   "source": "Desmeules et al. 2025, JOSPT 55(4):235-274: nella tendinopatia della cuffia dei rotatori (che comprende il conflitto subacromiale) l'esercizio contro resistenza è raccomandato con prove forti, adattato alla tolleranza al dolore. Scelta dell'esercizio: regola operativa dell'app",
    "focus": [
     "reardelt"
    ]
@@ -2361,7 +2361,7 @@
    "safety": [
     "Schiena: addome e glutei contratti per stabilizzare il bacino."
    ],
-   "source": "NSCA – spinta verticale con elastici"
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app"
   },
   {
    "id": "h_lateralhome",
@@ -2402,7 +2402,7 @@
    "safety": [
     "Con 1-2 kg lavora a 15-20 ripetizioni con tempo lento e pause brevi."
    ],
-   "source": "ACSM – carichi leggeri ad alte ripetizioni",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "rack": "home",
    "focus": [
     "lateralDelt"
@@ -2447,7 +2447,7 @@
    "safety": [
     "Se senti pizzicore alla spalla, riduci l'ampiezza e ruota leggermente i pollici verso l'alto."
    ],
-   "source": "NSCA – isolamento deltoide con elastici",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "focus": [
     "lateralDelt"
    ]
@@ -2491,7 +2491,7 @@
    "safety": [
     "Alterna con lavoro sui deltoidi posteriori per mantenere l'equilibrio della spalla."
    ],
-   "source": "NSCA – isolamento deltoide anteriore",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "shoulderRisk": true
   },
   {
@@ -2534,7 +2534,7 @@
    "safety": [
     "Movimento lento: la qualità della contrazione conta più della resistenza."
    ],
-   "source": "ACE – equilibrio muscolare della spalla",
+   "source": "Desmeules et al. 2025, JOSPT 55(4):235-274: nella tendinopatia della cuffia dei rotatori (che comprende il conflitto subacromiale) l'esercizio contro resistenza è raccomandato con prove forti, adattato alla tolleranza al dolore. Scelta dell'esercizio: regola operativa dell'app",
    "focus": [
     "reardelt"
    ]
@@ -2578,7 +2578,7 @@
    "safety": [
     "Cambia band per progredire quando superi le 20 ripetizioni pulite."
    ],
-   "source": "NSCA – ipertrofia braccia con elastici",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "focus": [
     "biceps"
    ]
@@ -2623,7 +2623,7 @@
    "safety": [
     "Presa neutra comoda per polsi e gomiti."
    ],
-   "source": "NSCA – ipertrofia braccia",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "focus": [
     "brachialis"
    ]
@@ -2666,7 +2666,7 @@
    "safety": [
     "Se non hai un ancoraggio alto sicuro, sostituisci con i dip su sedia."
    ],
-   "source": "NSCA – isolamento tricipite",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "focus": [
     "triceps"
    ]
@@ -2711,7 +2711,7 @@
    "safety": [
     "Spalla: fermati a 90° e usa una sedia che non scivoli."
    ],
-   "source": "ACSM – esercizio a corpo libero per tricipiti",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "shoulderRisk": true,
    "levels": [
     "Piedi vicini, ginocchia piegate",
@@ -2760,7 +2760,7 @@
    "safety": [
     "Spalla: se non riesci a tenere i gomiti fermi, riduci la tensione della band."
    ],
-   "source": "NSCA – ipertrofia tricipite",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "shoulderRisk": true,
    "focus": [
     "tricepsLong"
@@ -2806,7 +2806,7 @@
    "safety": [
     "Caviglie forti stabilizzano il ginocchio nei movimenti quotidiani."
    ],
-   "source": "NSCA – resistenza muscolare polpaccio",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "perSide": true,
    "levels": [
     "A due piedi",
@@ -2854,7 +2854,7 @@
    "safety": [
     "Se serve, appoggia una mano al muro."
    ],
-   "source": "NSCA – resistenza elastica"
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app"
   },
   {
    "id": "c_plank",
@@ -2898,7 +2898,7 @@
    "safety": [
     "Schiena: se la lombare si inarca, appoggia le ginocchia e riduci la durata."
    ],
-   "source": "ACSM – lavoro isometrico anti-estensione",
+   "source": "Regola operativa dell'app per la scelta (nessuno studio verificato su questo esercizio specifico). ACSM 2026: tutti i gruppi muscolari principali almeno 2 volte a settimana",
    "focus": [
     "abs"
    ]
@@ -2945,7 +2945,7 @@
    "safety": [
     "Versione facilitata con ginocchia a terra se la tenuta scende sotto i 15 secondi."
    ],
-   "source": "ACSM – stabilità laterale del tronco",
+   "source": "Regola operativa dell'app per la scelta (nessuno studio verificato su questo esercizio specifico). ACSM 2026: tutti i gruppi muscolari principali almeno 2 volte a settimana",
    "perSide": true,
    "focus": [
     "obliques"
@@ -2992,7 +2992,7 @@
    "safety": [
     "Schiena: riduci l'ampiezza fino a mantenere il contatto lombare."
    ],
-   "source": "ACSM – controllo lombo-pelvico",
+   "source": "Regola operativa dell'app per la scelta (nessuno studio verificato su questo esercizio specifico). ACSM 2026: tutti i gruppi muscolari principali almeno 2 volte a settimana",
    "levels": [
     "Solo braccia",
     "Solo gambe",
@@ -3043,7 +3043,7 @@
    "safety": [
     "Se la lombare si stacca, piega le ginocchia o avvicina le gambe."
    ],
-   "source": "NSCA – isometria del core",
+   "source": "Regola operativa dell'app per la scelta (nessuno studio verificato su questo esercizio specifico). ACSM 2026: tutti i gruppi muscolari principali almeno 2 volte a settimana",
    "focus": [
     "abs"
    ],
@@ -3092,7 +3092,7 @@
    "safety": [
     "Schiena: esercizio avanzato, parti con escursioni brevi (30-40 cm) e aumenta gradualmente."
    ],
-   "source": "NSCA – progressione anti-estensione avanzata",
+   "source": "Regola operativa dell'app per la scelta (nessuno studio verificato su questo esercizio specifico). ACSM 2026: tutti i gruppi muscolari principali almeno 2 volte a settimana",
    "levels": [
     "Escursione 30 cm",
     "Escursione 50 cm",
@@ -3144,7 +3144,7 @@
    "safety": [
     "Movimento breve e controllato: l'obiettivo è la contrazione, non l'ampiezza."
    ],
-   "source": "ACSM – flessione lombo-pelvica controllata",
+   "source": "Regola operativa dell'app per la scelta (nessuno studio verificato su questo esercizio specifico). ACSM 2026: tutti i gruppi muscolari principali almeno 2 volte a settimana",
    "levels": [
     "Ginocchia piegate",
     "Ginocchia a 90° senza slancio",
@@ -3204,7 +3204,7 @@
    "safety": [
     "Versione lenta: qui è un esercizio di stabilità, non cardio."
    ],
-   "source": "ACSM – core dinamico a basso impatto",
+   "source": "Regola operativa dell'app per la scelta (nessuno studio verificato su questo esercizio specifico). ACSM 2026: tutti i gruppi muscolari principali almeno 2 volte a settimana",
    "groinRisk": true
   },
   {
@@ -3250,7 +3250,7 @@
    "safety": [
     "Il busto resta immobile: tutto il lavoro è nel non ruotare."
    ],
-   "source": "NSCA – anti-rotazione",
+   "source": "Regola operativa dell'app per la scelta (nessuno studio verificato su questo esercizio specifico). ACSM 2026: tutti i gruppi muscolari principali almeno 2 volte a settimana",
    "perSide": true,
    "focus": [
     "obliques"
@@ -3297,7 +3297,7 @@
    "safety": [
     "Mobilità dinamica ideale come primo esercizio della sessione."
    ],
-   "source": "ACE – mobilità dinamica della colonna",
+   "source": "Behm et al. 2016, Appl Physiol Nutr Metab 41(1):1-11 (revisione sistematica): lo stretching dinamico prima dell'attività migliora la prestazione in misura piccola-moderata e aumenta l'escursione articolare. Scelta dell'esercizio: regola operativa dell'app",
    "mode": "dynamic"
   },
   {
@@ -3338,7 +3338,7 @@
    "safety": [
     "Fermati se compare pizzicore alla spalla e riduci l'ampiezza."
    ],
-   "source": "ACE – riscaldamento articolare",
+   "source": "Behm et al. 2016, Appl Physiol Nutr Metab 41(1):1-11 (revisione sistematica): lo stretching dinamico prima dell'attività migliora la prestazione in misura piccola-moderata e aumenta l'escursione articolare. Scelta dell'esercizio: regola operativa dell'app",
    "mode": "dynamic"
   },
   {
@@ -3382,7 +3382,7 @@
    "safety": [
     "Mobilità dell'anca: meno rigidità all'anca significa meno compensi del ginocchio."
    ],
-   "source": "ACE – mobilità articolare mirata",
+   "source": "Behm et al. 2016, Appl Physiol Nutr Metab 41(1):1-11 (revisione sistematica): lo stretching dinamico prima dell'attività migliora la prestazione in misura piccola-moderata e aumenta l'escursione articolare. Scelta dell'esercizio: regola operativa dell'app",
    "mode": "dynamic",
    "perSide": true
   },
@@ -3427,7 +3427,7 @@
    "safety": [
     "Aumenta l'ampiezza solo dopo le prime ripetizioni."
    ],
-   "source": "ACE – stretching dinamico pre-attività",
+   "source": "Behm et al. 2016, Appl Physiol Nutr Metab 41(1):1-11 (revisione sistematica): lo stretching dinamico prima dell'attività migliora la prestazione in misura piccola-moderata e aumenta l'escursione articolare. Scelta dell'esercizio: regola operativa dell'app",
    "mode": "dynamic",
    "perSide": true
   },
@@ -3473,7 +3473,7 @@
    "safety": [
     "Ginocchio: appoggia il ginocchio posteriore sul tappetino o su un asciugamano piegato."
    ],
-   "source": "ACE – mobilità multiarticolare",
+   "source": "Behm et al. 2016, Appl Physiol Nutr Metab 41(1):1-11 (revisione sistematica): lo stretching dinamico prima dell'attività migliora la prestazione in misura piccola-moderata e aumenta l'escursione articolare. Scelta dell'esercizio: regola operativa dell'app",
    "mode": "dynamic",
    "perSide": true
   },
@@ -3518,7 +3518,7 @@
    "safety": [
     "Utile per chi passa molte ore seduto."
    ],
-   "source": "ACE – mobilità toracica",
+   "source": "Behm et al. 2016, Appl Physiol Nutr Metab 41(1):1-11 (revisione sistematica): lo stretching dinamico prima dell'attività migliora la prestazione in misura piccola-moderata e aumenta l'escursione articolare. Scelta dell'esercizio: regola operativa dell'app",
    "mode": "dynamic",
    "perSide": true
   },
@@ -3544,7 +3544,7 @@
    ],
    "art": {
     "frames": [
-     "stand",
+     "quadStart",
      "quadStretch"
     ],
     "implement": null
@@ -3650,7 +3650,7 @@
    "safety": [
     "Flessori dell'anca rigidi aumentano il carico su lombare e ginocchio: esercizio prioritario per chi sta molto seduto."
    ],
-   "source": "ACE – stretching statico",
+   "source": "Dose: ACSM, Garber et al. 2011, MSSE 43(7):1334-1359 (tenute di 30-60 s negli adulti più anziani, ~60 s totali per muscolo). Scelta dell'esercizio: regola operativa dell'app",
    "perSide": true
   },
   {
@@ -3692,7 +3692,7 @@
    "safety": [
     "Ginocchio: la trazione si applica alla coscia, mai al ginocchio incrociato."
    ],
-   "source": "ACE – stretching statico",
+   "source": "Dose: ACSM, Garber et al. 2011, MSSE 43(7):1334-1359 (tenute di 30-60 s negli adulti più anziani, ~60 s totali per muscolo). Scelta dell'esercizio: regola operativa dell'app",
    "perSide": true
   },
   {
@@ -3735,7 +3735,7 @@
    "safety": [
     "Movimento passivo: la gravità fa il lavoro."
    ],
-   "source": "ACE – stretching statico"
+   "source": "Dose: ACSM, Garber et al. 2011, MSSE 43(7):1334-1359 (tenute di 30-60 s negli adulti più anziani, ~60 s totali per muscolo). Scelta dell'esercizio: regola operativa dell'app"
   },
   {
    "id": "s_calfwall",
@@ -3779,7 +3779,7 @@
    "safety": [
     "Caviglia rigida = maggiore stress su ginocchio nello squat e nella camminata."
    ],
-   "source": "ACE – stretching statico",
+   "source": "Dose: ACSM, Garber et al. 2011, MSSE 43(7):1334-1359 (tenute di 30-60 s negli adulti più anziani, ~60 s totali per muscolo). Scelta dell'esercizio: regola operativa dell'app",
    "perSide": true
   },
   {
@@ -3865,7 +3865,7 @@
    "safety": [
     "Schiena: mantieni la colonna lunga, senza forzare l'estensione."
    ],
-   "source": "ACE – stretching statico",
+   "source": "Dose: ACSM, Garber et al. 2011, MSSE 43(7):1334-1359 (tenute di 30-60 s negli adulti più anziani, ~60 s totali per muscolo). Scelta dell'esercizio: regola operativa dell'app",
    "perSide": false
   },
   {
@@ -3909,7 +3909,7 @@
    "safety": [
     "Ginocchio: se la flessione completa è fastidiosa, metti un cuscino tra polpacci e cosce o salta questo esercizio."
    ],
-   "source": "ACE – stretching statico e respirazione"
+   "source": "Dose: ACSM, Garber et al. 2011, MSSE 43(7):1334-1359 (tenute di 30-60 s negli adulti più anziani, ~60 s totali per muscolo). Scelta dell'esercizio: regola operativa dell'app"
   },
   {
    "id": "s_supinetwist",
@@ -3952,7 +3952,7 @@
    "safety": [
     "Schiena: movimento passivo, senza forzare la rotazione."
    ],
-   "source": "ACE – stretching statico",
+   "source": "Dose: ACSM, Garber et al. 2011, MSSE 43(7):1334-1359 (tenute di 30-60 s negli adulti più anziani, ~60 s totali per muscolo). Scelta dell'esercizio: regola operativa dell'app",
    "perSide": true
   },
   {
@@ -4036,7 +4036,7 @@
    "safety": [
     "Ginocchio: se la posizione tira sul ginocchio interno, riduci l'angolo e siediti su un cuscino."
    ],
-   "source": "ACE – mobilità dell'anca",
+   "source": "Dose: ACSM, Garber et al. 2011, MSSE 43(7):1334-1359 (tenute di 30-60 s negli adulti più anziani, ~60 s totali per muscolo). Scelta dell'esercizio: regola operativa dell'app",
    "perSide": true
   },
   {
@@ -4080,7 +4080,7 @@
    "safety": [
     "Spalla: la presa neutra e i gomiti avanti mantengono l'omero in rotazione esterna, riducendo l'attrito sul sovraspinato e sul capo lungo del bicipite."
    ],
-   "source": "NSCA – spinta verticale in versione a basso stress articolare",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "rack": "dumbbell"
   },
   {
@@ -4124,7 +4124,7 @@
    "safety": [
     "Spalla: rispetto al bilanciere, i manubri a presa neutra lasciano libera la rotazione dell'omero e limitano lo stress sul capo lungo del bicipite."
    ],
-   "source": "NSCA – spinta orizzontale, variante articolarmente conservativa",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "rack": "dumbbell",
    "focus": [
     "upperChest"
@@ -4170,7 +4170,7 @@
    "safety": [
     "Spalla: il piano scapolare con i pollici in su è la traiettoria più tollerata in caso di conflitto subacromiale; carichi leggeri e 12-15 ripetizioni."
    ],
-   "source": "ACSM – rinforzo della cuffia dei rotatori",
+   "source": "Desmeules et al. 2025, JOSPT 55(4):235-274: nella tendinopatia della cuffia dei rotatori (che comprende il conflitto subacromiale) l'esercizio contro resistenza è raccomandato con prove forti, adattato alla tolleranza al dolore. Scelta dell'esercizio: regola operativa dell'app",
    "rack": "dumbbell",
    "focus": [
     "lateralDelt"
@@ -4217,7 +4217,7 @@
    "safety": [
     "Spalla: la presa neutra e i gomiti vicini riducono la rotazione interna dell'omero rispetto alla presa larga prona."
    ],
-   "source": "NSCA – trazione verticale a presa neutra",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "rack": "machine"
   },
   {
@@ -4261,7 +4261,7 @@
    "safety": [
     "Spalla: la presa parallela evita la posizione di massima rotazione interna, la più critica in caso di conflitto subacromiale."
    ],
-   "source": "NSCA – trazione verticale progressiva",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "assist": true,
    "assistNote": "Contrappeso o elastico di assistenza: più alto, più aiuto. Progredire significa ridurlo.",
    "rack": "machine"
@@ -4306,7 +4306,7 @@
    "safety": [
     "Spalla: presa neutra e gomiti avanti; con 1-2 kg lavora a 15-20 ripetizioni lente."
    ],
-   "source": "ACSM – carichi leggeri ad alte ripetizioni",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "rack": "home"
   },
   {
@@ -4349,7 +4349,7 @@
    "safety": [
     "Spalla: traiettoria di elezione quando c'è sospetto di conflitto subacromiale."
    ],
-   "source": "ACE – rinforzo della spalla a basso impatto",
+   "source": "Desmeules et al. 2025, JOSPT 55(4):235-274: nella tendinopatia della cuffia dei rotatori (che comprende il conflitto subacromiale) l'esercizio contro resistenza è raccomandato con prove forti, adattato alla tolleranza al dolore. Scelta dell'esercizio: regola operativa dell'app",
    "rack": "home",
    "focus": [
     "lateralDelt"
@@ -4393,7 +4393,7 @@
    "safety": [
     "Spalla: la posizione a terra con braccia a 90° evita l'estensione sopra la testa, meglio tollerata in caso di conflitto subacromiale."
    ],
-   "source": "NSCA – isolamento tricipite, variante conservativa",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app",
    "rack": "home",
    "focus": [
     "triceps"
@@ -4439,7 +4439,7 @@
     "Spalla: la guida della macchina evita compensi quando l'esercizio si fa impegnativo. Con la presa prona tieni i gomiti un po' avanti e non scendere sotto la linea delle spalle (regola operativa dell'app).",
     "Spalla: resta un movimento sopra la testa. Se la salita dà fastidio, fermati con le mani all'altezza delle orecchie o sostituiscilo con la distensione con manubri a presa neutra o con la distensione su panca a presa neutra."
    ],
-   "source": "ACSM – macchine guidate per adulti over 50",
+   "source": "ACSM 2026 (Currier et al., MSSE 58(4):851-872): almeno 2 sedute e almeno 10 serie a settimana per gruppo muscolare per l'ipertrofia; il cedimento non è necessario. Scelta dell'esercizio: regola operativa dell'app. Haugen et al. 2023, BMC Sports Sci Med Rehabil 15: macchine e pesi liberi senza differenze di ipertrofia",
    "rack": "machine"
   },
   {
@@ -4483,7 +4483,7 @@
    "safety": [
     "Spalla: è il gesto che insegna la prima fase della trazione, quella che quasi tutti saltano; va fatto prima del lavoro pesante."
    ],
-   "source": "Progressione trazioni – attivazione scapolare (controllo della fase iniziale)",
+   "source": "Progressione trazioni: attivazione scapolare (controllo della fase iniziale) (regola operativa dell'app)",
    "levels": [
     "Piedi appoggiati",
     "In sospensione completa",
@@ -4532,7 +4532,7 @@
    "safety": [
     "Costruisce presa e tenuta nella posizione bassa, quella dove la trazione è più difficile. Obiettivo: arrivare a 30-40 secondi."
    ],
-   "source": "Progressione trazioni – tenuta in sospensione e forza di presa"
+   "source": "Progressione trazioni: tenuta in sospensione e forza di presa (regola operativa dell'app)"
   },
   {
    "id": "g_negpull",
@@ -4628,7 +4628,7 @@
    "safety": [
     "Sviluppa forza nell'angolo di massima difficoltà. Criterio di avanzamento: 5 secondi puliti indicano che sei pronto a tentare una trazione completa."
    ],
-   "source": "Progressione trazioni – lavoro isometrico nell'angolo critico"
+   "source": "Progressione trazioni: lavoro isometrico nell'angolo critico (regola operativa dell'app)"
   },
   {
    "id": "g_bandpull",
@@ -5125,7 +5125,7 @@
    "safety": [
     "Alza la barra per rendere l'esercizio più facile, abbassala per renderlo più duro: è la progressione più graduale verso la trazione."
    ],
-   "source": "Progressione trazioni – trazione orizzontale come base di forza",
+   "source": "Progressione trazioni: trazione orizzontale come base di forza (regola operativa dell'app)",
    "levels": [
     "Barra all'altezza dell'anca",
     "Barra a metà coscia",
@@ -5175,7 +5175,7 @@
    "safety": [
     "Riproduce a casa la fase iniziale della trazione, quella scapolare."
    ],
-   "source": "Progressione trazioni – attivazione scapolare senza sbarra"
+   "source": "Progressione trazioni: attivazione scapolare senza sbarra (regola operativa dell'app)"
   },
   {
    "id": "h_bandlatpull",
@@ -5263,7 +5263,7 @@
    "safety": [
     "Riproduce la posizione alta della trazione, l'angolo in cui si cede per primo."
    ],
-   "source": "Progressione trazioni – isometria nell'angolo critico"
+   "source": "Progressione trazioni: isometria nell'angolo critico (regola operativa dell'app)"
   },
   {
    "id": "f_bikehiit",
@@ -5312,7 +5312,7 @@
     "Ginocchio: se compare dolore alla rotula abbassa la resistenza; se persiste, passa all'ergometro a braccia o a un altro finale dalla scheda Programma.",
     "Dopo i 50 anni l'alta intensità richiede il via libera del medico se hai fattori di rischio cardiovascolare."
    ],
-   "source": "Chang et al. 2026, Nutrition & Metabolism – HIIT la modalità più efficace sul grasso viscerale; cyclette con sella alta e resistenza moderata: basso carico sull'articolazione femoro-rotulea (prassi riabilitativa)",
+   "source": "Chang et al. 2026, Nutrition & Metabolism – HIIT la modalità più efficace sul grasso viscerale; cyclette con sella alta e resistenza moderata: basso carico sull'articolazione femoro-rotulea (regola operativa dell'app)",
    "retired": true
   },
   {
@@ -5362,7 +5362,7 @@
     "Spalla: tieni le manovelle sotto l'altezza della spalla; se compare dolore, riduci la resistenza.",
     "Nessun carico sul ginocchio: è l'alternativa più sicura nelle giornate in cui la rotula protesta."
    ],
-   "source": "Chang et al. 2026, Nutrition & Metabolism – HIIT la modalità più efficace sul grasso viscerale; cyclette con sella alta e resistenza moderata: basso carico sull'articolazione femoro-rotulea (prassi riabilitativa)",
+   "source": "Chang et al. 2026, Nutrition & Metabolism – HIIT la modalità più efficace sul grasso viscerale; cyclette con sella alta e resistenza moderata: basso carico sull'articolazione femoro-rotulea (regola operativa dell'app)",
    "retired": true
   },
   {
@@ -5461,7 +5461,7 @@
     "Ginocchio: i piedi restano fermi a terra, nessun salto.",
     "Spalla: colpi all'altezza del petto, mai sopra la testa."
    ],
-   "source": "Chang et al. 2026, Nutrition & Metabolism – HIIT la modalità più efficace sul grasso viscerale; cyclette con sella alta e resistenza moderata: basso carico sull'articolazione femoro-rotulea (prassi riabilitativa)",
+   "source": "Chang et al. 2026, Nutrition & Metabolism – HIIT la modalità più efficace sul grasso viscerale; cyclette con sella alta e resistenza moderata: basso carico sull'articolazione femoro-rotulea (regola operativa dell'app)",
    "cardioModes": [
     "hiit"
    ]
@@ -7495,7 +7495,7 @@
    "safety": [
     "Mobilità senza carico vero: la barra serve a sentire la posizione della schiena."
    ],
-   "source": "Mobilità dinamica come preparazione (ACSM). Scelta dell'esercizio: regola operativa dell'app",
+   "source": "Behm et al. 2016, Appl Physiol Nutr Metab 41(1):1-11 (revisione sistematica): lo stretching dinamico prima dell'attività migliora la prestazione in misura piccola-moderata e aumenta l'escursione articolare. Scelta dell'esercizio: regola operativa dell'app",
    "newFrom": "2026-11-09"
   },
   {

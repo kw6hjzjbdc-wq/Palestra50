@@ -213,6 +213,20 @@ Da *Oggi* (sotto il calendario), dalla pagina *Progressi* e dal riquadro *Il per
 
 Nel riepilogo di fine seduta, *Ho ancora tempo: aggiungi esercizi*. Si dichiara quanto tempo resta (5, 10 o 15 minuti) e l'app propone quattro esercizi sui **gruppi più indietro** rispetto al volume previsto per la settimana, con le serie che stanno davvero in quei minuti (tempo di preparazione compreso). Toccandone uno si torna nella seduta, che riprende da quell'esercizio e si chiude normalmente.
 
+### Verifica generale dell'app (9.0)
+- **Esercizi in più nelle sedute di mobilità.** Nella mobilità del mattino, in quella del sabato e nella mobilità breve, «Ho ancora tempo: aggiungi esercizi» propone **solo allungamenti e mobilità** (`extraCandidates`, ramo `stretchDay`), uno per distretto, fino a quattro, ordinati per esigenza con lo stesso calcolo della seduta (`stretchNeeds`: dolori, attività svolte e da fare). Anche il catalogo aperto da «Scegli dal catalogo» mostra in quelle sedute solo esercizi di tipo allungamento (`openAddChoice`, `stretchOnly`).
+- **Fonti riviste.**
+  - 104 esercizi citavano in modo generico «NSCA – …», «ACSM – …», «ACE – …»: ora citano la fonte aperta e verificata che sostiene davvero la scelta (Currier/ACSM 2026, Garber 2011, Desmeules 2025, Willy 2019 e Morri 2025, Haugen 2023 per le macchine, Behm 2016 per la mobilità dinamica); dove non esiste una fonte, la scelta è indicata come **regola operativa dell'app** (progressione delle trazioni, core, ex «prassi riabilitativa»).
+  - Obiettivi dei programmi: **resistenza muscolare 15-20 ripetizioni** indicata come regola operativa, perché il Position Stand ACSM 2026 dice che le prove non bastano a stabilire quali variabili la migliorino; ipertrofia «almeno 10 serie, plateau verso 18-20»; RIR come scelta pratica; mobilità e mattino con Behm 2016.
+  - Avvertenze nelle schermate: «linee guida e studi verificati (ACSM, OMS e le fonti indicate in ogni esercizio)», con la distinzione esplicita fra fonte e regola operativa.
+- **Testi.** Tolte le ultime parole legate all'ora del giorno («Stamattina» nei pulsanti del ginocchio, ora «Oggi»); singolare e plurale corretti negli avvisi delle sedute non svolte.
+- **Schermate più semplici.**
+  - Progressi: tolti i riquadri Spartan, Tuscany Trail e Trazioni che ripetevano «Verso gli obiettivi» (stessi dettagli). Spartan e Tuscany tornano come riquadro solo a gara conclusa, quando l'obiettivo esce da «Verso gli obiettivi».
+  - Settimana: tolta la riga di posizione ripetuta sotto la navigazione (la dice già l'introduzione della settimana).
+  - Scarico: testo ridotto a due frasi. MTB: la spiegazione delle alternative è in un riquadro apribile.
+- **Figure.** Corrette le posizioni dello slancio con kettlebell (fase indietro) e dell'allungamento del quadricipite (nuova figura di partenza): il controllo automatico delle articolazioni non segnala più nulla.
+- **Codice.** Tolte funzioni non più usate (`lastPain`, `painPartFor`, `roundsOf`, `ttOn`, `weekBaseVolume`, `deloadToday`, `pullTileBody`). Tempi misurati con 1.500 sedute registrate: Oggi 4 ms, Progressi 20 ms, Storico 9 ms.
+
 ### Dati del Forerunner 55 nelle sedute aerobiche (8.33)
 - **Perché è utile.**
   - **Intensità.** La FC media rispetto alla FC massima personale dà la classe ACSM: moderata 64-76%, vigorosa 77-95% (Garber et al. 2011; Scharhag-Rosenberger 2015). Per l'OMS 2020 un minuto vigoroso vale due; prima l'app contava sempre come moderati i minuti a ritmo costante.
@@ -291,7 +305,7 @@ Nel riepilogo di fine seduta, *Ho ancora tempo: aggiungi esercizi*. Si dichiara 
 
 ### Scarico dalla settimana di calendario (8.27)
 - **Errore corretto.** Finite le sei sedute prima di domenica, la prossima seduta del programma appartiene già alla settimana dopo. Se quella è di scarico, l'app accendeva la fascia rossa e il riquadro «Non aumentare i carichi» già la domenica, e accorciava al 60% l'uscita in MTB della domenica.
-- **Ora le indicazioni seguono la settimana di calendario** (`calendarWeekIdx`, `deloadToday`):
+- **Ora le indicazioni seguono la settimana di calendario** (`calendarWeekIdx`, `deloadIdxNow`):
   - **la domenica prima dello scarico:** niente fascia né riquadro rosso. In Oggi c'è solo l'avviso neutro «Da lunedì: settimana N di scarico».
   - **uscita in MTB della domenica:** non viene più accorciata, e quando la registri non è segnata come «leggera».
   - **dettaglio della prossima seduta e seduta avviata in anticipo:** mostrano lo scarico, perché riguarda proprio quella seduta. Anche il carico suggerito resta fermo come prima.
@@ -1141,7 +1155,7 @@ Per un nuovo programma aggiungi una voce in `programs.json` con `cycleWeeks`, tr
 
 ## Fonti della logica di allenamento
 
-Aggiornate al 13 ottobre 2026, con verifica diretta di ciascuna fonte: dove una fonte più recente sostituisce una precedente, l'app segue la più recente, e dove una fonte non è verificabile ad accesso aperto è detto esplicitamente.
+Aggiornate al 10 novembre 2026, con verifica diretta di ciascuna fonte: dove una fonte più recente sostituisce una precedente, l'app segue la più recente, e dove una fonte non è verificabile ad accesso aperto è detto esplicitamente.
 
 - **Currier, D'Souza, Fiatarone Singh, … Phillips 2026**, *Resistance Training Prescription for Muscle Function, Hypertrophy, and Physical Performance in Healthy Adults: An Overview of Reviews* — ACSM Position Stand, Medicine & Science in Sports & Exercise 58(4):851-872 (137 revisioni sistematiche; sostituisce la posizione del 2009). Tutti i gruppi principali almeno 2 volte a settimana; per l'ipertrofia **almeno** 10 serie settimanali per gruppo, con plateau verso 18-20; forza con carichi ≥80% 1RM per 2-3 serie per esercizio; esercizi chiave per primi **nel lavoro di forza** (per l'ipertrofia l'ordine è indifferente); il cedimento non è necessario, e il documento precisa che **le prove non bastano a fissare valori precisi di ripetizioni di riserva**: il 2-3 RIR dell'app è una scelta pratica prudente, non una soglia dimostrata. Le raccomandazioni non sono differenziate per età.
 - **Pelland et al. 2026**, *The Resistance Training Dose Response*, Sports Medicine 56(2):481-505 (online dicembre 2025; 67 studi, 2.058 partecipanti) — volume e crescita con rendimenti decrescenti; il conteggio "frazionario" (serie indirette = ½), usato nelle barre del volume, è il più predittivo; la frequenza conta per la forza, non per l'ipertrofia.
@@ -1156,6 +1170,7 @@ Aggiornate al 13 ottobre 2026, con verifica diretta di ciascuna fonte: dove una 
 - **Desmeules et al. 2025**, *Rotator cuff tendinopathy diagnosis, nonsurgical medical care, and rehabilitation: a clinical practice guideline*, Journal of Orthopaedic & Sports Physical Therapy 55(4):235-274 — il conflitto subacromiale rientra oggi nella diagnosi ombrello di tendinopatia della cuffia dei rotatori; l'esercizio attivo contro resistenza è raccomandato con prove forti (grado A) e **la linea guida non elenca movimenti da evitare**. Per questo il filtro della spalla nell'app è presentato come preferenza di comfort e non come divieto.
 - **Morri et al. 2025**, *Conservative treatment of patellofemoral pain*, BMC Sports Science, Medicine and Rehabilitation 17:303 — il rinforzo batte gli altri trattamenti conservativi sul dolore (certezza delle prove bassa), **nessun tipo di rinforzo risulta superiore a un altro e nessun esercizio è sconsigliato**. Anche la priorità al ginocchio è quindi una preferenza, non un divieto.
 - **Meigh et al. 2022**, *Effects of supervised high-intensity hardstyle kettlebell training on grip strength and health-related physical fitness in insufficiently active older adults: the BELL pragmatic controlled trial*, BMC Geriatrics — 12 settimane di kettlebell in adulti fra 59 e 79 anni: forza di presa +23-25%, sit-to-stand +23%, stacco stimato +16 kg, nessun infortunio serio. È la base degli esercizi con kettlebell introdotti nella 5.12.
+- **Behm, Blazevich, Kay, McHugh 2016**, *Acute effects of muscle stretching on physical performance, range of motion, and injury incidence in healthy active individuals: a systematic review*, Applied Physiology, Nutrition, and Metabolism 41(1):1-11 — l'allungamento statico sotto i 60 s per muscolo ha effetti trascurabili sulla prestazione (−1,1%, contro −4,6% oltre i 60 s); la mobilità dinamica prima dello sforzo tende a migliorarla. Base delle sedute di mobilità del mattino e degli esercizi di mobilità dinamica (9.0).
 - **OMS 2020** — raccomandazioni di attività fisica per adulti.
 - **Zourdos et al. 2016**, *Novel Resistance Training-specific Rating of Perceived Exertion Scale Measuring Repetitions in Reserve*, Journal of Strength and Conditioning Research 30(1):267-275 — scala delle ripetizioni in riserva (in precedenza qui era indicata la rivista sbagliata).
 - **Epley (1985)** — formula del massimale stimato.
