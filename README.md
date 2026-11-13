@@ -213,6 +213,88 @@ Da *Oggi* (sotto il calendario), dalla pagina *Progressi* e dal riquadro *Il per
 
 Nel riepilogo di fine seduta, *Ho ancora tempo: aggiungi esercizi*. Si dichiara quanto tempo resta (5, 10 o 15 minuti) e l'app propone quattro esercizi sui **gruppi più indietro** rispetto al volume previsto per la settimana, con le serie che stanno davvero in quei minuti (tempo di preparazione compreso). Toccandone uno si torna nella seduta, che riprende da quell'esercizio e si chiude normalmente.
 
+### Finale a casa e in viaggio: anche la camminata, niente corsa (9.7)
+- **Due menu in Programma.**
+  - «Finale in palestra»: bici da spinning, cyclette, sacco, macchina a scalini, nessun finale.
+  - «Finale a casa e in viaggio» (`S.finisherHome`, `FINISHER_HOME_OPTIONS`): colpi al sacco d'aria a intervalli (predefinito), camminata veloce in piano, camminata in salita.
+  - «Nessun finale» vale ovunque.
+- **Camminate come finale**: a ritmo costante, 12 minuti (meno se il tempo della seduta non basta, 7 in scarico), conteggiati come minuti moderati (`finisherInterval` di `h_walkbrisk` e `o_hillwalk`).
+  - La salita è solo in viaggio (`FINISHER_TRAVEL`); scelta a casa diventa camminata in piano (`FINISHER_HOME`).
+  - Sul grasso viscerale gli intervalli restano la modalità più efficace (Chang et al. 2026).
+- **Niente corsa come finale** (regola permanente dell'utente, confermata). La corsa-camminata resta solo nella preparazione Spartan, con i suoi livelli e il controllo del ginocchio il giorno dopo.
+- «Cambia esercizio» sul finale propone i finali del luogo: a casa sacco d'aria e camminata, in viaggio anche la salita.
+
+### Finale metabolico: niente vogatore, sacco d'aria solo a casa, macchina a scalini (9.6)
+- **Su richiesta dell'utente.** Il vogatore come finale gli ha dato dolore all'inguine il 9/11 e il 13/11 (`S.painLog`).
+- **In palestra** il finale si sceglie fra quattro attrezzi (`FINISHER_GYM`, `finisherChoices`): bici da spinning, cyclette orizzontale e sacco da pugilato a intervalli, oppure macchina a scalini.
+  - Il vogatore non c'è più: in Programma, nella proposta automatica e in «Cambia esercizio».
+  - Chi lo aveva scelto passa alla bici da spinning (`FINISHER_MAP`; il valore salvato non si tocca).
+  - Il vogatore resta fra gli attrezzi delle sedute aerobiche, selezionabile a mano come prima.
+- **A casa e in viaggio** il finale è sempre a colpi al sacco d'aria (`FINISHER_HOME`), che in palestra non compare più come finale.
+- **Macchina a scalini come finale**: a ritmo costante, 12 minuti (7 in scarico), conteggiati come minuti moderati.
+  - Resta la regola operativa dell'app: niente scatti su quell'attrezzo, per il carico sulla rotula a ogni gradino (`finisherInterval` dell'esercizio, dose da `cardioSteady`).
+  - Con la priorità al ginocchio non è la scelta predefinita: si sceglie in Programma o con «Cambia esercizio».
+  - Sul grasso viscerale gli intervalli restano la modalità più efficace (Chang et al. 2026).
+- **«Cambia esercizio» sul finale** propone solo i finali del luogo. Cambiando attrezzo cambia anche la dose: intervalli oppure ritmo costante (`applyExercise` con `finisherItem`).
+
+### Seduta interrotta: svolta in parte, non saltata; iperestensioni in Forza A (9.5)
+- **Il caso del 13/11.** Forza C fatta tutta tranne il vogatore, interrotto per dolore all'inguine; poi un esercizio aggiunto, interrotto anche quello. Interrompendo la seduta c'erano solo due uscite: «La riprendo più tardi» e «Non la faccio: salta». Con la seconda la seduta è finita nello storico come **saltata**, con gli esercizi fatti registrati ma scollegati («Nessun esercizio registrato per questa seduta»).
+- **Interrompere dopo aver fatto almeno una serie** (`endPartial`): la prima scelta è «Concludi qui: svolta in parte».
+  - Si registrano gli esercizi fatti, anche quelli lasciati a metà, e si apre il riepilogo «Seduta conclusa in parte» (sensazioni, dolori, note; senza «aggiungi esercizi»).
+  - La seduta risulta svolta (`partial`, `plannedSets`) e il programma avanza.
+  - La percentuale si calcola sulle serie previste di tutta la seduta, esclusi gli esercizi aggiunti a fine seduta. Il giudizio è «Svolta in parte» e gli esercizi non fatti restano mancanti nel volume della settimana.
+  - «Salta» resta solo se non è stato fatto nulla.
+- **Da Oggi, seduta lasciata a metà** con «La riprendo più tardi»: il pulsante diventa «Concludi qui: svolta in parte» e `skipSession` non la registra più come saltata (`openLogsOf`).
+- **Riparazione dello storico** (`repairSkippedDone`, a ogni avvio, idempotente). Una seduta saltata diventa svolta in parte se ha esercizi registrati:
+  - con lo stesso indice,
+  - lo stesso giorno, prima del salto,
+  - non legati ad altre sedute.
+
+  Non si cancella nulla: tipo, identificativo e nota originali restano in `skipFix`, e la nota scritta dall'utente resta com'è.
+- **Panca lombare orizzontale (Panatta)**: è la stessa delle «Iperestensioni orizzontali», già nel catalogo, ma il programma non la proponeva mai da solo.
+  - Nello slot d'anca di Forza A la rotazione per mesociclo (passo pari, mesocicli non consecutivi) faceva uscire solo slancio con kettlebell e good morning. Lo slancio però è già lo slot di esplosività di Forza C.
+  - Dal blocco che comincia il 16/11, lo slot gira a ogni blocco di 4 settimane fra **iperestensioni sulla panca lombare, good morning e stacco rumeno**, nell'ordine (`cycle`, `cycleFrom` in programs.json; `blockNo` = numero di blocco consecutivo). Le settimane già passate e quella in corso restano identiche.
+  - Superati tutti i gradini delle iperestensioni, resta il passaggio proposto alle «Iperestensioni con manubrio al petto».
+  - Scelta dell'esercizio: regola operativa dell'app, perché nessuna fonte verificata indica uno dei tre come superiore.
+
+### FC massima personale dai dati del Garmin (9.4)
+- **Controllo sull'export del 13/11.** Le sedute aerobiche di martedì 10 (ritmo costante) e giovedì 12 (intervalli) sono state chiuse entrambe dal riepilogo di fine seduta, con le sensazioni compilate. Martedì la FC media è stata inserita (123), giovedì i campi sono rimasti vuoti. Fino alla 9.2 stavano sotto energia, sonno e i tre dolori, fuori dallo schermo: dalla 9.3 sono in cima.
+- **La FC massima personale non era mai stata inserita** (`S.hrMax` assente): si poteva scrivere solo nella pagina dell'uscita in MTB. Senza quel valore la FC media viene salvata ma l'app non può classificare l'intensità (moderata o vigorosa) e i minuti non cambiano.
+  - Ora, finché manca, i campi del Garmin (fine seduta, seduta svolta, storico, richiesta dopo «Segna come svolta») hanno anche «La tua FC massima personale»: basta inserirla una volta.
+  - Quando la FC massima cambia (`setHrMax`), da qui o dalla pagina della MTB, le sedute aerobiche con la FC media già inserita vengono rivalutate (`applyGarmin`).
+
+### Dati del Garmin dalla seduta svolta, riepilogo più chiaro (9.3)
+- **Seduta svolta aperta da Oggi** (dal riquadro dell'allenamento o dal programma della settimana, `renderHomeResult`): per le sedute aerobiche ora ci sono i campi del Garmin (FC media, FC massima, distanza se serve) con «Salva i dati del Garmin» e il riepilogo di quelli inseriti. Prima c'erano solo nella scheda della seduta in Progressi › storico.
+- **Riepilogo di fine seduta aerobica**: i campi del Garmin sono in cima. Prima venivano dopo le domande su energia, sonno e dolori e restavano sotto, fuori dallo schermo dell'iPhone, facili da non vedere.
+- **Righe dello storico**: un livello lungo usato come carico (es. «Regolamentare: petto a terra e salto» dei burpee) andava fuori schermo; ora va a capo.
+
+### Alternative anche nella mobilità del sabato, niente esercizi già nella seduta, dati del Garmin anche a posteriori (9.2)
+- **Mobilità del sabato.** «Cambia esercizio» segue le stesse regole della mobilità breve (9.1): prima lo stesso distretto, poi gli esercizi che allungano gli stessi muscoli, poi la stessa zona del corpo. Stessa dose per lato, durata entro i minuti scelti. Qui vale l'attrezzatura scelta (palestra o casa).
+  - La seduta del sabato ha 8-16 allungamenti e a volte esaurisce la zona: in quel caso si passa alle **zone vicine** (`ZONE_NEAR`, «zona vicina»; per esempio petto → collo e tronco) e solo in ultima istanza a tutto il resto. In tutte le combinazioni provate ogni esercizio ha almeno due alternative.
+- **Niente esercizi già proposti nella seduta.** Oltre agli esercizi presenti, sono esclusi anche quelli proposti all'inizio negli altri posti e poi cambiati (`alt.relatedTo` degli altri esercizi). Nel proprio posto l'esercizio previsto resta sempre selezionabile, per tornarci.
+- **Conflitto risolto nella mobilità breve.** Le precauzioni contavano solo per la spalla: con la priorità al ginocchio poteva entrare la posizione del bambino (ginocchia in flessione completa), che poi non compariva fra le alternative. Ora valgono tutte le precauzioni (`applyCare`), come nella mobilità del sabato.
+- **Dati del Garmin.** Si chiedevano solo nel riepilogo di fine seduta. Una seduta aerobica registrata per altre vie non li chiedeva:
+  - «Segna come svolta»;
+  - la domanda «una seduta è rimasta aperta» → «era la seduta del giorno», che compare quando l'app si chiude prima del riepilogo (per esempio telefono bloccato durante gli allungamenti finali).
+  - Ora in questi casi la richiesta arriva subito dopo (`offerGarmin`), facoltativa, solo per le sedute aerobiche e solo se i dati mancano. Restano inseribili in ogni momento dallo storico, toccando la seduta.
+
+### Mobilità breve: «Cambia esercizio» sugli stessi muscoli, niente «Macchina occupata» (9.1)
+- **Alternative pertinenti.** Prima «Cambia esercizio» nella mobilità breve proponeva qualunque allungamento dello stesso tipo (statico o dinamico), anche di un distretto lontano, e con l'attrezzatura «palestra» persino esercizi che a casa non si possono fare. Ora le alternative (`alternativesFor` con `alt.relatedTo`, `stretchKinship`) sono, in quest'ordine:
+  1. stesso distretto dell'esercizio previsto («stesso distretto»);
+  2. esercizi che allungano, anche in parte, un muscolo che l'esercizio previsto allunga come principale («allunga anche: …»; nomi dei muscoli ricondotti a una chiave comune in `MUSCLE_KEY`); per la mobilità dinamica, esercizi che preparano gli stessi distretti (`DYN_FOR`);
+  3. solo se i primi due sono meno di due (per esempio perché già nella seduta), la stessa zona del corpo («stessa zona del corpo», `STRETCH_ZONE`).
+  - Restano lo stesso schema (statico o dinamico), solo esercizi di casa, le precauzioni per spalla, ginocchio e inguine. Il riferimento resta l'esercizio previsto anche dopo un primo cambio.
+  - Su tutte le mobilità brevi di tutti i programmi (oltre 19.000 casi, con e senza precauzioni) ogni esercizio ha almeno due alternative.
+  - Il criterio di parentela è una **regola operativa dell'app**.
+- **Stessa durata.** Il sostituto prende le stesse tenute per lato e gli stessi secondi; se chiede più tempo (per esempio un lato alla volta) si riducono le sue tenute o ripetizioni e, se non basta, una tenuta degli esercizi che restano, così la seduta resta nei 10 o 15 minuti.
+- **Esercizi di riserva** (`reserve: true`): servono come alternative e compaiono nel catalogo, ma l'app non li mette da sola nelle sedute, che restano quelle di prima.
+  - Sette allungamenti dalla guida del **National Institute on Aging (NIH), *Exercise & Physical Activity: Your Everyday Guide*, NIH Pub. 09-4258, gennaio 2009** (aperta e letta: tenute di 10-30 s ripetute 3-5 volte; la dose dell'app resta quella ACSM di Garber 2011): quadricipite su un fianco (p. 84), femorali seduto su una panca (p. 83), femorali supino con le mani (p. 82), apertura dell'anca supina (p. 86), parte alta della schiena da seduto (p. 78), torsione del busto da seduto (p. 77), caviglia da seduto (p. 79).
+  - Quattro esercizi di mobilità dinamica: rotazioni delle spalle, rotazioni del busto in piedi, ginocchio al petto in piedi, cerniera dell'anca a corpo libero. Per lo stretching dinamico vale Behm et al. 2016 (Appl Physiol Nutr Metab 41(1):1-11); **nessuna fonte aperta prescrive questi esercizi in modo specifico: la scelta è una regola operativa dell'app**, come per gli altri esercizi dinamici già presenti. Servivano perché a casa c'erano solo sei esercizi dinamici, spesso già tutti nella seduta.
+  - Per gli adduttori non ho aggiunto un terzo allungamento: con il fastidio all'inguine la scelta è limitata all'apertura dell'anca supina, la forma più dolce, e agli allungamenti dell'anca.
+  - Pose nuove in poses.json: `sideQuad`, `hamBench`, `hamBenchLean`, `hookKneeOut`, `chairSit`, `seatedTwist`, `ankleToes`, `ankleUp`, `kneeHug`, `standHips`, `hingeHips`.
+- **Niente «Macchina occupata» nella mobilità breve**: la seduta si fa a casa, senza macchine. Resta «Ordine esercizi» per spostare in avanti un esercizio, con un testo senza riferimenti alle macchine. Il tasto resta nelle altre sedute.
+- **Dose ben leggibile.** Con il testo grande «4× 30s (2 per lato)» usciva dallo schermo: ora «2 per lato» va sulla seconda riga, accanto al recupero.
+
 ### Verifica generale dell'app (9.0)
 - **Esercizi in più nelle sedute di mobilità.** Nella mobilità del mattino, in quella del sabato e nella mobilità breve, «Ho ancora tempo: aggiungi esercizi» propone **solo allungamenti e mobilità** (`extraCandidates`, ramo `stretchDay`), uno per distretto, fino a quattro, ordinati per esigenza con lo stesso calcolo della seduta (`stretchNeeds`: dolori, attività svolte e da fare). Anche il catalogo aperto da «Scegli dal catalogo» mostra in quelle sedute solo esercizi di tipo allungamento (`openAddChoice`, `stretchOnly`).
 - **Fonti riviste.**
@@ -1155,7 +1237,7 @@ Per un nuovo programma aggiungi una voce in `programs.json` con `cycleWeeks`, tr
 
 ## Fonti della logica di allenamento
 
-Aggiornate al 10 novembre 2026, con verifica diretta di ciascuna fonte: dove una fonte più recente sostituisce una precedente, l'app segue la più recente, e dove una fonte non è verificabile ad accesso aperto è detto esplicitamente.
+Aggiornate al 13 novembre 2026, con verifica diretta di ciascuna fonte: dove una fonte più recente sostituisce una precedente, l'app segue la più recente, e dove una fonte non è verificabile ad accesso aperto è detto esplicitamente.
 
 - **Currier, D'Souza, Fiatarone Singh, … Phillips 2026**, *Resistance Training Prescription for Muscle Function, Hypertrophy, and Physical Performance in Healthy Adults: An Overview of Reviews* — ACSM Position Stand, Medicine & Science in Sports & Exercise 58(4):851-872 (137 revisioni sistematiche; sostituisce la posizione del 2009). Tutti i gruppi principali almeno 2 volte a settimana; per l'ipertrofia **almeno** 10 serie settimanali per gruppo, con plateau verso 18-20; forza con carichi ≥80% 1RM per 2-3 serie per esercizio; esercizi chiave per primi **nel lavoro di forza** (per l'ipertrofia l'ordine è indifferente); il cedimento non è necessario, e il documento precisa che **le prove non bastano a fissare valori precisi di ripetizioni di riserva**: il 2-3 RIR dell'app è una scelta pratica prudente, non una soglia dimostrata. Le raccomandazioni non sono differenziate per età.
 - **Pelland et al. 2026**, *The Resistance Training Dose Response*, Sports Medicine 56(2):481-505 (online dicembre 2025; 67 studi, 2.058 partecipanti) — volume e crescita con rendimenti decrescenti; il conteggio "frazionario" (serie indirette = ½), usato nelle barre del volume, è il più predittivo; la frequenza conta per la forza, non per l'ipertrofia.
@@ -1171,6 +1253,7 @@ Aggiornate al 10 novembre 2026, con verifica diretta di ciascuna fonte: dove una
 - **Morri et al. 2025**, *Conservative treatment of patellofemoral pain*, BMC Sports Science, Medicine and Rehabilitation 17:303 — il rinforzo batte gli altri trattamenti conservativi sul dolore (certezza delle prove bassa), **nessun tipo di rinforzo risulta superiore a un altro e nessun esercizio è sconsigliato**. Anche la priorità al ginocchio è quindi una preferenza, non un divieto.
 - **Meigh et al. 2022**, *Effects of supervised high-intensity hardstyle kettlebell training on grip strength and health-related physical fitness in insufficiently active older adults: the BELL pragmatic controlled trial*, BMC Geriatrics — 12 settimane di kettlebell in adulti fra 59 e 79 anni: forza di presa +23-25%, sit-to-stand +23%, stacco stimato +16 kg, nessun infortunio serio. È la base degli esercizi con kettlebell introdotti nella 5.12.
 - **Behm, Blazevich, Kay, McHugh 2016**, *Acute effects of muscle stretching on physical performance, range of motion, and injury incidence in healthy active individuals: a systematic review*, Applied Physiology, Nutrition, and Metabolism 41(1):1-11 — l'allungamento statico sotto i 60 s per muscolo ha effetti trascurabili sulla prestazione (−1,1%, contro −4,6% oltre i 60 s); la mobilità dinamica prima dello sforzo tende a migliorarla. Base delle sedute di mobilità del mattino e degli esercizi di mobilità dinamica (9.0).
+- **National Institute on Aging (NIH), *Exercise & Physical Activity: Your Everyday Guide***, NIH Pub. 09-4258, gennaio 2009 — esercizi di flessibilità (pp. 70-88): tenute di 10-30 s, 3-5 ripetizioni, mai molleggiare, dolore acuto = troppo. Fonte dei sette allungamenti di riserva della 9.1 e di collo, petto, spalle e braccia della 8.24.
 - **OMS 2020** — raccomandazioni di attività fisica per adulti.
 - **Zourdos et al. 2016**, *Novel Resistance Training-specific Rating of Perceived Exertion Scale Measuring Repetitions in Reserve*, Journal of Strength and Conditioning Research 30(1):267-275 — scala delle ripetizioni in riserva (in precedenza qui era indicata la rivista sbagliata).
 - **Epley (1985)** — formula del massimale stimato.

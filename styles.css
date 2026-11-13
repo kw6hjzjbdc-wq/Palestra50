@@ -187,6 +187,9 @@ h3{font-size:19px}
 .hist li{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
 .hist .spark{width:86px;height:34px;flex:0 0 86px}
 .hist .val{font-family:var(--cond);font-size:19px;white-space:nowrap}
+/* (9.3) un livello lungo come carico («Regolamentare: petto a terra e salto») va a capo invece di uscire dallo schermo */
+.hist li .nm{min-width:0}
+.hist .val{max-width:45%;white-space:normal;text-align:right;overflow-wrap:anywhere}
 .trend-up{color:var(--teal)}.trend-down{color:var(--alert)}
 
 /* ---------- nav ---------- */

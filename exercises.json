@@ -5676,10 +5676,15 @@
     "Passi lunghi o velocità alta."
    ],
    "safety": [
-    "Ginocchio: salire a ogni passo carica la rotula in flessione. Per questo con la priorità al ginocchio attiva non viene proposto in automatico; usalo solo per il ritmo costante, a velocità bassa, nei giorni in cui il ginocchio sta bene.",
-    "Niente intervalli ad alta intensità su questo attrezzo."
+    "Ginocchio: salire a ogni passo carica la rotula in flessione. Per questo con la priorità al ginocchio attiva non viene proposto in automatico; usalo solo a ritmo costante, a velocità bassa, nei giorni in cui il ginocchio sta bene.",
+    "Niente intervalli ad alta intensità su questo attrezzo: anche come finale metabolico è a ritmo costante (12 minuti)."
    ],
-   "source": "Chang et al. 2026, Nutrition & Metabolism – HIIT la modalità più efficace sul grasso viscerale; WHO 2020 – 150-300 min/settimana di attività moderata o 75-150 vigorosa"
+   "source": "Chang et al. 2026, Nutrition & Metabolism – HIIT la modalità più efficace sul grasso viscerale; WHO 2020 – 150-300 min/settimana di attività moderata o 75-150 vigorosa",
+   "finisherInterval": {
+    "sets": 1,
+    "work": 720,
+    "rest": 0
+   }
   },
   {
    "id": "a_bag",
@@ -5783,7 +5788,12 @@
    "safety": [
     "Ginocchio: in piano o in leggera salita il carico sulla rotula resta basso; evita le discese."
    ],
-   "source": "WHO 2020 – 150-300 min/settimana di attività aerobica moderata"
+   "source": "WHO 2020 – 150-300 min/settimana di attività aerobica moderata",
+   "finisherInterval": {
+    "sets": 1,
+    "work": 720,
+    "rest": 0
+   }
   },
   {
    "id": "g_kbswing",
@@ -6110,7 +6120,12 @@
     "Ginocchio: salita e piano sono il terreno più amico; le discese ripide e veloci caricano di più la rotula, quindi vanno fatte piano e a passi corti (regola operativa dell'app).",
     "Se il ginocchio supera 2 su 10 durante la camminata, o la mattina dopo va peggio, la volta dopo niente zaino e meno discese; se piove o fa troppo freddo «Cambia attrezzo» riporta la bici."
    ],
-   "source": "WHO 2020 (Bull et al., Br J Sports Med 54(24):1451-1462): 150-300 min/settimana di attività aerobica moderata. Scelta della camminata in salita prima della corsa, tappe mensili e zaino: regola operativa dell'app"
+   "source": "WHO 2020 (Bull et al., Br J Sports Med 54(24):1451-1462): 150-300 min/settimana di attività aerobica moderata. Scelta della camminata in salita prima della corsa, tappe mensili e zaino: regola operativa dell'app",
+   "finisherInterval": {
+    "sets": 1,
+    "work": 720,
+    "rest": 0
+   }
   },
   {
    "id": "g_farmercarry",
@@ -8263,6 +8278,488 @@
    "source": "Regola operativa dell'app: alternativa di tirata con il gran dorsale come motore principale e i gomiti fermi. Ha l'attrezzatura per macchine e cavi: Haugen et al. 2023 (macchine e pesi liberi senza differenze di ipertrofia).",
    "rack": "machine",
    "newFrom": "2026-11-23"
+  },
+  {
+   "id": "s_quadside",
+   "name": "Allungamento del quadricipite su un fianco",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "stretch",
+   "group": "Quadricipiti",
+   "pattern": "static",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Quadricipite"
+   ],
+   "secondary": [
+    "Flessore dell'anca"
+   ],
+   "equipment": [
+    "Tappetino"
+   ],
+   "art": {
+    "frames": [
+     "sideLyingDown",
+     "sideQuad"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Sdraiato su un fianco, gambe distese e ginocchia unite, testa appoggiata sul braccio.",
+    "Piega il ginocchio della gamba sopra e afferra il dorso del piede; se non ci arrivi, passa un asciugamano o un elastico attorno al piede.",
+    "Tira piano finché senti l'allungamento davanti alla coscia, poi cambia lato."
+   ],
+   "errors": [
+    "Tirare il tallone contro il gluteo comprimendo il ginocchio.",
+    "Inarcare la schiena invece di portare indietro la coscia."
+   ],
+   "safety": [
+    "Ginocchio: la versione su un fianco non richiede equilibrio; con l'asciugamano la flessione resta minore. Mai dolore all'articolazione."
+   ],
+   "source": "National Institute on Aging (NIH), Exercise & Physical Activity: Your Everyday Guide, NIH Pub. 09-4258, 2009, p. 84 (coscia, sdraiato su un fianco). Dose: ACSM, Garber et al. 2011, MSSE 43(7):1334-1359 (30-60 s di tenuta negli adulti più anziani, ~60 s totali per muscolo)",
+   "perSide": true,
+   "reserve": true
+  },
+  {
+   "id": "s_hamseated",
+   "name": "Allungamento dei femorali seduto su una panca",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "stretch",
+   "group": "Catena posteriore",
+   "pattern": "static",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Femorali"
+   ],
+   "secondary": [
+    "Polpaccio"
+   ],
+   "equipment": [
+    "Panca o due sedie"
+   ],
+   "art": {
+    "frames": [
+     "hamBench",
+     "hamBenchLean"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Seduto di lato su una panca, o su due sedie accostate, una gamba distesa sulla panca con le punte in alto.",
+    "L'altro piede resta appoggiato a terra.",
+    "Schiena dritta: se non senti ancora l'allungamento, inclinati in avanti dalle anche, non dalla vita, poi cambia gamba."
+   ],
+   "errors": [
+    "Arrotondare la schiena per scendere di più.",
+    "Bloccare il ginocchio teso: tienilo appena morbido."
+   ],
+   "safety": [
+    "Schiena o anca operate: senti prima il medico (indicazione della guida NIA)."
+   ],
+   "source": "National Institute on Aging (NIH), Exercise & Physical Activity: Your Everyday Guide, NIH Pub. 09-4258, 2009, p. 83 (dietro della gamba, su una panca). Dose: ACSM, Garber et al. 2011, MSSE 43(7):1334-1359 (30-60 s di tenuta negli adulti più anziani, ~60 s totali per muscolo)",
+   "perSide": true,
+   "reserve": true
+  },
+  {
+   "id": "s_hamsupine",
+   "name": "Allungamento dei femorali supino con le mani",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "stretch",
+   "group": "Catena posteriore",
+   "pattern": "static",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Femorali"
+   ],
+   "secondary": [
+    "Polpaccio"
+   ],
+   "equipment": [
+    "Tappetino"
+   ],
+   "art": {
+    "frames": [
+     "supineLegUp",
+     "supineLegUp"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Supino, un ginocchio piegato con il piede a terra.",
+    "Solleva l'altra gamba con il ginocchio appena piegato e afferrala con entrambe le mani dietro la coscia.",
+    "Tirala piano verso di te finché senti l'allungamento dietro la gamba; testa e spalle restano a terra. Poi cambia lato."
+   ],
+   "errors": [
+    "Tirare dal ginocchio o dalla tibia.",
+    "Sollevare testa e spalle dal tappetino."
+   ],
+   "safety": [
+    "Senza elastico: utile quando la loop band non c'è."
+   ],
+   "source": "National Institute on Aging (NIH), Exercise & Physical Activity: Your Everyday Guide, NIH Pub. 09-4258, 2009, p. 82 (dietro della gamba, sdraiato). Dose: ACSM, Garber et al. 2011, MSSE 43(7):1334-1359 (30-60 s di tenuta negli adulti più anziani, ~60 s totali per muscolo)",
+   "perSide": true,
+   "reserve": true
+  },
+  {
+   "id": "s_hiplower",
+   "name": "Apertura dell'anca supina",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "stretch",
+   "group": "Adduttori",
+   "pattern": "static",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Adduttori"
+   ],
+   "secondary": [
+    "Anca"
+   ],
+   "equipment": [
+    "Tappetino"
+   ],
+   "art": {
+    "frames": [
+     "bridgeDown",
+     "hookKneeOut"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Supino, gambe unite, ginocchia piegate e piedi a terra; le spalle restano appoggiate.",
+    "Lascia scendere lentamente un ginocchio di lato fin dove è comodo, piedi vicini e l'altra gamba ferma.",
+    "Mantieni, riporta su il ginocchio piano e ripeti dall'altro lato."
+   ],
+   "errors": [
+    "Lasciar ruotare il bacino con la gamba.",
+    "Spingere il ginocchio verso il basso con la mano."
+   ],
+   "safety": [
+    "Inguine: è la forma più dolce di allungamento degli adduttori, una gamba alla volta e senza carico; fermati se il fastidio all'inguine aumenta."
+   ],
+   "source": "National Institute on Aging (NIH), Exercise & Physical Activity: Your Everyday Guide, NIH Pub. 09-4258, 2009, p. 86 (anca, sdraiato sulla schiena). Dose: ACSM, Garber et al. 2011, MSSE 43(7):1334-1359 (30-60 s di tenuta negli adulti più anziani, ~60 s totali per muscolo)",
+   "perSide": true,
+   "reserve": true
+  },
+  {
+   "id": "s_upperback",
+   "name": "Allungamento della parte alta della schiena da seduto",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "stretch",
+   "group": "Dorso",
+   "pattern": "static",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Romboidi",
+    "Trapezio medio"
+   ],
+   "secondary": [
+    "Deltoide posteriore",
+    "Gran dorsale"
+   ],
+   "equipment": [
+    "Sedia"
+   ],
+   "art": {
+    "frames": [
+     "chairSit",
+     "seatedArmsFwd"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Seduto su una sedia stabile, piedi a terra alla larghezza delle spalle.",
+    "Braccia avanti all'altezza delle spalle, palmi rivolti in fuori.",
+    "Spalle rilassate e busto fermo, allunga le mani in avanti fino a sentire le scapole che si aprono. Più avanti potrai incrociare le braccia e intrecciare le dita."
+   ],
+   "errors": [
+    "Piegare il busto in avanti invece di allungare le braccia.",
+    "Alzare le spalle verso le orecchie."
+   ],
+   "safety": [
+    "Spalla: braccia all'altezza delle spalle, mai sopra la testa; solo fin dove non fa male."
+   ],
+   "source": "National Institute on Aging (NIH), Exercise & Physical Activity: Your Everyday Guide, NIH Pub. 09-4258, 2009, p. 78 (parte alta della schiena). Dose: ACSM, Garber et al. 2011, MSSE 43(7):1334-1359 (30-60 s di tenuta negli adulti più anziani, ~60 s totali per muscolo)",
+   "perSide": false,
+   "reserve": true
+  },
+  {
+   "id": "s_seatedtwist",
+   "name": "Torsione del busto da seduto",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "stretch",
+   "group": "Colonna",
+   "pattern": "static",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Obliqui",
+    "Erettori spinali"
+   ],
+   "secondary": [
+    "Colonna"
+   ],
+   "equipment": [
+    "Sedia con braccioli"
+   ],
+   "art": {
+    "frames": [
+     "chairSit",
+     "seatedTwist"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Seduto verso il bordo di una sedia con braccioli, busto più dritto possibile.",
+    "Ruota lentamente il busto dalla vita senza muovere le anche, girando anche la testa; una mano sul bracciolo, l'altra sull'esterno della coscia opposta.",
+    "Mantieni, torna al centro e ripeti dall'altro lato."
+   ],
+   "errors": [
+    "Ruotare il bacino insieme al busto.",
+    "Forzare la torsione tirando con le braccia."
+   ],
+   "safety": [
+    "Schiena operata: senti prima il medico (indicazione della guida NIA). Movimento lento, mai a strappi."
+   ],
+   "source": "National Institute on Aging (NIH), Exercise & Physical Activity: Your Everyday Guide, NIH Pub. 09-4258, 2009, p. 77 (schiena, torsione da seduto). Dose: ACSM, Garber et al. 2011, MSSE 43(7):1334-1359 (30-60 s di tenuta negli adulti più anziani, ~60 s totali per muscolo)",
+   "perSide": true,
+   "reserve": true
+  },
+  {
+   "id": "s_ankleflex",
+   "name": "Allungamento della caviglia da seduto",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "stretch",
+   "group": "Polpacci",
+   "pattern": "static",
+   "load": "time",
+   "kneeFriendly": true,
+   "primary": [
+    "Gastrocnemio"
+   ],
+   "secondary": [
+    "Soleo",
+    "Tibiale anteriore"
+   ],
+   "equipment": [
+    "Sedia"
+   ],
+   "art": {
+    "frames": [
+     "ankleToes",
+     "ankleUp"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "Seduto verso il bordo di una sedia stabile, gambe distese in avanti con i talloni a terra.",
+    "Fletti le caviglie portando le punte verso di te e mantieni: l'allungamento si sente dietro la gamba.",
+    "Fra una tenuta e l'altra porta le punte lontano da te per qualche secondo."
+   ],
+   "errors": [
+    "Bloccare le ginocchia: tienile appena morbide.",
+    "Sollevare i talloni da terra."
+   ],
+   "safety": [
+    "Utile al posto dell'allungamento al muro quando stare in piedi è scomodo."
+   ],
+   "source": "National Institute on Aging (NIH), Exercise & Physical Activity: Your Everyday Guide, NIH Pub. 09-4258, 2009, p. 79 (caviglia). Dose: ACSM, Garber et al. 2011, MSSE 43(7):1334-1359 (30-60 s di tenuta negli adulti più anziani, ~60 s totali per muscolo)",
+   "perSide": false,
+   "reserve": true
+  },
+  {
+   "id": "s_shoulderrolls",
+   "name": "Rotazioni delle spalle",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "stretch",
+   "group": "Mobilità spalle",
+   "pattern": "mobility",
+   "load": "bodyweight",
+   "kneeFriendly": true,
+   "primary": [
+    "Trapezio superiore",
+    "Romboidi"
+   ],
+   "secondary": [
+    "Spalle"
+   ],
+   "equipment": [],
+   "art": {
+    "frames": [
+     "stand",
+     "shrugUp"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "In piedi o seduto, braccia rilassate lungo i fianchi.",
+    "Solleva le spalle verso le orecchie, portale indietro avvicinando le scapole e poi giù, in un cerchio lento.",
+    "Completa le ripetizioni previste; le ultime nel senso opposto."
+   ],
+   "errors": [
+    "Muovere la testa insieme alle spalle.",
+    "Fare cerchi piccoli e veloci."
+   ],
+   "safety": [
+    "Spalla: le braccia restano basse, nessun movimento sopra la testa; fermati se compare pizzicore."
+   ],
+   "source": "Behm et al. 2016, Appl Physiol Nutr Metab 41(1):1-11 (revisione sistematica): lo stretching dinamico prima dell'attività migliora la prestazione in misura piccola-moderata e aumenta l'escursione articolare. Scelta dell'esercizio: regola operativa dell'app (nessuno studio aperto lo prescrive in modo specifico)",
+   "reserve": true
+  },
+  {
+   "id": "s_trunkrot",
+   "name": "Rotazioni del busto in piedi",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "stretch",
+   "group": "Mobilità colonna",
+   "pattern": "mobility",
+   "load": "bodyweight",
+   "kneeFriendly": true,
+   "primary": [
+    "Colonna toracica",
+    "Obliqui"
+   ],
+   "secondary": [
+    "Spalle"
+   ],
+   "equipment": [],
+   "art": {
+    "frames": [
+     "stand",
+     "frontStand"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "In piedi, piedi alla larghezza delle anche e ginocchia morbide, braccia incrociate sul petto.",
+    "Ruota lentamente il busto da un lato e poi dall'altro, con il bacino che resta rivolto in avanti.",
+    "Aumenta l'ampiezza a ogni ripetizione, senza slanci."
+   ],
+   "errors": [
+    "Ruotare anche le ginocchia e il bacino.",
+    "Usare lo slancio delle braccia."
+   ],
+   "safety": [
+    "Schiena: movimento lento e controllato, solo nell'escursione senza dolore."
+   ],
+   "source": "Behm et al. 2016, Appl Physiol Nutr Metab 41(1):1-11 (revisione sistematica): lo stretching dinamico prima dell'attività migliora la prestazione in misura piccola-moderata e aumenta l'escursione articolare. Scelta dell'esercizio: regola operativa dell'app (nessuno studio aperto lo prescrive in modo specifico)",
+   "reserve": true
+  },
+  {
+   "id": "s_kneehug",
+   "name": "Ginocchio al petto in piedi",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "stretch",
+   "group": "Mobilità anca",
+   "pattern": "mobility",
+   "load": "bodyweight",
+   "kneeFriendly": true,
+   "primary": [
+    "Glutei",
+    "Femorali"
+   ],
+   "secondary": [
+    "Anca"
+   ],
+   "equipment": [],
+   "art": {
+    "frames": [
+     "stand",
+     "kneeHug"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "In piedi, vicino a un appoggio se serve per l'equilibrio.",
+    "Porta un ginocchio verso il petto e abbraccialo per un attimo con le mani sotto il ginocchio.",
+    "Torna giù con calma e alterna le gambe fino alle ripetizioni previste."
+   ],
+   "errors": [
+    "Arrotondare la schiena per avvicinare il ginocchio.",
+    "Tirare la tibia comprimendo il ginocchio."
+   ],
+   "safety": [
+    "Ginocchio: le mani prendono la coscia sotto il ginocchio, non la tibia; nessuna pressione sull'articolazione."
+   ],
+   "source": "Behm et al. 2016, Appl Physiol Nutr Metab 41(1):1-11 (revisione sistematica): lo stretching dinamico prima dell'attività migliora la prestazione in misura piccola-moderata e aumenta l'escursione articolare. Scelta dell'esercizio: regola operativa dell'app (nessuno studio aperto lo prescrive in modo specifico)",
+   "perSide": false,
+   "reserve": true
+  },
+  {
+   "id": "s_hingefree",
+   "name": "Cerniera dell'anca a corpo libero",
+   "setup": [
+    "gym",
+    "home"
+   ],
+   "type": "stretch",
+   "group": "Mobilità anca",
+   "pattern": "mobility",
+   "load": "bodyweight",
+   "kneeFriendly": true,
+   "primary": [
+    "Femorali",
+    "Glutei"
+   ],
+   "secondary": [
+    "Erettori spinali"
+   ],
+   "equipment": [],
+   "art": {
+    "frames": [
+     "standHips",
+     "hingeHips"
+    ],
+    "implement": null
+   },
+   "steps": [
+    "In piedi, piedi alla larghezza delle anche, mani sui fianchi e ginocchia morbide.",
+    "Porta il bacino indietro con la schiena lunga finché senti i femorali in allungamento.",
+    "Torna su stringendo i glutei; movimento lento e ampio."
+   ],
+   "errors": [
+    "Piegare la schiena invece delle anche.",
+    "Scendere oltre il punto in cui la schiena resta dritta."
+   ],
+   "safety": [
+    "Stesso gesto della cerniera con aerobic bar, senza attrezzi: adatto a casa."
+   ],
+   "source": "Behm et al. 2016, Appl Physiol Nutr Metab 41(1):1-11 (revisione sistematica): lo stretching dinamico prima dell'attività migliora la prestazione in misura piccola-moderata e aumenta l'escursione articolare. Scelta dell'esercizio: regola operativa dell'app (nessuno studio aperto lo prescrive in modo specifico)",
+   "perSide": false,
+   "reserve": true
   }
  ]
 }

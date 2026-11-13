@@ -393,7 +393,13 @@
         "hinge"
        ],
        "goal": "legTone",
-       "note": "Glutei e femorali"
+       "note": "Glutei e femorali",
+       "cycle": [
+        "g_backext",
+        "g_goodmorning",
+        "g_rdl"
+       ],
+       "cycleFrom": "2026-11-16"
       },
       {
        "patterns": [
@@ -1335,12 +1341,8 @@
    "label": "Sacco da pugilato a intervalli"
   },
   {
-   "id": "a_rower",
-   "label": "Vogatore a intervalli (attacco corto)"
-  },
-  {
-   "id": "f_boxing",
-   "label": "Colpi al sacco d'aria (anche a casa)"
+   "id": "a_stepper",
+   "label": "Macchina a scalini a ritmo costante"
   },
   {
    "id": "none",
